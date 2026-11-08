@@ -141,10 +141,10 @@ impl<'a, 'input> Document<'a, 'input> {
         }
     }
 
-    /// Returns the facts in document order: the elements below the root that name a context.
+    /// Returns the facts in document order: the children of the root that name a context.
     ///
-    /// A fact inside a tuple is not below the root, so the parser skips it. EDGAR does not accept
-    /// tuples.
+    /// A fact inside a tuple is not a child of the root, so the parser skips it. EDGAR does not
+    /// accept tuples.
     pub fn facts(&self) -> impl Iterator<Item = Node<'a, 'input>> {
         self.root
             .children()
@@ -403,4 +403,27 @@ fn missing_element(element: &'static str, id: &str) -> InvalidValue {
         InvalidValueReason::NoMatchingElement(element),
         id,
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn should_find_the_extension_namespace_when_the_schema_prefix_holds_a_hyphen() {
+        let text = r#"<xbrl xmlns:link="http://www.xbrl.org/2003/linkbase"
+            xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:abc-x="http://www.abc.com/20260930">
+            <link:schemaRef xlink:href="abc-x-20260930.xsd" xlink:type="simple"/></xbrl>"#;
+        let xml = roxmltree::Document::parse(text)
+            .expect("Given hardcoded well-formed XML, the parse should always succeed");
+        let document = Document::read(xml.root_element());
+
+        let expected_result = true;
+
+        let result = document.is_extension("http://www.abc.com/20260930");
+
+        assert_eq!(result, expected_result);
+    }
 }

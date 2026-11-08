@@ -67,13 +67,8 @@ impl InstanceFiling<'_> {
     const TYPE_NAME: &'static str = "InstanceFiling";
 }
 
-/// A fact element of an instance document.
-struct InstanceFact;
-
-impl InstanceFact {
-    /// The type name that [`InvalidValue`] names when a fact breaks a rule.
-    const TYPE_NAME: &'static str = "InstanceFact";
-}
+/// The type name that [`InvalidValue`] names when a fact element breaks a rule.
+const FACT_TYPE_NAME: &str = "InstanceFact";
 
 /// The as-is facts, the filing, and the findings of one instance document.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -198,7 +193,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
         let tag = element.tag_name();
         let namespace = tag.namespace().ok_or_else(|| {
             InvalidValue::new(
-                InstanceFact::TYPE_NAME,
+                FACT_TYPE_NAME,
                 InvalidValueReason::MissingPart(name::NAMESPACE),
                 tag.name(),
             )
@@ -235,11 +230,7 @@ impl<'a, 'input> Parser<'_, 'a, 'input> {
             BigDecimal::from_str(text.trim())
                 .map(FactValue::Numeric)
                 .map_err(|_| {
-                    InvalidValue::new(
-                        InstanceFact::TYPE_NAME,
-                        InvalidValueReason::NotANumber,
-                        text.trim(),
-                    )
+                    InvalidValue::new(FACT_TYPE_NAME, InvalidValueReason::NotANumber, text.trim())
                 })?
         };
         let decimals = element
@@ -683,6 +674,20 @@ mod tests {
         let result = parse_body(body)
             .expect("Given a document with a document type, the parse should always succeed")
             .findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_mark_an_amendment_when_the_amendment_flag_is_one() {
+        let body = r#"<dei:AmendmentFlag contextRef="q3">1</dei:AmendmentFlag>"#;
+
+        let expected_result = true;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .is_amendment;
 
         assert_eq!(result, expected_result);
     }

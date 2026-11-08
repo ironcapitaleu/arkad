@@ -173,7 +173,7 @@ mod tests {
                 ),
                 decimals: None,
                 copy_rank: 0,
-                footnotes: Vec::new(),
+                footnotes: vec![format!("row {row}")],
             },
         }
     }
@@ -198,14 +198,17 @@ mod tests {
             candidate(2, 2, "200"),
         ];
 
-        let expected_result = vec![("100".to_owned(), 0), ("200".to_owned(), 1)];
+        let expected_result = vec![
+            ("100".to_owned(), 0, vec!["row 1".to_owned()]),
+            ("200".to_owned(), 1, vec!["row 2".to_owned()]),
+        ];
 
         let (facts, _) = number_copies(candidates);
-        let result: Vec<(String, u16)> = facts
-            .iter()
-            .map(|fact| match &fact.value {
-                FactValue::Numeric(number) => (number.to_string(), fact.copy_rank),
-                _ => (String::new(), fact.copy_rank),
+        let result: Vec<(String, u16, Vec<String>)> = facts
+            .into_iter()
+            .map(|fact| match fact.value {
+                FactValue::Numeric(number) => (number.to_string(), fact.copy_rank, fact.footnotes),
+                _ => (String::new(), fact.copy_rank, fact.footnotes),
             })
             .collect();
 
