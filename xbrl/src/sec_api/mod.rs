@@ -7,7 +7,7 @@
 //!
 //! ## Modules
 //!
-//! - [`company_facts`]: The Company Facts API. Implemented.
+//! - [`company_facts`]: The Company Facts API.
 //! - [`company_concept`]: The Company Concept API. Placeholder.
 //! - [`frames`]: The Frames API. Placeholder.
 //! - [`frame`]: The `frame` field of a data point.
