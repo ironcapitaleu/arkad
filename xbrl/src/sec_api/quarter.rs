@@ -18,6 +18,11 @@ pub enum Quarter {
     Q4,
 }
 
+impl Quarter {
+    /// Every quarter, in calendar order.
+    pub const ALL: [Self; 4] = [Self::Q1, Self::Q2, Self::Q3, Self::Q4];
+}
+
 impl fmt::Display for Quarter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
