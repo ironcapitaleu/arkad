@@ -29,8 +29,8 @@ const QUARTER: u16 = 1;
 /// `core/dedup/newest-filing@1`, and returns the derived facts.
 ///
 /// For each fiscal year value, the rule looks for the nine-month value of the same concept, unit,
-/// and dimensions, whose end lies one quarter before the end of the year. The gap from the
-/// nine-month end to the year end must round to one quarter, so it can be 46 to 136 days long. If
+/// and dimensions, whose end lies one quarter before the end of the year. The year must end 47 to
+/// 137 days after the nine-month end, so that the fourth quarter rounds to one quarter. If
 /// several nine-month values fit, the rule takes the latest end. If both periods have an exact
 /// start, the starts must be equal. The fourth quarter is the year less the nine months. It runs
 /// from the day after the nine-month end to the year end.
@@ -52,11 +52,7 @@ pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
     series
         .facts
         .iter()
-        .filter(|year| {
-            year.unit.is_currency()
-                && matches!(year.period, Period::Duration(_))
-                && year.period.quarters() == YEAR_QUARTERS
-        })
+        .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_QUARTERS)
         .filter_map(|year| {
             let mut key = year.series_key();
             key.quarters = QUARTER;
