@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 is proposed, for the lead to accept. |
 | Date | 2026-10-21 |
 | Deciders | The project lead. The master's student reviews it after a two-week leave. |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
@@ -64,6 +64,61 @@ The rest of the decision:
 - Add Neo4j when the first trigger in [Triggers to Revisit](#triggers-to-revisit) fires.
 - Keep the graph model ready now. [Entity Resolution and the Graph](#entity-resolution-and-the-graph)
   lists the five design rules.
+
+## Amendment 1: Load Reads Silver
+
+> **Proposed on 2026-11-08,** for the lead to accept. It changes how data reaches Postgres. It keeps
+> the choice of the store.
+
+### Why
+
+The Decision above lets `ingest` write the graph and fact projections into Postgres right after the
+raw write. Since then, the pipeline gained a silver layer between transform and load
+([`silver_layer.md`](../../sec/design/pipeline/silver_layer.md)). Silver keeps the as-is facts of
+both sources side by side, in Parquet units, with a list of written units (`silver_files`). A
+prototype on real SEC files measured it on 2026-11-08:
+
+- The largest Notes file, `2024q1`, writes its silver unit in 46 s with a streamed split, and in
+  97 s with the bucket split. Peak memory stays under 1 GB.
+- A Rust job loads one silver unit into Postgres with `COPY` at about 70,000 rows per second. It
+  loads the 8.6 million rows of `2024q1` in 116 s.
+- A rerun of the load skips, and a new unit of the same key replaces the old rows in one
+  transaction.
+
+### Decision
+
+1. **Transform writes silver. Load reads silver.** No step writes Postgres from the raw store.
+2. **`ingest` writes the raw store only.** The graph and fact writes leave `ingest`. So the hybrid
+   transaction of `ingest` and its impl-private Postgres helpers are gone.
+3. **One load per silver unit, in one Postgres transaction.** The load job reads the current unit
+   of a unit key from `silver_files`. It checks the size and CRC32C of each file, copies the rows
+   with `COPY`, and checks the row count against `silver_files`.
+4. **A ledger of loaded units makes the load idempotent.** Each ledger row names one `silver_files`
+   row. If the ledger holds that row, the load skips. A newer unit of the same key replaces the
+   rows of the older unit in the same transaction.
+5. **The load runs as a Rust binary.** DuckDB loaded at the same speed, but it adds a second runtime
+   and downloads its `postgres` extension at run time.
+
+The rest of the Decision stands: one Supabase Postgres database for the graph tier and the fact
+tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
+
+### What Stays Open
+
+- The gold tables, their write rule, and how gold serves direct reads. A later gold design fixes
+  them. The ledger above is its input, not its design.
+- How provenance reaches gold. Silver stores it on every row. In Postgres, these text columns made
+  a numeric row about 418 bytes, against 7.8 bytes in Parquet. A copy of the whole as-is layer
+  with per-row provenance passes the 50 GB trigger of [Triggers to Revisit](#triggers-to-revisit)
+  at about 100 million rows. So the gold design decides what gold copies from silver.
+
+### Consequences of the Amendment
+
+- These consequences below no longer hold: the shared transaction of `ingest`, and the §8
+  reconciliation job. A load that fails leaves no ledger row, so the next run loads the unit again.
+- The Load stage implements `GraphStore` and `FactStore` against Postgres, as before. It reads
+  silver instead of raw records.
+- A parser fix reruns transform and then load. It never rewrites Postgres from the raw store.
+- The Supabase DuckDB wrapper can read silver Parquet in place. This ADR does not use it.
 
 ## Query Needs of the MVP
 
@@ -308,6 +363,9 @@ The CDN and `/v1` triggers rest on these assumptions:
 - 200 GB leaves a margin below the 250 GB of egress that the Pro plan includes.
 
 ## Consequences
+
+[Amendment 1](#amendment-1-load-reads-silver) replaces the items on the hybrid `ingest`, the shared
+pool for it, and the §8 reconciliation job.
 
 - The Load stage implements `GraphStore` and `FactStore` against one Postgres database, and
   `RawStore` against the filesystem.
