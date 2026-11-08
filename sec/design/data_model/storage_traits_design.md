@@ -210,8 +210,8 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 3. **`completeness` placement** — straddles graph structure and fact presence.
 4. **Retry / DLQ** — a `RetryingRepository` decorator (reads `is_retryable()`); reconciliation for
    post-raw projection gaps; a DLQ only for poison (non-retryable) records; all at the driver level,
-   never in the state machine. For the MVP, the silver load needs no reconciliation. See the note at
-   [Transaction ownership](#tx-ownership).
+   never in the state machine. For the MVP, the silver load needs no reconciliation job that
+   replays projections. See the note at [Transaction ownership](#tx-ownership).
 
 ---
 
