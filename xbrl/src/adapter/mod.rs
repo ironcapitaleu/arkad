@@ -1,4 +1,4 @@
-//! # Source Adapters
+//! # Adapters
 //!
 //! Provides one adapter per data source. Each adapter maps the documents of its source into
 //! as-is facts and filings.
