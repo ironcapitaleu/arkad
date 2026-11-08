@@ -239,7 +239,7 @@ mod tests {
 
     use super::*;
     use crate::core::taxonomy::family::UriPattern;
-    use crate::tests::fixtures::fake_taxonomy::{FakeTaxonomy, declaration, plugin};
+    use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     fn family(text: &str) -> NamespaceFamily {
         NamespaceFamily::new(text).expect(

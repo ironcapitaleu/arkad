@@ -4,7 +4,7 @@
 //!
 //! ## Modules
 //!
-//! - [`fake_taxonomy`]: A fake [`Taxonomy`](crate::core::taxonomy::Taxonomy) that declares
+//! - [`sample_taxonomy`]: A fake [`Taxonomy`](crate::core::taxonomy::Taxonomy) that declares
 //!   families and holds no tables.
 
-pub mod fake_taxonomy;
+pub mod sample_taxonomy;
