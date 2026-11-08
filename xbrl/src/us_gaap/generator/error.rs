@@ -44,6 +44,50 @@ pub enum GeneratorError {
         /// The value of the attribute.
         value: String,
     },
+
+    /// A locator points to something that is not a concept of the form `<family>_<name>`.
+    #[error("[InvalidConceptReference] Locator does not point to a concept, Href: '{href}', Line: '{line}', Path: '{}'", path.display())]
+    InvalidConceptReference {
+        /// The path of the file.
+        path: PathBuf,
+        /// The line of the locator in the file.
+        line: u32,
+        /// The `xlink:href` of the locator.
+        href: String,
+    },
+
+    /// An arc names a `from` or `to` label that no locator or resource of its link carries.
+    #[error("[UnresolvedArcLabel] No locator or resource carries the label of an arc, Label: '{label}', Line: '{line}', Path: '{}'", path.display())]
+    UnresolvedArcLabel {
+        /// The path of the file.
+        path: PathBuf,
+        /// The line of the arc in the file.
+        line: u32,
+        /// The label that the arc names.
+        label: String,
+    },
+
+    /// Two locators of one link share a label and point to different concepts.
+    #[error("[AmbiguousLocatorLabel] Two locators share a label and differ in concept, Label: '{label}', Line: '{line}', Path: '{}'", path.display())]
+    AmbiguousLocatorLabel {
+        /// The path of the file.
+        path: PathBuf,
+        /// The line of the second locator in the file.
+        line: u32,
+        /// The label that the locators share.
+        label: String,
+    },
+
+    /// A concept has more than one standard label.
+    #[error("[RepeatedLabel] Concept '{concept}' has more than one standard label, Line: '{line}', Path: '{}'", path.display())]
+    RepeatedLabel {
+        /// The path of the file.
+        path: PathBuf,
+        /// The line of the arc at which the concept gets a second standard label.
+        line: u32,
+        /// The concept, as `<family>:<name>`.
+        concept: String,
+    },
 }
 
 #[cfg(test)]
