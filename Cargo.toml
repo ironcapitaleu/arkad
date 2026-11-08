@@ -6,6 +6,7 @@ members = [
     "sec",
     "storage",
     "xbrl",
+    "xbrl/us_gaap_generator",
 ]
 
 [profile.release]

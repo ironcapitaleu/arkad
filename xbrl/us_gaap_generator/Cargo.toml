@@ -1,0 +1,30 @@
+[package]
+name = "us_gaap_generator"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Writes the tables of the us_gaap plug-in of the xbrl crate from the vendored FASB files."
+repository = "https://github.com/ironcapitaleu/arkad"
+categories = ["development-tools::build-utils"]
+keywords = ["xbrl", "us-gaap", "taxonomy", "generator"]
+readme = "../../README.md"
+publish = false
+
+[dependencies]
+roxmltree = "0.21"
+sha2 = "0.11.1"
+thiserror = "2"
+
+[dev-dependencies]
+pretty_assertions = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+cargo = "deny"
+all = "deny"
+pedantic = { level = "deny", priority = -1 }
+nursery = { level = "deny", priority = -1 }
+module_name_repetitions = { level = "allow", priority = 1 }
+multiple_crate_versions = { level = "allow", priority = 1 }
