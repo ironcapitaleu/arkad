@@ -1,9 +1,10 @@
 //! # Parsing Errors
 //!
-//! Error types for failures during the parse of SEC JSON and of Notes rows.
+//! Error types for failures during the parse of SEC JSON, of Notes rows, and of instance documents.
 
 use thiserror::Error;
 
+use crate::core::filing::FilingId;
 use crate::core::invalid_value::InvalidValue;
 
 pub mod invalid_data_point;
@@ -65,6 +66,30 @@ pub enum ParseErrorKind {
         /// The accession number of the filing.
         adsh: String,
         /// The rule the row breaks.
+        #[source]
+        source: InvalidValue,
+    },
+
+    /// The text of an instance document is not well-formed XML.
+    #[error(
+        "[InvalidXml] Failed to parse the instance document of the filing '{filing}', Reason: '{reason}'"
+    )]
+    InvalidXml {
+        /// The filing.
+        filing: FilingId,
+        /// The error of the XML parser.
+        reason: String,
+    },
+
+    /// A cover fact of an instance document is missing or breaks a rule of a core type, so the
+    /// filing has no [`Filing`](crate::core::filing::Filing).
+    #[error(
+        "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing '{filing}', Caused by: {source}"
+    )]
+    InvalidInstanceFiling {
+        /// The filing.
+        filing: FilingId,
+        /// The rule the cover facts break.
         #[source]
         source: InvalidValue,
     },
