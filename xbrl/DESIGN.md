@@ -65,6 +65,7 @@ xbrl/
     us_gaap/
       mod.rs               <- impl Taxonomy for UsGaap
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
+      table.rs             <- ElementRow, CalculationRow: the rows of the generated tables
       taxonomy.rs          <- generated tables: calculation tree, element reference data
       generator/           <- feature `generator`: vendored files -> taxonomy.rs
     adapter/               <- one adapter per data source
@@ -372,11 +373,13 @@ has no plug-in at all.
 ### Taxonomy Data in Code
 
 A generator reads the vendored FASB files and writes Rust tables into `us_gaap/taxonomy.rs`. The
-generated file is checked in. A developer runs the generator once per new release.
+generated file is checked in. A developer runs the generator once per new release, with
+`cargo run -p xbrl --features generator --bin generate_us_gaap`.
 
 - The generator is the module `us_gaap::generator`, behind the cargo feature `generator`. A
   normal build of `xbrl`, or of a crate that depends on it, leaves the module out. No container
-  runs it. It reads XML with `roxmltree`, the XML library of the instance parser.
+  runs it. It reads XML with `roxmltree`, the XML library of the instance parser. rustdoc
+  compiles the module without the feature, so the doc check of CI covers it.
 - `xbrl` lists itself as a dev-dependency with the `generator` feature, so every test build,
   CI included, runs the tests of the generator.
 - A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
@@ -390,6 +393,18 @@ generated file is checked in. A developer runs the generator once per new releas
   2 in the statement of other comprehensive income, and 2 in the first alternative income
   statement. A sum over all its arcs counts revenue more than once, so a sum takes the arcs of
   one role.
+- `ELEMENTS` holds one row per concept: name, standard label, data type, balance, and period type.
+- `CALCULATION_ARCS` holds the summation arcs of the statement groups in `stm/`, sorted by role,
+  parent, and child. Each row names its role. Within one role, an arc appears once. The
+  calculation linkbases of the disclosure groups are not vendored.
+- The generator fails if two arcs of one role join the same concepts with different weights.
+- `us_gaap/table.rs` defines the row types. The rows hold `&'static str`, so the tables need no
+  initialization at program start.
+- `mod.rs` marks the generated module `#[rustfmt::skip]`, so `cargo fmt` keeps the bytes that
+  the generator writes.
+- A test in the generator crate runs the generator and compares its output with the checked-in
+  file. If the vendored files or the generator change the output and nobody runs the generator,
+  the test fails.
 
 - A new release is a reviewable diff of arcs and labels.
 - The build does not parse XML.
@@ -406,7 +421,8 @@ file fails at run time).
 - `us_gaap/mappings.rs` names no release. Its 14 tags are picked by hand from filings. 12 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
   An alias list bridges renames across releases, so it does not come from one release.
-- `us_gaap/taxonomy.rs` holds no calculation tree yet.
+- `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
+  Code").
 - The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB
   release zip `https://xbrl.fasb.org/us-gaap/2026/us-gaap-2026.zip`, published 2026-01-31, and
   keep its bytes and its folder names:
@@ -422,7 +438,8 @@ file fails at run time).
 - The files keep the CRLF line ends of the FASB. `.gitattributes` marks the folder `-text`, so Git
   never changes a byte.
 - Missing for the reference data: the elements that the FASB removed before 2026 (see "Releases
-  Over Time"), and the `dei` and `srt` taxonomies.
+  Over Time"), and the `dei` and `srt` taxonomies. So the `srt` concepts of the calculation arcs
+  have no element row.
 
 ### Releases Over Time
 
