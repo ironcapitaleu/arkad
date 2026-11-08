@@ -604,11 +604,17 @@ as-is concept instead of the standard concept.
 
 A filing can sit in more than one current unit: once per source, and in a monthly and a quarterly
 Notes file after the SEC merges a quarter. Every read of `as_is_facts`, `filings`, and
-`candidates` takes one unit per filing:
+`candidates` takes one unit per filing, in this order:
 
-1. Take only current units (see [Replays](#replays)).
-2. If an instance unit holds the filing, take it.
-3. Otherwise, take the unit of the quarterly Notes file over the unit of the monthly file.
+1. Take only current units (see [Replays](#replays)). A read "as silver held it at time T" takes
+   the units current at T.
+2. If an instance unit and a Notes unit both hold the filing, copy `accepted` from the Notes
+   `filings` row onto the instance filing, its facts, and its `candidates` rows. If two Notes units
+   hold it, take the row of the quarterly file.
+3. A read "as public on day D" applies its filter now. So both sources of a filing pass the filter
+   of day D on the same day.
+4. If an instance unit holds the filing, take it.
+5. Otherwise, take the unit of the quarterly Notes file over the unit of the monthly file.
 
 The rule depends only on the source and the Notes period, never on the order of runs. A filing has
 one filed date and sits in one month and one quarter, so the rule always leaves one unit.
@@ -621,15 +627,11 @@ one filed date and sits in one month and one quarter, so the rule always leaves 
 - **Quarterly over monthly.** The SEC builds the quarterly file after the monthly files, and
   removes the monthly files at the merge (assumption A4 of
   [Cut-Over Between the Paths](ingestion_paths.md#cut-over-between-the-paths)).
-- **Accepted time.** The instance path gives `filed` only. If the Notes `filings` row that step 3
-  picks for the same filing has `accepted`, the read copies it onto the filing, its facts, and its
-  `candidates` rows. This is the
-  only value the read takes from the other source. Silver keeps the instance rows as they are.
+- **Accepted time.** The instance path gives `filed` only, so step 2 takes `accepted` from Notes.
+  This is the only value the read takes from the other source. Silver keeps the instance rows as
+  they are.
 - **`candidates`.** The same rule picks one `candidates` unit per filing, so the series step gets
   one candidate per filing and standard concept.
-- **Order.** The read copies `accepted` before any filter. The reads "as public on day D" and "as
-  silver held it at time T" then apply their own filter, and then steps 2 and 3. So both sources of
-  a filing pass the filter of day D on the same day.
 
 ### Company Attributes Over Time
 
