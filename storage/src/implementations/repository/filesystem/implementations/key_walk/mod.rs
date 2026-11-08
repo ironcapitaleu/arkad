@@ -22,7 +22,9 @@ use crate::implementations::repository::filesystem::error::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation,
 };
 use crate::implementations::repository::filesystem::implementations::constants::METADATA_SUFFIX;
-use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
+use crate::implementations::repository::filesystem::shared::document_key::{
+    DocumentKey, NON_PORTABLE_CHARACTERS,
+};
 use crate::implementations::repository::filesystem::shared::key_prefix::KeyPrefix;
 use crate::implementations::repository::filesystem::{FilesystemRepository, check_root};
 
@@ -170,6 +172,10 @@ impl KeyWalk {
     }
 }
 
+/// Names that refer to a directory, not to a document: the current directory and its parent. No
+/// key can hold them.
+const DIRECTORY_REFERENCES: [&str; 2] = [".", ".."];
+
 /// Whether the error says that the directory to list does not exist, or that a file stands in its
 /// path.
 const fn names_no_directory(error: &FailedFilesystemOperation) -> bool {
@@ -194,7 +200,7 @@ async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesy
         let Ok(name) = entry.file_name().into_string() else {
             continue;
         };
-        if name.contains(['\\', ':']) {
+        if name.contains(NON_PORTABLE_CHARACTERS) {
             continue;
         }
         let file_type = match entry.file_type().await {
@@ -223,8 +229,8 @@ async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesy
 fn sorted_names(directories: Vec<String>, files: &HashSet<String>) -> Vec<Name> {
     let keys = files.iter().filter_map(|file| {
         let name = file.strip_suffix(METADATA_SUFFIX)?;
-        // `.` and `..` name a directory, not a document, so no key can hold them.
-        (!matches!(name, "" | "." | "..")).then(|| Name::Key {
+        let holds_a_key = !name.is_empty() && !DIRECTORY_REFERENCES.contains(&name);
+        holds_a_key.then(|| Name::Key {
             name: name.to_owned(),
             has_document: files.contains(name),
         })

@@ -4,6 +4,7 @@
 //!
 //! ## Modules
 //!
+//! - `constants`: The characters that no component of a key can hold.
 //! - [`invalid_document_key`]: The [`InvalidDocumentKey`] error for a path the store rejects.
 //!
 //! ## Usage
@@ -27,8 +28,10 @@ use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize, Serializer};
 
+mod constants;
 pub mod invalid_document_key;
 
+pub(crate) use constants::NON_PORTABLE_CHARACTERS;
 pub use invalid_document_key::InvalidDocumentKey;
 
 /// Relative path identifying one document beneath the store's root directory.
@@ -120,7 +123,7 @@ impl DocumentKey {
                             path.clone(),
                         ));
                     };
-                    if text.contains(['\\', ':']) {
+                    if text.contains(NON_PORTABLE_CHARACTERS) {
                         return Err(InvalidDocumentKey::contains_non_portable_component(
                             path.clone(),
                         ));
