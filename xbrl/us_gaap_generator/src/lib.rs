@@ -113,7 +113,8 @@ fn elements(release: &Path) -> Result<Vec<ElementLine>, GeneratorError> {
     Ok(elements)
 }
 
-/// Returns the arcs of every calculation linkbase in `statements`, sorted, without repeats.
+/// Returns the arcs of every calculation linkbase in `statements`, sorted by role, parent, and
+/// child. Within one role, an arc appears once.
 ///
 /// Two calculation files can hold the same arc in the same role, so the tables keep it once.
 ///
@@ -219,6 +220,19 @@ mod tests {
              Weights: '-1.0' and '1.0', Role: 'http://fasb.org/us-gaap/role/statement/A'"
                 .to_string(),
         );
+
+        let result = check_weights(&arcs).err().map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_accept_arcs_when_two_roles_join_the_same_concepts_with_different_weights() {
+        let mut other_role = arc("-1.0");
+        other_role.role = "http://fasb.org/us-gaap/role/statement/B".to_string();
+        let arcs = vec![arc("1.0"), other_role];
+
+        let expected_result = None;
 
         let result = check_weights(&arcs).err().map(|error| error.to_string());
 
