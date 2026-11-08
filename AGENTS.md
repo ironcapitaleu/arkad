@@ -36,6 +36,32 @@ migrating an endpoint, fixing a convention), proactively **apply it everywhere i
 one file and leave identical occurrences in other files for a follow-up PR. Search the entire
 codebase for all instances before considering the change complete.
 
+### Open-Closed Principle
+
+A public trait that other code implements is open for extension and closed for modification. This
+covers the framework traits, such as `State` and `Transition`, the client traits, such as
+`SecClient` and `RateLimiter`, and the storage ports, such as `ReadRepository`. Before you change
+such a trait, check whether a new trait or impl can hold the change.
+
+- Add a new capability as its own trait next to the existing traits.
+- Make the new trait a subtrait only if every type with the new capability must also have the
+  existing capability. A type that has both today does not count. A subtrait forces each
+  implementor of the new trait to implement the existing trait too. For example, every
+  `HasResponse` is a `RequestKind`, so `HasResponse` is a subtrait of `RequestKind`. A store can
+  list without reading, so `ListRepository` is not a subtrait of `ReadRepository`.
+- A marker trait that only combines existing traits, such as `ReadWriteRepository`, is an
+  extension. It is allowed.
+- Do not move items out of an existing trait to make room for a new trait.
+- If a design must modify an existing trait, name the trait and say why an extension cannot work.
+  List the implementors and callers that change.
+- Do not propose a shape that a later step has to modify again.
+
+The rule covers traits only. A new enum variant or a new method on a struct is not in scope.
+
+Example: `ListRepository` is a standalone trait with its own `Key`, so a caller can list without
+`get`, and `ReadRepository` stays unchanged. The marker `ReadListRepository` combines the two
+([`repository_listing.md`](storage/design/data_model/repository_listing.md), "The Trait").
+
 ### Documentation
 
 - Public items in libraries **must include docstrings** (`///`).
@@ -540,6 +566,9 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Flag duplicated code
 - Functions should be focused and not overly long
 - Follow single responsibility principle
+- Follow the **Open-Closed Principle** (see "Open-Closed Principle"). A 🟡 finding is a change to a
+  public trait that other code implements, where an extension can hold the change. A subtrait whose
+  implementors can lack the existing capability is also a 🟡 finding.
 - Avoid side effects in functions
 - Naming must follow **Ottinger's Naming Rules** (reveal intent, be pronounceable, avoid encodings)
 - Code must follow the **Step-Down Rule** (higher-level concepts first, details later)
