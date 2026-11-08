@@ -1,6 +1,6 @@
 ---
 source: XBRL International specifications + FASB US GAAP 2026 Taxonomy XML files
-last-verified: 2026-11-08
+last-verified: 2026-06-14
 update-frequency: never (XBRL spec is stable; taxonomy XML updates annually but format stays the same)
 ---
 

@@ -9,9 +9,10 @@ use std::fmt;
 /// Higher tiers carry less certainty about the correctness of the resolved value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum Confidence {
-    /// Tier 1: The first concept of the alias list of a plug-in.
+    /// Tier 1: Resolved from the first concept of the alias list of a plug-in.
     Exact,
-    /// Tier 2: A later concept of the alias list, or an ESEF anchor.
+    /// Tier 2: Resolved from a later concept of the alias list, or, in a later `ifrs` plug-in,
+    /// from an ESEF anchor.
     Synonym,
     /// Tier 3: Derived from other standardized values by an SFAC 6 identity or a period identity.
     Derived,
