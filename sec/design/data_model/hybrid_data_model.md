@@ -31,7 +31,7 @@ has two parallel, non-integrated models and one raw-document store:
 - `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
   identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
 - `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42 SFAC-6-rooted
-  variants), `ResolvedFact` (with a `Confidence` ladder + `resolution_path`), `FactSet`,
+  variants), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
 - The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
   unit struct; the entire **Load SuperState is an empty file**.
@@ -41,7 +41,7 @@ What to carry forward vs. change (detail in §10):
 | Existing artifact | Verdict |
 | --- | --- |
 | `xbrl::CanonicalElement` (SFAC-6 vocabulary) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
-| `xbrl::ResolvedFact` + `Confidence` + `resolution_path` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
+| `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (SFAC-6 identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
 | `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (LEI-preferred, §4), resolved at load time |
@@ -161,7 +161,7 @@ resulting fact with its `Confidence`:
 | 3 | `Derived` | SFAC-6 identity / calculation-linkbase children (`parent = Σ childᵢ·weightᵢ`) |
 | 4 | `Computed` | full taxonomy linkbase graph traversal |
 
-`resolution_path` records the trace (which tag(s), which derivation) so any canonical fact
+`rule` and `inputs` record the trace (which tag(s), which derivation) so any canonical fact
 is explainable back to the regulator dialect it came from.
 
 ### 3.4 Dimensions
@@ -344,7 +344,7 @@ A columnar fact table — regulator-agnostic — one row per canonical observati
 | --- | --- | --- | --- |
 | `company_id` | string | `CompanyId` (LEI preferred) | partition/cluster key |
 | `canonical_element` | enum | `CanonicalElement` | universal concept |
-| `value` | int64 | `ResolvedFact.value` | integer minor units (currency) or scaled |
+| `value` | int64 | `StandardizedFact.value` | integer minor units (currency) or scaled |
 | `unit` | string | `Unit` | ISO 4217 currency, `shares`, `pure`, … |
 | `period_kind` | enum | `Period` | Instant / Duration |
 | `period_start` | date? | `Period::Duration.start` | null for Instant |
@@ -353,7 +353,7 @@ A columnar fact table — regulator-agnostic — one row per canonical observati
 | `fiscal_period` | enum | `FiscalPeriod` | Q1..Q4 / FY |
 | `dimension_sig` | string? | dimension signature | null/empty = consolidated total |
 | `confidence` | enum | `Confidence` | Exact/Synonym/Derived/Computed |
-| `resolution_path` | list<string> | `ResolvedFact.resolution_path` | traceability |
+| `rule`, `inputs` | string, list<struct> | `StandardizedFact.rule`, `StandardizedFact.inputs` | traceability |
 | `source_ref` | string | (generic) | **opaque handle to the adapter filing** (e.g. `sec:accession`) — the only link out to a regulator |
 | `ingested_at` | timestamp | (load) | idempotency/audit |
 
@@ -466,7 +466,7 @@ Where checks run: (a) **at load** — post-materialization validation before fac
 `published`; (b) **as scheduled audits** — over the whole store; (c) **on drift** — the §8
 reconciliation. On failure, facts are **quarantined** (not deleted) and, because the raw
 store is the rebuildable SoT, can be recomputed after a resolution/mapping fix. Every fact
-carries `confidence` + `resolution_path`, so a data-quality report is explainable down to the
+carries `confidence`, `rule`, and `inputs`, so a data-quality report is explainable down to the
 native tag it came from.
 
 Storage mechanics by option: **Postgres** → SQL aggregate checks + CHECK-style assertions +
@@ -482,8 +482,8 @@ different natural homes:
 
 1. **Source provenance** — *which filing* a fact came from: accession, form, `filed_date`,
    regulator, native `us-gaap` tag, taxonomy version. **Tabular** (one origin per observation).
-2. **Derivation provenance** — *how* a canonical fact was computed: `confidence` +
-   `resolution_path`. For `Exact`/`Synonym` it is a single tag; for `Derived`/`Computed` it is
+2. **Derivation provenance** — *how* a canonical fact was computed: `confidence`, `rule`, and
+   `inputs`. For `Exact`/`Synonym` it is a single tag; for `Derived`/`Computed` it is
    a **DAG** (e.g. `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`, each
    from a specific accession) — i.e. the calculation-linkbase structure itself.
 
@@ -499,7 +499,7 @@ never scanned during analytical aggregation — keeping screener scans lean.
 | | Postgres | Lakehouse (columnar) | Graph DB |
 | --- | --- | --- | --- |
 | Source provenance | `source_ref` FK → `raw_observation`/`filing` tables (normalized) | can be **inlined denormalized** — repeated accessions **dictionary/RLE-compress to ~nothing**; wide flat fact tables are idiomatic | edge property / `(Fact)-[:FROM]->(Filing)` |
-| Derivation (`resolution_path`) | JSONB column or `fact_input` join table (fact ↔ inputs, weight+role) | nested/list Parquet column or lineage table | **native** — `(Fact)-[:DERIVED_FROM {weight}]->(Observation)` |
+| Derivation (`rule`, `inputs`) | JSONB column or `fact_input` join table (fact ↔ inputs, weight+role) | nested/list Parquet column or lineage table | **native** — `(Fact)-[:DERIVED_FROM {weight}]->(Observation)` |
 
 A genuine difference falls out: **columnar is *better* at inlining source provenance** (its
 repetition compresses for free), while **the graph is *better* at derivation lineage**;
@@ -507,7 +507,7 @@ Postgres is the balanced middle.
 
 **Population.** Provenance is a **write-once byproduct** of the raw-first order (§8): the raw
 observation *is* the source provenance (written first); the fact references it in the same
-transaction/commit; the resolution engine emits `resolution_path`/`confidence` as it resolves.
+transaction/commit; the resolution engine emits `rule`/`inputs`/`confidence` as it resolves.
 Provenance is **append-only and immutable** — a fact's origin never changes; a restatement is a
 *new* fact with *new* provenance, the old retained for audit (amendment supersedes,
 accession-keyed). Immutability means no UPDATE churn (Postgres) and no merge-on-read
@@ -543,7 +543,7 @@ Today: `ParseCompanyFacts → CompanyData`; `CreateFinancialStatements → place
 flowchart LR
   A["Extract (SEC adapter)\nfetch EDGAR company facts"] --> B["Parse → AsIsFact[] + Filing[]\n(every namespace, CIK, accession)"]
   B --> B2["Persist raw store (SEC adapter)"]
-  B --> C["Resolve → ResolvedFact[]\n(CanonicalElement + Confidence + path)"]
+  B --> C["Resolve → StandardizedFact[]\n(CanonicalElement + Confidence + rule)"]
   C --> D["CreateFinancialStatements\n→ FactSet(s) (was placeholder)"]
   D --> L["Load / StoreData (new)"]
   L --> G["Graph: upsert Company(LEI)/Filing/Period/Concept + edges"]
@@ -553,18 +553,18 @@ flowchart LR
 
 - **Resolution moves earlier and becomes the adapter boundary:** `ParseCompanyFacts` emits
   `AsIsFact`s (already implemented in `xbrl::adapter::edgar::company_facts::parse`); a new
-  resolve step turns them into `ResolvedFact`s. `CreateFinancialStatements` stops emitting a
+  resolve step turns them into `StandardizedFact`s. `CreateFinancialStatements` stops emitting a
   placeholder and emits `FactSet`s (the intermediate representation — no extra DTO needed).
 - **Load/`StoreData`** is the dual-writer: raw store (adapter) → graph → canonical facts.
 - `sec::CompanyData/Observation/ConceptDefinition` are **retired** in favor of
-  `xbrl::FactSet/ResolvedFact/CanonicalElement`; this SPIKE is the trigger for that
+  `xbrl::FactSet/StandardizedFact/CanonicalElement`; this SPIKE is the trigger for that
   sec→xbrl migration flagged in the ticket's Additional Notes.
 
 ## 10. Migration From the Current (Immature) Skeleton
 
 | Step | Action |
 | --- | --- |
-| 1 | Promote `xbrl::core` (CanonicalElement, ResolvedFact, FactSet, Confidence, Invariant, Period, Unit) to the **standard-neutral core**; decouple `CanonicalElement` from the `us_gaap` module namespace. |
+| 1 | Promote `xbrl::core` (CanonicalElement, StandardizedFact, FactSet, Confidence, Invariant, Period, Unit) to the **standard-neutral core**; decouple `CanonicalElement` from the `us_gaap` module namespace. |
 | 2 | Reframe `xbrl::us_gaap` as the **SEC/US-GAAP adapter** (raw parse + resolution map + filing metadata). Keep `adapter::edgar::company_facts::parse`. |
 | 3 | Add `Lei` domain concept + `CompanyId` enum under `shared/`; add CIK→LEI translation to the SEC adapter. |
 | 4 | Implement the resolution engine (`xbrl::core::graph` TODO stub) — the 4-tier ladder + calc-linkbase derivation. |
@@ -839,7 +839,7 @@ native graph tooling up front.
 
 ### 14.D Implementation order (identical under both options)
 
-1. Build **canonical core types** (`CanonicalElement`, `CanonicalFact`/`ResolvedFact`,
+1. Build **canonical core types** (`CanonicalElement`, `CanonicalFact`/`StandardizedFact`,
    `FactSet`, `Lei`/`CompanyId`, `Invariant`) — storage-agnostic domain layer.
 2. Build the **SEC adapter** (raw parse + resolution map + CIK→LEI).
 3. Implement **`Load`** to call `Repository::ingest` behind the storage-abstraction traits

@@ -3,7 +3,9 @@
 //! Provides [`Finding`], a fact about the data that a step reports without failing the run.
 
 use super::concept::NamespaceFamily;
-use super::filing::FilingId;
+use super::elements::CanonicalElement;
+use super::fact::FactKey;
+use super::filing::{EntityId, FilingId};
 use super::invalid_value::InvalidValue;
 
 /// A fact about the data that a step reports without failing the run.
@@ -29,6 +31,18 @@ pub enum Finding {
         row: String,
         /// The rule the row breaks.
         reason: InvalidValue,
+    },
+    /// One or more copy ranks of a value key disagree with rank 0, so the ranks are two or more
+    /// facts. `core/dedup/more-precise@1` keeps every rank and reports the conflict.
+    Conflict {
+        /// The entity the facts are about.
+        entity: EntityId,
+        /// The value key of rank 0. It names the filing, the as-is concept, and the period.
+        key: FactKey,
+        /// The ranks that disagree with rank 0, in ascending order.
+        ranks: Vec<u16>,
+        /// The standard concept of the as-is concept, if a plug-in maps it.
+        standard_concept: Option<CanonicalElement>,
     },
 }
 

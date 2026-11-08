@@ -61,7 +61,7 @@ Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + 
 
 - Never map two different financial concepts to the same CanonicalElement for the same period
 - Preserve sign conventions: expenses are positive values that reduce net income
-- Maintain traceability: every ResolvedFact must record its resolution_path
+- Maintain traceability: every StandardizedFact must record its `rule` and its `inputs`
 - Balance sheet items are Instant (point-in-time); income/cash flow items are Duration
 - Amendment filings supersede originals (same accession = latest wins)
 
