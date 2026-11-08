@@ -4,7 +4,9 @@
 //!
 //! ## Modules
 //!
+//! - [`sample_fact`]: Builders of as-is facts and candidates.
 //! - [`sample_taxonomy`]: A fake [`Taxonomy`](crate::core::taxonomy::Taxonomy) that declares
-//!   families and holds no tables.
+//!   families and holds alias lists.
 
+pub mod sample_fact;
 pub mod sample_taxonomy;
