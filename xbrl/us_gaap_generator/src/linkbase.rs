@@ -405,15 +405,15 @@ mod tests {
     #[test]
     fn should_return_unresolved_arc_label_when_arc_names_no_locator() {
         let text = linkbase(
-            "<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\
-             <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
-             <link:calculationArc weight='1.0' xlink:from='loc_A' xlink:to='loc_Missing' />\
+            "\n<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\n\
+             <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\n\
+             <link:calculationArc weight='1.0' xlink:from='loc_A' xlink:to='loc_Missing' />\n\
              </link:calculationLink>",
         );
 
         let expected_result = Some(
             "[UnresolvedArcLabel] No locator or resource carries the label of an arc, \
-             Label: 'loc_Missing', Line: '1', Path: 'linkbase.xml'"
+             Label: 'loc_Missing', Line: '4', Path: 'linkbase.xml'"
                 .to_string(),
         );
 
@@ -427,14 +427,14 @@ mod tests {
     #[test]
     fn should_return_invalid_concept_reference_when_href_has_no_fragment() {
         let text = linkbase(
-            "<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\
-             <link:loc xlink:href='../elts/us-gaap-2026.xsd' xlink:label='loc_A' />\
+            "\n<link:calculationLink xlink:type='extended' xlink:role='http://fasb.org/us-gaap/role/statement/A'>\n\
+             <link:loc xlink:href='../elts/us-gaap-2026.xsd' xlink:label='loc_A' />\n\
              </link:calculationLink>",
         );
 
         let expected_result = Some(
             "[InvalidConceptReference] Locator does not point to a concept, \
-             Href: '../elts/us-gaap-2026.xsd', Line: '1', Path: 'linkbase.xml'"
+             Href: '../elts/us-gaap-2026.xsd', Line: '3', Path: 'linkbase.xml'"
                 .to_string(),
         );
 
@@ -448,18 +448,18 @@ mod tests {
     #[test]
     fn should_return_repeated_label_when_concept_has_two_standard_labels() {
         let text = linkbase(
-            "<link:labelLink xlink:type='extended'>\
-             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
-             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\
-             <link:label xlink:label='lab_B' xlink:role='http://www.xbrl.org/2003/role/label'>Assets, Again</link:label>\
-             <link:labelArc xlink:from='loc_A' xlink:to='lab_A' />\
-             <link:labelArc xlink:from='loc_A' xlink:to='lab_B' />\
+            "\n<link:labelLink xlink:type='extended'>\n\
+             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\n\
+             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\n\
+             <link:label xlink:label='lab_B' xlink:role='http://www.xbrl.org/2003/role/label'>Assets, Again</link:label>\n\
+             <link:labelArc xlink:from='loc_A' xlink:to='lab_A' />\n\
+             <link:labelArc xlink:from='loc_A' xlink:to='lab_B' />\n\
              </link:labelLink>",
         );
 
         let expected_result = Some(
             "[RepeatedLabel] Concept 'us-gaap:Assets' has more than one standard label, \
-             Line: '1', Path: 'linkbase.xml'"
+             Line: '7', Path: 'linkbase.xml'"
                 .to_string(),
         );
 
