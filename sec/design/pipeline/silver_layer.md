@@ -180,7 +180,7 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 | `form`, `is_amendment` | `utf8`, `bool` | `10-K/A`, true |
 | `filed`, `accepted` | `date32`, `timestamp[ms, UTC]` nullable | |
 | `period_of_report` | `date32` | |
-| `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. The first backfill counts the nulls |
+| `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. Empty for forms without financial statements, see [Company Attributes Over Time](#company-attributes-over-time) |
 | `company_name` | `utf8`, nullable | `sub.tsv` `name`, or `dei:EntityRegistrantName` |
 | `sic` | `utf8`, nullable | `sub.tsv` `sic`, or `submissions` `sic` |
 | `tickers` | `list<struct<symbol: utf8, exchange: utf8 nullable>>` | `dei:TradingSymbol` and `dei:SecurityExchangeName`, one entry per share class |
@@ -532,8 +532,8 @@ Measured in the Notes file `2025q3`, as the share of filings with the tag in `tx
 | 40-F | 6 | 100% | 100% |
 
 So the null rule for `tickers` matters: about one 10-K in three has no ticker. `sub.tsv` leaves
-`fye` empty in 171 of 23,459 filings, and `fy` and `fp` in 17,158, mostly forms without financial
-statements. The parse step counts the nulls per unit, so every backfill run reports them.
+`fye` empty in 171 of 23,459 filings, and `fy` and `fp` in 17,158. All 5,731 filings of the forms
+10-K, 10-Q, 20-F, and 40-F have `fy`, `fp`, and `fye`. The parse step counts the nulls per unit, so every backfill run reports them.
 
 ## Processing
 
@@ -543,25 +543,38 @@ The unit of transform is one filing. One filing is small: in the Notes file `202
 with numeric values has 785 rows in `num.tsv` at the median and 27,529 at most (measured). A Notes
 file is large. `2025q3` holds 1,188.6 MB of `num.tsv` and 954.6 MB of `txt.tsv` unzipped (measured).
 
-`num.tsv` and `txt.tsv` are sorted by `adsh` in the Notes data set. In `2025q3`, the 7,441 filings
-of `num.tsv` form 7,441 runs of adjacent rows in ascending order, and the 23,459 filings of
-`txt.tsv` form 23,459 runs (measured). `sub.tsv` is not sorted, but it holds 7.1 MB. The plain
-Financial Statement data set is not sorted, so this result holds for the Notes data set only.
+The sort order of the tables differs between Notes files (measured on 2026-11-08):
+
+| Notes file | `num.tsv` sorted by `adsh` | `txt.tsv` sorted by `adsh` |
+| ---------- | -------------------------- | -------------------------- |
+| `2010q1` | No | Yes |
+| `2012q4` | No | No |
+| `2020q4` | Yes | No |
+| `2024q1`, `2025q3`, `2026_10` | Yes | Yes |
+
+`sub.tsv` is not sorted in five of these six files, but it holds at most a few MB. `2009q1` holds
+only the header line of each table, so it gives no filings. The split never relies on the order.
 
 | Option | Peak memory | Cost |
 | ------ | ----------- | ---- |
 | A. Read each table whole | 2.87 GB for an eager read of `num.tsv` of `2025q3`, 4.95 GB with `txt.tsv` after it (measured) | Simple. Needs a large task for the largest file |
-| B. K passes over the ZIP stream, each keeping one hash bucket of `adsh` | About 1/K of the rows | K times the inflate time. Needed only if the tables were not sorted |
-| C. One pass over the ZIP stream that cuts each table at each change of `adsh` (proposed) | One filing: 36 MB for `num.tsv` of `2025q3` (measured) | One read of each table. Relies on the sort order, so the split checks it |
+| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (proposed) | About 1/K of the rows | K times the inflate time, about 4 s per pass per GB at 343 MB/s on one core (measured) |
+| C. One pass that cuts each table at each change of `adsh` | One filing: 36 MB for a pass over `num.tsv` of `2025q3` (measured) | Works only for a sorted table, so not for `2010q1`, `2012q4`, or `2020q4` |
 
-Proposal: C. The split reads `sub.tsv` and `dim.tsv` whole, about 81 MB of text for `2025q3`. It then
-streams `num.tsv` and `txt.tsv` side by side and joins them by `adsh`, as a merge of two sorted
-lists. It hands one filing at a time to the parse state. A streamed pass over `num.tsv` of `2025q3`
-took 13.8 s in Python (measured).
+Proposal: B, for every Notes file, so the split has one code path:
 
-If a row has a smaller `adsh` than the row before it, the split fails the Notes file with an error
-that names the table and the row. So a change of the sort order at the SEC stops the run and never
-gives wrong filings.
+- The split reads `sub.tsv` and `dim.tsv` whole, about 81 MB of text for `2025q3`.
+- It picks K so that one bucket holds at most about 256 MB of text of `num.tsv` and `txt.tsv`.
+  For `2024q1`, with 2.7 GB of both, K is 11. The 22 passes take about 1.5 minutes of inflate time
+  (estimate).
+- Each pass keeps the rows whose `adsh` hashes to the bucket, groups them by `adsh`, and hands one
+  filing at a time to the parse state.
+- The write state writes one Parquet part per bucket and dataset (`part-<k>.parquet`), then drops
+  the bucket. So it never holds a whole Notes file. Inside a part, rows sort by `filing_id`.
+- `candidates` sorts each part by `entity_bucket`, then by `filing_id`. A series task reads the row
+  groups of its entity bucket from every part.
+
+C is a later speed-up for sorted files only. It needs a check of the order and a fallback to B.
 
 ### Where the State Machine Fits
 
@@ -572,11 +585,11 @@ gives wrong filings.
 
 Proposal: A, with Polars inside the states that move tables:
 
-- The split state streams the ZIP and cuts it into filings, as in
-  [Unit of Work and Memory](#unit-of-work-and-memory). It needs no DataFrame.
+- The split state streams the ZIP in K passes and cuts each bucket into filings, as in
+  [Unit of Work and Memory](#unit-of-work-and-memory).
 - The parse and standardize states call the `xbrl` crate on Rust types. Only the Rust code applies
   the rules.
-- The write state turns the Rust rows of a unit into Arrow batches and writes Parquet.
+- The write state turns the Rust rows of one bucket into Arrow batches and writes one Parquet part.
 - The series step is a super-state per entity bucket. Inside it, Polars reads the `candidates` of
   the bucket, and the `xbrl` rules run per entity.
 
@@ -619,7 +632,7 @@ Estimates. The prototype measures them.
 
 | Job | Tasks | Memory per task | Parallel tasks | Timeout |
 | --- | ----- | --------------- | -------------- | ------- |
-| Transform of the backfill | One per Notes file, 80 | 1 GiB with option C | 10 | 1 hour |
+| Transform of the backfill | One per Notes file, 80 | 2 GiB with option B: one bucket of about 256 MB of text, plus `sub.tsv` and `dim.tsv` | 10 | 1 hour |
 | Transform of one day | 1 | 1 GiB | 1 | 30 minutes |
 | Standardize series | One per entity bucket, 64 | 2 GiB | 16 | 30 minutes |
 | Checks and load | One per dataset unit | 1 GiB | 4 | 30 minutes |
@@ -666,7 +679,8 @@ Notes file `2025q3_notes.zip`:
 
 - **Size.** 463.4 MB zipped. `num.tsv` is 1,188.6 MB with 7,697,635 rows, `txt.tsv` 954.6 MB with
   1,216,238 rows. `sub.tsv` holds 23,459 filings of 6,525 companies.
-- **Order.** `num.tsv` and `txt.tsv` are sorted by `adsh`, ascending. `sub.tsv` is not.
+- **Order.** `num.tsv` and `txt.tsv` are sorted by `adsh`, ascending. `sub.tsv` is not. Five other
+  files differ, see [Unit of Work and Memory](#unit-of-work-and-memory).
 - **Rows per filing in `num.tsv`.** 7,441 filings. Mean 1,034, median 785, 95th percentile 2,848,
   maximum 27,529.
 - **Memory.** An eager read of `num.tsv` took 9.7 s and peaked at 2.87 GB. With `txt.tsv` read
