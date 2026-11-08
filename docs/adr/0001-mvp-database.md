@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 is proposed, for the lead to accept. |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 is proposed, for the lead to accept. The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
 | Date | 2026-10-21 |
 | Deciders | The project lead. The master's student reviews it after a two-week leave. |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
@@ -38,6 +38,9 @@ This ADR chooses the store. It does not define the table schema. The schema wait
 stage to define its output.
 
 ## Decision
+
+[Amendment 1](#amendment-1-load-reads-silver) proposes to move the graph and fact writes out of
+`ingest` and into a load step that reads silver.
 
 Use **one managed Supabase Postgres database** for the graph tier and the fact tier. The raw store
 stays on the filesystem, as the earlier findings decided.
@@ -75,7 +78,7 @@ The rest of the decision:
 The Decision above lets `ingest` write the graph and fact projections into Postgres right after the
 raw write. Since then, the pipeline gained a silver layer between transform and load
 ([`silver_layer.md`](../../sec/design/pipeline/silver_layer.md)). Silver keeps the as-is facts of
-both sources side by side, in Parquet units, with a list of written units (`silver_files`). A
+both SEC sources, the Notes files and the XBRL instances, side by side, in Parquet units, with a list of written units (`silver_files`). A
 prototype on real SEC files measured it on 2026-11-08:
 
 - The largest Notes file, `2024q1`, writes its silver unit in 46 s with a streamed split, and in
@@ -89,15 +92,24 @@ prototype on real SEC files measured it on 2026-11-08:
 
 1. **Transform writes silver. Load reads silver.** No step writes Postgres from the raw store.
 2. **`ingest` writes the raw store only.** The graph and fact writes leave `ingest`. So the hybrid
-   transaction of `ingest` and its impl-private Postgres helpers are gone.
+   transaction of `ingest` is gone.
 3. **One load per silver unit, in one Postgres transaction.** The load job reads the current unit
    of a unit key from `silver_files`. It checks the size and CRC32C of each file, copies the rows
-   with `COPY`, and checks the row count against `silver_files`.
+   with `COPY`, and checks the row count against `silver_files`. The graph rows, the fact rows,
+   and the ledger row go through impl-private helpers on one `PgTransaction`, as the co-located
+   rule of `storage_traits_design.md` describes. `GraphStore::upsert` and `FactStore::upsert`
+   commit on their own, so the load does not compose them.
 4. **A ledger of loaded units makes the load idempotent.** Each ledger row names one `silver_files`
-   row. If the ledger holds that row, the load skips. A newer unit of the same key replaces the
-   rows of the older unit in the same transaction.
+   row by its dataset, source, unit key, and attempt path
+   (`<digest>-v<transform_version>/<execution_id>-<attempt>`). Each `silver_files` row has its own
+   attempt path. If the ledger holds that row, the load skips. A newer unit of the same key
+   replaces the rows of the older unit in the same transaction.
 5. **The load runs as a Rust binary.** DuckDB loaded at the same speed, but it adds a second runtime
    and downloads its `postgres` extension at run time.
+
+The series datasets have no current unit per key. If gold loads them, the load reads every
+`series_delta` unit of a series run that counts, after the newest `series_base`, as
+[`silver_layer.md`](../../sec/design/pipeline/silver_layer.md), "Series Deltas", reads them.
 
 The rest of the Decision stands: one Supabase Postgres database for the graph tier and the fact
 tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
@@ -105,20 +117,21 @@ tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
 ### What Stays Open
 
 - The gold tables, their write rule, and how gold serves direct reads. A later gold design fixes
-  them. The ledger above is its input, not its design.
-- How provenance reaches gold. Silver stores it on every row. In Postgres, these text columns made
-  a numeric row about 418 bytes, against 7.8 bytes in Parquet. A copy of the whole as-is layer
-  with per-row provenance passes the 50 GB trigger of [Triggers to Revisit](#triggers-to-revisit)
-  at about 100 million rows. So the gold design decides what gold copies from silver.
+  them. The gold design starts from the ledger above. It does not change the ledger.
+- How provenance reaches gold. Silver stores it on every row. With these text columns, a numeric
+  row took about 418 bytes in Postgres without an index, and 7.8 bytes in Parquet. A copy of the
+  whole as-is layer with per-row provenance passes the 50 GB trigger of
+  [Triggers to Revisit](#triggers-to-revisit) at about 120 million rows. So the gold design
+  decides what gold copies from silver.
 
 ### Consequences of the Amendment
 
-- These consequences below no longer hold: the shared transaction of `ingest`, and the §8
+- Two items of [Consequences](#consequences) no longer hold: the hybrid `ingest`, and the §8
   reconciliation job. A load that fails leaves no ledger row, so the next run loads the unit again.
 - The Load stage implements `GraphStore` and `FactStore` against Postgres, as before. It reads
-  silver instead of raw records.
+  silver instead of raw records. `PgGraphStore` and `PgFactStore` keep their shared `PgPool`,
+  because the load of one unit writes both tiers in one transaction.
 - A parser fix reruns transform and then load. It never rewrites Postgres from the raw store.
-- The Supabase DuckDB wrapper can read silver Parquet in place. This ADR does not use it.
 
 ## Query Needs of the MVP
 
@@ -364,8 +377,8 @@ The CDN and `/v1` triggers rest on these assumptions:
 
 ## Consequences
 
-[Amendment 1](#amendment-1-load-reads-silver) replaces the items on the hybrid `ingest`, the shared
-pool for it, and the §8 reconciliation job.
+If the lead accepts [Amendment 1](#amendment-1-load-reads-silver), it replaces the items on the
+hybrid `ingest` and the §8 reconciliation job. The shared pool stays, because the load needs it.
 
 - The Load stage implements `GraphStore` and `FactStore` against one Postgres database, and
   `RawStore` against the filesystem.
