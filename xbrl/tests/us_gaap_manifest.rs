@@ -2,7 +2,8 @@
 //!
 //! Recomputes the `MANIFEST` of the vendored US GAAP 2026 release from the files on disk and
 //! compares it with the `MANIFEST` in the repository. A changed, added, or removed file fails the
-//! test.
+//! test. A second test recomputes the SHA-256 of the `MANIFEST` and compares it with the release
+//! checksum of the generated tables.
 //!
 //! ## External Dependencies
 //!
@@ -14,6 +15,7 @@ use std::path::{Path, PathBuf};
 
 use pretty_assertions::assert_eq;
 use sha2::{Digest, Sha256};
+use xbrl::us_gaap::taxonomy::RELEASE_CHECKSUM;
 
 const RELEASE_FOLDER: &str = "taxonomy/us-gaap/2026";
 const MANIFEST_FILE_NAME: &str = "MANIFEST";
@@ -42,6 +44,15 @@ fn vendored_files(root: &Path, folder: &Path) -> Vec<String> {
     files
 }
 
+/// Returns the SHA-256 of `bytes` as 64 lowercase hex digits.
+fn hex_digest(bytes: &[u8]) -> String {
+    let mut hex = String::new();
+    for byte in Sha256::digest(bytes) {
+        write!(hex, "{byte:02x}").expect("Given a String, a write should never fail");
+    }
+    hex
+}
+
 /// Writes one `MANIFEST` line per file, sorted by path, in the format of `sha256sum`.
 fn manifest_of(root: &Path) -> String {
     let mut files = vendored_files(root, root);
@@ -50,11 +61,8 @@ fn manifest_of(root: &Path) -> String {
     for file in files {
         let bytes = fs::read(root.join(&file))
             .expect("Given a listed vendored file, it should be readable");
-        let digest = Sha256::digest(&bytes);
-        for byte in digest {
-            write!(manifest, "{byte:02x}").expect("Given a String, a write should never fail");
-        }
-        writeln!(manifest, "  {file}").expect("Given a String, a write should never fail");
+        let digest = hex_digest(&bytes);
+        writeln!(manifest, "{digest}  {file}").expect("Given a String, a write should never fail");
     }
     manifest
 }
@@ -67,6 +75,22 @@ fn should_match_manifest_for_vendored_us_gaap_2026_files() {
         .expect("Given the vendored release, its MANIFEST should be readable");
 
     let result = manifest_of(&root);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_match_release_checksum_for_sha256_of_manifest() {
+    let manifest = fs::read(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(RELEASE_FOLDER)
+            .join(MANIFEST_FILE_NAME),
+    )
+    .expect("Given the vendored release, its MANIFEST should be readable");
+
+    let expected_result = RELEASE_CHECKSUM;
+
+    let result = hex_digest(&manifest);
 
     assert_eq!(result, expected_result);
 }
