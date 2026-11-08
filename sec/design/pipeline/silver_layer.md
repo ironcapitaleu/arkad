@@ -296,7 +296,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, in a pass separate from the parser. For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id` and `loaded_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
+| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
 
 ## Format and Table Layout
@@ -355,7 +355,7 @@ A unit is the smallest set of rows that one write adds, and that one replay writ
 | `notes_file` | The Notes period, for example `2024q1` | All filings of one Notes file | The Notes ZIP |
 | `filing_day` | The filed date, for example `2026-11-06` | All new filings of one day | The instances of that day, and the `submissions` files they used |
 | `series_base` | `base`, then the time of a new base | The full series output of every entity | The current `candidates` and `filings` units |
-| `series_delta` | The series run and the task, for example `2026-11-06T0600Z-t0` | The changed rows of one series run, for the buckets of one task | The current `candidates` and `filings` units, and the current series rows of those entities |
+| `series_delta` | The series run and the task, for example `2026-11-06T0600Z-t0` | The changed rows of one series run, for the buckets of one task | The `candidates` units written since the latest series run that wrote a unit, the units they replaced, the current `filings` units, and the current series rows of their entities |
 | `release` | `us-gaap/2026` | The elements of one release | The vendored release |
 
 A unit of the daily path holds one day, not one filing. One filing per unit gives about 90 files a
@@ -426,9 +426,8 @@ see [Open Points](#open-points).
 
 ### Growth
 
-Silver deletes no unit of any dataset. Each full replay of the
-backfill adds the size of the as-is datasets again, about 15 GB of `as_is_facts` plus `filings` and
-`candidates` (estimate, see
+Silver deletes no unit of any dataset. Each full replay of the backfill writes `as_is_facts`,
+`filings`, and `candidates` again: about 15 GB of `as_is_facts`, plus the other two (estimate, see
 [Cloud Run Sizing](#cloud-run-sizing)).
 
 ### Series Deltas
@@ -440,10 +439,12 @@ Parquet file cannot grow. So an append writes a new file of changed rows next to
   new base writes each open finding again as a `new` row. The time a finding first opened is in
   the units before that base.
 - A later run recomputes the entities of every `candidates` unit with a `written_at` after the
-  `computed_at` of the previous series run. A unit written during a run is new for the next run
-  too. The run reads their
-  current rows, compares, and writes only the rows that differ to a `series_delta` unit, with
-  `change` = `new`, `changed`, or `removed`. The run does not write unchanged rows again.
+  latest `computed_at` of a series unit in `silver_files`. A run that wrote no unit does not move
+  this point. A unit written during a run is new for the next run too.
+- The run also recomputes the entities of each `candidates` unit that a new unit replaced. So an
+  entity that a replay drops gets `removed` rows.
+- The run reads the current series rows of these entities, compares, and writes only the rows
+  that differ to a `series_delta` unit, with `change` = `new`, `changed`, or `removed`. The run does not write unchanged rows again.
 - A `removed` row copies every column of the row it removes, and sets `change` and `computed_at`.
   A query that reads values must drop rows with `change` = `removed`.
 - `computed_at` is the start time of the series run. "After" in the rules below means a later
@@ -452,7 +453,8 @@ Parquet file cannot grow. So an append writes a new file of changed rows next to
   and keeps the row with the latest `computed_at` per key.
 - A read "as silver held it at T" takes the newest `series_base` with `computed_at` on or before T,
   and every `series_delta` after that base with `computed_at` on or before T. So it reaches back to
-  the first series run, across every new base. A run in progress at T counts in full.
+  the first series run, across every new base. A run in progress at T counts in full once it has
+  written its units. So a read as of T can change until every run that started before T has ended.
 - A `series_base` run and a `series_delta` run never overlap. The job plan of the transform design
   enforces it.
 - One series task writes one delta unit per run, sorted by entity bucket. A daily run touches a few
@@ -713,7 +715,8 @@ Proposal: A, with Polars inside the states that move tables:
 | Sector medians, screener tables, coverage filter | Many entities | Gold |
 
 The series step runs again for the entities of each `candidates` unit written since the start of
-the previous series run, and writes their changes as a delta, see [Series Deltas](#series-deltas).
+the latest series run that wrote a unit. It also covers the entities of the units these replaced.
+It writes the changes as a delta, see [Series Deltas](#series-deltas).
 
 ### Schema From the Rust Types
 
