@@ -8,6 +8,7 @@
 //! ## Modules
 //!
 //! - [`error`]: The error of a read.
+//! - [`linkbase`]: Reads labels and calculation arcs.
 //! - [`schema`]: Reads the concepts of the element schema.
 //!
 //! ## See Also
@@ -15,4 +16,5 @@
 //! - `xbrl/DESIGN.md`, "Taxonomy Data in Code".
 
 pub mod error;
+pub mod linkbase;
 pub mod schema;

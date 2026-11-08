@@ -376,6 +376,9 @@ generated file is checked in. A developer runs the generator once per new releas
 - A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
   declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
 - The data type of a concept is the text of the schema, for example `xbrli:monetaryItemType`.
+- The generator resolves each arc of a linkbase through the labels of the locators and resources
+  of its link. It never guesses a concept from the text of a label.
+- Some calculation arcs point to `srt` concepts, so each arc names the family of both ends.
 
 - A new release is a reviewable diff of arcs and labels.
 - The build does not parse XML.

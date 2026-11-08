@@ -39,6 +39,31 @@ pub enum GeneratorError {
         /// The value of the attribute.
         value: String,
     },
+
+    /// A locator points to something that is not a concept of the form `<family>_<name>`.
+    #[error("[InvalidConceptReference] Locator does not point to a concept, Href: '{href}', Path: '{}'", path.display())]
+    InvalidConceptReference {
+        /// The path of the file.
+        path: PathBuf,
+        /// The `xlink:href` of the locator.
+        href: String,
+    },
+
+    /// An arc names a `from` or `to` label that no locator or resource of its link carries.
+    #[error("[UnresolvedArcLabel] No locator or resource carries the label of an arc, Label: '{label}', Path: '{}'", path.display())]
+    UnresolvedArcLabel {
+        /// The path of the file.
+        path: PathBuf,
+        /// The label that the arc names.
+        label: String,
+    },
+
+    /// A concept has more than one standard label.
+    #[error("[RepeatedLabel] Concept '{concept}' has more than one standard label")]
+    RepeatedLabel {
+        /// The concept, as `<family>:<name>`.
+        concept: String,
+    },
 }
 
 #[cfg(test)]
