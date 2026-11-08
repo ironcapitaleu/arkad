@@ -21,6 +21,7 @@ the transform fills it.
   Parquet with a file list, and the triggers to switch to a table format.
 - [Units, Paths, and Replays](#units-paths-and-replays) and [Provenance](#provenance) describe how a
   write and a replay work. Check them against the open choices of the fact store design.
+- [Integrity Checks](#integrity-checks) lists how a job finds missing, stale, or wrong data.
 - [Time and Duplicates](#time-and-duplicates) holds the read rules and the rule for company
   attributes over time.
 - [Processing](#processing) gives the memory plan, the place of the state machine, and the sizing.
@@ -174,6 +175,10 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 
 ### `filings`
 
+`filings` is a dataset of its own, not columns on `as_is_facts`. The company history reads about 70
+rows per company instead of every fact. The provenance of an attribute sits in one row per filing.
+`Filing` and `AsIsFact` are separate types in `xbrl`.
+
 | Column | Arrow type | From |
 | ------ | ---------- | ---- |
 | `filing_id`, `entity_scheme`, `entity_id` | `utf8` | `Filing` |
@@ -201,8 +206,11 @@ One row per standard concept and filing, from steps 1 and 2 of the dedup order i
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
 `standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `blocked`, and
 `entity_bucket`. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
-the rule that picked the conflicting concept. The standardize series step reads only this dataset
-and `filings`, so it never parses again.
+the rule that picked the conflicting concept.
+
+`candidates` is a dataset of its own, decided by the owner on 2026-11-08. When a new filing arrives,
+the series step runs again over every filing of the entity. It reads about 50 candidate rows per
+past filing instead of about 1,000 as-is rows, and it does not run steps 1 and 2 again.
 
 Inside a `candidates` part, rows sort by `entity_bucket`, then by `filing_id`. The writer starts a
 new row group at each change of `entity_bucket`, so a series task reads only the row groups of its
@@ -267,8 +275,11 @@ The list of written units. Readers find the current files through it, and it hol
 | `input_digest` | `utf8` | SHA-256 over the sorted list of input keys and digests |
 | `inputs` | `list<struct<key, sha256, requested_url, produced_at>>` | Each raw document or silver file read |
 | `transform_version` | `utf8` | |
-| `files` | `list<utf8>` | The Parquet files of the unit |
-| `row_count` | `uint64` | |
+| `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, with the size and CRC32C of each object as GCS stores them |
+| `row_count` | `uint64` | Rows of the unit, the sum over `files` |
+| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows read from each input table, for example `num.tsv` |
+| `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
+| `content_digest` | `utf8` | SHA-256 over the rows of the unit in sort order, without `execution_id` and `loaded_at` |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The run |
 | `removed_at` | `timestamp[ms, UTC]`, nullable | Set only on the row that the cleanup of [Growth](#growth) adds for a removed unit |
 
@@ -287,9 +298,9 @@ writer, and one schema check. The footer of each file holds `dataset`, `schema_v
 `unit_key`, and `transform_version` as key-value metadata, so a file names itself without a
 sidecar.
 
-Measured on the plain Financial Statement data set `2025q3` (see [Measurements](#measurements)):
-`num.txt` holds 542 MB of text. Sorted by filing, it writes to
-31.7 MB of Parquet with zstd. Seven provenance columns with one value per file add 0.4%.
+Measured on the Notes file `2025q3` (see [Measurements](#measurements)): `num.tsv` holds 1,188.6
+MB of text. Typed and sorted by filing, it writes to 59.9 MB of Parquet with zstd. Seven provenance
+columns with one value per file add 0.39%. `txt.tsv` writes 954.6 MB of text to 131.4 MB.
 
 ### Plain Parquet or a Table Format
 
@@ -330,8 +341,9 @@ A unit is the smallest set of rows that one write adds, and that one replay writ
 | `release` | `us-gaap/2026` | The elements of one release | The vendored release |
 
 A unit of the daily path holds one day, not one filing. One filing per unit gives about 90 files a
-day per dataset, with a median of 8.7 KB each (measured). One day per unit gives one file a day per
-dataset. So the daily path needs no compaction.
+day per dataset ([Volume](extraction_overview.md#volume)). The text facts of one filing write to a
+median of 7.4 KB of Parquet (measured). One day per unit gives one file a day per dataset. So the
+daily path needs no compaction.
 
 ### Paths
 
@@ -354,8 +366,9 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
    of the raw store.
 3. Otherwise, the writer writes the Parquet files of the unit to their paths. Each object write
    sets the GCS precondition `ifGenerationMatch=0`, so a second write to one path fails.
-4. The writer writes the `silver_files` row last. A unit without a `silver_files` row does not
-   exist for a reader.
+4. The writer writes the `silver_files` row last, with the size and CRC32C that GCS returns for
+   each file, and the counts and `content_digest` of the unit. A unit without a `silver_files` row
+   does not exist for a reader.
 
 So silver never writes to an existing path. A file is written once. Only the retention rule of
 [Growth](#growth) and the cleanup of unread files below remove files. If an attempt fails
@@ -392,10 +405,11 @@ see [Open Points](#open-points).
 ### Growth
 
 Silver deletes no unit of `as_is_facts`, `filings`, or `candidates`. Each full replay of the
-backfill adds the size of these datasets again, about 6 GB of numeric rows (estimate).
+backfill adds the size of these datasets again, about 14 GB (estimate, see
+[Cloud Run Sizing](#cloud-run-sizing)).
 
 The series datasets grow faster. A day with about 90 new filings touches about 48 of the 64
-buckets, and the median day of 36.5 filings about 28. Each touched bucket writes a new unit of its
+buckets, and a peak day of 295 filings about 63. Each touched bucket writes a new unit of its
 whole series output. Estimate: about 7,000
 entities, 50 concepts, and 90 periods give about 32 million rows, about 0.3 GB. A row holds an `inputs`
 list, so the real size is larger. The prototype measures it. A rewrite each day adds up to about
@@ -430,9 +444,15 @@ Proposal: A and C together.
 
 - **On every row:** `source_kind`, `source_key`, `source_sha256`, `ingestion_mode`,
   `transform_version`, `execution_id`, and `loaded_at`. Parquet stores each as one dictionary
-  entry per file. The measured overhead is 0.4%.
+  entry per file. The measured overhead is 0.39%.
 - **In `silver_files`:** the URL, the retrieval time (`produced_at` of the raw metadata), and the
   inputs of each unit.
+
+**Mode is a column, never a route.** No step branches on `ingestion_mode`. The source kind picks the
+parser and the unit: a Notes ZIP goes to the Notes parser and a `notes_file` unit, an instance to
+the instance parser and a `filing_day` unit, whichever run fetched it. Each row copies the mode
+from the raw metadata of its own document, so no row mixes modes. A standardized fact reaches the
+modes of its sources through `inputs`.
 
 **Many raw documents in one file.** A `filing_day` unit holds the filings of many instances. Each
 row keeps the key and the digest of its own instance, so its provenance does not depend on the
@@ -440,6 +460,30 @@ file. The dictionary of `source_key` then holds one entry per filing.
 
 **Provenance of a standardized fact.** `inputs` lists the value keys of the as-is facts it came
 from. A join on these keys reaches the as-is rows and their provenance.
+
+## Integrity Checks
+
+Bronze checks one document against the SHA-256 in its own metadata file. Silver has no metadata
+file per Parquet file, so `silver_files` holds what the checks compare against. The integrity
+check job of the raw store runs these checks too.
+
+| Check | Finds | How | Cost |
+| ----- | ----- | --- | ---- |
+| 1. Files | A missing or corrupted Parquet file | For each current unit, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
+| 2. Coverage | A raw document with no current unit, or a unit read from older bytes | Join the raw metadata (key, SHA-256) with `inputs` of the current units | Small tables |
+| 3. Row counts | Rows lost or doubled inside a unit | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers | Footers only |
+| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest` | One transform per unit, so a sample of units each week |
+
+Lineage checks join the datasets:
+
+- Every key in `standardized_facts.inputs` exists in a current unit of `as_is_facts`.
+- Every `filing_id` of `candidates` and `as_is_facts` exists in `filings`.
+
+A failed check gives a row in a report. It changes no silver file.
+
+Limit: the raw store keeps one version per key. If the SEC replaces a Notes file, or the daily path
+fetches `submissions` again, a silver row can name a SHA-256 whose bytes are gone. Check 2 reports
+the unit as "source replaced". No check can restore the old bytes.
 
 ## Time and Duplicates
 
@@ -559,7 +603,7 @@ only the header line of each table, so it gives no filings. Option B below does 
 | Option | Peak memory | Cost |
 | ------ | ----------- | ---- |
 | A. Read each table whole | 2.87 GB for an eager read of `num.tsv` of `2025q3`, 4.95 GB with `txt.tsv` after it (measured) | Simple. Needs a large task for the largest file |
-| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (proposed) | About 1/K of the rows | K times the inflate time, about 3 s per GB per pass at 343 MB/s on one core (measured) |
+| B. K passes over the ZIP stream, each keeping the rows of one hash bucket of `adsh` (proposed) | About 1/K of the rows | K times the inflate time, about 3 s per GB per pass at 330 MB/s on one core (measured) |
 | C. One pass that cuts each table at each change of `adsh` | One filing: 36 MB for a pass over `num.tsv` of `2025q3` (measured) | Works only for a sorted table, so not for `2010q1`, `2012q4`, or `2020q4` |
 
 Proposal: B, for every Notes file, so the split has one code path:
@@ -644,10 +688,10 @@ Estimates. The prototype measures them.
 Two limits set the parallel tasks: the read speed of the raw bucket, and the connections that gold
 accepts. Silver itself sets none.
 
-Size of silver (estimate): `2024q1` holds about 10.5 million rows in `num.tsv` and `txt.tsv`. At
-about 70 quarters of history, the as-is dataset holds about 700 million rows. At 8.5 bytes per
-numeric row (measured), the numeric rows take about 6 GB. Text rows take more per row. Without
-replays, the whole silver bucket stays under 30 GB, the size of the raw store. See
+Size of silver (estimate): `2025q3` writes 191.5 MB of as-is Parquet, 7.8 bytes per numeric row
+and 108 bytes per text row (measured). About 70 quarters of history give about 14 GB. Older
+quarters hold fewer rows, so this is an upper bound. Without replays, the whole silver bucket stays
+under 30 GB, the size of the raw store. See
 [Growth](#growth) for replays and the series datasets.
 
 ## Open Points
@@ -692,23 +736,12 @@ Notes file `2025q3_notes.zip`:
   `adsh` took 13.8 s and peaked at 36 MB.
 - **Values.** At most 24 digits before the point and 4 after it.
 
-Plain Financial Statement data set `financial-statement-data-sets/2025q3.zip`. Its `sub` and `num`
-tables have the layout of the Notes tables, with fewer columns and fewer rows. The Parquet sizes and
-the file counts come from it:
-
-- **Size.** 127.8 MB zipped. `num.txt` is 542 MB with 3,720,081 rows. `sub.txt` holds 6,541
-  filings of 5,909 companies.
-- **Rows per filing in `num.txt`.** Mean 569, median 425, 95th percentile 1,113, maximum 24,536.
-- **Order.** Unlike the Notes data set, `num.txt` is not sorted by `adsh`, `tag`, or `ddate`. The
-  6,541 filings form 3,702,681 runs of adjacent rows.
-- **Filings per filed date.** Median 36.5, maximum 709, over 64 dates.
-- **Memory and time.** An eager read of `sub.txt` and `num.txt` as text took 2.0 s and peaked at
-  1.19 GB. The same read, a cast to typed columns, and the Parquet writes of the next items peaked at
-  1.79 GB in one process. A streamed conversion of `num.txt` to Parquet took 0.9 s and peaked at
-  0.72 GB. A sort by `adsh` with a streamed write took 2.7 s and peaked at 1.85 GB.
-- **Read of one filing.** From the sorted Parquet file with a filter on `adsh`: 473 rows, peak
-  0.08 GB.
-- **Parquet size.** `num.txt` as typed Parquet with zstd: 65 MB unsorted, 31.7 MB sorted by `adsh`.
-  Seven provenance columns with one value per file: 31.8 MB, 8.5 bytes per row.
-- **One file per filing.** The median file is 8.7 KB, the largest 60.1 KB.
-- **Inflate.** `num.txt` inflates from the ZIP at 343 MB/s on one core.
+- **Parquet size.** `num.tsv` typed and sorted by `adsh`, with zstd and row groups of 100,000
+  rows: 59.9 MB. With seven provenance columns of one value each: 60.1 MB, 7.8 bytes per row.
+  `txt.tsv` with the same columns: 131.4 MB, 108 bytes per row.
+- **One file per filing.** The text facts of one filing write to a median of 7.4 KB of Parquet, at
+  most 60.9 KB, over 50 filings.
+- **Filings per filed date.** All forms: median 265, maximum 1,460, over 64 dates. The daily path
+  selects fewer forms, about 90 filings per business day.
+- **Inflate.** `num.tsv` inflates from the ZIP at 421 MB/s and `txt.tsv` at 255 MB/s on one core,
+  about 330 MB/s for both.
