@@ -6,9 +6,10 @@
 //!
 //! The filing reports 99 value keys twice. Each pair holds a quarter of three months from 1 July
 //! and a period of four months from 1 June. Both round to 1 quarter, so they share a value key. The
-//! quarter is rank 0 in both sources. The instance parser ranks the length nearer to a full quarter
-//! first, and the Notes parser follows the order of `iprx` (see `DESIGN.md`, "Value Key"). The four
-//! months hold June plus the quarter, so no pair agrees, and all 99 keys are conflicts.
+//! quarter is rank 0 in both sources, as the revenue tests show. The instance parser ranks the
+//! length nearer to a full quarter first, and the Notes parser follows the order of `iprx` (see
+//! `DESIGN.md`, "Value Key"). The four months hold June plus the quarter, so no pair agrees, and
+//! all 99 keys are conflicts.
 //!
 //! The fake plug-in holds the revenue alias list of the fixtures until the US GAAP plug-in has
 //! its own lists.
@@ -52,7 +53,7 @@ fn candidates_of(facts: &[AsIsFact]) -> FilingCandidates {
 }
 
 /// Returns the rank, period, and value of each copy of revenue without dimensions in the quarter
-/// that ends on 2026-09-30, or nothing if that key has no conflict.
+/// that ends on 2026-09-30, or an empty list if that key has no conflict.
 fn revenue_ranks(facts: &[AsIsFact]) -> Vec<(u16, String, FactValue)> {
     more_precise(facts)
         .conflicts()
