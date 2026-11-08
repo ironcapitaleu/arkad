@@ -4,7 +4,7 @@
 //!
 //! ## Modules
 //!
-//! - [`sample_fact`]: Builders of as-is facts and candidates.
+//! - [`sample_fact`]: Builders of as-is facts, candidates, and standardized facts.
 //! - [`sample_taxonomy`]: A fake [`Taxonomy`](crate::core::taxonomy::Taxonomy) that declares
 //!   families and holds alias lists.
 

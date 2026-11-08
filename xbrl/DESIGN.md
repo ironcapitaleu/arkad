@@ -60,6 +60,7 @@ xbrl/
       graph.rs             <- resolution and validation engine
       alias.rs             <- tiers 1 and 2 on one filing
       dedup.rs             <- dedup rules of the standardized layer
+      period_identity.rs   <- core/period/q4-from-fy@1
       chronology.rs        <- order over time, gap check
     us_gaap/
       mod.rs               <- impl Taxonomy for UsGaap
@@ -692,6 +693,14 @@ year-to-date only. The result has confidence `Derived`.
   and ratios get no Q4 derivation, because they do not add over periods.
 - Both inputs come from one fiscal year, after `core/dedup/newest-filing@1`.
 - If an input has `restated`, the Q4 value has `restated` too, and chronology reports it.
+- `core::period_identity::derive_q4` runs on the output of step 3. A nine-month value belongs to a
+  fiscal year if its end lies one quarter before the end of the year. If both periods have an exact
+  start, the starts must be equal. The Q4 period runs from the day after the nine-month end to the
+  year end.
+- A unit is monetary if it is one ISO 4217 code and divides by nothing (`Unit::is_currency`). The
+  measures carry no prefix, so the three capital letters are the only mark of a currency.
+- The rule derives nothing for a Q4 that the series already holds or that a conflict blocks.
+- The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
   apart.

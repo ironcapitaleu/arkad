@@ -1,11 +1,13 @@
 //! # Sample Fact
 //!
-//! Provides builders of as-is facts and candidates for the tests of resolution and dedup.
+//! Provides builders of as-is facts, candidates, and standardized facts for the tests of
+//! resolution, dedup, and derivation.
 //!
 //! ## Modules
 //!
-//! - [`builders`]: The helpers that build a filing source, an as-is fact, and a candidate.
+//! - [`builders`]: The helpers that build a filing source, an as-is fact, a candidate, and a
+//!   standardized fact.
 
 pub mod builders;
 
-pub use builders::{candidate, date, fact, revenue_aliases, source, us_gaap_plugin};
+pub use builders::{candidate, date, fact, revenue_aliases, source, standardized, us_gaap_plugin};

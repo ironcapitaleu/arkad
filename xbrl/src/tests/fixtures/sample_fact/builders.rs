@@ -19,6 +19,7 @@ use crate::core::filing::{EntityId, FilingId};
 use crate::core::period::{Duration, Period};
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
 use crate::core::rule::RuleId;
+use crate::core::standardized::StandardizedFact;
 use crate::core::taxonomy::reference::ConceptAliases;
 use crate::core::unit::Unit;
 use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin_with_aliases};
@@ -180,4 +181,32 @@ pub fn us_gaap_plugin() -> FakeTaxonomy {
         )],
         vec![revenue_aliases()],
     )
+}
+
+/// Returns the standardized revenue = `value` of Apple in USD for `period`, at confidence
+/// [`Confidence::Exact`], from one as-is fact of the filing `0000320193-24-000123`.
+///
+/// # Panics
+///
+/// Panics if `value` is not a decimal.
+#[must_use]
+pub fn standardized(period: Period, value: &str) -> StandardizedFact {
+    let filing = source("0000320193-24-000123", date(2024, 11, 1));
+    let mut input = fact(&filing, "Revenues", value);
+    input.context.period = period;
+    StandardizedFact {
+        entity: apple(),
+        concept: CanonicalElement::Revenue,
+        period,
+        unit: usd(),
+        dimensions: Dimensions::default(),
+        value: number(value),
+        confidence: Confidence::Exact,
+        rule: RuleId::from_str("us-gaap/alias/revenue@1").expect(
+            "Given a hardcoded rule ID in the documented form, the parse should always succeed",
+        ),
+        release: release(),
+        inputs: vec![input.key()],
+        restated: false,
+    }
 }

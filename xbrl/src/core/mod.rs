@@ -25,6 +25,7 @@
 //! - [`graph`]: The resolution and validation engine.
 //! - [`invalid_value`]: The error of a core value type.
 //! - [`period`]: Instants and durations.
+//! - [`period_identity`]: The derivation of the fourth quarter from the fiscal year.
 //! - [`release`]: The taxonomy release of a plug-in.
 //! - [`rule`]: The ID of a rule.
 //! - [`standardized`]: One value of one standard concept.
@@ -48,6 +49,7 @@ pub mod form;
 pub mod graph;
 pub mod invalid_value;
 pub mod period;
+pub mod period_identity;
 pub mod release;
 pub mod rule;
 pub mod standardized;
