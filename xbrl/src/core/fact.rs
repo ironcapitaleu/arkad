@@ -28,6 +28,12 @@ impl TaxonomyVersion {
     /// The type name that [`InvalidValue`] names when an input breaks a rule.
     const TYPE_NAME: &'static str = "TaxonomyVersion";
 
+    /// The character between the family and the year, as in `us-gaap/2017`.
+    pub const SEPARATOR: char = '/';
+
+    /// The number of digits of the year.
+    pub const YEAR_LENGTH: usize = 4;
+
     /// Creates a [`TaxonomyVersion`] from its text.
     ///
     /// # Errors

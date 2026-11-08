@@ -141,6 +141,17 @@ mod tests {
     }
 
     #[test]
+    fn should_return_none_when_year_holds_a_multi_byte_character() {
+        let text = "CY202€Q1";
+
+        let expected_result = None;
+
+        let result = Frame::parse(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_none_when_input_has_no_cy_prefix() {
         let text = "2024Q1";
 
