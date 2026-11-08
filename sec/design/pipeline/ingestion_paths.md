@@ -895,15 +895,16 @@ dialect above. A table is sorted if each `adsh` forms one run of adjacent rows, 
 | `2026_10_notes.zip` | 1,488,444, 1,496 | Yes | 271,414, 6,670 | Yes | No |
 
 - The order of the rows differs between files and between the tables of one file. A reader must
-  not rely on it. Seven of 80 files were checked.
+  not rely on it. This check covers seven of 80 files: the six above and `2009q1` (see "Empty
+  file").
 - If a table is sorted, one streamed pass can cut it at each change of `adsh`. On `num.tsv` of
   `2025q3`, such a pass took 13.8 s in Python and peaked at 36 MB. An eager read of the same table
   as text peaked at 2.87 GB.
-- `sub.tsv` holds one row per filing and at most a few MB, so its order does not matter for memory.
+- `sub.tsv` holds one row per filing, 7.4 MB unzipped in 2024q1, so its order does not matter for
+  memory.
 
-**Empty file.** `2009q1_notes.zip` holds only the header line of each table, so it gives no
-filings. Its metadata member is named `2009q1_notes-metadata.json`, not `notes-metadata.json`.
-Transform must accept a Notes file with no filings.
+**Empty file.** The metadata member of `2009q1_notes.zip` is named `2009q1_notes-metadata.json`,
+not `notes-metadata.json`. The file has no rows (see [`NotesPeriod`](#notesperiod)).
 
 **Publication.** The SEC page reads "January 2009 - September 2026". The page says that the SEC
 has updated the data sets monthly since November 2020. The file list still has quarterly files up
@@ -932,12 +933,13 @@ quarantines the row or the filing, and the file goes on.
    `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
-   the ZIP index parses, all eight tables and `notes-metadata.json` are present, every member uses
+   the ZIP index parses, all eight tables and one metadata member are present (`notes-metadata.json`,
+   or `<period>_notes-metadata.json` as in 2009q1), every member uses
    deflate, every member name has no path separator, and the unzipped size stays under a limit.
    Proposed limit: 16 GB unzipped per file, and 50 times the zipped size per member. Measured
    maximum ratio in 2024q1: 12.8 (`cal.tsv`).
 3. **Table format**, in each read state: UTF-8, a quote-aware tab-separated reader, a header equal
-   to the columns in `notes-metadata.json`, the same field count in every row, and the CRC-32 of
+   to the columns in the metadata member, the same field count in every row, and the CRC-32 of
    the member.
 4. **Row content**, in the map state: types and references between tables. Round 3 (STA-332)
    designs this layer.
