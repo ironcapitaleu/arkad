@@ -401,14 +401,16 @@ list, so the real size is larger. The prototype measures it. A rewrite each day 
 So `standardized_facts` and `findings` get a retention rule:
 
 - A cleanup removes a superseded unit of these two datasets 30 days after a newer unit replaced it.
-- The cleanup adds rows and updates none. It writes its own file,
-  `silver_files/cleanup=<execution_id>/task=<n>-<attempt>.parquet`. The file holds one row per
-  removed unit, with the unit key, `input_digest`, `transform_version`, and `written_at` of that
-  unit, and `removed_at` set. Then the cleanup deletes the Parquet files of the unit.
-- A reader drops a unit that has a row with `removed_at` set.
-- A read "as silver held it at T" for these two datasets reaches back 30 days only.
+- The cleanup is an execution, and it adds rows and updates none. It writes its own file at the
+  path of any execution, `silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet`.
+- The file holds one row per removed unit. Each row copies the row of the unit, sets `removed_at`,
+  and names the cleanup in `execution_id`. Then the cleanup deletes the Parquet files of the unit.
+- A row with `removed_at` set is never a unit, so it never counts for the latest `written_at`.
+- A reader drops a unit if a `silver_files` row with `removed_at` set names it.
+- A read "as silver held it at T" for these two datasets fails if T is more than 30 days ago.
 - The series step can rebuild a removed unit from the `candidates` units current at the time of
-  that unit, with the binary of its `transform_version`. So the cleanup loses no reported value.
+  that unit, with the image of its `transform_version`. So the cleanup loses no reported value, as
+  long as the container registry keeps the image of each `transform_version`.
 
 ## Provenance
 
