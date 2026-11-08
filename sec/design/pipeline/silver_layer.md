@@ -6,7 +6,7 @@
 > [`ingestion_paths.md`](ingestion_paths.md), and the extraction of
 > [`extraction_overview.md`](extraction_overview.md).
 >
-> **Marks:** "Measured" means checked on 2026-11-07 against a downloaded SEC file. "Estimate" means
+> **Marks:** "Measured" means checked on 2026-11-07 or 2026-11-08 against a downloaded SEC file. "Estimate" means
 > not measured. "Decided" names a decision of the owner. Every other statement is a proposal.
 
 Silver is the processed layer between the raw store (bronze) and Postgres (gold). This document
@@ -168,8 +168,9 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
   source document. The parser makes it unique by numbering the copies.
 - A filing that arrives on both paths has two sets of rows, one per `source_kind`. Silver keeps
   both. Which one a read takes is open (see [Open Points](#open-points)).
-- `decimal128(38, 10)` holds 28 digits before the point. The prototype checks that no SEC value
-  needs more than 10 digits after the point.
+- `decimal128(38, 10)` holds 28 digits before the point. In `num.tsv` of `2025q3`, a value has at
+  most 24 digits before the point and 4 after it (measured). The prototype checks the instance
+  values, which Notes rounds to 4 places.
 
 ### `filings`
 
@@ -285,8 +286,8 @@ writer, and one schema check. The footer of each file holds `dataset`, `schema_v
 `unit_key`, and `transform_version` as key-value metadata, so a file names itself without a
 sidecar.
 
-Measured on the Financial Statement data set `2025q3` (the plain data set, not the Notes data set,
-see [Measurements](#measurements)): `num.txt` holds 542 MB of text. Sorted by filing, it writes to
+Measured on the plain Financial Statement data set `2025q3` (see [Measurements](#measurements)):
+`num.txt` holds 542 MB of text. Sorted by filing, it writes to
 31.7 MB of Parquet with zstd. Seven provenance columns with one value per file add 0.4%.
 
 ### Plain Parquet or a Table Format
@@ -521,35 +522,46 @@ Rules for the open points of the company data:
 - **Change over time.** A different value in a later filing starts a new history row. It is not a
   conflict.
 
-Not measured: how many filings lack `dei:TradingSymbol` or `dei:CurrentFiscalYearEndDate`, and
-whether 20-F and 40-F filings carry them. The parse step counts the nulls per unit, so the first
-backfill run measures it.
+Measured in the Notes file `2025q3`, as the share of filings with the tag in `txt.tsv`:
+
+| Form | Filings | `dei:TradingSymbol` | `dei:CurrentFiscalYearEndDate` |
+| ---- | ------- | ------------------- | ------------------------------ |
+| 10-K | 382 | 69.6% | 100% |
+| 10-Q | 5,249 | 83.0% | 100% |
+| 20-F | 94 | 90.4% | 100% |
+| 40-F | 6 | 100% | 100% |
+
+So the null rule for `tickers` matters: about one 10-K in three has no ticker. `sub.tsv` leaves
+`fye` empty in 171 of 23,459 filings, and `fy` and `fp` in 17,158, mostly forms without financial
+statements. The parse step counts the nulls per unit, so every backfill run reports them.
 
 ## Processing
 
 ### Unit of Work and Memory
 
-The unit of transform is one filing. One filing is small: in `2025q3`, a filing has 425 numeric
-rows at the median and 24,536 at most (measured). A Notes file is large.
-`2024q1` holds 1,423.5 MB of `num.tsv` and 1,290.2 MB of `txt.tsv` unzipped
-([Notes ZIP Findings](ingestion_paths.md#notes-zip-findings)).
+The unit of transform is one filing. One filing is small: in the Notes file `2025q3`, a filing
+with numeric values has 785 rows in `num.tsv` at the median and 27,529 at most (measured). A Notes
+file is large. `2025q3` holds 1,188.6 MB of `num.tsv` and 954.6 MB of `txt.tsv` unzipped (measured).
 
-`num.tsv` is not sorted by filing. In `num.txt` of `2025q3`, the 6,541 filings form 3,702,681 runs
-of adjacent rows (measured). So the split step cannot stream one filing after another. The Notes
-data set was not checked, see [Measurements](#measurements).
+`num.tsv` and `txt.tsv` are sorted by `adsh` in the Notes data set. In `2025q3`, the 7,441 filings
+of `num.tsv` form 7,441 runs of adjacent rows in ascending order, and the 23,459 filings of
+`txt.tsv` form 23,459 runs (measured). `sub.tsv` is not sorted, but it holds 7.1 MB. The plain
+Financial Statement data set is not sorted, so this result holds for the Notes data set only.
 
 | Option | Peak memory | Cost |
 | ------ | ----------- | ---- |
-| A. Read each table whole | About 9 GB for `2024q1` (estimate: the full run on 542 MB of text peaked at 1.79 GB, scaled to 2.7 GB) | Simple. Needs a large task for the largest file |
-| B. One pass that writes K bucket files by a hash of `adsh` | One bucket | Staging space. On Cloud Run, local disk counts as memory, so the buckets go to the bucket store |
-| C. K passes over the ZIP stream, each keeping one bucket (proposed) | One bucket, about 1/K of the rows | K times the inflate time: about 4 s per pass per GB at 343 MB/s (measured) |
+| A. Read each table whole | 2.87 GB for an eager read of `num.tsv` of `2025q3`, 4.95 GB with `txt.tsv` after it (measured) | Simple. Needs a large task for the largest file |
+| B. K passes over the ZIP stream, each keeping one hash bucket of `adsh` | About 1/K of the rows | K times the inflate time. Needed only if the tables were not sorted |
+| C. One pass over the ZIP stream that cuts each table at each change of `adsh` (proposed) | One filing: 36 MB for `num.tsv` of `2025q3` (measured) | One read of each table. Relies on the sort order, so the split checks it |
 
-Proposal: C. For `2024q1` with K = 8, each pass keeps about 340 MB of text of `num.tsv` and
-`txt.tsv`. The 16 passes over both tables take about 1 minute of inflate time (estimate).
-`sub.tsv` and `dim.tsv` stay in memory for the whole file, about 110 MB of text for `2024q1`. Inside
-a bucket, the split groups the rows by `adsh` and hands one filing at a time to the parse state.
+Proposal: C. The split reads `sub.tsv` and `dim.tsv` whole, about 81 MB of text for `2025q3`. It then
+streams `num.tsv` and `txt.tsv` side by side and joins them by `adsh`, as a merge of two sorted
+lists. It hands one filing at a time to the parse state. A streamed pass over `num.tsv` of `2025q3`
+took 13.8 s in Python (measured).
 
-The prototype measures B and C on a real Notes file and picks K.
+If a row has a smaller `adsh` than the row before it, the split fails the Notes file with an error
+that names the table and the row. So a change of the sort order at the SEC stops the run and never
+gives wrong filings.
 
 ### Where the State Machine Fits
 
@@ -560,7 +572,8 @@ The prototype measures B and C on a real Notes file and picks K.
 
 Proposal: A, with Polars inside the states that move tables:
 
-- The split state reads the ZIP and cuts filings with Polars, as in [Unit of Work and Memory](#unit-of-work-and-memory).
+- The split state streams the ZIP and cuts it into filings, as in
+  [Unit of Work and Memory](#unit-of-work-and-memory). It needs no DataFrame.
 - The parse and standardize states call the `xbrl` crate on Rust types. Only the Rust code applies
   the rules.
 - The write state turns the Rust rows of a unit into Arrow batches and writes Parquet.
@@ -606,7 +619,7 @@ Estimates. The prototype measures them.
 
 | Job | Tasks | Memory per task | Parallel tasks | Timeout |
 | --- | ----- | --------------- | -------------- | ------- |
-| Transform of the backfill | One per Notes file, 79 | 4 GiB with option C | 10 | 1 hour |
+| Transform of the backfill | One per Notes file, 80 | 1 GiB with option C | 10 | 1 hour |
 | Transform of one day | 1 | 1 GiB | 1 | 30 minutes |
 | Standardize series | One per entity bucket, 64 | 2 GiB | 16 | 30 minutes |
 | Checks and load | One per dataset unit | 1 GiB | 4 | 30 minutes |
@@ -646,23 +659,35 @@ source, and each choice is a read rule over silver.
 
 ## Measurements
 
-Measured on 2026-11-07 in a cloud container (4 cores, 15 GB of memory), with Polars 2.1.0 in Python
-as a stand-in for the Rust crate.
+Measured on 2026-11-07 and 2026-11-08 in a cloud container (4 cores, 15 GB of memory), with
+Polars 2.1.0 and the `csv` module of Python as a stand-in for the Rust crate.
 
-- **Data.** The SEC answered 404 for every Notes ZIP URL tried from this container, for example
-  `2024q1_notes.zip` and `2025_10_notes.zip`. The plain Financial Statement data set
-  `financial-statement-data-sets/2025q3.zip` answered 200. Its `sub` and `num` tables have the
-  layout of the Notes tables, with fewer columns and fewer rows. All numbers below come from it.
+Notes file `2025q3_notes.zip`:
+
+- **Size.** 463.4 MB zipped. `num.tsv` is 1,188.6 MB with 7,697,635 rows, `txt.tsv` 954.6 MB with
+  1,216,238 rows. `sub.tsv` holds 23,459 filings of 6,525 companies.
+- **Order.** `num.tsv` and `txt.tsv` are sorted by `adsh`, ascending. `sub.tsv` is not.
+- **Rows per filing in `num.tsv`.** 7,441 filings. Mean 1,034, median 785, 95th percentile 2,848,
+  maximum 27,529.
+- **Memory.** An eager read of `num.tsv` took 9.7 s and peaked at 2.87 GB. With `txt.tsv` read
+  after it, the process peaked at 4.95 GB. A streamed pass that cuts `num.tsv` at each change of
+  `adsh` took 13.8 s and peaked at 36 MB.
+- **Values.** At most 24 digits before the point and 4 after it.
+
+Plain Financial Statement data set `financial-statement-data-sets/2025q3.zip`. Its `sub` and `num`
+tables have the layout of the Notes tables, with fewer columns and fewer rows. The Parquet sizes and
+the file counts come from it:
+
 - **Size.** 127.8 MB zipped. `num.txt` is 542 MB with 3,720,081 rows. `sub.txt` holds 6,541
   filings of 5,909 companies.
 - **Rows per filing in `num.txt`.** Mean 569, median 425, 95th percentile 1,113, maximum 24,536.
-- **Order.** `num.txt` is not sorted by `adsh`, `tag`, or `ddate`. The 6,541 filings form 3,702,681
-  runs of adjacent rows.
+- **Order.** Unlike the Notes data set, `num.txt` is not sorted by `adsh`, `tag`, or `ddate`. The
+  6,541 filings form 3,702,681 runs of adjacent rows.
 - **Filings per filed date.** Median 36.5, maximum 709, over 64 dates.
 - **Memory and time.** An eager read of `sub.txt` and `num.txt` as text took 2.0 s and peaked at
   1.19 GB. The same read, a cast to typed columns, and the Parquet writes of the next items peaked at
-  1.79 GB in one process. A streamed conversion of `num.txt` to Parquet took 0.9 s and peaked at 0.72 GB. A sort
-  by `adsh` with a streamed write took 2.7 s and peaked at 1.85 GB.
+  1.79 GB in one process. A streamed conversion of `num.txt` to Parquet took 0.9 s and peaked at
+  0.72 GB. A sort by `adsh` with a streamed write took 2.7 s and peaked at 1.85 GB.
 - **Read of one filing.** From the sorted Parquet file with a filter on `adsh`: 473 rows, peak
   0.08 GB.
 - **Parquet size.** `num.txt` as typed Parquet with zstd: 65 MB unsorted, 31.7 MB sorted by `adsh`.
