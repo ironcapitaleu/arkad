@@ -3,9 +3,9 @@
 //! Writes the tables of the `us_gaap` plug-in of the `xbrl` crate from the vendored FASB files.
 //!
 //! The build of `xbrl` parses no XML. This crate reads the element schema, the label linkbase, and
-//! every calculation linkbase of the vendored release with `roxmltree`. It renders the tables as
-//! Rust source into `xbrl/src/us_gaap/taxonomy.rs`, which is checked in. A developer runs it once
-//! per release.
+//! the statement calculation linkbases of the vendored release with `roxmltree`. It renders the
+//! tables as Rust source into `xbrl/src/us_gaap/taxonomy.rs`, which is checked in. A developer runs
+//! it once per release.
 //!
 //! ## Modules
 //!
@@ -63,6 +63,9 @@ const MANIFEST_FILE: &str = "MANIFEST";
 
 /// Returns the Rust source of `us_gaap/taxonomy.rs`, read from the release below `xbrl_crate`.
 ///
+/// The calculation arcs come from the statement groups in `stm/`. The disclosure groups of the
+/// release are not vendored.
+///
 /// # Errors
 ///
 /// Returns a [`GeneratorError`] if a vendored file cannot be read, is not well-formed XML, or
@@ -112,18 +115,23 @@ fn elements(release: &Path) -> Result<Vec<ElementLine>, GeneratorError> {
 
 /// Returns the arcs of every calculation linkbase in `statements`, sorted, without repeats.
 ///
-/// Two statement groups can hold the same arc, so the tables keep it once.
+/// Two calculation files can hold the same arc in the same role, so the tables keep it once.
+///
+/// # Errors
+///
+/// Returns [`GeneratorError::ConflictingWeight`] if two arcs of one role join the same concepts
+/// with different weights, and the errors of [`linkbase::calculation_arcs`].
 fn calculation_arcs(statements: &Path) -> Result<Vec<linkbase::CalculationArc>, GeneratorError> {
-    let entries = fs::read_dir(statements).map_err(|source| GeneratorError::FailedFileRead {
+    let entries = fs::read_dir(statements).map_err(|error| GeneratorError::FailedFileRead {
         path: statements.to_path_buf(),
-        source,
+        reason: error.to_string(),
     })?;
     let mut arcs = BTreeSet::new();
     for entry in entries {
         let path = entry
-            .map_err(|source| GeneratorError::FailedFileRead {
+            .map_err(|error| GeneratorError::FailedFileRead {
                 path: statements.to_path_buf(),
-                source,
+                reason: error.to_string(),
             })?
             .path();
         let is_calculation = path
@@ -133,14 +141,37 @@ fn calculation_arcs(statements: &Path) -> Result<Vec<linkbase::CalculationArc>, 
             arcs.extend(linkbase::calculation_arcs(&path, &read(&path)?)?);
         }
     }
-    Ok(arcs.into_iter().collect())
+    let arcs: Vec<_> = arcs.into_iter().collect();
+    check_weights(&arcs)?;
+    Ok(arcs)
+}
+
+/// Checks that no two arcs of `arcs` join the same concepts in one role with different weights.
+///
+/// `arcs` must be sorted, so two such arcs sit next to each other.
+fn check_weights(arcs: &[linkbase::CalculationArc]) -> Result<(), GeneratorError> {
+    for pair in arcs.windows(2) {
+        let (first, second) = (&pair[0], &pair[1]);
+        if (&first.role, &first.parent, &first.child)
+            == (&second.role, &second.parent, &second.child)
+        {
+            return Err(GeneratorError::ConflictingWeight {
+                role: first.role.clone(),
+                parent: first.parent.to_string(),
+                child: first.child.to_string(),
+                first: first.weight.clone(),
+                second: second.weight.clone(),
+            });
+        }
+    }
+    Ok(())
 }
 
 /// Returns the SHA-256 of the file at `manifest`, as 64 lowercase hex digits.
 fn manifest_checksum(manifest: &Path) -> Result<String, GeneratorError> {
-    let bytes = fs::read(manifest).map_err(|source| GeneratorError::FailedFileRead {
+    let bytes = fs::read(manifest).map_err(|error| GeneratorError::FailedFileRead {
         path: manifest.to_path_buf(),
-        source,
+        reason: error.to_string(),
     })?;
     let mut checksum = String::new();
     for byte in Sha256::digest(&bytes) {
@@ -151,8 +182,46 @@ fn manifest_checksum(manifest: &Path) -> Result<String, GeneratorError> {
 
 /// Returns the text of the file at `path`.
 fn read(path: &Path) -> Result<String, GeneratorError> {
-    fs::read_to_string(path).map_err(|source| GeneratorError::FailedFileRead {
+    fs::read_to_string(path).map_err(|error| GeneratorError::FailedFileRead {
         path: PathBuf::from(path),
-        source,
+        reason: error.to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::linkbase::CalculationArc;
+
+    fn arc(weight: &str) -> CalculationArc {
+        CalculationArc {
+            role: "http://fasb.org/us-gaap/role/statement/A".to_string(),
+            parent: ConceptRef {
+                family: "us-gaap".to_string(),
+                name: "Assets".to_string(),
+            },
+            child: ConceptRef {
+                family: "us-gaap".to_string(),
+                name: "AssetsCurrent".to_string(),
+            },
+            weight: weight.to_string(),
+        }
+    }
+
+    #[test]
+    fn should_return_conflicting_weight_when_one_role_holds_an_arc_with_two_weights() {
+        let arcs = vec![arc("-1.0"), arc("1.0")];
+
+        let expected_result = Some(
+            "[ConflictingWeight] Arc 'us-gaap:Assets' to 'us-gaap:AssetsCurrent' has two weights, \
+             Weights: '-1.0' and '1.0', Role: 'http://fasb.org/us-gaap/role/statement/A'"
+                .to_string(),
+        );
+
+        let result = check_weights(&arcs).err().map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
 }
