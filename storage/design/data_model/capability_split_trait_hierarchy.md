@@ -353,7 +353,7 @@ the consumer depends on, and a write path cannot leak into it.
 ## Related Design Documents
 
 - [`repository_listing.md`](./repository_listing.md): `ListRepository`, the capability that lists
-  the documents of a store, as a subtrait of `ReadRepository`.
+  the documents of a store, as a standalone trait next to `ReadRepository`.
 - [`capability_split_ports.md`](./capability_split_ports.md) — the STA-157 findings this design
   builds on: the two approaches, the queue mapping, and the recommendation.
 - [`../../../sec/design/data_model/storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md)

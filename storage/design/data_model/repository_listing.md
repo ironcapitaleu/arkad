@@ -52,10 +52,12 @@ The frozen v1 design had `RawStore::scan(filter)`, a stream of `RawFiling` value
 use futures_core::stream::BoxStream;
 
 use crate::error::ReadError;
-use crate::traits::repository::ReadRepository;
 
 /// Lists the documents a store holds, as metadata, never as bytes.
-pub trait ListRepository: ReadRepository {
+pub trait ListRepository: Send + Sync {
+    /// The key of one listed document.
+    type Key: Send;
+
     /// What one listed document reports: its key and its metadata.
     type Entry: Send;
 
@@ -77,19 +79,54 @@ Decisions:
    key implements no listing. A caller bound to `ReadRepository` has no listing in scope. This
    follows the capability split of
    [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
-2. **A subtrait of `ReadRepository`.** The subtrait reuses `ReadRepository::Key`, so a caller bound
-   to both traits names one `Key`, not two. Every key that `list` yields is a key that `get`
-   accepts.
-3. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
+2. **A standalone trait, not a subtrait of `ReadRepository`.** The listing extends the ports and
+   modifies none of them, so `ReadRepository` stays as it is. A caller bound to `ListRepository`
+   alone can list but has no `get` in scope. That matches an account that can list names but
+   cannot read contents, such as a GCS account with `storage.objects.list` and without
+   `storage.objects.get`. Such an account can call `list_keys` only: `list` reads each metadata
+   file, and that read needs `storage.objects.get`.
+3. **Its own `Key`.** `ListRepository` declares its own `Key`, because `ReadRepository` declares
+   its `Key` and the open-closed rule keeps it there. A store that implements both sets the two to
+   the same type. The filesystem sets both to `DocumentKey`, so every key that `list` yields is a
+   key that `get` accepts.
+4. **A helper for callers that list and read.** Replay, `daily_filings`, and the integrity check
+   do both. `ReadListRepository` names a store that reads and lists with one key type. A blanket
+   impl grants it:
+
+   ```rust
+   pub trait ReadListRepository:
+       ReadRepository + ListRepository<Key = <Self as ReadRepository>::Key>
+   {
+   }
+
+   impl<T> ReadListRepository for T where
+       T: ReadRepository + ListRepository<Key = <T as ReadRepository>::Key>
+   {
+   }
+   ```
+
+   This shape compiles with rustc 1.99.1, the pinned toolchain (a probe outside the repository,
+   2026-11-08). A caller bound to `R: ReadListRepository` passes each key from `list_keys` to `get`
+   with no conversion.
+
+   Both parents declare `Key`, so a bare `R::Key` fails with E0221, "ambiguous associated type". A
+   caller writes `<R as ReadRepository>::Key`. The bound makes the two keys one type, so either
+   path names it. `ReadWriteRepository` differs here: it leaves its two `Record` types separate.
+   For the same ambiguity, `dyn ReadListRepository<Key = …>` does not compile, so the helper has no
+   trait object. `dyn ListRepository<Key = …, Entry = …, Filter = …>` compiles. Leaving out
+   `Entry` or `Filter` fails with E0191. A store whose two keys differ gets no
+   `ReadListRepository`: the bound fails with E0271.
+5. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
    directory. `list` also reads each metadata file, one read per document. The cut-over check and
    the daily run need only keys. Replay and the integrity check need the metadata.
-4. **A stream, not a `Vec`.** The store will hold millions of documents. A caller folds the stream
+6. **A stream, not a `Vec`.** The store will hold millions of documents. A caller folds the stream
    or collects it. `BoxStream` keeps the trait object-safe, so `Box<dyn ListRepository<…>>` works
    as `Box<dyn ReadRepository<…>>` does. The methods are not `async`, because the stream is lazy.
    The `storage` crate gains the dependency `futures-core`, which is pure Rust.
-5. **No summary method.** Counts, total size, and the newest period are a fold over the stream in
+7. **No summary method.** Counts, total size, and the newest period are a fold over the stream in
    the caller. If a backend makes the fold too slow, a summary method comes with that backend.
-6. **`Entry` and `Filter` are associated types,** as `Record` and `Key` are. The metadata layout
+8. **`Key`, `Entry`, and `Filter` are associated types,** as `ReadRepository::Record` and
+   `ReadRepository::Key` are. The metadata layout
    belongs to the backend: the filesystem has a metadata file per document, a database has rows.
 
 ### Error
@@ -601,9 +638,12 @@ Triggers:
 
 These follow the decisions above. Each is one PR within the review budget.
 
-1. **`ListRepository` trait and its fake.** The trait in `storage/src/traits/repository/`, its
-   export, the `futures-core` dependency, and `FakeListRepository` in the test fixtures. Tests:
-   object safety, the order of the fake, and an error item that does not end the stream.
+1. **`ListRepository` trait and its fake.** The trait in `storage/src/traits/repository/`, the
+   `ReadListRepository` helper with its blanket impl, their exports, the `futures-core`
+   dependency, and `FakeListRepository` in the test fixtures. Tests: object safety, the order of
+   the fake, an error item that does not end the stream, a store with one key type that
+   implements `ReadListRepository` and passes a key from `list_keys` to `get`, and a
+   `compile_fail,E0271` doctest for a store whose two keys differ.
 2. **`ListRepository` for `FilesystemRepository`.** `KeyPrefix`, `ListedDocument`,
    `StoredDocument`, and the walk with the byte order. `FilesystemOperation::ListDirectory`. Tests
    for each row of the orphan table, for the order of `a-b` before `a/`, and for a listing that
@@ -629,7 +669,7 @@ and the object API projection does not, add a backend that lists through the obj
 ## See Also
 
 - [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md): the read and write
-  traits that `ListRepository` extends.
+  traits that `ListRepository` stands next to.
 - [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md): the
   deferred read surface and the frozen `scan`.
 - [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md): "Cut-Over Between the
