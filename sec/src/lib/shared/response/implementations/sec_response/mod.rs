@@ -738,7 +738,7 @@ mod zip_tests {
     }
 
     fn sample_url() -> Url {
-        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+        "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip"
             .parse()
             .expect("Given a hardcoded valid URL, parsing should always succeed")
     }
