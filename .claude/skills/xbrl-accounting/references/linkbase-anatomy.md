@@ -6,7 +6,7 @@ update-frequency: never (XBRL spec is stable; taxonomy XML updates annually but 
 
 # Linkbase XML Anatomy — Reading Guide
 
-This reference teaches how to read the raw FASB taxonomy XML files stored in `../data/taxonomy/2026/` (relative to this references directory). The file format follows the XBRL 2.1 and Dimensions 1.0 specifications.
+This reference teaches how to read the raw FASB taxonomy XML files stored in `xbrl/taxonomy/us-gaap/2026/` (relative to the repository root). The file format follows the XBRL 2.1 and Dimensions 1.0 specifications.
 
 ## File Naming Convention
 
@@ -197,7 +197,7 @@ LineItems (fact concepts)
 
 ### Purpose
 
-Maps concept IDs to human-readable names. Located in `elts/us-gaap-lab-2026.xml` (13MB, covers all ~18,000 concepts).
+Maps concept IDs to human-readable names. Located in `elts/us-gaap-lab-2026.xml` (14 MB, covers all ~18,000 concepts).
 
 ### Structure
 
@@ -234,20 +234,20 @@ When resolving an unknown concept from SEC data:
 3. **Check label linkbase** — What's the human-readable name? Does it match a known canonical element?
 4. **Check definition linkbase** — Is the data point dimensional? Is it a total or segment?
 
-## Files in This Skill
+## Vendored Files
 
 ```
-../data/taxonomy/2026/
-├── stm/
-│   ├── us-gaap-stm-sfp-cls-cal-2026.xml    # Balance Sheet (classified) — calculation
-│   ├── us-gaap-stm-sfp-cls-pre-2026.xml    # Balance Sheet (classified) — presentation
-│   ├── us-gaap-stm-sfp-cls-def-2026.xml    # Balance Sheet (classified) — definition
-│   ├── us-gaap-stm-soi-cal-2026.xml        # Income Statement — calculation
-│   ├── us-gaap-stm-soi-pre-2026.xml        # Income Statement — presentation
-│   ├── us-gaap-stm-soi-def-2026.xml        # Income Statement — definition
-│   ├── us-gaap-stm-scf-indir-cal-2026.xml  # Cash Flow (indirect) — calculation
-│   ├── us-gaap-stm-scf-indir-pre-2026.xml  # Cash Flow (indirect) — presentation
-│   └── us-gaap-stm-scf-indir-def-2026.xml  # Cash Flow (indirect) — definition
+xbrl/taxonomy/us-gaap/2026/
+├── MANIFEST                                 # SHA-256 of each file, sorted by path
+├── stm/                                     # Every statement group of the release
+│   ├── us-gaap-stm-sfp-cls-2026.xsd         # Balance Sheet (classified): entry schema
+│   ├── us-gaap-stm-sfp-cls-cal-2026.xml     # Balance Sheet (classified): calculation
+│   ├── us-gaap-stm-sfp-cls-pre-2026.xml     # Balance Sheet (classified): presentation
+│   ├── us-gaap-stm-sfp-cls-def-2026.xml     # Balance Sheet (classified): definition
+│   └── ...                                  # The same files for every other group
 └── elts/
-    └── us-gaap-lab-2026.xml                 # Labels (all concepts, 13MB)
+    ├── us-gaap-2026.xsd                     # Element schema: data type, balance, period type
+    ├── us-gaap-lab-2026.xml                 # Labels (all concepts, 14 MB)
+    ├── us-gaap-depcon-def-2026.xml          # Deprecated concepts and their replacements
+    └── us-gaap-depcon-pre-2026.xml          # Deprecated concepts, as a list
 ```
