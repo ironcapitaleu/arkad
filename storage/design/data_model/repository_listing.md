@@ -267,6 +267,11 @@ with `/` between the components.
 A sorted stream costs one sort per directory. It gives deterministic tests, a deterministic replay,
 and a merge with another sorted list, such as the rows of the full index sorted by key.
 
+The stream pages through the backend on its own, but a new call starts again at the first key. No
+consumer needs to resume today. If one does, the filter gains `start_after: Option<Key>`, and the
+caller keeps the last key it finished as its cursor. The sort order makes "after key K" exact. GCS
+supports it with `startOffset`, and the filesystem walk skips the directories that sort before K.
+
 ### What a Listing Sees During a Write
 
 A listing takes no snapshot. It walks the directories as they are while it runs. Writes and
