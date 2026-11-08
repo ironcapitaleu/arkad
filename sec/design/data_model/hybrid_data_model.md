@@ -427,6 +427,11 @@ Each adapter owns three things, all **independently queryable** and joinable to 
 
 ## 8. Consistency Model & Layer Hierarchy
 
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Postgres loads from silver, not from
+> the raw store. The write order then becomes raw store, silver, Postgres, and Postgres rebuilds from
+> silver. A failed load runs again from a ledger of loaded silver units, so the MVP needs no
+> reconciliation job that replays projections. The drift report below stays a data check.
+
 - **Graph = source of truth** for identity, structural metadata, completeness — and the
   *ledger* of relationship claims, which stay per-source and append-only (§5.2) rather than
   being merged into one "true" relationship.
@@ -918,7 +923,8 @@ choice. **Transaction ownership** follows: a co-located impl realizes atomicity 
 `ingest` directly against the shared transaction (impl-private helpers), *never* by composing its own
 capability-trait methods (three independent commits = a torn unit); a mixed-engine impl composes
 tier-by-tier with the raw write as commit point + idempotent, reconciled projections — see
-`storage_traits_design.md` § "Transaction ownership".
+`storage_traits_design.md` § "Transaction ownership". For the silver load, see the note at the top
+of §8.
 
 **No `dyn`.** Associated types make these traits non-object-safe — consistent with the framework's
 `State` trait (also non-object-safe). Stores are injected by concrete type / generics into the
@@ -941,7 +947,8 @@ language-agnostic / reversible-storage property enforceable by the compiler.
   `dimension_sig` grain must be indexed carefully.
 - **LEI coverage** for smaller/foreign filers — CIK fallback must be first-class.
 - **Dual-write consistency** without distributed transactions — mitigated by raw stores as
-  replay source + graph-first ordering; reconciliation cadence needs tuning.
+  replay source + graph-first ordering; reconciliation cadence needs tuning. For the MVP silver
+  load, see the note at the top of §8.
 - **Single-store vs hybrid** — resolved in §13/§14 from research, with the raw-store-as-SoT
   design keeping the storage choice reversible.
 - **Ontology layer / axiomatic enforcement on graph data** — deliberately deferred, but
