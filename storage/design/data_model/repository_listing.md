@@ -81,16 +81,17 @@ Decisions:
    [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
 2. **A standalone trait, not a subtrait of `ReadRepository`.** The listing extends the ports and
    modifies none of them, so `ReadRepository` stays as it is. A caller bound to `ListRepository`
-   alone can list but has no `get` in scope. That matches a store or an account that can list
-   names but cannot read contents, such as a GCS account with `storage.objects.list` and without
-   `storage.objects.get`.
+   alone can list but has no `get` in scope. That matches an account that can list names but
+   cannot read contents, such as a GCS account with `storage.objects.list` and without
+   `storage.objects.get`. Such an account can call `list_keys` only: `list` reads each metadata
+   file, and that read needs `storage.objects.get`.
 3. **Its own `Key`.** `ListRepository` declares its own `Key`, because `ReadRepository` declares
    its `Key` and the open-closed rule keeps it there. A store that implements both sets the two to
    the same type. The filesystem sets both to `DocumentKey`, so every key that `list` yields is a
    key that `get` accepts.
-4. **A helper for callers that list and read.** Replay and `daily_filings` do both. As
-   `ReadWriteRepository` names a store that reads and writes, a `ReadListRepository` with a blanket
-   impl names a store that reads and lists with one key type:
+4. **A helper for callers that list and read.** Replay, `daily_filings`, and the integrity check
+   do both. `ReadListRepository` names a store that reads and lists with one key type. A blanket
+   impl grants it:
 
    ```rust
    pub trait ReadListRepository:
@@ -104,8 +105,15 @@ Decisions:
    }
    ```
 
-   The first feature compiles this shape. If Rust rejects the bound on the helper trait, each such
-   caller writes the same bound in its `where` clause, and the helper is dropped.
+   This shape compiles with rustc 1.99.1, the pinned toolchain (a probe outside the repository,
+   2026-11-08). A caller bound to `R: ReadListRepository` passes each key from `list_keys` to `get`
+   with no conversion.
+
+   Both parents declare `Key`, so a bare `R::Key` fails with E0221, "ambiguous associated type". A
+   caller writes `<R as ReadRepository>::Key`. The bound makes the two keys one type, so either
+   path names it. `ReadWriteRepository` differs here: it leaves its two `Record` types separate.
+   For the same ambiguity, `dyn ReadListRepository<Key = …>` does not compile, so the helper has no
+   trait object. `dyn ListRepository<Key = …>` compiles.
 5. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
    directory. `list` also reads each metadata file, one read per document. The cut-over check and
    the daily run need only keys. Replay and the integrity check need the metadata.
@@ -115,7 +123,8 @@ Decisions:
    The `storage` crate gains the dependency `futures-core`, which is pure Rust.
 7. **No summary method.** Counts, total size, and the newest period are a fold over the stream in
    the caller. If a backend makes the fold too slow, a summary method comes with that backend.
-8. **`Key`, `Entry`, and `Filter` are associated types,** as `Record` and `Key` are. The metadata layout
+8. **`Key`, `Entry`, and `Filter` are associated types,** as `ReadRepository::Record` and
+   `ReadRepository::Key` are. The metadata layout
    belongs to the backend: the filesystem has a metadata file per document, a database has rows.
 
 ### Error
@@ -627,9 +636,11 @@ Triggers:
 
 These follow the decisions above. Each is one PR within the review budget.
 
-1. **`ListRepository` trait and its fake.** The trait in `storage/src/traits/repository/`, its
-   export, the `futures-core` dependency, and `FakeListRepository` in the test fixtures. Tests:
-   object safety, the order of the fake, and an error item that does not end the stream.
+1. **`ListRepository` trait and its fake.** The trait in `storage/src/traits/repository/`, the
+   `ReadListRepository` helper with its blanket impl, their exports, the `futures-core`
+   dependency, and `FakeListRepository` in the test fixtures. Tests: object safety, the order of
+   the fake, an error item that does not end the stream, and a store with one key type that
+   implements `ReadListRepository`.
 2. **`ListRepository` for `FilesystemRepository`.** `KeyPrefix`, `ListedDocument`,
    `StoredDocument`, and the walk with the byte order. `FilesystemOperation::ListDirectory`. Tests
    for each row of the orphan table, for the order of `a-b` before `a/`, and for a listing that
@@ -655,7 +666,7 @@ and the object API projection does not, add a backend that lists through the obj
 ## See Also
 
 - [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md): the read and write
-  traits that `ListRepository` extends.
+  traits that `ListRepository` stands next to.
 - [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md): the
   deferred read surface and the frozen `scan`.
 - [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md): "Cut-Over Between the
