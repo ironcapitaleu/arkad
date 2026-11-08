@@ -32,7 +32,7 @@ concepts. This table is the core of the reference — it means "adding an ontolo
 | CIK ↔ LEI mapping; relink-without-rewrite (§4) | **`owl:sameAs`** identity reconciliation | Same entity known under multiple identifier schemes |
 | Claim envelope on relationship edges — `source`, `as_of`, `observed_at`, `verifiability`; conflicts coexist; read-time selection (§5.2) | **Wikidata statement model**: references (source), qualifiers (point-in-time), ranks (preferred/normal/deprecated = read-time policy) | Independently reinvented; Wikidata is the prior art to consult when finalizing the claim layer |
 | SFAC-6 `Invariant`s (Assets = Liabilities + Equity, …) + per-element DQ table (§5.2) | **OWL axioms / SHACL shapes** — machine-enforced constraints | "A sentence in a spec is a hope; an axiom is a rule a machine enforces" |
-| Resolution engine deriving facts via calc-linkbase (`Derived`/`Computed` + `resolution_path`) | **RDFS-style inference** — the reasoner derives, unasked; `resolution_path` is the derivation trace | |
+| Resolution engine deriving facts via calc-linkbase (`Derived`/`Computed` + `rule` + `inputs`) | **RDFS-style inference** — the reasoner derives, unasked; `rule` and `inputs` are the derivation trace | |
 | Restatement invariant; exactly-one-primary-id | `owl:FunctionalProperty`-class constraints ("at most one") | |
 | Regulator adapters resolving native tags → canonical vocabulary | Ontology alignment / mapping between vocabularies | US-GAAP and IFRS as *dialects* of one upper vocabulary |
 

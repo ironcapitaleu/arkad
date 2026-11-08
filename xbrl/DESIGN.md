@@ -46,7 +46,7 @@ xbrl/
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
       elements.rs          <- CanonicalElement, our standard concept set, SFAC 6 invariants
-      standardized.rs      <- StandardizedFact (replaces resolved_fact.rs)
+      standardized.rs      <- StandardizedFact
       confidence.rs        <- Exact | Synonym | Derived | Computed
       rule.rs              <- RuleId
       release.rs           <- TaxonomyRelease (ID and checksum)
@@ -624,7 +624,7 @@ The resolution engine does not know which API an as-is fact came from.
 
 ### `StandardizedFact`
 
-`StandardizedFact` replaces `ResolvedFact`. It is one value of one standard concept.
+`StandardizedFact` is one value of one standard concept. It replaced `ResolvedFact`.
 
 ```text
 StandardizedFact {
@@ -786,6 +786,15 @@ and a length in quarters, as in the value key, because the Notes data set has no
 **Conflict.** If one rank disagrees with rank 0, the ranks are two or more facts.
 `core/dedup/more-precise@1` keeps all ranks and returns a `Conflict` finding to chronology. The
 finding names the as-is concept, and the standard concept if a plug-in maps it.
+
+```text
+Finding::Conflict {
+    entity:            EntityId
+    key:               FactKey                   // rank 0: filing, as-is concept, period end, quarters
+    ranks:             Vec<u16>                  // the ranks that disagree with rank 0, ascending
+    standard_concept:  Option<CanonicalElement>  // None if no plug-in maps the as-is concept
+}
+```
 
 - If tiers 1 and 2 would pick the conflicting concept, that filing gives a blocked candidate for
   the standard concept. A conflict on a lower alias, or on a concept no plug-in maps, blocks
