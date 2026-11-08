@@ -28,7 +28,8 @@ impl TaxonomyVersion {
     /// The type name that [`InvalidValue`] names when an input breaks a rule.
     const TYPE_NAME: &'static str = "TaxonomyVersion";
 
-    /// The character between the family and the year, as in `us-gaap/2017`.
+    /// The character between the family and the year, as in `us-gaap/2017`. An extension version,
+    /// which is a filing ID, has no separator.
     pub const SEPARATOR: char = '/';
 
     /// The number of digits of the year.
@@ -185,6 +186,33 @@ impl FromStr for Decimals {
     }
 }
 
+/// Where a fact comes from: the filing and when it was filed.
+///
+/// A point-in-time read filters on `filed` and `accepted`. Both repeat the values of the
+/// [`Filing`](super::filing::Filing), so the read needs no join.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct Source {
+    /// The filing, for example `sec:0000320193-26-000001`.
+    pub filing: FilingId,
+    /// The filing date.
+    pub filed: NaiveDate,
+    /// The acceptance time, if the source gives it.
+    pub accepted: Option<DateTime<Utc>>,
+}
+
+/// What a fact is about: the entity, the period, and the axis and member pairs.
+///
+/// This is the context of a fact, as XBRL defines it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct Context {
+    /// The entity the fact is about.
+    pub entity: EntityId,
+    /// The instant or duration the fact covers.
+    pub period: Period,
+    /// The axis and member pairs. Empty for a consolidated fact.
+    pub dimensions: Dimensions,
+}
+
 /// One reported value with the filing it came from, as the source reports it.
 ///
 /// The as-is layer holds every value of every filing, with no mapping to standard concepts and no
@@ -195,21 +223,17 @@ impl FromStr for Decimals {
 /// checks its own rules.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct AsIsFact {
-    /// The filing, for example `sec:0000320193-26-000001`.
-    pub filing: FilingId,
-    /// The entity the fact is about.
-    pub entity: EntityId,
+    /// Where the fact comes from.
+    pub source: Source,
+    /// What the fact is about.
+    pub context: Context,
     /// The concept: a namespace family and a local name.
     pub concept: ConceptName,
     /// The release of the family, for example `us-gaap/2026`. The filing ID for an extension
     /// concept. `None` if the source gives no version, as the SEC JSON APIs do.
     pub taxonomy_version: Option<TaxonomyVersion>,
-    /// The instant or duration the fact covers.
-    pub period: Period,
     /// The unit. `None` for a text fact.
     pub unit: Option<Unit>,
-    /// The axis and member pairs. Empty for a consolidated fact.
-    pub dimensions: Dimensions,
     /// The value.
     pub value: FactValue,
     /// The precision of a numeric value. `None` for text, and if the source gives none.
@@ -221,10 +245,6 @@ pub struct AsIsFact {
     pub copy_rank: u16,
     /// The footnotes the filing attaches to the fact.
     pub footnotes: Vec<String>,
-    /// The filing date.
-    pub filed: NaiveDate,
-    /// The acceptance time, if the source gives it.
-    pub accepted: Option<DateTime<Utc>>,
 }
 
 impl AsIsFact {
@@ -232,13 +252,13 @@ impl AsIsFact {
     #[must_use]
     pub fn key(&self) -> FactKey {
         FactKey {
-            filing: self.filing.clone(),
+            filing: self.source.filing.clone(),
             concept: self.concept.clone(),
             taxonomy_version: self.taxonomy_version.clone(),
-            period_end: self.period.end(),
-            quarters: self.period.quarters(),
+            period_end: self.context.period.end(),
+            quarters: self.context.period.quarters(),
             unit: self.unit.clone(),
-            dimensions: self.dimensions.clone(),
+            dimensions: self.context.dimensions.clone(),
             copy_rank: self.copy_rank,
         }
     }
@@ -309,25 +329,29 @@ mod tests {
 
     fn revenue_fact() -> AsIsFact {
         AsIsFact {
-            filing: filing_id(),
-            entity: EntityId::new("http://www.sec.gov/CIK", "0000320193")
-                .expect("Given a hardcoded scheme and ID, the creation should always succeed"),
+            source: Source {
+                filing: filing_id(),
+                filed: date(2024, 11, 1),
+                accepted: None,
+            },
+            context: Context {
+                entity: EntityId::new("http://www.sec.gov/CIK", "0000320193")
+                    .expect("Given a hardcoded scheme and ID, the creation should always succeed"),
+                period: Period::Duration(
+                    Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
+                        .expect("Given an end after the start, the creation should always succeed"),
+                ),
+                dimensions: Dimensions::default(),
+            },
             concept: concept("Revenues"),
             taxonomy_version: Some(TaxonomyVersion::new("us-gaap/2024").expect(
                 "Given a hardcoded version without whitespace, the creation should always succeed",
             )),
-            period: Period::Duration(
-                Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
-                    .expect("Given an end after the start, the creation should always succeed"),
-            ),
             unit: Some(unit_usd()),
-            dimensions: Dimensions::default(),
             value: FactValue::Numeric(decimal("391035000000")),
             decimals: Some(Decimals::Finite(-6)),
             copy_rank: 0,
             footnotes: vec![],
-            filed: date(2024, 11, 1),
-            accepted: None,
         }
     }
 
@@ -335,6 +359,16 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_as_is_fact() {
         implements_auto_traits::<AsIsFact>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_source() {
+        implements_auto_traits::<Source>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_context() {
+        implements_auto_traits::<Context>();
     }
 
     #[test]
@@ -377,8 +411,12 @@ mod tests {
     #[test]
     fn should_give_one_key_when_two_sources_differ_only_in_the_start() {
         let instance_fact = revenue_fact();
+        let instance_context = revenue_fact().context;
         let notes_fact = AsIsFact {
-            period: Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
+            context: Context {
+                period: Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
+                ..instance_context
+            },
             ..revenue_fact()
         };
 
