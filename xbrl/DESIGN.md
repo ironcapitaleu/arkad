@@ -461,7 +461,8 @@ AsIsFact {
   join keys from Notes or the instance. The as-is store loads only the Notes data set and the
   instance XML. The SEC JSON APIs feed today's `sec` pipeline only.
 - The ingestion provenance (ingestion mode, source document and its SHA-256, execution ID, load
-  time, parser version) is not on `AsIsFact`. The fact store design stores it next to the fact.
+  time, parser version) is not on `AsIsFact`. Silver stores it next to the fact, in the columns of
+  `as_is_facts` ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md)).
   `IngestionMode` lives in `storage`, and `xbrl` does not depend on `storage`.
 
 ### Value Key
@@ -493,10 +494,9 @@ section 4.
   with the same end and length, which can be two facts. `core/dedup/more-precise@1` handles both
   cases, see "Dedup Rules".
 - `taxonomy_version` adds no uniqueness, because the filing fixes the version of each family. It
-  stays in the key because the Notes data set gives it on every row, and the draft key of the fact
-  store design names it.
-- The key names the fields only. The fact store design decides the write rule, whether the source
-  document joins the grain, and the rule for a fact from two sources.
+  stays in the key because the Notes data set gives it on every row, and `as_is_facts` keys on it.
+- The key names the fields only. [`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts", decides the rule for a fact from two
+  sources. The write rule of gold is open for a later gold design.
 
 ### `Filing`
 
@@ -807,16 +807,47 @@ Parsers:
 - How the instance parser picks the main instance and skips the filing-fee exhibit.
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
-- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value
-  and in every key field except `copy_rank`, before it numbers the copies, such as the rows that the filing-fee exhibit repeats.
+- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value,
+  in `decimals`, and in every key field except `copy_rank`, before it numbers the copies, such as the rows that the filing-fee exhibit repeats.
 - How each parser numbers the copies of one key. The parser assigns `copy_rank` itself, in the
   `iprx` order where Notes gives it. If two rows still share a key and differ in value, for
   example after the parser strips dimension prefixes, the second row gets the next free rank. So
   the key stays unique, and `core/dedup/more-precise@1` compares the rows.
-- Which source wins if one filing comes in on both paths, and whether the standardize filing
-  state runs once per filing or once per source. Both runs share one `FilingId`, so step 3 has no
-  tie-break between them.
+- Whether the standardize filing state runs once per filing or once per source. A read takes one
+  source per filing, the instance over Notes ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts"). The same rule picks one
+  `candidates` unit per filing, so step 3 needs no tie-break inside one `FilingId`.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
+
+The parsers take seven rules from the segment findings of 2026-10-18. The rules make a Notes row
+equal to an instance fact. The as-is layer keeps every value and leaves dedup to the standardized
+layer, so some rules change:
+
+| # | Rule in the findings | In the as-is row |
+| - | -------------------- | ---------------- |
+| 1 | Shorten axis and member names the way the SEC does | `dimensions` holds the pairs without prefixes, as above |
+| 2 | Keep a typed member as written | `dimensions` keeps the content of the typed member |
+| 3 | Notes drops `/shares` from a per-share unit | The Notes parser restores `/shares`. `unit` holds the full unit |
+| 4 | The exact end date is `ddate` minus `datp` days | `period` holds the exact end. The start is set only if the source gives it |
+| 5 | A fact reported twice is two rows, keep the higher `dcml` | Both rows stay. The parser numbers them in `copy_rank`, in the `iprx` order. `decimals` holds `dcml`, and 32767 becomes `Infinite` |
+| 6 | Skip a nil fact | A nil fact stays, as `FactValue::Nil` |
+| 7 | Drop a value with a `coreg`. Keep a value only if every axis is on the list | Every value stays. `coreg` becomes the legal entity axis in `dimensions`. The list of segment axes is a read rule |
+
+Where each field of `AsIsFact` comes from:
+
+| Field | Notes data set | Instance path |
+| ----- | -------------- | ------------ |
+| `filing` | `sub.adsh` | The accession number of the filing |
+| `entity` | `sub.cik` | The entity identifier of the context |
+| `concept` | `num.tag` with the namespace of `num.version` | The element name |
+| `taxonomy_version` | `num.version` | The schema reference of the filing |
+| `period` | `ddate` minus `datp`, and `qtrs` | The period of the context |
+| `unit` | `num.uom`, with `/shares` restored | The unit of the fact |
+| `dimensions` | `dim.segments` through `num.dimh`, and `coreg` | The members of the context |
+| `value` | `num.value` or `txt.value`. An empty value is nil | The content of the fact, or `xsi:nil` |
+| `decimals` | `num.dcml` | The `decimals` attribute |
+| `copy_rank` | Assigned by the parser in the order of `num.iprx` | Assigned by the parser in the SEC order of `iprx` |
+| `footnotes` | `num.footnote` | The footnote links |
+| `filed`, `accepted` | `sub.filed`, `sub.accepted` | The filed date of the daily index. `accepted` is empty |
 
 States and errors:
 
