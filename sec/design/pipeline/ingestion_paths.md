@@ -895,8 +895,8 @@ dialect above. A table is sorted if each `adsh` forms one run of adjacent rows, 
 | `2026_10_notes.zip` | 1,488,444, 1,496 | Yes | 271,414, 6,670 | Yes | No |
 
 - The order of the rows differs between files and between the tables of one file. A reader must
-  not rely on it. This check covers seven of 80 files: the six above and `2009q1` (see "Empty
-  file").
+  not rely on it. This check covers seven of 80 files: the six files above, which have rows, and
+  `2009q1`, which has none (see "Empty file").
 - If a table is sorted, one streamed pass can cut it at each change of `adsh`. On `num.tsv` of
   `2025q3`, such a pass took 13.8 s in Python and peaked at 36 MB. An eager read of the same table
   as text peaked at 2.87 GB.
@@ -933,7 +933,7 @@ quarantines the row or the filing, and the file goes on.
    `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
-   the ZIP index parses, all eight tables and one metadata member are present (`notes-metadata.json`,
+   the ZIP index parses, all eight tables and exactly one metadata member are present (`notes-metadata.json`,
    or `<period>_notes-metadata.json` as in 2009q1), every member uses
    deflate, every member name has no path separator, and the unzipped size stays under a limit.
    Proposed limit: 16 GB unzipped per file, and 50 times the zipped size per member. Measured
