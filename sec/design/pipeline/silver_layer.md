@@ -1,7 +1,8 @@
 # Silver Layer
 
-> **Status:** the table layout (plain Parquet with the `silver_files` list) was decided by the owner
-> on 2026-11-08. The rest is proposed, for review by the lead. Inputs: the contract types and the transform
+> **Status:** the owner decided three points on 2026-11-08: the table layout (plain Parquet with the
+> `silver_files` list), `candidates` as a dataset of its own, and `filings` as a dataset of its own.
+> The rest is proposed, for review by the lead. Inputs: the contract types and the transform
 > integration of [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md), the raw store of
 > [`ingestion_paths.md`](ingestion_paths.md), and the extraction of
 > [`extraction_overview.md`](extraction_overview.md).
@@ -16,7 +17,7 @@ the transform fills it.
 ## Reading Guide
 
 - [Layers](#layers) and [Fixed Inputs](#fixed-inputs) give the frame. Read them first.
-- [Datasets](#datasets) is the data model. It carries the most decisions.
+- [Datasets](#datasets) is the data model. It holds two of the decisions of 2026-11-08.
 - [Format and Table Layout](#format-and-table-layout) holds the decision of 2026-11-08 for plain
   Parquet with a file list, and the triggers to switch to a table format.
 - [Units, Paths, and Replays](#units-paths-and-replays) and [Provenance](#provenance) describe how a
@@ -175,8 +176,9 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 
 ### `filings`
 
-`filings` is a dataset of its own, not columns on `as_is_facts`. The company history reads about 70
-rows per company instead of every fact. The provenance of an attribute sits in one row per filing.
+The owner decided on 2026-11-08 that `filings` stays a dataset of its own, not columns on
+`as_is_facts`. The company history reads about 250 rows per company over 70 quarters (estimate)
+instead of every fact. The provenance of an attribute sits in one row per filing.
 `Filing` and `AsIsFact` are separate types in `xbrl`.
 
 | Column | Arrow type | From |
@@ -208,7 +210,7 @@ One row per standard concept and filing, from steps 1 and 2 of the dedup order i
 `entity_bucket`. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
 the rule that picked the conflicting concept.
 
-`candidates` is a dataset of its own, decided by the owner on 2026-11-08. When a new filing arrives,
+The owner decided on 2026-11-08 that `candidates` stays a dataset of its own. When a new filing arrives,
 the series step runs again over every filing of the entity. It reads about 50 candidate rows per
 past filing instead of about 1,000 as-is rows, and it does not run steps 1 and 2 again.
 
@@ -277,10 +279,10 @@ The list of written units. Readers find the current files through it, and it hol
 | `transform_version` | `utf8` | |
 | `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, with the size and CRC32C of each object as GCS stores them |
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
-| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows read from each input table, for example `num.tsv` |
+| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. Empty for the other datasets |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the rows of the unit in sort order, without `execution_id` and `loaded_at` |
-| `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The run |
+| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters as its Arrow IPC bytes without `execution_id` and `loaded_at` |
+| `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The row column of the same name is the mode of the raw document |
 | `removed_at` | `timestamp[ms, UTC]`, nullable | Set only on the row that the cleanup of [Growth](#growth) adds for a removed unit |
 
 ## Format and Table Layout
@@ -405,11 +407,12 @@ see [Open Points](#open-points).
 ### Growth
 
 Silver deletes no unit of `as_is_facts`, `filings`, or `candidates`. Each full replay of the
-backfill adds the size of these datasets again, about 14 GB (estimate, see
+backfill adds the size of these datasets again, about 15 GB of `as_is_facts` plus `filings` and
+`candidates` (estimate, see
 [Cloud Run Sizing](#cloud-run-sizing)).
 
 The series datasets grow faster. A day with about 90 new filings touches about 48 of the 64
-buckets, and a peak day of 295 filings about 63. Each touched bucket writes a new unit of its
+buckets, and a peak day of 295 filings ([Volume](extraction_overview.md#volume)) about 63. Each touched bucket writes a new unit of its
 whole series output. Estimate: about 7,000
 entities, 50 concepts, and 90 periods give about 32 million rows, about 0.3 GB. A row holds an `inputs`
 list, so the real size is larger. The prototype measures it. A rewrite each day adds up to about
@@ -450,7 +453,8 @@ Proposal: A and C together.
 
 **Mode is a column, never a route.** No step branches on `ingestion_mode`. The source kind picks the
 parser and the unit: a Notes ZIP goes to the Notes parser and a `notes_file` unit, an instance to
-the instance parser and a `filing_day` unit, whichever run fetched it. Each row copies the mode
+the instance parser and a `filing_day` unit. The run that fetched the document does not change
+this. Each row copies the mode
 from the raw metadata of its own document, so no row mixes modes. A standardized fact reaches the
 modes of its sources through `inputs`.
 
@@ -469,10 +473,10 @@ check job of the raw store runs these checks too.
 
 | Check | Finds | How | Cost |
 | ----- | ----- | --- | ---- |
-| 1. Files | A missing or corrupted Parquet file | For each current unit, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
+| 1. Files | A missing or corrupted Parquet file | For each unit with no `removed_at` row, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
 | 2. Coverage | A raw document with no current unit, or a unit read from older bytes | Join the raw metadata (key, SHA-256) with `inputs` of the current units | Small tables |
-| 3. Row counts | Rows lost or doubled inside a unit | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers | Footers only |
-| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest` | One transform per unit, so a sample of units each week |
+| 3. Row counts | Rows lost or doubled inside a unit of `as_is_facts` or `filings` | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers. The derived datasets map many rows to one, so they get no row count check | Footers only |
+| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced" | One transform per unit, so a sample of units each week |
 
 Lineage checks join the datasets:
 
@@ -689,8 +693,8 @@ Two limits set the parallel tasks: the read speed of the raw bucket, and the con
 accepts. Silver itself sets none.
 
 Size of silver (estimate): `2025q3` writes 191.5 MB of as-is Parquet, 7.8 bytes per numeric row
-and 108 bytes per text row (measured). About 70 quarters of history give about 14 GB. Older
-quarters hold fewer rows, so this is an upper bound. Without replays, the whole silver bucket stays
+and 108 bytes per text row (measured). About 70 quarters of history give about 14 GB. A Q1 file
+such as `2024q1` holds about 26% more text, so the total can reach about 15 GB. Without replays, the whole silver bucket stays
 under 30 GB, the size of the raw store. See
 [Growth](#growth) for replays and the series datasets.
 
