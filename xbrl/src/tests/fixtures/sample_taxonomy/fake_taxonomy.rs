@@ -1,6 +1,6 @@
 //! # Fake Taxonomy
 //!
-//! Provides [`FakeTaxonomy`], a plug-in that declares families and holds no tables, for unit tests
+//! Provides [`FakeTaxonomy`], a plug-in that declares families and holds alias lists, for unit tests
 //! that need a [`Registry`](crate::core::taxonomy::registry::Registry).
 
 use crate::core::concept::{ConceptName, NamespaceFamily};
@@ -9,10 +9,11 @@ use crate::core::taxonomy::Taxonomy;
 use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{CalculationTree, ConceptAliases, ElementReference};
 
-/// A plug-in with a release and family declarations, and with no aliases, tree, or elements.
+/// A plug-in with a release, family declarations, and alias lists, and with no tree or elements.
 pub struct FakeTaxonomy {
     release: TaxonomyRelease,
     families: Vec<FamilyDeclaration>,
+    aliases: Vec<ConceptAliases>,
     tree: CalculationTree,
 }
 
@@ -26,7 +27,7 @@ impl Taxonomy for FakeTaxonomy {
     }
 
     fn aliases(&self) -> &[ConceptAliases] {
-        &[]
+        &self.aliases
     }
 
     fn calculation_tree(&self) -> &CalculationTree {
@@ -58,13 +59,29 @@ pub fn declaration(name: &str, pattern: &str, resolves: bool) -> FamilyDeclarati
         .expect("Given a hardcoded declaration, the creation should always succeed")
 }
 
-/// Returns a [`FakeTaxonomy`] of the release `release` that declares `families`.
+/// Returns a [`FakeTaxonomy`] of the release `release` that declares `families` and has no alias
+/// lists.
 ///
 /// # Panics
 ///
 /// Panics if `release` is not a release ID.
 #[must_use]
 pub fn plugin(release: &str, families: Vec<FamilyDeclaration>) -> FakeTaxonomy {
+    plugin_with_aliases(release, families, Vec::new())
+}
+
+/// Returns a [`FakeTaxonomy`] of the release `release` that declares `families` and has the alias
+/// lists `aliases`.
+///
+/// # Panics
+///
+/// Panics if `release` is not a release ID.
+#[must_use]
+pub fn plugin_with_aliases(
+    release: &str,
+    families: Vec<FamilyDeclaration>,
+    aliases: Vec<ConceptAliases>,
+) -> FakeTaxonomy {
     FakeTaxonomy {
         release: TaxonomyRelease {
             id: TaxonomyReleaseId::new(release).expect(
@@ -73,6 +90,7 @@ pub fn plugin(release: &str, families: Vec<FamilyDeclaration>) -> FakeTaxonomy {
             checksum: Sha256::new([0; 32]),
         },
         families,
+        aliases,
         tree: CalculationTree::default(),
     }
 }

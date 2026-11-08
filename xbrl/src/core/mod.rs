@@ -8,8 +8,11 @@
 //!
 //! ## Modules
 //!
+//! - [`alias`]: Tiers 1 and 2 of resolution on one filing.
+//! - [`candidate`]: The value one filing gives for one standard concept.
 //! - [`concept`]: Concept names, namespace families, and namespaces.
 //! - [`confidence`]: How a standardized value was resolved.
+//! - [`dedup`]: The dedup rules of the standardized layer.
 //! - [`elements`]: The standard concept set.
 //! - [`entity_name`]: The name of a company.
 //! - [`fact`]: The as-is fact, its value key, and the types of its fields.
@@ -28,8 +31,11 @@
 //! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
 
+pub mod alias;
+pub mod candidate;
 pub mod concept;
 pub mod confidence;
+pub mod dedup;
 pub mod elements;
 pub mod entity_name;
 pub mod fact;

@@ -47,6 +47,7 @@ xbrl/
       period.rs            <- Instant | Duration
       elements.rs          <- CanonicalElement, our standard concept set, SFAC 6 invariants
       standardized.rs      <- StandardizedFact
+      candidate.rs         <- Candidate: the value of one filing, before newest-filing
       confidence.rs        <- Exact | Synonym | Derived | Computed
       rule.rs              <- RuleId
       release.rs           <- TaxonomyRelease (ID and checksum)
@@ -57,6 +58,7 @@ xbrl/
         registry.rs        <- Registry, RegistryError
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
+      alias.rs             <- tiers 1 and 2 on one filing
       dedup.rs             <- dedup rules of the standardized layer
       chronology.rs        <- order over time, gap check
     us_gaap/
@@ -764,7 +766,7 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
 | `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree with rank 0 (see "Agreement of copies") | Take `copy_rank` 0 |
-| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` if both filings have it, then the highest filing ID. The filing ID gives a fixed order, not a time order |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
 Agreement of copies:
 
@@ -805,11 +807,32 @@ Finding::Conflict {
 - If a newer filing has a candidate for the standard concept, that candidate wins, and the older
   conflict blocks nothing.
 
+**Candidates.** Steps 1 and 2 give a `Candidate` per standard concept, period, and filing:
+`core::dedup::more_precise`, then `core::alias::resolve_aliases`. A candidate holds the fields of
+`StandardizedFact` without `restated`, plus its `FilingSource` and a value that is either reported
+or blocked. A reported value keeps its `decimals`, so step 3 can tell a restatement from a repeated
+comparative. Step 3 is `core::dedup::newest_filing`. It returns the facts and the series keys whose
+newest candidate is blocked, so step 4 derives no value for a blocked concept.
+
+Rules the code fixes where the table above leaves a choice:
+
+- The order of filings is total: `filed`, then `accepted`, then the filing ID. A filing with an
+  `accepted` time ranks above a filing of the same day without one. "Only if both have it" gives no
+  total order: with three filings of one day, the comparison can run in a circle.
+- A fact gets `restated` if an older candidate of its series reports a value that disagrees with it,
+  by the rule of "Agreement of copies". A blocked older candidate sets nothing.
+- In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
+  registry routes its family to the plug-in of the alias list. If two plug-ins map one standard
+  concept, the plug-in of the first family in name order wins.
+
 Other cases:
 
 - An amendment is filed later than its original, so `core/dedup/newest-filing@1` covers it.
-- A point-in-time read "as of D" applies the same two rules to the filings accepted (or filed) on
-  or before D. It needs no third rule.
+- A point-in-time read "as of D" applies the same two rules to the filings known at D. It needs no
+  third rule. `core::dedup::newest_filing_as_of` takes D as a time in UTC.
+  A filing with an `accepted` time counts if it was accepted at or before D. A filing without one
+  counts if it was filed before the date of D in UTC, because a filing of that date can still be in
+  the future.
 - The `frame` field exists only in the Company Facts API. No rule uses it.
 
 ### Restatement and Repeated Comparative

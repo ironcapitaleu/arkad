@@ -227,8 +227,8 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 
 One row per standard concept and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
-`standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `blocked`, and
-`entity_bucket`. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
+`standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `decimals`, `blocked`,
+and `entity_bucket`. Step 3 needs `decimals` to tell a restatement from a repeated comparative. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
 the rule that picked the conflicting concept.
 
 The owner decided on 2026-11-08 that `candidates` stays a dataset of its own. When a new filing arrives,
