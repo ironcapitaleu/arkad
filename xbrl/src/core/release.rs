@@ -69,7 +69,7 @@ impl fmt::Display for TaxonomyReleaseId {
 
 /// A SHA-256 digest, printed as 64 lowercase hex digits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
-pub struct Sha256([u8; 32]);
+pub struct Sha256([u8; Self::BYTE_LENGTH]);
 
 impl Sha256 {
     /// The type name that [`InvalidValue`] names when an input breaks a rule.
@@ -78,8 +78,11 @@ impl Sha256 {
     /// The number of bytes of a digest.
     pub const BYTE_LENGTH: usize = 32;
 
-    /// The number of hex digits of a digest: two per byte.
-    pub const HEX_LENGTH: usize = 2 * Self::BYTE_LENGTH;
+    /// The number of hex digits that write one byte.
+    const HEX_DIGITS_PER_BYTE: usize = 2;
+
+    /// The number of hex digits of a digest.
+    pub const HEX_LENGTH: usize = Self::HEX_DIGITS_PER_BYTE * Self::BYTE_LENGTH;
 
     /// The radix of the hex digits.
     const HEX_RADIX: u32 = 16;
@@ -92,7 +95,7 @@ impl Sha256 {
 
     /// Returns the 32 bytes of the digest.
     #[must_use]
-    pub const fn bytes(&self) -> &[u8; 32] {
+    pub const fn bytes(&self) -> &[u8; Self::BYTE_LENGTH] {
         &self.0
     }
 }
@@ -112,7 +115,10 @@ impl FromStr for Sha256 {
             return Err(invalid());
         }
         let mut bytes = [0; Self::BYTE_LENGTH];
-        for (byte, pair) in bytes.iter_mut().zip(text.as_bytes().chunks(2)) {
+        for (byte, pair) in bytes
+            .iter_mut()
+            .zip(text.as_bytes().chunks(Self::HEX_DIGITS_PER_BYTE))
+        {
             let pair = std::str::from_utf8(pair).map_err(|_| invalid())?;
             *byte = u8::from_str_radix(pair, Self::HEX_RADIX).map_err(|_| invalid())?;
         }
