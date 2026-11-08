@@ -69,7 +69,7 @@ impl fmt::Display for MissingElements {
     }
 }
 
-/// A financial invariant that must hold across resolved facts.
+/// A financial invariant that must hold across standardized facts.
 ///
 /// Exact invariants must hold with zero tolerance.
 /// Non-exact invariants are checked within a configurable threshold.

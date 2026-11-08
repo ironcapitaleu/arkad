@@ -13,7 +13,7 @@
 //! - [`elements`]: The standard concept set.
 //! - [`entity_name`]: The name of a company.
 //! - [`fact`]: The as-is fact, its value key, and the types of its fields.
-//! - [`fact_set`]: The resolved facts of one entity and one period.
+//! - [`fact_set`]: The standardized facts of one entity and one period.
 //! - [`filing`]: A filing, its ID, and the entity ID.
 //! - [`finding`]: A fact about the data that a step reports without failing the run.
 //! - [`fiscal_period`]: The fiscal period of a filing as filed.
@@ -23,8 +23,8 @@
 //! - [`invalid_value`]: The error of a core value type.
 //! - [`period`]: Instants and durations.
 //! - [`release`]: The taxonomy release of a plug-in.
-//! - [`resolved_fact`]: A value resolved to a standard concept.
 //! - [`rule`]: The ID of a rule.
+//! - [`standardized`]: One value of one standard concept.
 //! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
 
@@ -43,7 +43,7 @@ pub mod graph;
 pub mod invalid_value;
 pub mod period;
 pub mod release;
-pub mod resolved_fact;
 pub mod rule;
+pub mod standardized;
 pub mod taxonomy;
 pub mod unit;
