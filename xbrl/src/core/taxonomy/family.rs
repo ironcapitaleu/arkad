@@ -32,14 +32,14 @@ impl UriPattern {
         let (before, after) = text.split_once(RELEASE_PLACEHOLDER).ok_or_else(|| {
             InvalidValue::new(
                 "UriPattern",
-                InvalidValueReason::MissingSeparator('{'),
+                InvalidValueReason::MissingPlaceholder(RELEASE_PLACEHOLDER),
                 text,
             )
         })?;
         if after.contains(RELEASE_PLACEHOLDER) {
             return Err(InvalidValue::new(
                 "UriPattern",
-                InvalidValueReason::ContainsSeparator('{'),
+                InvalidValueReason::MissingPlaceholder(RELEASE_PLACEHOLDER),
                 text,
             ));
         }
@@ -60,6 +60,16 @@ impl UriPattern {
             return None;
         }
         leading_year(release)
+    }
+
+    /// Returns `true` if one URI can match both patterns.
+    ///
+    /// The check is conservative: it compares the text before and after the placeholder, and does
+    /// not check the release part.
+    #[must_use]
+    pub fn can_match_one_uri(&self, other: &Self) -> bool {
+        (self.before.starts_with(&other.before) || other.before.starts_with(&self.before))
+            && (self.after.ends_with(&other.after) || other.after.ends_with(&self.after))
     }
 }
 
@@ -122,7 +132,7 @@ impl FamilyDeclaration {
         if uri_patterns.is_empty() {
             return Err(InvalidValue::new(
                 "FamilyDeclaration",
-                InvalidValueReason::Empty,
+                InvalidValueReason::MissingPart("URI pattern"),
                 family.as_str(),
             ));
         }
@@ -175,6 +185,21 @@ impl FamilyDeclaration {
         self.family == other.family
             && self.uri_patterns == other.uri_patterns
             && self.notes_version_prefix == other.notes_version_prefix
+    }
+
+    /// Returns `true` if two declarations of different families share a Notes `version` prefix, or
+    /// have URI patterns that can match one URI. Then the split of a URI or a Notes `version` would
+    /// depend on the order of the families.
+    #[must_use]
+    pub fn overlaps(&self, other: &Self) -> bool {
+        self.family != other.family
+            && (self.notes_version_prefix == other.notes_version_prefix
+                || self.uri_patterns.iter().any(|pattern| {
+                    other
+                        .uri_patterns
+                        .iter()
+                        .any(|other_pattern| pattern.can_match_one_uri(other_pattern))
+                }))
     }
 
     /// Returns the taxonomy version, for example `us-gaap/2017`, if a pattern matches the URI.
@@ -280,9 +305,82 @@ mod tests {
         );
         let notes_version = "us-gaap/2017";
 
-        let expected_result = us_gaap.version_of_uri("http://fasb.org/us-gaap/2017-01-31");
+        let expected_result = Some(version("us-gaap/2017"));
 
         let result = us_gaap.version_of_notes(notes_version);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_year_when_uri_holds_a_full_release_date() {
+        let us_gaap = declaration(
+            "us-gaap",
+            &["http://fasb.org/us-gaap/{release}"],
+            "us-gaap",
+            true,
+        );
+        let uri = "http://fasb.org/us-gaap/2017-01-31";
+
+        let expected_result = Some(version("us-gaap/2017"));
+
+        let result = us_gaap.version_of_uri(uri);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_overlap_when_two_families_share_a_notes_prefix() {
+        let ifrs_full = declaration(
+            "ifrs-full",
+            &["https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full"],
+            "ifrs",
+            true,
+        );
+        let ifrs = declaration(
+            "ifrs",
+            &["https://xbrl.ifrs.org/taxonomy/{release}/ifrs"],
+            "ifrs",
+            false,
+        );
+
+        let expected_result = true;
+
+        let result = ifrs_full.overlaps(&ifrs);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_overlap_when_patterns_of_two_families_can_match_one_uri() {
+        let narrow = declaration("dei", &["http://xbrl.sec.gov/dei/{release}"], "dei", true);
+        let wide = declaration("sec", &["http://xbrl.sec.gov/{release}"], "sec", false);
+
+        let expected_result = true;
+
+        let result = narrow.overlaps(&wide);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_overlap_when_patterns_differ_only_after_the_release() {
+        let ifrs_full = declaration(
+            "ifrs-full",
+            &["https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full"],
+            "ifrs-full",
+            true,
+        );
+        let ifrs_smes = declaration(
+            "ifrs-smes",
+            &["https://xbrl.ifrs.org/taxonomy/{release}/ifrs-smes"],
+            "ifrs-smes",
+            true,
+        );
+
+        let expected_result = false;
+
+        let result = ifrs_full.overlaps(&ifrs_smes);
 
         assert_eq!(result, expected_result);
     }
@@ -410,7 +508,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "UriPattern",
-            InvalidValueReason::MissingSeparator('{'),
+            InvalidValueReason::MissingPlaceholder(RELEASE_PLACEHOLDER),
             "http://fasb.org/us-gaap/2026",
         ));
 
@@ -427,7 +525,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "FamilyDeclaration",
-            InvalidValueReason::Empty,
+            InvalidValueReason::MissingPart("URI pattern"),
             "dei",
         ));
 

@@ -55,8 +55,8 @@ impl FromStr for RuleId {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidValue`] if the text holds whitespace, lacks `@` or one of the two `/`, has
-    /// an empty part, or has a version that is not a number.
+    /// Returns [`InvalidValue`] if the text holds whitespace, lacks `@`, has other than two `/`, has
+    /// an empty part, or has a version that is not plain digits without a leading zero.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         require_token("RuleId", text)?;
         let invalid = |reason| InvalidValue::new("RuleId", reason, text);
@@ -64,15 +64,25 @@ impl FromStr for RuleId {
             .rsplit_once('@')
             .ok_or_else(|| invalid(InvalidValueReason::MissingSeparator('@')))?;
         let parts: Vec<&str> = path.split('/').collect();
-        if parts.len() != 3 {
+        if parts.len() < 3 {
             return Err(invalid(InvalidValueReason::MissingSeparator('/')));
+        }
+        if parts.len() > 3 {
+            return Err(invalid(InvalidValueReason::ContainsSeparator('/')));
         }
         if parts.iter().any(|part| part.is_empty()) {
             return Err(invalid(InvalidValueReason::Empty));
         }
+        // Only plain digits without a leading zero, so one version has one spelling.
+        let is_plain = !version.is_empty()
+            && version.bytes().all(|byte| byte.is_ascii_digit())
+            && !(version.len() > 1 && version.starts_with('0'));
+        if !is_plain {
+            return Err(invalid(InvalidValueReason::NotANumber));
+        }
         let version = version
             .parse()
-            .map_err(|_| invalid(InvalidValueReason::NotANumber))?;
+            .map_err(|_| invalid(InvalidValueReason::OutOfRange))?;
         Ok(Self {
             text: text.to_string(),
             version,
@@ -100,13 +110,15 @@ mod tests {
 
     #[test]
     fn should_print_text_when_rule_id_is_displayed() {
-        let rule = RuleId::from_str("core/dedup/newest-filing@1").expect(
-            "Given a hardcoded rule ID in the documented form, the parse should always succeed",
-        );
+        let text = "core/dedup/newest-filing@1";
 
         let expected_result = "core/dedup/newest-filing@1";
 
-        let result = rule.to_string();
+        let result = RuleId::from_str(text)
+            .expect(
+                "Given a hardcoded rule ID in the documented form, the parse should always succeed",
+            )
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -134,6 +146,51 @@ mod tests {
             "RuleId",
             InvalidValueReason::MissingSeparator('/'),
             "us-gaap/revenue@1",
+        ));
+
+        let result = RuleId::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_path_has_four_parts() {
+        let text = "a/b/c/d@1";
+
+        let expected_result = Err(InvalidValue::new(
+            "RuleId",
+            InvalidValueReason::ContainsSeparator('/'),
+            "a/b/c/d@1",
+        ));
+
+        let result = RuleId::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_version_has_a_leading_zero() {
+        let text = "us-gaap/alias/revenue@01";
+
+        let expected_result = Err(InvalidValue::new(
+            "RuleId",
+            InvalidValueReason::NotANumber,
+            "us-gaap/alias/revenue@01",
+        ));
+
+        let result = RuleId::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_text_when_version_has_a_plus_sign() {
+        let text = "us-gaap/alias/revenue@+1";
+
+        let expected_result = Err(InvalidValue::new(
+            "RuleId",
+            InvalidValueReason::NotANumber,
+            "us-gaap/alias/revenue@+1",
         ));
 
         let result = RuleId::from_str(text);

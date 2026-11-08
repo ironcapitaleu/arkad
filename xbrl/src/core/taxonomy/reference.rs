@@ -4,7 +4,7 @@
 //! [`ElementReference`].
 //!
 //! The types are records. A plug-in fills them from static data compiled into the binary, so every
-//! field is public, and each field type checks its own rules.
+//! field is public.
 
 use bigdecimal::BigDecimal;
 

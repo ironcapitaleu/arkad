@@ -22,6 +22,9 @@ use crate::core::release::TaxonomyReleaseId;
 /// - Every declaration of the family agrees: the same URI patterns and the same Notes `version`
 ///   prefix. So a plug-in can declare, without resolving, a family that another plug-in resolves.
 ///
+/// Two different families must not overlap: they share no Notes `version` prefix, and no URI can
+/// match a pattern of each. So a URI or a Notes `version` splits into at most one family.
+///
 /// A family that no plug-in declares has no split. The parser keeps its facts with the full URI or
 /// Notes `version` as family and version, and returns a finding that names the family. Such facts
 /// do not join between sources or across releases until a plug-in declares the family.
@@ -41,44 +44,17 @@ impl<'a> Registry<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`RegistryError::DuplicateFamilyResolver`] if two plug-ins resolve one family, and
-    /// [`RegistryError::InconsistentFamilyDeclaration`] if two declarations of one family disagree.
+    /// Returns [`RegistryError`] if a plug-in declares one family twice, two plug-ins resolve one
+    /// family, two declarations of one family disagree, or two families overlap.
     pub fn new(plugins: Vec<&'a dyn Taxonomy>) -> Result<Self, RegistryError> {
         let mut families: BTreeMap<NamespaceFamily, Entry> = BTreeMap::new();
         for (index, plugin) in plugins.iter().enumerate() {
+            reject_repeated_family(*plugin)?;
             for declaration in plugin.families() {
-                let resolver = declaration.resolves().then_some(index);
-                let Some(entry) = families.get_mut(declaration.family()) else {
-                    families.insert(
-                        declaration.family().clone(),
-                        Entry {
-                            declaration: declaration.clone(),
-                            first_declarer: index,
-                            resolver,
-                        },
-                    );
-                    continue;
-                };
-                if !entry.declaration.agrees_with(declaration) {
-                    return Err(RegistryError::InconsistentFamilyDeclaration {
-                        family: declaration.family().clone(),
-                        first: release_id(&plugins, entry.first_declarer),
-                        second: release_id(&plugins, index),
-                    });
-                }
-                match (entry.resolver, resolver) {
-                    (Some(first), Some(_)) => {
-                        return Err(RegistryError::DuplicateFamilyResolver {
-                            family: declaration.family().clone(),
-                            first: release_id(&plugins, first),
-                            second: release_id(&plugins, index),
-                        });
-                    }
-                    (None, Some(_)) => entry.resolver = resolver,
-                    _ => {}
-                }
+                add_declaration(&mut families, &plugins, index, declaration)?;
             }
         }
+        reject_overlap(&families)?;
         Ok(Self { plugins, families })
     }
 
@@ -129,6 +105,77 @@ impl<'a> Registry<'a> {
     }
 }
 
+fn reject_repeated_family(plugin: &dyn Taxonomy) -> Result<(), RegistryError> {
+    let declarations = plugin.families();
+    for (index, declaration) in declarations.iter().enumerate() {
+        if declarations[..index]
+            .iter()
+            .any(|earlier| earlier.family() == declaration.family())
+        {
+            return Err(RegistryError::RepeatedFamilyDeclaration {
+                family: declaration.family().clone(),
+                release: plugin.release().id.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn add_declaration(
+    families: &mut BTreeMap<NamespaceFamily, Entry>,
+    plugins: &[&dyn Taxonomy],
+    index: usize,
+    declaration: &FamilyDeclaration,
+) -> Result<(), RegistryError> {
+    let resolver = declaration.resolves().then_some(index);
+    let Some(entry) = families.get_mut(declaration.family()) else {
+        families.insert(
+            declaration.family().clone(),
+            Entry {
+                declaration: declaration.clone(),
+                first_declarer: index,
+                resolver,
+            },
+        );
+        return Ok(());
+    };
+    if !entry.declaration.agrees_with(declaration) {
+        return Err(RegistryError::InconsistentFamilyDeclaration {
+            family: declaration.family().clone(),
+            first: release_id(plugins, entry.first_declarer),
+            second: release_id(plugins, index),
+        });
+    }
+    match (entry.resolver, resolver) {
+        (Some(first), Some(_)) => Err(RegistryError::DuplicateFamilyResolver {
+            family: declaration.family().clone(),
+            first: release_id(plugins, first),
+            second: release_id(plugins, index),
+        }),
+        (None, Some(_)) => {
+            entry.resolver = resolver;
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+
+fn reject_overlap(families: &BTreeMap<NamespaceFamily, Entry>) -> Result<(), RegistryError> {
+    let entries: Vec<&Entry> = families.values().collect();
+    for (index, entry) in entries.iter().enumerate() {
+        if let Some(other) = entries[index + 1..]
+            .iter()
+            .find(|other| entry.declaration.overlaps(&other.declaration))
+        {
+            return Err(RegistryError::OverlappingFamilyDeclaration {
+                first: entry.declaration.family().clone(),
+                second: other.declaration.family().clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
 fn release_id(plugins: &[&dyn Taxonomy], index: usize) -> TaxonomyReleaseId {
     plugins[index].release().id.clone()
 }
@@ -162,6 +209,27 @@ pub enum RegistryError {
         first: TaxonomyReleaseId,
         /// The release of the plug-in whose declaration disagrees.
         second: TaxonomyReleaseId,
+    },
+
+    /// Two families share a Notes `version` prefix, or have URI patterns that can match one URI, so
+    /// the split would depend on the order of the families.
+    #[error(
+        "[OverlappingFamilyDeclaration] The families '{first}' and '{second}' share a Notes version prefix or have URI patterns that can match one URI"
+    )]
+    OverlappingFamilyDeclaration {
+        /// The first family, in sort order.
+        first: NamespaceFamily,
+        /// The second family, in sort order.
+        second: NamespaceFamily,
+    },
+
+    /// One plug-in declares one family twice.
+    #[error("[RepeatedFamilyDeclaration] Plug-in '{release}' declares the family '{family}' twice")]
+    RepeatedFamilyDeclaration {
+        /// The family.
+        family: NamespaceFamily,
+        /// The release of the plug-in.
+        release: TaxonomyReleaseId,
     },
 }
 
@@ -433,6 +501,70 @@ mod tests {
     }
 
     #[test]
+    fn should_reject_registry_when_two_families_share_a_notes_prefix() {
+        let first = us_gaap();
+        let second = plugin(
+            "ifrs-full/2025",
+            vec![
+                FamilyDeclaration::new(
+                    family("ifrs-full"),
+                    vec![UriPattern::new("https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full")
+                        .expect("Given a hardcoded pattern with one placeholder, the creation should always succeed")],
+                    "dei",
+                    true,
+                )
+                .expect("Given a hardcoded declaration, the creation should always succeed"),
+            ],
+        );
+        let plugins: Vec<&dyn Taxonomy> = vec![&first, &second];
+
+        let expected_result = Some(RegistryError::OverlappingFamilyDeclaration {
+            first: family("dei"),
+            second: family("ifrs-full"),
+        });
+
+        let result = Registry::new(plugins).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_registry_when_one_plugin_declares_a_family_twice() {
+        let repeating = plugin(
+            "us-gaap/2026",
+            vec![
+                declaration("dei", "http://xbrl.sec.gov/dei/{release}", true),
+                declaration("dei", "http://xbrl.sec.gov/dei/{release}", false),
+            ],
+        );
+        let plugins: Vec<&dyn Taxonomy> = vec![&repeating];
+
+        let expected_result = Some(RegistryError::RepeatedFamilyDeclaration {
+            family: family("dei"),
+            release: release_id("us-gaap/2026"),
+        });
+
+        let result = Registry::new(plugins).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_both_releases_when_two_declarations_disagree() {
+        let error = RegistryError::InconsistentFamilyDeclaration {
+            family: family("country"),
+            first: release_id("us-gaap/2026"),
+            second: release_id("ifrs-full/2025"),
+        };
+
+        let expected_result = "[InconsistentFamilyDeclaration] Plug-ins 'us-gaap/2026' and 'ifrs-full/2025' declare the family 'country' with different URI patterns or Notes version prefixes";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_declaration_when_family_is_declared() {
         let us_gaap = us_gaap();
         let plugins: Vec<&dyn Taxonomy> = vec![&us_gaap];
@@ -443,9 +575,11 @@ mod tests {
             true,
         ));
 
+        let dei = family("dei");
+
         let registry =
             Registry::new(plugins).expect("Given one plug-in, the creation should always succeed");
-        let result = registry.declaration(&family("dei"));
+        let result = registry.declaration(&dei);
 
         assert_eq!(result, expected_result);
     }

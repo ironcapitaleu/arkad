@@ -16,14 +16,29 @@ impl TaxonomyReleaseId {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidValue`] if the text is empty, holds whitespace, or holds no `/`.
+    /// Returns [`InvalidValue`] if the text is empty, holds whitespace, holds no `/`, has an empty
+    /// family, or has a year that is not four digits.
     pub fn new(text: impl Into<String>) -> Result<Self, InvalidValue> {
         let text = text.into();
         require_token("TaxonomyReleaseId", &text)?;
-        if !text.contains('/') {
+        let Some((family, year)) = text.split_once('/') else {
             return Err(InvalidValue::new(
                 "TaxonomyReleaseId",
                 InvalidValueReason::MissingSeparator('/'),
+                text,
+            ));
+        };
+        if family.is_empty() {
+            return Err(InvalidValue::new(
+                "TaxonomyReleaseId",
+                InvalidValueReason::Empty,
+                text,
+            ));
+        }
+        if year.len() != 4 || !year.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(InvalidValue::new(
+                "TaxonomyReleaseId",
+                InvalidValueReason::NotANumber,
                 text,
             ));
         }
@@ -68,10 +83,10 @@ impl FromStr for Sha256 {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidValue`] with [`InvalidValueReason::NotANumber`] if the text is not 64 hex
+    /// Returns [`InvalidValue`] with [`InvalidValueReason::NotHexDigest`] if the text is not 64 hex
     /// digits.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let invalid = || InvalidValue::new("Sha256", InvalidValueReason::NotANumber, text);
+        let invalid = || InvalidValue::new("Sha256", InvalidValueReason::NotHexDigest, text);
         if text.len() != 64 || !text.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(invalid());
         }
@@ -138,7 +153,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "Sha256",
-            InvalidValueReason::NotANumber,
+            InvalidValueReason::NotHexDigest,
             "9f86d0",
         ));
 
@@ -153,11 +168,41 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "Sha256",
-            InvalidValueReason::NotANumber,
+            InvalidValueReason::NotHexDigest,
             text,
         ));
 
         let result = Sha256::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_release_id_when_year_is_empty() {
+        let text = "us-gaap/";
+
+        let expected_result = Err(InvalidValue::new(
+            "TaxonomyReleaseId",
+            InvalidValueReason::NotANumber,
+            "us-gaap/",
+        ));
+
+        let result = TaxonomyReleaseId::new(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_release_id_when_family_is_empty() {
+        let text = "/2026";
+
+        let expected_result = Err(InvalidValue::new(
+            "TaxonomyReleaseId",
+            InvalidValueReason::Empty,
+            "/2026",
+        ));
+
+        let result = TaxonomyReleaseId::new(text);
 
         assert_eq!(result, expected_result);
     }

@@ -269,16 +269,21 @@ pub struct TaxonomyRelease {
 SFAC 6 identities and period identities are not part of the trait. They are core rules, the same
 for every taxonomy.
 
-**Registry.** The core holds a list of `&dyn Taxonomy`. The caller picks the lifetime. The
+**Registry.** The core holds a list of `&dyn Taxonomy`. The caller owns the plug-ins, and the
+registry borrows them. The
 registry routes each as-is fact to the plug-in that resolves the namespace family of its concept. A
 filing can mix families, for example a 20-F with `ifrs-full` and `dei`, so the routing works per
-fact. The registry checks two rules when it starts. Tests check both:
+fact. The registry checks these rules when it starts. A test checks each one:
 
 - At most one plug-in resolves a family. Two resolvers fail with `DuplicateFamilyResolver`.
 - Every declaration of a family agrees with the others. Two declarations agree only if both the
   URI patterns and the Notes `version` prefix match. If one of them differs, the split of a URI
   would depend on the order of the plug-ins, so the registry fails with
   `InconsistentFamilyDeclaration`. Whether a plug-in resolves the family does not count.
+- Two different families do not overlap. They share no Notes `version` prefix, and no URI can
+  match a pattern of each. Otherwise the split would depend on the order of the families, so the
+  registry fails with `OverlappingFamilyDeclaration`.
+- A plug-in declares each family once. Otherwise it fails with `RepeatedFamilyDeclaration`.
 
 So one plug-in can declare, without resolving, a family that another plug-in resolves, if the two
 declarations agree. For example, an `ifrs` plug-in and `us_gaap` can both declare `country`, and
