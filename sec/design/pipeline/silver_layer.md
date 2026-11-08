@@ -136,7 +136,7 @@ Silver stores three kinds of values:
 | ---- | ------- | ----- | -------------- |
 | Duration | Revenue of a quarter | `as_is_facts` | `period_end`, `quarters` of 1 or more, and `period_start` |
 | Instant | Cash on the balance sheet date | `as_is_facts` | `period_end` is the date, `quarters` is 0, `period_start` is null |
-| Company attribute | Name, ticker, exchange, SIC, fiscal year end | `filings` | None. A value holds from the `accepted` time of its filing until a later filing changes it |
+| Company attribute | Name, ticker, exchange, industry code, fiscal year end | `filings` | None. A value holds from the `accepted` time of its filing until a later filing changes it |
 
 - The key of a period is `period_end` and `quarters`. Notes `num.tsv` gives only these two
   (`ddate`, `qtrs`). The instance gives exact dates. So a Notes value and an instance value of the

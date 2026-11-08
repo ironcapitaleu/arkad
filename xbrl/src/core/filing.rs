@@ -1,8 +1,8 @@
 //! # Filing
 //!
-//! Provides [`Filing`], one filing with its attributes as filed, the IDs it carries, [`FilingId`]
-//! and [`EntityId`], and the company attributes it states, [`CompanyAttributes`] and
-//! [`IndustryCode`].
+//! Provides [`Filing`], one filing with its attributes as filed. A filing carries the IDs
+//! [`FilingId`] and [`EntityId`], and states the attributes of its company in
+//! [`CompanyAttributes`] and [`IndustryCode`].
 
 use std::fmt;
 use std::str::FromStr;
