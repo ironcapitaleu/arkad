@@ -1,7 +1,7 @@
 //! # Company Facts Parser
 //!
-//! Deserializes the SEC `/api/xbrl/companyfacts/` JSON endpoint
-//! into a collection of `RawObservation`s.
+//! Maps the JSON body of the SEC `/api/xbrl/companyfacts/` endpoint into [`AsIsFact`] values and one
+//! [`Filing`] per accession number.
 //!
 //! ## JSON Structure
 //!
@@ -11,7 +11,7 @@
 //!   "entityName": "Apple Inc.",
 //!   "facts": {
 //!     "us-gaap": {
-//!       "Revenue": {
+//!       "Revenues": {
 //!         "label": "...",
 //!         "description": "...",
 //!         "units": {
@@ -25,83 +25,112 @@
 //! }
 //! ```
 
+use std::collections::HashMap;
+use std::str::FromStr;
+
+use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 
-use crate::core::accession_number::AccessionNumber;
+use crate::core::concept::{ConceptName, NamespaceFamily};
+use crate::core::entity_name::EntityName;
+use crate::core::fact::{AsIsFact, Dimensions, FactKey, FactValue};
+use crate::core::filing::{EntityId, Filing, FilingId};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
 use crate::core::form::Form;
-use crate::core::frame::Frame;
-use crate::core::namespace::Namespace;
-use crate::core::observation::RawObservation;
-use crate::core::period::Period;
-use crate::core::provenance::Provenance;
+use crate::core::period::{Duration, Period};
 use crate::core::unit::Unit;
 use crate::error::parsing::ParseErrorKind;
-use crate::us_gaap::mappings::{REQUIRED_FACTS_NAMESPACE, REQUIRED_TOP_LEVEL_KEYS};
 
-/// Parses a raw SEC Company Facts JSON body into raw observations.
+/// Required top-level keys in the SEC Company Facts JSON response.
+pub const REQUIRED_TOP_LEVEL_KEYS: &[&str] = &["cik", "entityName", "facts"];
+
+/// Required taxonomy namespace under the `"facts"` key.
+pub const REQUIRED_FACTS_NAMESPACE: &str = "us-gaap";
+
+/// Namespace for general company information (DEI taxonomy).
+pub const COMPANY_INFO_NAMESPACE: &str = "dei";
+
+/// The entity identifier scheme of the SEC: a CIK.
+pub const CIK_SCHEME: &str = "http://www.sec.gov/CIK";
+
+/// The source of an SEC filing ID, as in `sec:0000320193-24-000123`.
+pub const SEC_FILING_SOURCE: &str = "sec";
+
+/// The as-is facts of one Company Facts response, and one filing per accession number.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CompanyFacts {
+    /// Every data point of every namespace, sorted by namespace, concept, and unit, and in the order
+    /// of the JSON within one array of data points.
+    pub facts: Vec<AsIsFact>,
+    /// One filing per accession number, in the order of the first data point that names it.
+    pub filings: Vec<Filing>,
+}
+
+/// Parses a raw SEC Company Facts JSON body into as-is facts and filings.
 ///
-/// Extracts all data points from all namespaces and concepts present in the response.
-/// Does not perform concept resolution; returns flat observations for downstream processing.
+/// Keeps every data point of every namespace and unit. The JSON gives no taxonomy version, no
+/// dimensions, no `decimals`, and no acceptance time, so these fields stay empty. `copy_rank`
+/// numbers the data points with one value key in the order of their array.
 ///
 /// # Errors
 ///
-/// Returns [`ParseErrorKind`] if the JSON structure is invalid or required keys are missing.
-pub fn parse(json: &serde_json::Value) -> Result<Vec<RawObservation>, ParseErrorKind> {
+/// Returns [`ParseErrorKind`] if the JSON structure is invalid, a required key is missing, or a data
+/// point lacks a required field.
+pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
     validate_top_level_structure(json)?;
 
-    let facts = json
+    let entity = entity_id(json)?;
+    let company_name = extract_entity_name(json)?;
+
+    let namespaces = json
         .get("facts")
         .and_then(serde_json::Value::as_object)
         .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
             reason: "Expected 'facts' to be a JSON object".to_string(),
         })?;
 
-    if !facts.contains_key(REQUIRED_FACTS_NAMESPACE) {
+    if !namespaces.contains_key(REQUIRED_FACTS_NAMESPACE) {
         return Err(ParseErrorKind::MissingNamespace {
             namespace: REQUIRED_FACTS_NAMESPACE.to_string(),
         });
     }
 
-    let mut observations = Vec::new();
+    let mut parser = Parser {
+        entity,
+        company_name: EntityName::new(company_name),
+        facts: Vec::new(),
+        filings: Vec::new(),
+        filing_index: HashMap::new(),
+        copies: HashMap::new(),
+    };
 
-    for (ns_key, ns_value) in facts {
-        let Some(namespace) = Namespace::from_sec_str(ns_key) else {
+    for (namespace, concepts) in namespaces {
+        let Some(concepts) = concepts.as_object() else {
             continue;
         };
-
-        let Some(concepts) = ns_value.as_object() else {
-            continue;
-        };
-
-        for (concept_name, concept_data) in concepts {
-            let Some(units_obj) = concept_data
+        for (local_name, concept_data) in concepts {
+            let concept = concept_name(namespace, local_name)?;
+            let Some(units) = concept_data
                 .get("units")
                 .and_then(serde_json::Value::as_object)
             else {
                 continue;
             };
-
-            for (unit_str, data_points) in units_obj {
-                let Some(unit) = Unit::from_sec_str(unit_str) else {
-                    continue;
-                };
-
-                let Some(data_points) = data_points.as_array() else {
-                    continue;
-                };
-
-                for dp in data_points {
-                    if let Some(obs) = parse_data_point(dp, namespace, concept_name, unit) {
-                        observations.push(obs);
-                    }
+            for (unit_text, data_points) in units {
+                let unit = Unit::from_str(unit_text)
+                    .map_err(|error| invalid(&concept, &error.to_string()))?;
+                for data_point in data_points.as_array().into_iter().flatten() {
+                    parser.add(data_point, &concept, &unit)?;
                 }
             }
         }
     }
 
-    Ok(observations)
+    Ok(CompanyFacts {
+        facts: parser.facts,
+        filings: parser.filings,
+    })
 }
 
 /// Returns the entity name from the Company Facts JSON.
@@ -117,6 +146,143 @@ pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ParseErro
         .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
             reason: "Expected 'entityName' to be a string".to_string(),
         })
+}
+
+struct Parser {
+    entity: EntityId,
+    company_name: EntityName,
+    facts: Vec<AsIsFact>,
+    filings: Vec<Filing>,
+    filing_index: HashMap<FilingId, usize>,
+    copies: HashMap<FactKey, u16>,
+}
+
+impl Parser {
+    fn add(
+        &mut self,
+        data_point: &serde_json::Value,
+        concept: &ConceptName,
+        unit: &Unit,
+    ) -> Result<(), ParseErrorKind> {
+        let field = |key: &str| {
+            data_point
+                .get(key)
+                .filter(|value| !value.is_null())
+                .ok_or_else(|| invalid(concept, &format!("Missing field '{key}'")))
+        };
+        let text = |key: &str| {
+            field(key)?
+                .as_str()
+                .ok_or_else(|| invalid(concept, &format!("Field '{key}' is not a string")))
+        };
+        let date = |key: &str| {
+            NaiveDate::parse_from_str(text(key)?, "%Y-%m-%d")
+                .map_err(|error| invalid(concept, &format!("Field '{key}' is not a date: {error}")))
+        };
+
+        let value = BigDecimal::from_str(&field("val")?.to_string())
+            .map_err(|error| invalid(concept, &format!("Field 'val' is not a number: {error}")))?;
+        let end = date("end")?;
+        let period = if field("start").is_ok() {
+            Period::Duration(
+                Duration::from_dates(date("start")?, end)
+                    .map_err(|error| invalid(concept, &error.to_string()))?,
+            )
+        } else {
+            Period::Instant { end }
+        };
+        let filing = FilingId::new(SEC_FILING_SOURCE, text("accn")?)
+            .map_err(|error| invalid(concept, &error.to_string()))?;
+        let filed = date("filed")?;
+
+        if !self.filing_index.contains_key(&filing) {
+            let form =
+                Form::new(text("form")?).map_err(|error| invalid(concept, &error.to_string()))?;
+            let fiscal_year = match field("fy") {
+                Ok(fy) => Some(FiscalYear::new(
+                    fy.as_u64()
+                        .and_then(|year| u16::try_from(year).ok())
+                        .ok_or_else(|| invalid(concept, "Field 'fy' is not a year"))?,
+                )),
+                Err(_) => None,
+            };
+            let fiscal_period = match text("fp") {
+                Ok(fp) => Some(
+                    FiscalPeriod::new(fp).map_err(|error| invalid(concept, &error.to_string()))?,
+                ),
+                Err(_) => None,
+            };
+            self.filing_index.insert(filing.clone(), self.filings.len());
+            self.filings.push(Filing {
+                id: filing.clone(),
+                entity: self.entity.clone(),
+                is_amendment: form.is_amendment(),
+                form,
+                filed,
+                accepted: None,
+                period_of_report: None,
+                fiscal_year,
+                fiscal_period,
+                company_name: Some(self.company_name.clone()),
+                sic: None,
+                tickers: Vec::new(),
+                fiscal_year_end: None,
+            });
+        }
+
+        let mut fact = AsIsFact {
+            filing,
+            entity: self.entity.clone(),
+            concept: concept.clone(),
+            taxonomy_version: None,
+            period,
+            unit: Some(unit.clone()),
+            dimensions: Dimensions::default(),
+            value: FactValue::Numeric(value),
+            decimals: None,
+            copy_rank: 0,
+            footnotes: Vec::new(),
+            filed,
+            accepted: None,
+        };
+        let copies = self.copies.entry(fact.key()).or_insert(0);
+        fact.copy_rank = *copies;
+        *copies = copies
+            .checked_add(1)
+            .ok_or_else(|| invalid(concept, "More than 65535 copies share one value key"))?;
+        self.facts.push(fact);
+        Ok(())
+    }
+}
+
+fn entity_id(json: &serde_json::Value) -> Result<EntityId, ParseErrorKind> {
+    let cik = json
+        .get("cik")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
+            reason: "Expected 'cik' to be a number".to_string(),
+        })?;
+    EntityId::new(CIK_SCHEME, format!("{cik:010}")).map_err(|error| {
+        ParseErrorKind::UnexpectedJsonSchema {
+            reason: error.to_string(),
+        }
+    })
+}
+
+fn concept_name(namespace: &str, local_name: &str) -> Result<ConceptName, ParseErrorKind> {
+    NamespaceFamily::new(namespace)
+        .and_then(|family| ConceptName::new(family, local_name))
+        .map_err(|error| ParseErrorKind::InvalidDataPoint {
+            concept: format!("{namespace}:{local_name}"),
+            reason: error.to_string(),
+        })
+}
+
+fn invalid(concept: &ConceptName, reason: &str) -> ParseErrorKind {
+    ParseErrorKind::InvalidDataPoint {
+        concept: concept.to_string(),
+        reason: reason.to_string(),
+    }
 }
 
 fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ParseErrorKind> {
@@ -137,60 +303,6 @@ fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ParseErr
     Ok(())
 }
 
-fn parse_data_point(
-    dp: &serde_json::Value,
-    namespace: Namespace,
-    concept_name: &str,
-    unit: Unit,
-) -> Option<RawObservation> {
-    let val = dp.get("val")?.as_i64()?;
-    let end_str = dp.get("end")?.as_str()?;
-    let end_date = NaiveDate::parse_from_str(end_str, "%Y-%m-%d").ok()?;
-
-    let period = if let Some(start_str) = dp.get("start").and_then(serde_json::Value::as_str) {
-        let start_date = NaiveDate::parse_from_str(start_str, "%Y-%m-%d").ok()?;
-        Period::Duration {
-            start: start_date,
-            end: end_date,
-        }
-    } else {
-        Period::Instant { date: end_date }
-    };
-
-    let frame = dp
-        .get("frame")
-        .and_then(serde_json::Value::as_str)
-        .and_then(Frame::parse);
-
-    let accn = dp.get("accn")?.as_str()?;
-    let form_str = dp.get("form")?.as_str()?;
-    let form = Form::from_sec_str(form_str)?;
-    let fy = u16::try_from(dp.get("fy")?.as_u64()?).ok()?;
-    let fp_str = dp.get("fp")?.as_str()?;
-    let fiscal_period = FiscalPeriod::from_sec_str(fp_str)?;
-    let filed_str = dp.get("filed")?.as_str()?;
-    let filed_date = NaiveDate::parse_from_str(filed_str, "%Y-%m-%d").ok()?;
-
-    let provenance = Provenance::new(
-        AccessionNumber::new(accn),
-        form,
-        FiscalYear::new(fy),
-        fiscal_period,
-        filed_date,
-        end_date,
-    );
-
-    Some(RawObservation::new(
-        namespace,
-        concept_name,
-        val,
-        unit,
-        period,
-        frame,
-        provenance,
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -198,122 +310,256 @@ mod tests {
 
     use super::*;
 
-    fn sample_company_facts_json() -> serde_json::Value {
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day)
+            .expect("Given a hardcoded valid date, the creation should always succeed")
+    }
+
+    fn data_point(start: Option<&str>, end: &str, val: &serde_json::Value) -> serde_json::Value {
+        let mut point = json!({
+            "end": end,
+            "val": val,
+            "accn": "0000320193-24-000123",
+            "fy": 2024,
+            "fp": "FY",
+            "form": "10-K",
+            "filed": "2024-11-01",
+            "frame": "CY2024Q4I"
+        });
+        if let Some(start) = start {
+            point["start"] = json!(start);
+        }
+        point
+    }
+
+    fn company_facts_json(us_gaap: &serde_json::Value) -> serde_json::Value {
         json!({
             "cik": 320_193,
             "entityName": "Apple Inc.",
             "facts": {
-                "us-gaap": {
-                    "Assets": {
-                        "label": "Assets",
-                        "description": "Total assets",
-                        "units": {
-                            "USD": [
-                                {
-                                    "end": "2024-09-28",
-                                    "val": 364_980_000_000_i64,
-                                    "accn": "0000320193-24-000123",
-                                    "fy": 2024,
-                                    "fp": "FY",
-                                    "form": "10-K",
-                                    "filed": "2024-11-01",
-                                    "frame": "CY2024Q4I"
-                                }
-                            ]
-                        }
-                    },
-                    "Revenues": {
-                        "label": "Net Sales",
-                        "description": "Revenue",
-                        "units": {
-                            "USD": [
-                                {
-                                    "start": "2023-10-01",
-                                    "end": "2024-09-28",
-                                    "val": 391_035_000_000_i64,
-                                    "accn": "0000320193-24-000123",
-                                    "fy": 2024,
-                                    "fp": "FY",
-                                    "form": "10-K",
-                                    "filed": "2024-11-01",
-                                    "frame": "CY2024"
-                                }
-                            ]
-                        }
-                    }
-                },
+                "us-gaap": us_gaap,
                 "dei": {
                     "EntityCommonStockSharesOutstanding": {
-                        "label": "Entity Common Stock, Shares Outstanding",
-                        "description": "Shares outstanding",
-                        "units": {
-                            "shares": [
-                                {
-                                    "end": "2024-10-18",
-                                    "val": 15_115_823_000_i64,
-                                    "accn": "0000320193-24-000123",
-                                    "fy": 2024,
-                                    "fp": "FY",
-                                    "form": "10-K",
-                                    "filed": "2024-11-01"
-                                }
-                            ]
-                        }
+                        "units": { "shares": [data_point(None, "2024-10-18", &json!(15_115_823_000_i64))] }
                     }
                 }
             }
         })
     }
 
+    fn sample_company_facts_json() -> serde_json::Value {
+        company_facts_json(&json!({
+            "Assets": {
+                "label": "Assets",
+                "units": { "USD": [data_point(None, "2024-09-28", &json!(364_980_000_000_i64))] }
+            },
+            "Revenues": {
+                "label": "Net Sales",
+                "units": { "USD": [data_point(Some("2023-10-01"), "2024-09-28", &json!(391_035_000_000_i64))] }
+            },
+            "EarningsPerShareDiluted": {
+                "units": { "USD/shares": [data_point(Some("2023-10-01"), "2024-09-28", &json!(6.08))] }
+            }
+        }))
+    }
+
+    fn fact<'a>(facts: &'a CompanyFacts, local_name: &str) -> &'a AsIsFact {
+        facts
+            .facts
+            .iter()
+            .find(|fact| fact.concept.local_name() == local_name)
+            .expect("Given the sample body, the concept should have a fact")
+    }
+
+    fn concept(family: &str, local_name: &str) -> ConceptName {
+        concept_name(family, local_name)
+            .expect("Given a hardcoded concept, the creation should always succeed")
+    }
+
     #[test]
-    fn should_parse_observations_when_valid_company_facts_json_is_provided() {
+    fn should_keep_every_namespace_when_valid_company_facts_json_is_provided() {
         let json = sample_company_facts_json();
 
-        let expected_result = 3;
+        let expected_result = 4;
 
-        let result = parse(&json).expect("Valid JSON should parse successfully");
+        let result = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed")
+            .facts
+            .len();
 
-        assert_eq!(result.len(), expected_result);
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_use_namespace_key_as_family_when_concept_is_in_dei() {
+        let json = sample_company_facts_json();
+
+        let expected_result = &concept("dei", "EntityCommonStockSharesOutstanding");
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = &fact(&facts, "EntityCommonStockSharesOutstanding").concept;
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_parse_instant_period_when_data_point_has_no_start() {
         let json = sample_company_facts_json();
 
-        let observations = parse(&json).expect("Valid JSON should parse successfully");
-        let assets_obs = observations
-            .iter()
-            .find(|o| o.concept_name() == "Assets")
-            .expect("Assets observation should exist");
-
         let expected_result = Period::Instant {
-            date: NaiveDate::from_ymd_opt(2024, 9, 28)
-                .expect("Hardcoded date should always be valid"),
+            end: date(2024, 9, 28),
         };
 
-        let result = assets_obs.period();
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "Assets").period;
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_parse_duration_period_when_data_point_has_start_and_end() {
+    fn should_parse_duration_of_four_quarters_when_data_point_spans_a_fiscal_year() {
         let json = sample_company_facts_json();
 
-        let observations = parse(&json).expect("Valid JSON should parse successfully");
-        let revenue_obs = observations
+        let expected_result = Period::Duration(
+            Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "Revenues").period;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_fraction_when_value_is_a_per_share_amount() {
+        let json = sample_company_facts_json();
+
+        let expected_result = FactValue::Numeric(
+            BigDecimal::from_str("6.08")
+                .expect("Given a hardcoded decimal text, the parse should always succeed"),
+        );
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "EarningsPerShareDiluted").value.clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_unit_with_denominator_when_unit_key_divides() {
+        let json = sample_company_facts_json();
+
+        let expected_result = Some(
+            Unit::from_str("USD/shares")
+                .expect("Given a hardcoded unit, the parse should always succeed"),
+        );
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "EarningsPerShareDiluted").unit.clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_sec_prefix_when_filing_id_comes_from_accession_number() {
+        let json = sample_company_facts_json();
+
+        let expected_result = "sec:0000320193-24-000123";
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "Assets").filing.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_pad_cik_to_ten_digits_when_entity_id_is_built() {
+        let json = sample_company_facts_json();
+
+        let expected_result = "0000320193";
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "Assets").entity.id().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_one_filing_when_data_points_share_an_accession_number() {
+        let json = sample_company_facts_json();
+
+        let expected_result = vec![Filing {
+            id: FilingId::new("sec", "0000320193-24-000123")
+                .expect("Given a hardcoded source and ID, the creation should always succeed"),
+            entity: EntityId::new(CIK_SCHEME, "0000320193")
+                .expect("Given a hardcoded scheme and ID, the creation should always succeed"),
+            form: Form::new("10-K")
+                .expect("Given a hardcoded form type, the creation should always succeed"),
+            is_amendment: false,
+            filed: date(2024, 11, 1),
+            accepted: None,
+            period_of_report: None,
+            fiscal_year: Some(FiscalYear::new(2024)),
+            fiscal_period: Some(
+                FiscalPeriod::new("FY")
+                    .expect("Given a hardcoded period, the creation should always succeed"),
+            ),
+            company_name: Some(EntityName::new("Apple Inc.")),
+            sic: None,
+            tickers: vec![],
+            fiscal_year_end: None,
+        }];
+
+        let result = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed")
+            .filings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_number_copies_in_json_order_when_two_data_points_share_a_key() {
+        let json = company_facts_json(&json!({
+            "Assets": {
+                "units": { "USD": [
+                    data_point(None, "2024-09-28", &json!(364_980_000_000_i64)),
+                    data_point(None, "2024-09-28", &json!(364_980_000_000_i64))
+                ] }
+            }
+        }));
+
+        let expected_result = vec![0, 0, 1];
+
+        let result: Vec<u16> = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed")
+            .facts
             .iter()
-            .find(|o| o.concept_name() == "Revenues")
-            .expect("Revenues observation should exist");
+            .map(|fact| fact.copy_rank)
+            .collect();
 
-        let expected_result = Period::Duration {
-            start: NaiveDate::from_ymd_opt(2023, 10, 1)
-                .expect("Hardcoded date should always be valid"),
-            end: NaiveDate::from_ymd_opt(2024, 9, 28)
-                .expect("Hardcoded date should always be valid"),
-        };
+        assert_eq!(result, expected_result);
+    }
 
-        let result = revenue_obs.period();
+    #[test]
+    fn should_return_invalid_data_point_when_value_is_missing() {
+        let json = company_facts_json(&json!({
+            "Assets": { "units": { "USD": [{ "end": "2024-09-28", "accn": "0000320193-24-000123", "form": "10-K", "filed": "2024-11-01" }] } }
+        }));
+
+        let expected_result = Some(ParseErrorKind::InvalidDataPoint {
+            concept: "us-gaap:Assets".to_string(),
+            reason: "Missing field 'val'".to_string(),
+        });
+
+        let result = parse(&json).err();
 
         assert_eq!(result, expected_result);
     }
@@ -352,11 +598,11 @@ mod tests {
             }
         });
 
-        let expected_result = ParseErrorKind::MissingNamespace {
+        let expected_result = Some(ParseErrorKind::MissingNamespace {
             namespace: "us-gaap".to_string(),
-        };
+        });
 
-        let result = parse(&json).unwrap_err();
+        let result = parse(&json).err();
 
         assert_eq!(result, expected_result);
     }

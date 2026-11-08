@@ -39,6 +39,9 @@ xbrl/
       concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
       fact.rs              <- AsIsFact, FactKey, FactValue, Decimals, Dimensions
       filing.rs            <- Filing, FilingId, EntityId
+      form.rs              <- Form (open text)
+      fiscal_period.rs     <- FiscalPeriod (open text)
+      invalid_value.rs     <- InvalidValue, the error of each core value type
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
       elements.rs          <- CanonicalElement, our standard concept set, SFAC 6 invariants
@@ -59,6 +62,7 @@ xbrl/
       company_facts.rs     <- Company Facts JSON -> AsIsFact, Filing
       company_concept.rs   <- Company Concept JSON -> AsIsFact, Filing
       frames.rs            <- Frames JSON -> AsIsFact, Filing
+      frame.rs, quarter.rs <- the `frame` field of the SEC JSON APIs
 ```
 
 ```mermaid
@@ -112,7 +116,8 @@ Rules of the layout:
 
 ### Types That Change
 
-These places in today's code assume the SEC or US GAAP. The design replaces each one:
+These places in the old code assumed the SEC or US GAAP. The design replaces each one. The open
+types are in the code. The `Taxonomy` trait and the registry follow:
 
 | Today | Assumption | Replacement |
 | ----- | ---------- | ----------- |
@@ -445,6 +450,9 @@ AsIsFact {
 
 - `Period` says whether a fact is an instant or a duration, so no separate period type field
   exists.
+- `Decimal` is `bigdecimal::BigDecimal`. It holds every digit the source writes. Silver stores
+  `decimal128(38, 10)`, and measured values have up to 24 digits before the point and up to 8
+  after it. `rust_decimal` holds 28 significant digits, too few for 24 and 8 digits.
 - A duration holds its length in quarters, because the Notes data set gives the length but often
   no exact start. The instance parser computes it as `round(days(end - start) / 91.3125)`, the
   rule that matched `qtrs` on the 622 filings of the Notes against instance comparison. If `start`
@@ -561,7 +569,7 @@ StandardizedFact {
 
 - `rule` and `inputs` replace `resolution_path: Vec<String>`. The trace is typed and joins back to
   the as-is facts.
-- `inputs` replaces `source: Vec<Provenance>`. The input facts name their filings.
+- `inputs` replaces `source: Vec<FilingId>`. The input facts name their filings.
 - The release and its checksum are on every fact, so a fact proves its release without a join. In a
   Parquet column, dictionary encoding stores one entry per release.
 - The label, data type, and balance of an element are not on the fact. They live once per release
