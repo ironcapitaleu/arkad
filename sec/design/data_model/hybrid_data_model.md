@@ -344,7 +344,7 @@ A columnar fact table — regulator-agnostic — one row per canonical observati
 | --- | --- | --- | --- |
 | `company_id` | string | `CompanyId` (LEI preferred) | partition/cluster key |
 | `canonical_element` | enum | `CanonicalElement` | universal concept |
-| `value` | int64 | `StandardizedFact.value` | integer minor units (currency) or scaled |
+| `value` | decimal | `StandardizedFact.value` | exact decimal, as reported |
 | `unit` | string | `Unit` | ISO 4217 currency, `shares`, `pure`, … |
 | `period_kind` | enum | `Period` | Instant / Duration |
 | `period_start` | date? | `Period::Duration.start` | null for Instant |

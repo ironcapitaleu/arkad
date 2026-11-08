@@ -32,7 +32,7 @@ pub enum Finding {
         /// The rule the row breaks.
         reason: InvalidValue,
     },
-    /// One or more copy ranks of a value key disagree with rank 0, so the ranks are two or more
+    /// At least one copy rank of a value key disagrees with rank 0, so the copies are separate
     /// facts. `core/dedup/more-precise@1` keeps every rank and reports the conflict.
     Conflict {
         /// The entity the facts are about.

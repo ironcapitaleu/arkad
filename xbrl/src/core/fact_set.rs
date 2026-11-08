@@ -52,6 +52,9 @@ impl FactSet {
     }
 
     /// Inserts a standardized fact into the set. A fact of the same standard concept is replaced.
+    ///
+    /// The set keys on the standard concept only. The caller must insert only facts of the period
+    /// of the set and without dimensions, or a fact of another period replaces the fact of the set.
     pub fn insert(&mut self, fact: StandardizedFact) {
         self.facts.insert(fact.concept, fact);
     }
