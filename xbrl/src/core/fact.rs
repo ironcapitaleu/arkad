@@ -191,7 +191,7 @@ impl FromStr for Decimals {
 /// A point-in-time read filters on `filed` and `accepted`. Both repeat the values of the
 /// [`Filing`](super::filing::Filing), so the read needs no join.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
-pub struct Source {
+pub struct FilingSource {
     /// The filing, for example `sec:0000320193-26-000001`.
     pub filing: FilingId,
     /// The filing date.
@@ -224,7 +224,7 @@ pub struct Context {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct AsIsFact {
     /// Where the fact comes from.
-    pub source: Source,
+    pub source: FilingSource,
     /// What the fact is about.
     pub context: Context,
     /// The concept: a namespace family and a local name.
@@ -329,7 +329,7 @@ mod tests {
 
     fn revenue_fact() -> AsIsFact {
         AsIsFact {
-            source: Source {
+            source: FilingSource {
                 filing: filing_id(),
                 filed: date(2024, 11, 1),
                 accepted: None,
@@ -362,8 +362,8 @@ mod tests {
     }
 
     #[test]
-    const fn should_implement_auto_traits_for_source() {
-        implements_auto_traits::<Source>();
+    const fn should_implement_auto_traits_for_filing_source() {
+        implements_auto_traits::<FilingSource>();
     }
 
     #[test]
