@@ -1,8 +1,8 @@
 # Silver Layer
 
-> **Status:** the owner decided three points on 2026-11-08: the table layout (plain Parquet with the
-> `silver_files` list), `candidates` as a dataset of its own, and `filings` as a dataset of its own.
-> The rest is proposed, for review by the lead. Inputs: the contract types and the transform
+> **Status:** the owner decided three points on 2026-11-08. Silver uses plain Parquet with the
+> `silver_files` list. `candidates` and `filings` are datasets of their own. The rest is proposed,
+> for review by the lead. Inputs: the contract types and the transform
 > integration of [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md), the raw store of
 > [`ingestion_paths.md`](ingestion_paths.md), and the extraction of
 > [`extraction_overview.md`](extraction_overview.md).
@@ -277,12 +277,12 @@ The list of written units. Readers find the current files through it, and it hol
 | `input_digest` | `utf8` | SHA-256 over the sorted list of input keys and digests |
 | `inputs` | `list<struct<key, sha256, requested_url, produced_at>>` | Each raw document or silver file read |
 | `transform_version` | `utf8` | |
-| `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, with the size and CRC32C of each object as GCS stores them |
+| `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, in the order of the part number `<n>`, with the size and CRC32C of each object as GCS stores them |
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
-| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. Empty for the other datasets |
+| `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. For a `filing_day` unit, the facts of each instance for `as_is_facts`, and one row per instance for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. Empty for the other datasets |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters as its Arrow IPC bytes without `execution_id` and `loaded_at` |
-| `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The row column of the same name is the mode of the raw document |
+| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters as its Arrow IPC bytes without `execution_id` and `loaded_at`. `transform_version` pins the Arrow crate, so a rebuild with the same version gives the same bytes |
+| `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
 | `removed_at` | `timestamp[ms, UTC]`, nullable | Set only on the row that the cleanup of [Growth](#growth) adds for a removed unit |
 
 ## Format and Table Layout
