@@ -5,7 +5,7 @@
 //! ## Modules
 //!
 //! - [`data`]: Real SEC files of one filing in both sources, and helpers that parse them.
-//! - [`sample_fact`]: Builders of as-is facts and candidates.
+//! - [`sample_fact`]: Builders of as-is facts, candidates, and standardized facts.
 //! - [`sample_taxonomy`]: A fake [`Taxonomy`](crate::core::taxonomy::Taxonomy) that declares
 //!   families and holds alias lists.
 

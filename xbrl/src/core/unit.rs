@@ -91,6 +91,9 @@ impl Unit {
     /// The character between two measures of one side in the text form.
     pub const MULTIPLICATION: char = '*';
 
+    /// The number of letters of an ISO 4217 currency code.
+    pub const CURRENCY_CODE_LENGTH: usize = 3;
+
     /// Creates a [`Unit`] from its numerator and denominator measures, and sorts each side.
     ///
     /// # Errors
@@ -125,6 +128,42 @@ impl Unit {
     #[must_use]
     pub fn denominator(&self) -> &[Measure] {
         &self.denominator
+    }
+
+    /// Returns `true` if the unit is one currency, for example `USD` or `EUR`, and divides by
+    /// nothing.
+    ///
+    /// A currency measure is an ISO 4217 code: three ASCII capital letters. The measures carry no
+    /// prefix, so the form of the code is the only mark of a currency. A custom measure of three
+    /// capital letters, such as `BOE`, also counts. `shares`, `pure`, and `USD/shares` do not.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::str::FromStr;
+    ///
+    /// use xbrl::core::unit::Unit;
+    ///
+    /// let unit = Unit::from_str("USD/shares").expect("Given a hardcoded unit with one measure per side, the parse should always succeed");
+    ///
+    /// let expected_result = false;
+    ///
+    /// let result = unit.is_currency();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn is_currency(&self) -> bool {
+        match (self.numerator.as_slice(), self.denominator.as_slice()) {
+            ([measure], []) => {
+                measure.as_str().len() == Self::CURRENCY_CODE_LENGTH
+                    && measure
+                        .as_str()
+                        .bytes()
+                        .all(|byte| byte.is_ascii_uppercase())
+            }
+            _ => false,
+        }
     }
 }
 
@@ -216,6 +255,30 @@ mod tests {
         let expected_result = Unit::new(vec![measure("EUR")], vec![]);
 
         let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_currency_when_the_unit_is_one_iso_code() {
+        let unit = Unit::from_str("EUR")
+            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+
+        let expected_result = true;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_is_shares() {
+        let unit = Unit::from_str("shares")
+            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = unit.is_currency();
 
         assert_eq!(result, expected_result);
     }

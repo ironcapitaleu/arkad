@@ -5,6 +5,7 @@
 
 use bigdecimal::BigDecimal;
 
+use super::candidate::SeriesKey;
 use super::confidence::Confidence;
 use super::elements::CanonicalElement;
 use super::fact::{Dimensions, FactKey};
@@ -46,6 +47,21 @@ pub struct StandardizedFact {
     pub inputs: Vec<FactKey>,
     /// `true` if an earlier filing reported another value for this value or for one of its inputs.
     pub restated: bool,
+}
+
+impl StandardizedFact {
+    /// Returns the key of the series this fact belongs to.
+    #[must_use]
+    pub fn series_key(&self) -> SeriesKey {
+        SeriesKey {
+            entity: self.entity.clone(),
+            concept: self.concept,
+            period_end: self.period.end(),
+            quarters: self.period.quarters(),
+            unit: self.unit.clone(),
+            dimensions: self.dimensions.clone(),
+        }
+    }
 }
 
 #[cfg(test)]
