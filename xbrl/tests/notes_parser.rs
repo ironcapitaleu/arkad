@@ -1,6 +1,6 @@
 //! # Notes Parser Integration Tests
 //!
-//! Runs [`xbrl::adapter::edgar::notes::parse`] on the rows of one real filing of the Notes file
+//! Runs [`xbrl::adapter::edgar::notes::parse`] on the `num` and `txt` rows of one real filing of the Notes file
 //! `2026_10_notes.zip`: the 10-Q `0001628280-26-068246` of `FEDEX FREIGHT HOLDING COMPANY, INC.`. The
 //! fixture files keep the header and the rows of the filing as the SEC wrote them. None of the rows
 //! holds a quoted field, so the test splits each line on tabs.
@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use chrono::{NaiveDate, TimeZone, Utc};
 use pretty_assertions::assert_eq;
-use xbrl::adapter::edgar::notes::row::{DimRow, NumRow, SubRow, TagRow};
+use xbrl::adapter::edgar::notes::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
 use xbrl::adapter::edgar::notes::{NotesFiling, parse};
 use xbrl::core::concept::{ConceptName, NamespaceFamily};
 use xbrl::core::entity_name::EntityName;
@@ -83,6 +83,8 @@ fn us_gaap() -> FakeUsGaap {
         families: vec![
             declaration("us-gaap", "http://fasb.org/us-gaap/{release}"),
             declaration("dei", "http://xbrl.sec.gov/dei/{release}"),
+            declaration("srt", "http://fasb.org/srt/{release}"),
+            declaration("ecd", "http://xbrl.sec.gov/ecd/{release}"),
         ],
         tree: CalculationTree::default(),
     }
@@ -146,6 +148,23 @@ fn notes_filing() -> NotesFiling {
                 dcml: field(row, "dcml"),
             })
             .collect(),
+        txt: table("txt.tsv")
+            .iter()
+            .map(|row| TxtRow {
+                tag: field(row, "tag"),
+                version: field(row, "version"),
+                ddate: field(row, "ddate"),
+                qtrs: field(row, "qtrs"),
+                dimh: field(row, "dimh"),
+                iprx: field(row, "iprx"),
+                value: field(row, "value"),
+                srclen: field(row, "srclen"),
+                footnote: field(row, "footnote"),
+                coreg: field(row, "coreg"),
+                durp: field(row, "durp"),
+                datp: field(row, "datp"),
+            })
+            .collect(),
         dim: table("dim.tsv")
             .iter()
             .map(|row| DimRow {
@@ -166,13 +185,13 @@ fn notes_filing() -> NotesFiling {
 }
 
 #[test]
-fn should_keep_every_num_row_except_the_repeated_copies_for_a_real_filing() {
+fn should_keep_every_row_except_the_repeated_copies_for_a_real_filing() {
     let rows = notes_filing();
     let plugin = us_gaap();
     let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with two families, the creation should always succeed");
+        .expect("Given one plug-in with four families, the creation should always succeed");
 
-    let expected_result = (538, 0);
+    let expected_result = (613, 0);
 
     let parsed = parse(&rows, &registry)
         .expect("Given the valid sub row of a real filing, the parse should always succeed");
@@ -186,7 +205,7 @@ fn should_map_the_sub_row_into_the_filing_for_a_real_filing() {
     let rows = notes_filing();
     let plugin = us_gaap();
     let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with two families, the creation should always succeed");
+        .expect("Given one plug-in with four families, the creation should always succeed");
 
     let expected_result =
         Filing {
@@ -228,7 +247,7 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
     let rows = notes_filing();
     let plugin = us_gaap();
     let registry = Registry::new(vec![&plugin])
-        .expect("Given one plug-in with two families, the creation should always succeed");
+        .expect("Given one plug-in with four families, the creation should always succeed");
 
     let expected_result = vec![
         (
@@ -286,6 +305,37 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
                 other => format!("{other:?}"),
             };
             (fact.context.period.to_string(), unit, value, fact.copy_rank)
+        })
+        .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_map_the_document_type_into_a_text_fact_for_a_real_filing() {
+    let rows = notes_filing();
+    let plugin = us_gaap();
+    let registry = Registry::new(vec![&plugin])
+        .expect("Given one plug-in with four families, the creation should always succeed");
+
+    let expected_result = vec![(
+        "dei:DocumentType".to_owned(),
+        "1 quarters to 2026-09-30".to_owned(),
+        FactValue::Text("10-Q".to_owned()),
+    )];
+
+    let parsed = parse(&rows, &registry)
+        .expect("Given the valid sub row of a real filing, the parse should always succeed");
+    let result: Vec<(String, String, FactValue)> = parsed
+        .facts
+        .into_iter()
+        .filter(|fact| fact.concept.local_name() == "DocumentType")
+        .map(|fact| {
+            (
+                fact.concept.to_string(),
+                fact.context.period.to_string(),
+                fact.value,
+            )
         })
         .collect();
 

@@ -280,7 +280,7 @@ pub struct FactKey {
     pub taxonomy_version: Option<TaxonomyVersion>,
     /// The exact end of the period.
     pub period_end: NaiveDate,
-    /// The length in quarters. 0 for an instant.
+    /// The length in quarters. 0 for an instant or a duration under about 45 days.
     pub quarters: u16,
     /// The unit.
     pub unit: Option<Unit>,
