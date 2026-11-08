@@ -31,7 +31,8 @@ When mapping a US GAAP concept to a CanonicalElement:
 
 1. If the concept is the first concept of the alias list of a plug-in (`REQUIRED_CONCEPTS` or
    `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
-2. If it is a later concept of that alias list, or an ESEF anchor, use it (Tier 2: Synonym)
+2. If it is a later concept of that alias list, or an ESEF anchor (planned `ifrs` plug-in), use it
+   (Tier 2: Synonym)
 3. If no alias resolves, apply an identity the core knows: an SFAC 6 identity or a period identity,
    such as Q4 = FY − 9-month year to date (Tier 3: Derived)
 4. If still unresolved, sum the children of the concept along the calculation tree of a plug-in.
@@ -55,7 +56,8 @@ of its own tier and its inputs.
 A Tier 3 value comes from an identity the core knows, not from the calculation tree:
 
 1. An SFAC 6 identity, for example `Assets = Liabilities + Equity`
-2. A period identity, for example `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date
+2. A period identity, for example `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date.
+   It applies only to duration concepts in one currency, with no per-share unit
 3. Store with `confidence: Derived`, or the weaker level of an input
 
 ## Computation Rules (Tier 4)

@@ -16,7 +16,7 @@ Example: `Assets` → CanonicalElement::Assets
 
 ## Tier 2: Synonym/Alias (Confidence::Synonym)
 
-The concept is a later concept of the alias list, or an ESEF anchor.
+The concept is a later concept of the alias list, or an ESEF anchor (planned `ifrs` plug-in).
 
 Example: `RevenueFromContractWithCustomerExcludingAssessedTax` → CanonicalElement::Revenue (alias defined in REQUIRED_CONCEPTS for Revenue)
 
@@ -48,18 +48,14 @@ are present.
 Example: `Liabilities` absent, but `LiabilitiesCurrent` and `LiabilitiesNoncurrent` present.
 Compute: `Liabilities = LiabilitiesCurrent + LiabilitiesNoncurrent`
 
-Rules:
-
-- ALL children must be present. A partial sum gives a wrong value
-- The sum takes the arcs of one role. Each arc carries the role of its network
-- Use the weights of the calculation arcs (+1 or −1)
+The procedure is in `SKILL.md`, "Computation Rules (Tier 4)".
 
 ## Confidence Model
 
 | Tier | Confidence | Mechanism |
 | --- | --- | --- |
 | 1 | Exact | The first concept of the alias list of a plug-in |
-| 2 | Synonym | A later concept of the alias list, or an ESEF anchor |
+| 2 | Synonym | A later concept of the alias list, or an ESEF anchor (planned `ifrs` plug-in) |
 | 3 | Derived | An identity the core knows: an SFAC 6 identity or a period identity |
 | 4 | Computed | A sum along the calculation tree of a plug-in |
 

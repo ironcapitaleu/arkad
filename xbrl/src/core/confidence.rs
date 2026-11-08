@@ -11,7 +11,7 @@ use std::fmt;
 pub enum Confidence {
     /// Tier 1: Resolved from the first concept of the alias list of a plug-in.
     Exact,
-    /// Tier 2: Resolved from a later concept of the alias list, or, in a later `ifrs` plug-in,
+    /// Tier 2: Resolved from a later concept of the alias list, or, in a planned `ifrs` plug-in,
     /// from an ESEF anchor.
     Synonym,
     /// Tier 3: Derived from other standardized values by an SFAC 6 identity or a period identity.
