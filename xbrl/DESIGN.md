@@ -935,6 +935,8 @@ ticket of the instance parser adds the cross-source test.
   source per filing, the instance over Notes ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts"). The same rule picks one
   `candidates` unit per filing, so step 3 needs no tie-break inside one `FilingId`.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
+  `xbrl/tests/parser_comparison.rs` runs them on one 10-Q. Both give the same value keys, and the
+  same content after the Notes losses that the test lists.
 
 The parsers take seven rules from the segment findings of 2026-10-18. The rules make a Notes row
 equal to an instance fact. The as-is layer keeps every value and leaves dedup to the standardized

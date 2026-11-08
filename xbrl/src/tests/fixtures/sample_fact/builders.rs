@@ -35,7 +35,7 @@ const FAMILY: &str = "us-gaap";
 ///
 /// Panics if the date does not exist.
 #[must_use]
-pub fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+pub const fn date(year: i32, month: u32, day: u32) -> NaiveDate {
     NaiveDate::from_ymd_opt(year, month, day)
         .expect("Given a hardcoded valid date, the creation should always succeed")
 }
@@ -77,7 +77,7 @@ fn usd() -> Unit {
         .expect("Given a hardcoded unit with one measure, the parse should always succeed")
 }
 
-fn fiscal_year_2024() -> Period {
+const fn fiscal_year_2024() -> Period {
     Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4))
 }
 
