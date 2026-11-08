@@ -43,7 +43,7 @@ and closed for modification. Before you change an existing port, check whether a
 can hold the change.
 
 - Add a new capability as its own trait next to the existing ports. If the new trait does not call
-  the items of an existing port, do not make it a subtrait of that port. A subtrait forces each
+  a port, do not make it a subtrait of that port. A subtrait forces each
   implementor of the new trait to implement the port too.
 - A marker trait that only combines existing ports, such as `ReadWriteRepository`, is an
   extension. It is allowed.
