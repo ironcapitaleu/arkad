@@ -52,10 +52,12 @@ The frozen v1 design had `RawStore::scan(filter)`, a stream of `RawFiling` value
 use futures_core::stream::BoxStream;
 
 use crate::error::ReadError;
-use crate::traits::repository::ReadRepository;
 
 /// Lists the documents a store holds, as metadata, never as bytes.
-pub trait ListRepository: ReadRepository {
+pub trait ListRepository: Send + Sync {
+    /// The key of one listed document.
+    type Key: Send;
+
     /// What one listed document reports: its key and its metadata.
     type Entry: Send;
 
@@ -77,19 +79,43 @@ Decisions:
    key implements no listing. A caller bound to `ReadRepository` has no listing in scope. This
    follows the capability split of
    [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
-2. **A subtrait of `ReadRepository`.** The subtrait reuses `ReadRepository::Key`, so a caller bound
-   to both traits names one `Key`, not two. Every key that `list` yields is a key that `get`
-   accepts.
-3. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
+2. **A standalone trait, not a subtrait of `ReadRepository`.** The listing extends the ports and
+   modifies none of them, so `ReadRepository` stays as it is. A caller bound to `ListRepository`
+   alone can list but has no `get` in scope. That matches a store or an account that may list
+   names but not read contents, such as a GCS account with `storage.objects.list` and without
+   `storage.objects.get`.
+3. **Its own `Key`.** `ListRepository` declares its own `Key`, because `ReadRepository` declares
+   its `Key` and the open-closed rule keeps it there. A store that implements both sets the two to
+   the same type. The filesystem sets both to `DocumentKey`, so every key that `list` yields is a
+   key that `get` accepts.
+4. **A helper for callers that list and read.** Replay and `daily_filings` do both. As
+   `ReadWriteRepository` names a store that reads and writes, a `ReadListRepository` with a blanket
+   impl names a store that reads and lists with one key type:
+
+   ```rust
+   pub trait ReadListRepository:
+       ReadRepository + ListRepository<Key = <Self as ReadRepository>::Key>
+   {
+   }
+
+   impl<T> ReadListRepository for T where
+       T: ReadRepository + ListRepository<Key = <T as ReadRepository>::Key>
+   {
+   }
+   ```
+
+   The first feature compiles this shape. If Rust rejects the bound on the helper trait, each such
+   caller writes the same bound in its `where` clause, and the helper is dropped.
+5. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
    directory. `list` also reads each metadata file, one read per document. The cut-over check and
    the daily run need only keys. Replay and the integrity check need the metadata.
-4. **A stream, not a `Vec`.** The store will hold millions of documents. A caller folds the stream
+6. **A stream, not a `Vec`.** The store will hold millions of documents. A caller folds the stream
    or collects it. `BoxStream` keeps the trait object-safe, so `Box<dyn ListRepository<…>>` works
    as `Box<dyn ReadRepository<…>>` does. The methods are not `async`, because the stream is lazy.
    The `storage` crate gains the dependency `futures-core`, which is pure Rust.
-5. **No summary method.** Counts, total size, and the newest period are a fold over the stream in
+7. **No summary method.** Counts, total size, and the newest period are a fold over the stream in
    the caller. If a backend makes the fold too slow, a summary method comes with that backend.
-6. **`Entry` and `Filter` are associated types,** as `Record` and `Key` are. The metadata layout
+8. **`Key`, `Entry`, and `Filter` are associated types,** as `Record` and `Key` are. The metadata layout
    belongs to the backend: the filesystem has a metadata file per document, a database has rows.
 
 ### Error
