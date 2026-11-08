@@ -98,22 +98,24 @@ with a list of written units (`silver_files`). A prototype on real SEC files mea
    of a unit key from `silver_files`. It checks the size and CRC32C of each file, copies the rows
    with `COPY`, and checks the row count against `silver_files`. The graph rows, the fact rows,
    and the ledger row go through impl-private helpers on one `PgTransaction`, inside
-   `storage-postgres`. One port method per silver unit owns that transaction, as `ingest` did. The
-   gold design names the method. `GraphStore::upsert` and `FactStore::upsert` commit on their own,
+   `storage-postgres`. For each silver unit, one call of a port method owns that transaction, as
+   `ingest` did. The gold design names the method. `GraphStore::upsert` and `FactStore::upsert` commit on their own,
    so the load does not compose them.
 4. **A ledger of loaded units makes the load idempotent.** Each ledger row names one `silver_files`
-   row by its unit key (dataset, source, unit kind, and `unit_key`) and its attempt path, as
-   [Paths](../../sec/design/pipeline/silver_layer.md#paths) defines it. Each `silver_files` row has
-   its own attempt path. A null `source` matches a null `source`: the ledger uses
-   `UNIQUE NULLS NOT DISTINCT`, and the skip check uses `IS NOT DISTINCT FROM`. If the ledger holds
+   row by its unit key (dataset, source, unit kind, and `unit_key`) and its attempt path, the
+   segment `<digest>-v<transform_version>/<execution_id>-<attempt>` of
+   [Paths](../../sec/design/pipeline/silver_layer.md#paths), with its `-b` suffix. Each
+   `silver_files` row has its own attempt path. A null `source` matches a null `source`: the ledger
+   uses `UNIQUE NULLS NOT DISTINCT`, which needs Postgres 15 or newer, and the skip check uses
+   `IS NOT DISTINCT FROM`. If the ledger holds
    the row, the load skips. A newer unit of the same unit key replaces the rows of the older unit
    in the same transaction.
 5. **The load runs as a Rust binary.** DuckDB loaded at the same speed, but it adds a second runtime
    and downloads its `postgres` extension at run time.
 
-The series datasets have no current unit per unit key. If gold loads them, the load reads every
-`series_delta` unit of a series run that counts, after the newest `series_base`. It reads them by
-the rule of [Series Deltas](../../sec/design/pipeline/silver_layer.md#series-deltas).
+The series datasets have no current unit per unit key. If gold loads them, the load reads the
+newest `series_base` of a run that counts and every `series_delta` of a run that counts after it,
+by the rule of [Series Deltas](../../sec/design/pipeline/silver_layer.md#series-deltas).
 
 The rest of the Decision stands: one Supabase Postgres database for the graph tier and the fact
 tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
@@ -127,8 +129,8 @@ tier, in a schema that the Data API does not expose, with no `pg_duckdb`.
   whole as-is layer with per-row provenance passes the 50 GB trigger of
   [Triggers to Revisit](#triggers-to-revisit) at about 120 million rows. So the gold design
   decides what gold copies from silver.
-- How series rows replace each other in gold. Each series unit has its own unit key, so the
-  replace rule of Decision 4 does not reach them. The gold design fixes this rule if gold loads the
+- How series rows replace each other in gold. The units of one series run each have their own
+  `unit_key`, so the replace rule of Decision 4 does not reach the units of older runs. The gold design fixes this rule if gold loads the
   series datasets.
 
 ### Consequences of the Amendment
