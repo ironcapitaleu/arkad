@@ -264,10 +264,10 @@ The repository's low-level "client" is a **connection pool** (`sqlx::PgPool`) �
 draw from the **same** pool: a transaction cannot span two pools. So a co-located
 `PostgresFinancialStatementRepository` holds one `PgPool`, and `ingest` does one `pool.begin()` over
 all three writes. Separate pools per tier ⇒ no cross-tier transaction ⇒ the weak contract by
-construction. The silver load of ADR 0001, Amendment 1, keeps this rule: one transaction per silver
-unit over the shared pool. (Mirror of Extract: the *shared* rate limiter is what guarantees the SEC rate ceiling
+construction. (Mirror of Extract: the *shared* rate limiter is what guarantees the SEC rate ceiling
 across all clients — sharing buys correctness there too.) A single bounded pool also caps total DB
-connections across all the concurrently-running company pipelines.
+connections across all the concurrently-running company pipelines. The silver load of ADR 0001,
+Amendment 1, keeps this rule: one transaction per silver unit over the shared pool.
 
 ---
 

@@ -427,8 +427,8 @@ Each adapter owns three things, all **independently queryable** and joinable to 
 
 ## 8. Consistency Model & Layer Hierarchy
 
-> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes a silver layer between the raw store and
-> Postgres. The write order then becomes raw store, silver, Postgres, and Postgres rebuilds from
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Postgres loads from silver, not from
+> the raw store. The write order then becomes raw store, silver, Postgres, and Postgres rebuilds from
 > silver. A failed load runs again from a ledger of loaded silver units, so the MVP needs no
 > reconciliation job that replays projections. The drift report below stays a data check.
 

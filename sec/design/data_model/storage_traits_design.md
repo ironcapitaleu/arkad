@@ -210,7 +210,8 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 3. **`completeness` placement** — straddles graph structure and fact presence.
 4. **Retry / DLQ** — a `RetryingRepository` decorator (reads `is_retryable()`); reconciliation for
    post-raw projection gaps; a DLQ only for poison (non-retryable) records; all at the driver level,
-   never in the state machine.
+   never in the state machine. For the MVP, the silver load needs no reconciliation. See the note at
+   [Transaction ownership](#tx-ownership).
 
 ---
 
@@ -534,7 +535,7 @@ visibility that only Postgres provides.
 > **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that `persist` writes the raw store only.
 > A load step per silver unit then writes the graph and fact tiers in one Postgres transaction. The
 > co-located rule below applies to that load step. The mixed-engine path and its §8 reconciliation
-> job have no use in the MVP: a failed load leaves no ledger row, so the next run loads the unit
+> job have no use in the MVP. A failed load leaves no ledger row, so the next run loads the unit
 > again.
 
 The unit-of-work seam is `ingest`, but *where the transaction lives* differs by impl, and getting
