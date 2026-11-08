@@ -54,15 +54,16 @@ pub struct Chronology {
 /// Checks the values of each entity, concept, unit, and dimensions over time, and returns them
 /// with the findings. The check reports and never fails.
 ///
-/// The forms the entity files give the expected periods. A filer of a `10-Q` expects `Q1`, `Q2`,
-/// `Q3`, and `FY`. A filer of only `10-K`, `10-KT`, `20-F`, or `40-F` expects `FY`. Another filer
-/// expects no period. The period of report of each annual report is a fiscal year end. Between two
-/// year ends, the check expects a period every 3 months back from the later end if the annual
-/// report for that end is a `10-K` or `10-KT` and the entity filed a quarterly report before that
-/// end, otherwise every 12 months. After the last year end, it steps forward up to the latest
-/// period of report, with the step of the last year end. The period of report of a quarterly
-/// report replaces the expected end within 7 days of it, or adds one. Every timeline of the entity
-/// expects the same periods.
+/// The forms the entity files give the expected periods. An entity that files a `10-Q` expects
+/// `Q1`, `Q2`, `Q3`, and `FY` in the years it closes with a `10-K` or `10-KT`. A filer of only
+/// `10-K`, `10-KT`, `20-F`, or `40-F` expects `FY`. Another filer expects no period. The period of
+/// report of each annual report is a fiscal year end. Between two year ends, the check expects a
+/// period every 3 months back from the later end if the annual report for that end is a `10-K` or
+/// `10-KT` and the entity filed a quarterly report before that end, otherwise every 12 months.
+/// After the last year end, it steps forward up to the latest period of report: every 3 months if
+/// the last annual report is a `10-K` or `10-KT` and the entity filed any quarterly report,
+/// otherwise every 12 months. The period of report of a quarterly report replaces the expected end
+/// within 7 days of it, or adds one. Every timeline of the entity expects the same periods.
 ///
 /// - A **gap** is an expected period between the first and the last filled period, with no value
 ///   that ends within 7 days of it. A value of any length fills it. A blocked value gives the
@@ -257,11 +258,7 @@ impl Calendar {
             .filter_map(|filing| filing.period_of_report)
             .max();
         if let (Some(last), Some(latest)) = (previous, latest) {
-            let step = if is_domestic_at(&filings, last) && !quarterly.is_empty() {
-                QUARTER_MONTHS
-            } else {
-                YEAR_MONTHS
-            };
+            let step = step(is_domestic_at(&filings, last), !quarterly.is_empty());
             expected.extend(steps_forward(last, latest, step));
         }
         for filing in &quarterly {
@@ -318,7 +315,13 @@ fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: NaiveDate) 
         .iter()
         .filter_map(|filing| filing.period_of_report)
         .any(|report| report < year_end);
-    if is_domestic_at(filings, year_end) && is_quarterly {
+    step(is_domestic_at(filings, year_end), is_quarterly)
+}
+
+/// Returns the step in months: 3 if the year closes with a `10-K` or `10-KT` and the entity files
+/// quarterly reports, otherwise 12.
+const fn step(is_domestic: bool, is_quarterly: bool) -> u32 {
+    if is_domestic && is_quarterly {
         QUARTER_MONTHS
     } else {
         YEAR_MONTHS
@@ -943,6 +946,24 @@ mod tests {
             filing("10-K", date(2022, 12, 31), "1231"),
             filing("20-F", date(2023, 12, 31), "1231"),
             filing("20-F", date(2024, 12, 31), "1231"),
+        ];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_expect_no_quarters_after_the_last_year_end_when_last_annual_report_is_a_20_f() {
+        let facts = vec![value(date(2023, 12, 31), 4), value(date(2024, 6, 30), 2)];
+        let filings = vec![
+            filing("10-K", date(2021, 12, 31), "1231"),
+            filing("10-Q", date(2022, 3, 31), "1231"),
+            filing("10-K", date(2022, 12, 31), "1231"),
+            filing("20-F", date(2023, 12, 31), "1231"),
+            filing("6-K", date(2024, 6, 30), "1231"),
         ];
 
         let expected_result: Vec<Finding> = Vec::new();
