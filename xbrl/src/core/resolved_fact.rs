@@ -28,7 +28,7 @@ pub struct ResolvedFact {
     confidence: Confidence,
     /// The resolution steps that produced this value (for traceability).
     resolution_path: Vec<String>,
-    /// The filings this value was derived from, with their filed dates.
+    /// The filings this value comes from, with their dates.
     sources: Vec<FilingSource>,
 }
 

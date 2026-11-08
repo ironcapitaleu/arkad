@@ -61,8 +61,8 @@ xbrl/
     adapter/               <- one adapter per data source
       edgar/               <- the SEC XBRL JSON APIs of EDGAR
         company_facts.rs   <- Company Facts JSON -> AsIsFact, Filing
-        company_concept.rs <- Company Concept JSON -> AsIsFact, Filing (placeholder)
-        frames.rs          <- Frames JSON -> AsIsFact, Filing (placeholder)
+        company_concept.rs <- Company Concept JSON -> AsIsFact, Filing
+        frames.rs          <- Frames JSON -> AsIsFact, Filing
         frame.rs, quarter.rs <- the `frame` field of the SEC JSON APIs
 ```
 
@@ -1147,7 +1147,8 @@ The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided
 ## Follow-Up: Migrate `sec` Crate to Consume `xbrl` Types
 
 The `sec` crate currently has its own financial domain types (`CompanyData`, `CompanyFact`,
-`Observation`, `FilingSource`, `ConceptDefinition`) that duplicate what `xbrl` now provides.
+`Observation`, `sec::shared::financial::FilingSource`, `ConceptDefinition`) that duplicate what `xbrl`
+now provides.
 
 This requires two follow-up tickets:
 
@@ -1166,7 +1167,10 @@ Output: a design doc section or ADR with the recommended approach.
 ### Ticket 2: Implement the migration
 
 Based on the design from Ticket 1:
-1. Replace `sec::shared::financial::Observation` / `FilingSource` with `xbrl::core::AsIsFact` and `Filing`
+1. Replace `sec::shared::financial::Observation` with `xbrl::core::fact::AsIsFact`, and
+   `sec::shared::financial::FilingSource` with `xbrl::core::fact::FilingSource` (filing ID and
+   dates) and `Filing` (form, fiscal year, fiscal period). The two `FilingSource` types share a
+   name, not their fields
 2. Replace `sec::shared::financial::ConceptDefinition` with `xbrl::us_gaap::mappings::ConceptDefinition`
 3. Update `CompanyData` to use xbrl types for its key and value types
 4. Update `ParseCompanyFacts::compute_output_data_async()` to delegate to `xbrl::adapter::edgar::company_facts::parse()`
