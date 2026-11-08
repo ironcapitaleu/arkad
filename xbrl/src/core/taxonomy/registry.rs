@@ -238,42 +238,8 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::concept::ConceptName;
-    use crate::core::release::{Sha256, TaxonomyRelease};
     use crate::core::taxonomy::family::UriPattern;
-    use crate::core::taxonomy::reference::{CalculationTree, ConceptAliases, ElementReference};
-
-    struct FakeTaxonomy {
-        release: TaxonomyRelease,
-        families: Vec<FamilyDeclaration>,
-        tree: CalculationTree,
-    }
-
-    impl Taxonomy for FakeTaxonomy {
-        fn release(&self) -> &TaxonomyRelease {
-            &self.release
-        }
-
-        fn families(&self) -> &[FamilyDeclaration] {
-            &self.families
-        }
-
-        fn aliases(&self) -> &[ConceptAliases] {
-            &[]
-        }
-
-        fn calculation_tree(&self) -> &CalculationTree {
-            &self.tree
-        }
-
-        fn element(&self, _concept: &ConceptName) -> Option<&ElementReference> {
-            None
-        }
-
-        fn elements(&self) -> &[ElementReference] {
-            &[]
-        }
-    }
+    use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     fn family(text: &str) -> NamespaceFamily {
         NamespaceFamily::new(text).expect(
@@ -284,25 +250,6 @@ mod tests {
     fn release_id(text: &str) -> TaxonomyReleaseId {
         TaxonomyReleaseId::new(text)
             .expect("Given a hardcoded release ID with a year, the creation should always succeed")
-    }
-
-    fn declaration(name: &str, pattern: &str, resolves: bool) -> FamilyDeclaration {
-        let pattern = UriPattern::new(pattern).expect(
-            "Given a hardcoded pattern with one placeholder, the creation should always succeed",
-        );
-        FamilyDeclaration::new(family(name), vec![pattern], name, resolves)
-            .expect("Given a hardcoded declaration, the creation should always succeed")
-    }
-
-    fn plugin(release: &str, families: Vec<FamilyDeclaration>) -> FakeTaxonomy {
-        FakeTaxonomy {
-            release: TaxonomyRelease {
-                id: release_id(release),
-                checksum: Sha256::new([0; 32]),
-            },
-            families,
-            tree: CalculationTree::default(),
-        }
     }
 
     fn us_gaap() -> FakeTaxonomy {

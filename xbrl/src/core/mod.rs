@@ -15,6 +15,7 @@
 //! - [`fact`]: The as-is fact, its value key, and the types of its fields.
 //! - [`fact_set`]: The resolved facts of one entity and one period.
 //! - [`filing`]: A filing, its ID, and the entity ID.
+//! - [`finding`]: A fact about the data that a step reports without failing the run.
 //! - [`fiscal_period`]: The fiscal period of a filing as filed.
 //! - [`fiscal_year`]: The fiscal year of a filing as filed.
 //! - [`form`]: The form type of a filing as filed.
@@ -34,6 +35,7 @@ pub mod entity_name;
 pub mod fact;
 pub mod fact_set;
 pub mod filing;
+pub mod finding;
 pub mod fiscal_period;
 pub mod fiscal_year;
 pub mod form;

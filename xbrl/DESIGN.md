@@ -39,6 +39,7 @@ xbrl/
       concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
       fact.rs              <- AsIsFact, FactKey, FactValue, Decimals, Dimensions
       filing.rs            <- Filing, FilingId, EntityId
+      finding.rs           <- Finding: what a step reports without failing the run
       form.rs              <- Form (open text)
       fiscal_period.rs     <- FiscalPeriod (open text)
       invalid_value.rs     <- InvalidValue, the error of each core value type
@@ -64,7 +65,8 @@ xbrl/
       taxonomy.rs          <- generated tables: calculation tree, element reference data
     adapter/               <- one adapter per data source
       edgar/               <- the documents of EDGAR, the filing system of the SEC
-        notes.rs           <- rows of one Notes filing -> AsIsFact, Filing
+        notes/             <- rows of one Notes filing -> AsIsFact, Filing, findings
+          row.rs           <- SubRow, NumRow, TxtRow, DimRow, TagRow
         instance.rs        <- one instance document -> AsIsFact, Filing
         company_facts.rs   <- Company Facts JSON -> AsIsFact, Filing
         company_concept.rs <- Company Concept JSON -> AsIsFact, Filing
@@ -126,7 +128,13 @@ Rules of the layout:
   provenance, and writes silver.
 - `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. It
   hands `adapter::edgar::notes` the rows of one filing: its `sub` row, its `num` and `txt` rows,
-  and the `dim` rows that its `num` and `txt` rows name through `dimh`.
+  the `dim` rows that its `num` and `txt` rows name through `dimh`, and the `tag` rows that its
+  `num` rows name through `tag` and `version`. The parser reads only `tag.datatype`, to restore
+  `/shares` (owner, 2026-11-08). In `2026_10`, 1,449 of 1,685 per-share tags are extension tags,
+  so a taxonomy plug-in cannot give the data type.
+- A parser returns `Finding` values next to its facts. `Finding::UnmappedRow` names a row that the
+  parser dropped, and `Finding::UndeclaredFamily` names a family that no plug-in declares. Only a
+  `sub` row that breaks a rule fails the filing.
 
 **Crate boundary**: `xbrl::adapter::edgar` takes the XML text of one instance (`&str`), the rows of one Notes filing, or a raw JSON body (`&serde_json::Value`), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies. Its XML parser is pure Rust and needs no system library.
 
@@ -517,7 +525,7 @@ AsIsFact {
 
 The value key of an as-is fact:
 
-`filing`, `concept`, `taxonomy_version`, exact period end, length in quarters (0 for an instant),
+`filing`, `concept`, `taxonomy_version`, exact period end, length in quarters (0 for an instant or a duration under about 45 days),
 `unit`, `dimensions`, `copy_rank`.
 
 The key has two requirements. It gives the same value for a Notes row and an instance fact of the
@@ -892,16 +900,16 @@ Where each field of `AsIsFact` comes from:
 | ----- | -------------- | ------------ |
 | `filing` | `sub.adsh` | The accession number of the filing |
 | `entity` | `sub.cik` | The entity identifier of the context |
-| `concept` | `num.tag` with the namespace of `num.version` | The element name |
-| `taxonomy_version` | `num.version` | The schema reference of the filing |
-| `period` | `ddate` minus `datp`, and `qtrs` | The period of the context |
-| `unit` | `num.uom`, with `/shares` restored | The unit of the fact |
-| `dimensions` | `dim.segments` through `num.dimh`, and `coreg` | The members of the context |
-| `value` | `num.value` or `txt.value`. An empty value is nil | The content of the fact, or `xsi:nil` |
-| `decimals` | `num.dcml` | The `decimals` attribute |
-| `copy_rank` | Assigned by the parser in the order of `num.iprx` | Assigned by the parser in the SEC order of `iprx` |
-| `footnotes` | `num.footnote` | The footnote links |
-| `filed`, `accepted` | `sub.filed`, `sub.accepted` | The filed date of the daily index. `accepted` is empty |
+| `concept` | `tag` with the namespace of `version`, from `num` or `txt` | The element name |
+| `taxonomy_version` | `num.version` or `txt.version` | The schema reference of the filing |
+| `period` | `ddate` minus `datp`, and `qtrs`. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
+| `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare`. `None` for a `txt` row | The unit of the fact |
+| `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context |
+| `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text. The parser drops `txt.lang`, which is not part of the key of `txt`. Every `txt` row of `2026_10` is `en-US` | The content of the fact, or `xsi:nil` |
+| `decimals` | `num.dcml`. 32767 is `Infinite`. -32768, which only nil rows carry, is `None`. `None` for a `txt` row | The `decimals` attribute |
+| `copy_rank` | Assigned by the parser in the order of `iprx`, over the `num` and `txt` rows | Assigned by the parser in the SEC order of `iprx` |
+| `footnotes` | `num.footnote` or `txt.footnote` | The footnote links |
+| `filed`, `accepted` | `sub.filed`, `sub.accepted` in the time of New York, converted to UTC | The filed date of the daily index. `accepted` is empty |
 
 States and errors:
 
@@ -967,6 +975,7 @@ ErrorKind
       ::MissingTopLevelKey { key: String }
       ::InvalidDataPoint { concept: String, reason: String }
       ::InvalidDataPointValue { concept: String, source: InvalidValue }
+      ::InvalidSubmissionRow { adsh: String, source: InvalidValue }
     ::FailedValidation(ValidationErrorKind)
       ::IncompleteData { missing_elements: Vec<CanonicalElement> }
       ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
@@ -1014,6 +1023,9 @@ pub enum ParseErrorKind {
 
     #[error("[InvalidDataPointValue] Invalid value in a data point of concept '{concept}', Caused by: {source}")]
     InvalidDataPointValue { concept: String, #[source] source: InvalidValue },
+
+    #[error("[InvalidSubmissionRow] Invalid sub row of the Notes filing '{adsh}', Caused by: {source}")]
+    InvalidSubmissionRow { adsh: String, #[source] source: InvalidValue },
 }
 
 #[derive(Debug, thiserror::Error)]

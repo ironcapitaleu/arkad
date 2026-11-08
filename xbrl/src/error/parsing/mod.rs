@@ -1,6 +1,6 @@
 //! # Parsing Errors
 //!
-//! Error types for failures during SEC JSON parsing.
+//! Error types for failures during the parse of SEC JSON and of Notes rows.
 
 use thiserror::Error;
 
@@ -52,6 +52,19 @@ pub enum ParseErrorKind {
         /// The concept name the data point belongs to.
         concept: String,
         /// The rule the value breaks.
+        #[source]
+        source: InvalidValue,
+    },
+
+    /// The `sub` row of a Notes filing breaks a rule of a core type, so the filing has no
+    /// [`Filing`](crate::core::filing::Filing).
+    #[error(
+        "[InvalidSubmissionRow] Invalid sub row of the Notes filing '{adsh}', Caused by: {source}"
+    )]
+    InvalidSubmissionRow {
+        /// The accession number of the filing.
+        adsh: String,
+        /// The rule the row breaks.
         #[source]
         source: InvalidValue,
     },
