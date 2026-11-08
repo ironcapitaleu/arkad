@@ -1,9 +1,9 @@
-//! # SEC EDGAR API Parsers
+//! # EDGAR
 //!
 //! Maps the JSON bodies of the SEC XBRL APIs into as-is facts and filings.
 //!
-//! `sec_api` is a source adapter. It imports [`crate::core`] and no plug-in. The `sec` crate fetches
-//! the bodies, so this module has no network dependency.
+//! EDGAR is the filing system of the SEC. The `sec` crate fetches the bodies, so this module has no
+//! network dependency.
 //!
 //! ## Modules
 //!
