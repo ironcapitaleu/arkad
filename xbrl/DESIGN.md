@@ -940,15 +940,35 @@ Where each field of `AsIsFact` comes from:
 | `filing` | `sub.adsh` | The accession number of the filing |
 | `entity` | `sub.cik` | The entity identifier of the context |
 | `concept` | `tag` with the namespace of `version`, from `num` or `txt` | The element name |
-| `taxonomy_version` | `num.version` or `txt.version` | The schema reference of the filing |
+| `taxonomy_version` | `num.version` or `txt.version` | The registry split of the namespace URI. The namespace whose prefix names the schema file, as `fdxf` names `fdxf-20260930.xsd`, is the extension |
 | `period` | `ddate` minus `datp`, and `qtrs`. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
 | `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare`. `None` for a `txt` row | The unit of the fact |
-| `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context |
+| `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context, without prefixes. An explicit axis loses a leading `Statement` and a trailing `Axis`, and its member loses a trailing `Member` or `Domain`. A typed axis loses only a trailing `Axis`. A typed member keeps its content, and loses a prefix by the Notes rule |
 | `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text. The parser drops `txt.lang`, which is not part of the key of `txt`. Every `txt` row of `2026_10` is `en-US` | The content of the fact, or `xsi:nil` |
 | `decimals` | `num.dcml`. 32767 is `Infinite`. -32768, which only nil rows carry, is `None`. `None` for a `txt` row | The `decimals` attribute |
-| `copy_rank` | Assigned by the parser in the order of `iprx`, over the `num` and `txt` rows | Assigned by the parser in the SEC order of `iprx` |
-| `footnotes` | `num.footnote` or `txt.footnote` | The footnote links |
+| `copy_rank` | Assigned by the parser in the order of `iprx`, over the `num` and `txt` rows | Assigned by the parser in the SEC order of `iprx`: higher `decimals` first, then the length nearer a full quarter, then document order. The facts of one key share one exact end, so the distance to a month end never decides |
+| `footnotes` | `num.footnote` or `txt.footnote` | The footnote links, with the text of each footnote and its whitespace collapsed |
 | `filed`, `accepted` | `sub.filed`, `sub.accepted` in the time of New York, converted to UTC | The filed date of the daily index. `accepted` is empty |
+
+The instance parser reads the dimension rule and the extension rule from data, not from a
+standard:
+
+- The readme of the Notes data set says that `dim.segments` drops a leading `Statement`, a trailing
+  `Axis`, and a trailing `Member` or `Domain`. The data of `2026_10_notes.zip` shows that a typed
+  axis keeps `Statement`: `StatementOfIncomeLocationBalance` and
+  `StatementOfFinancialPositionLocationBalance` are typed, and explicit axes such as
+  `StatementBusinessSegmentsAxis` become `BusinessSegments`.
+- An instance names its schema file, but not the namespace that the schema defines. The SEC names
+  the schema file `<prefix>-<date>.xsd`, so the parser takes the namespace of that prefix as the
+  extension. A filing whose prefix differs from the file name gives its extension facts an
+  undeclared family and a finding.
+
+The instance parser maps the cover facts in the `dei` namespace into the `Filing`:
+`dei:DocumentType` gives the form and, through its context, the entity. `dei:AmendmentFlag`,
+`dei:DocumentPeriodEndDate`, `dei:DocumentFiscalYearFocus`, `dei:DocumentFiscalPeriodFocus`,
+`dei:EntityRegistrantName`, `dei:CurrentFiscalYearEndDate`, `dei:TradingSymbol`, and
+`dei:SecurityExchangeName` give the rest. The instance has no industry code. Its period of report
+is the exact date, where Notes `sub.period` is the month end.
 
 States and errors:
 
