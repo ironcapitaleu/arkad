@@ -536,7 +536,7 @@ Triggers:
 - A consumer needs a consistent snapshot across many keys.
 - The store deletes or expires documents.
 - A key gets a sibling name such as `a-b` beside the directory `a`.
-- A measured upload takes longer than the grace period.
+- A measured write takes longer than the grace period.
 
 ### No Listing in the Live Pipeline
 
