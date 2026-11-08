@@ -8,6 +8,6 @@
 //!
 //! ## Modules
 //!
-//! - [`edgar`]: The SEC XBRL JSON APIs of EDGAR.
+//! - [`edgar`]: The documents of EDGAR, the filing system of the SEC.
 
 pub mod edgar;

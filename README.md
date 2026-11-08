@@ -16,7 +16,7 @@ Extends `state_maschine` for processing SEC filings — handling data acquisitio
 
 ### `xbrl`
 
-The XBRL domain vocabulary: parsing the SEC JSON APIs, resolving concepts against the US-GAAP taxonomy, and validating financial statements against SFAC 6 invariants.
+The XBRL domain vocabulary: parsing EDGAR documents (the Notes data set, instance documents, and the SEC JSON APIs), resolving concepts against the US-GAAP taxonomy, and validating financial statements against SFAC 6 invariants.
 
 ### `storage`
 

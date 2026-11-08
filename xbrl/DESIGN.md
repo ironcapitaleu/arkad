@@ -118,14 +118,17 @@ Rules of the layout:
 - `adapter::edgar` is an adapter. It imports `core` and maps the documents of EDGAR into as-is
   facts: the rows of one Notes filing, one instance document, and the Company Facts JSON. A later
   data source gets its own adapter next to it, for example `adapter::esef`.
-- The Notes parser and the instance parser live in `adapter::edgar`, because their rules fill the
-  fact model and a test runs both on one filing. The pipeline reads the Notes data set and the
-  daily filings first. Company Facts is a secondary source.
-- The transform keeps the I/O and the states: it opens the Notes ZIP, streams `num.tsv`, splits a
-  Notes file by `adsh`, reads the raw store, adds the ingestion provenance, and writes silver. It
-  hands `adapter::edgar` the rows or the document of one filing.
+- The Notes parser and the instance parser live in `adapter::edgar`. Their rules fill the fact
+  model, and one test runs both parsers on the same filing.
+- The transform keeps the I/O and the states. It opens the Notes ZIP, streams `sub.tsv`,
+  `tag.tsv`, `dim.tsv`, `num.tsv`, and `txt.tsv`, and splits them by `adsh`. It picks the main
+  instance of a filing and skips the filing-fee exhibit. It reads the raw store, adds the ingestion
+  provenance, and writes silver.
+- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text and
+  hands `adapter::edgar::notes` the rows of one filing: its `sub` row and its `num`, `txt`, `tag`,
+  and `dim` rows.
 
-**Crate boundary**: `xbrl::adapter::edgar` takes text, rows, or a `&serde_json::Value` (raw JSON body), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies.
+**Crate boundary**: `xbrl::adapter::edgar` takes the XML text of one instance (`&str`), the rows of one Notes filing, or a raw JSON body (`&serde_json::Value`), NOT an `SecResponse`. The `sec` crate owns HTTP, rate limiting, and response handling. `xbrl` has zero network dependencies. Its XML parser is pure Rust and needs no system library.
 
 ### Types That Change
 
@@ -453,9 +456,10 @@ The open `NamespaceFamily` and `Unit` cover new namespaces and currencies. No ne
 
 ### Input / Output
 
-**Input**: a source document. `adapter::edgar` takes the raw JSON body of an SEC API answer, already
-fetched by the `sec` pipeline, the rows of one Notes filing, or one instance document. The transform
-reads and splits the documents, and `adapter::edgar` parses them.
+**Input**: a source document. `adapter::edgar` takes the rows of one Notes filing, one instance
+document, or the raw JSON body of an SEC API answer. The transform reads and splits the documents,
+and `adapter::edgar` parses them. The pipeline reads the Notes data set and the daily filings
+first. Company Facts is a secondary source.
 
 **Output**: `AsIsFact` values, one per reported value, and one `Filing` per filing. Nothing is
 resolved to standard concepts yet.
@@ -847,12 +851,14 @@ So the standardize filing state outputs candidates, not final standardized facts
 
 ### Decisions for the Transform Design
 
-Parsers. The split and the pick of the main instance are transform work. The other items are rules of
-`adapter::edgar::notes` and `adapter::edgar::instance`, and their tickets decide them:
+Parsers. The transform owns the split of a Notes file and the choice of the main instance. The
+tickets of `adapter::edgar::notes` and `adapter::edgar::instance` decide the value-key rules and
+the copy ranks. The transform design decides the run unit of the standardize filing state. The
+ticket of the instance parser adds the cross-source test.
 
 - How the split step cuts a Notes file into filings, and how it streams a file larger than the
   memory of one task.
-- How the instance parser picks the main instance and skips the filing-fee exhibit.
+- How the transform picks the main instance of a filing and skips the filing-fee exhibit.
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
 - How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value,
