@@ -15,3 +15,6 @@ Makes `pr-iterate` the default after a PR opens.
 
 1. After you open a PR, run the `pr-iterate` skill on it at once. Do not wait for a request.
 2. On a review event, continue the `pr-iterate` loop until one of its exit conditions holds.
+
+A CI job that an `@claude` comment starts runs neither step. It pushes and reports in its own
+comment (AGENTS.md, "Pull Request Creation").
