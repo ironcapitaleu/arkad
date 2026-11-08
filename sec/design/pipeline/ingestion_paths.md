@@ -882,6 +882,29 @@ UTF-8.
 2024-03-29. The most common forms are 8-K (16,272), 10-K (3,987), and 10-Q (1,044). The column
 `instance` names the XBRL instance file of each filing, for example `ae-20240221_htm.xml`.
 
+**Order of the rows.** Measured on 2026-11-08 by a streamed read of each table, with the CSVW
+dialect above. A table is sorted if each `adsh` forms one run of adjacent rows, in ascending order.
+
+| File | `num.tsv` rows, filings | `num.tsv` sorted | `txt.tsv` rows, filings | `txt.tsv` sorted | `sub.tsv` sorted |
+| ---- | ----------------------- | ---------------- | ----------------------- | ---------------- | ---------------- |
+| `2010q1_notes_1.zip` | 197,149, 495 | No: 191,466 runs | 16,265, 495 | Yes | No |
+| `2012q4_notes.zip` | 5,926,063, 8,116 | No: 5,901,119 runs | 506,044, 8,087 | No: 504,020 runs | No |
+| `2020q4_notes.zip` | 6,183,770, 6,295 | Yes | 818,459, 16,119 | No: 818,086 runs | Yes |
+| `2024q1_notes.zip` | 9,101,360, 7,573 | Yes | 1,443,193, 24,364 | Yes | No |
+| `2025q3_notes.zip` | 7,697,635, 7,441 | Yes | 1,216,238, 23,459 | Yes | No |
+| `2026_10_notes.zip` | 1,488,444, 1,496 | Yes | 271,414, 6,670 | Yes | No |
+
+- The order of the rows differs between files and between the tables of one file. A reader must
+  not rely on it. Seven of 80 files were checked.
+- If a table is sorted, one streamed pass can cut it at each change of `adsh`. On `num.tsv` of
+  `2025q3`, such a pass took 13.8 s in Python and peaked at 36 MB. An eager read of the same table
+  as text peaked at 2.87 GB.
+- `sub.tsv` holds one row per filing and at most a few MB, so its order does not matter for memory.
+
+**Empty file.** `2009q1_notes.zip` holds only the header line of each table, so it gives no
+filings. Its metadata member is named `2009q1_notes-metadata.json`, not `notes-metadata.json`.
+Transform must accept a Notes file with no filings.
+
 **Publication.** The SEC page reads "January 2009 - September 2026". The page says that the SEC
 has updated the data sets monthly since November 2020. The file list still has quarterly files up
 to 2025q3 and monthly files from 2025_10. Filings after 5:30 PM Eastern on the last day of the month go
