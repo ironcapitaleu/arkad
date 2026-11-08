@@ -1,13 +1,34 @@
 //! # Generator Error
 //!
-//! Provides [`GeneratorError`], the error of a read of a vendored file.
+//! Provides [`GeneratorError`], the error of a run of the generator.
 
+use std::io;
 use std::path::PathBuf;
 
-/// Separates the failures of a read: content that is not XML, and content that does not follow
-/// the XBRL rules the generator relies on.
+/// Separates the failures of a run: a file that the generator cannot read or write, and content
+/// that does not follow the XBRL rules the generator relies on.
 #[derive(Debug, thiserror::Error)]
 pub enum GeneratorError {
+    /// The generator cannot read a vendored file.
+    #[error("[FailedFileRead] Failed to read a vendored file, Reason: '{source}', Path: '{}'", path.display())]
+    FailedFileRead {
+        /// The path of the file.
+        path: PathBuf,
+        /// The error of the read.
+        #[source]
+        source: io::Error,
+    },
+
+    /// The generator cannot write the generated file.
+    #[error("[FailedFileWrite] Failed to write the generated file, Reason: '{source}', Path: '{}'", path.display())]
+    FailedFileWrite {
+        /// The path of the file.
+        path: PathBuf,
+        /// The error of the write.
+        #[source]
+        source: io::Error,
+    },
+
     /// A vendored file is not well-formed XML.
     #[error("[InvalidXml] Failed to parse XML, Reason: '{source}', Path: '{}'", path.display())]
     InvalidXml {
@@ -58,6 +79,13 @@ pub enum GeneratorError {
         label: String,
     },
 
+    /// A concept of the element schema has no standard label.
+    #[error("[MissingLabel] Standard label not found for concept '{concept}'")]
+    MissingLabel {
+        /// The concept, as `<family>:<name>`.
+        concept: String,
+    },
+
     /// A concept has more than one standard label.
     #[error("[RepeatedLabel] Concept '{concept}' has more than one standard label")]
     RepeatedLabel {
@@ -68,11 +96,27 @@ pub enum GeneratorError {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_generator_error() {
         implements_auto_traits::<GeneratorError>();
+    }
+
+    #[test]
+    fn should_name_concept_when_label_is_missing() {
+        let error = GeneratorError::MissingLabel {
+            concept: "us-gaap:Assets".to_string(),
+        };
+
+        let expected_result =
+            "[MissingLabel] Standard label not found for concept 'us-gaap:Assets'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
     }
 }

@@ -2469,6 +2469,7 @@ version = "0.1.0"
 dependencies = [
  "pretty_assertions",
  "roxmltree",
+ "sha2",
  "thiserror",
 ]
 
