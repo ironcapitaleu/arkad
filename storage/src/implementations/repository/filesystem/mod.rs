@@ -52,6 +52,7 @@ pub use shared::document_metadata::{
     DocumentMetadata, DocumentMetadataBuilder, IngestionMode, InputDocument, METADATA_VERSION,
     NoDocumentType, Producer,
 };
+pub use shared::key_prefix::KeyPrefix;
 pub use traits::access::{Access, CanRead, CanWrite, Read, ReadWrite, Write};
 pub use traits::document::Document;
 
@@ -390,35 +391,44 @@ impl<A: Access, D> FilesystemRepository<A, D> {
     ///
     /// # Errors
     ///
-    /// Returns a [`FailedFilesystemOperation`] with:
-    /// - [`FailedFilesystemOperationReason::MissingRoot`] if the root does not exist, or a file
-    ///   stands in its path.
-    /// - [`FailedFilesystemOperationReason::RootIsNotADirectory`] if the root is a file.
-    /// - [`FailedFilesystemOperationReason::FailedIo`] if the filesystem cannot inspect the root.
+    /// Returns the [`FailedFilesystemOperation`] of [`check_root`].
     async fn ensure_root_is_reachable(&self) -> Result<(), FailedFilesystemOperation> {
-        match tokio::fs::metadata(&self.root).await {
-            Ok(metadata) if metadata.is_dir() => Ok(()),
-            Ok(_) => Err(FailedFilesystemOperation::new(
-                FailedFilesystemOperationReason::RootIsNotADirectory,
-                &self.root,
-            )),
-            Err(error)
-                if matches!(
-                    error.kind(),
-                    io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
-                ) =>
-            {
-                Err(FailedFilesystemOperation::new(
-                    FailedFilesystemOperationReason::MissingRoot,
-                    &self.root,
-                ))
-            }
-            Err(error) => Err(FailedFilesystemOperation::from_io(
-                FilesystemOperation::Inspect,
-                &self.root,
-                &error,
-            )),
+        check_root(&self.root).await
+    }
+}
+
+/// Checks that the root exists and is a directory.
+///
+/// # Errors
+///
+/// Returns a [`FailedFilesystemOperation`] with:
+/// - [`FailedFilesystemOperationReason::MissingRoot`] if the root does not exist, or a file stands
+///   in its path.
+/// - [`FailedFilesystemOperationReason::RootIsNotADirectory`] if the root is a file.
+/// - [`FailedFilesystemOperationReason::FailedIo`] if the filesystem cannot inspect the root.
+async fn check_root(root: &Path) -> Result<(), FailedFilesystemOperation> {
+    match tokio::fs::metadata(root).await {
+        Ok(metadata) if metadata.is_dir() => Ok(()),
+        Ok(_) => Err(FailedFilesystemOperation::new(
+            FailedFilesystemOperationReason::RootIsNotADirectory,
+            root,
+        )),
+        Err(error)
+            if matches!(
+                error.kind(),
+                io::ErrorKind::NotFound | io::ErrorKind::NotADirectory
+            ) =>
+        {
+            Err(FailedFilesystemOperation::new(
+                FailedFilesystemOperationReason::MissingRoot,
+                root,
+            ))
         }
+        Err(error) => Err(FailedFilesystemOperation::from_io(
+            FilesystemOperation::Inspect,
+            root,
+            &error,
+        )),
     }
 }
 
