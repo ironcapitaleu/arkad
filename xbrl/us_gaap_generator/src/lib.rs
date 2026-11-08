@@ -114,9 +114,7 @@ fn elements(release: &Path) -> Result<Vec<ElementLine>, GeneratorError> {
 }
 
 /// Returns the arcs of every calculation linkbase in `statements`, sorted by role, parent, and
-/// child. Within one role, an arc appears once.
-///
-/// Two calculation files can hold the same arc in the same role, so the tables keep it once.
+/// child. Two files can hold the same arc in the same role, so an arc appears once per role.
 ///
 /// # Errors
 ///

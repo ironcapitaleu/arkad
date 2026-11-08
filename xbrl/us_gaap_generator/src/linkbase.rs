@@ -473,16 +473,16 @@ mod tests {
     #[test]
     fn should_return_unresolved_arc_label_when_label_arc_names_no_resource() {
         let text = linkbase(
-            "<link:labelLink xlink:type='extended'>\
-             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
-             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\
-             <link:labelArc xlink:from='loc_A' xlink:to='lab_Typo' />\
+            "\n<link:labelLink xlink:type='extended'>\n\
+             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\n\
+             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\n\
+             <link:labelArc xlink:from='loc_A' xlink:to='lab_Typo' />\n\
              </link:labelLink>",
         );
 
         let expected_result = Some(
             "[UnresolvedArcLabel] No locator or resource carries the label of an arc, \
-             Label: 'lab_Typo', Line: '1', Path: 'linkbase.xml'"
+             Label: 'lab_Typo', Line: '5', Path: 'linkbase.xml'"
                 .to_string(),
         );
 
@@ -540,17 +540,17 @@ mod tests {
     #[test]
     fn should_return_repeated_label_when_two_standard_resources_share_a_label() {
         let text = linkbase(
-            "<link:labelLink xlink:type='extended'>\
-             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\
-             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\
-             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets, Again</link:label>\
-             <link:labelArc xlink:from='loc_A' xlink:to='lab_A' />\
+            "\n<link:labelLink xlink:type='extended'>\n\
+             <link:loc xlink:href='us-gaap-2026.xsd#us-gaap_Assets' xlink:label='loc_A' />\n\
+             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets</link:label>\n\
+             <link:label xlink:label='lab_A' xlink:role='http://www.xbrl.org/2003/role/label'>Assets, Again</link:label>\n\
+             <link:labelArc xlink:from='loc_A' xlink:to='lab_A' />\n\
              </link:labelLink>",
         );
 
         let expected_result = Some(
             "[RepeatedLabel] Concept 'us-gaap:Assets' has more than one standard label, \
-             Line: '1', Path: 'linkbase.xml'"
+             Line: '6', Path: 'linkbase.xml'"
                 .to_string(),
         );
 
