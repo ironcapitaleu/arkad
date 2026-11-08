@@ -1,7 +1,8 @@
 //! # Filing
 //!
-//! Provides [`Filing`], one filing with its attributes as filed, and the IDs it carries:
-//! [`FilingId`] and [`EntityId`].
+//! Provides [`Filing`], one filing with its attributes as filed, the IDs it carries, [`FilingId`]
+//! and [`EntityId`], and the company attributes it states, [`CompanyAttributes`] and
+//! [`IndustryCode`].
 
 use std::fmt;
 use std::str::FromStr;
@@ -232,9 +233,8 @@ impl fmt::Display for IndustryCode {
 
 /// The attributes of the company as one filing states them.
 ///
-/// The attributes belong to the company, not to the filing. A filing records them as they were
-/// when it was filed, so a later filing with another value records a change over time, not a
-/// conflict.
+/// The attributes belong to the company, not to the filing. A filing records them as of its filing
+/// date. A later filing with another value shows a change over time, not a conflict.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct CompanyAttributes {
     /// The company name.
@@ -309,11 +309,13 @@ mod tests {
 
     #[test]
     fn should_keep_code_when_scheme_is_not_sic() {
-        let industry = IndustryCode::new("nace", "26.20")
-            .expect("Given a hardcoded scheme and code, the creation should always succeed");
+        let scheme = "nace";
+        let code = "26.20";
 
         let expected_result = "26.20";
 
+        let industry = IndustryCode::new(scheme, code)
+            .expect("Given a hardcoded scheme and code, the creation should always succeed");
         let result = industry.code();
 
         assert_eq!(result, expected_result);

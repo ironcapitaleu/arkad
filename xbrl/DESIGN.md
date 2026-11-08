@@ -518,7 +518,8 @@ section 4.
 attributes as filed in `CompanyAttributes`: name, industry code, ticker, exchange, fiscal year end.
 The attributes belong to the company. A filing records them as of its filing, so a later filing
 with another value is a change over time, not a conflict. The industry code holds a scheme and a
-code, for example `sic:3571` or `nace:26.20`, because SIC is an SEC scheme.
+code, for example `sic:3571` or `nace:26.20`. SIC is an SEC scheme. A filer outside the US uses
+another scheme, so the code names its scheme.
 
 ### Key Design Decisions
 
