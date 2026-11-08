@@ -302,7 +302,8 @@ lets a check reconcile one company against its stored filings.
 2. Request: one GET for the whole file. At most 2 files download at once, set by
    `ARKAD_FILES_IN_FLIGHT`.
 3. Response: a ZIP with ten members: eight tables (`sub`, `tag`, `dim`, `num`, `txt`, `ren`, `pre`,
-   `cal`), a readme, and `notes-metadata.json`. The run checks the content length against the body.
+   `cal`), a readme, and a metadata member (`notes-metadata.json`, or `2009q1_notes-metadata.json`
+   in 2009q1). The run checks the content length against the body.
 4. Stored as `RawNotesArchive`, unchanged. The store state is `StoreSecResponse<NotesFile, R>`.
 5. Provenance: the metadata of the request, ingestion mode `backfill`, no input.
 
