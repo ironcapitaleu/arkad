@@ -496,13 +496,17 @@ ticket decides where the removed elements live.
 ### `us_gaap`
 
 - Owns the namespace families `us-gaap` and `srt`. For the MVP it also owns `dei`. It declares,
-  without resolving, the other SEC taxonomies `ecd`, `country`, `currency`, `exch`, and `stpr`.
+  without resolving, the other SEC taxonomies: `country`, `currency`, `cyd`, `ecd`, `exch`, `ffd`,
+  `invest`, `naics`, `rxp`, `sic`, `snj`, `spac`, and `stpr`. A family missing from this list
+  shows up as a finding of the parser, and the fix is to declare it.
 - Its URI patterns name the FASB (`http://fasb.org/<family>/{release}`), the SEC
   (`http://xbrl.sec.gov/<family>/{release}`), and XBRL US (`http://xbrl.us/<family>/{release}`),
   which published the `us-gaap` and `dei` releases of 2009 and 2010.
 - `UsGaap::new` builds the release, the calculation tree, and the element reference data from the
   generated tables. `element()` finds a `us-gaap` concept by a binary search on the sorted
-  elements. It returns `None` for `srt` and `dei`, whose schemas are not vendored.
+  elements. It returns `None` for `srt` and `dei`, whose schemas are not vendored, and for an
+  element that a release before 2026 removed.
+- The calculation tree holds the arcs of every role. Each arc names its role.
 - `aliases()` returns no alias list yet. The alias lists of `mappings.rs` need a rule ID per
   standard concept, for example `us-gaap/alias/revenue@1`, and no rule names exist yet.
 

@@ -27,9 +27,15 @@ pub struct ConceptAliases {
     pub concepts: Vec<ConceptName>,
 }
 
-/// One arc of a calculation linkbase: the parent sums its children, each times its weight.
+/// One arc of a calculation linkbase: within one role, the parent sums its children, each times its
+/// weight.
+///
+/// A concept can sum different children in different roles, so a sum takes the arcs of one role.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct CalculationArc {
+    /// The role of the calculation link that holds the arc, for example
+    /// `http://fasb.org/us-gaap/role/statement/StatementOfIncome`.
+    pub role: String,
     /// The total.
     pub parent: ConceptName,
     /// One part of the total.
@@ -38,7 +44,7 @@ pub struct CalculationArc {
     pub weight: BigDecimal,
 }
 
-/// The arcs of the calculation linkbase of one release.
+/// The arcs of the calculation linkbases of one release, in all their roles.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct CalculationTree {
     /// Every arc of the tree.

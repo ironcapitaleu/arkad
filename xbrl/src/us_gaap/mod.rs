@@ -46,7 +46,7 @@ struct FamilySpec {
 }
 
 /// The families that the plug-in declares. The URI patterns name the hosts of the FASB, of the
-/// SEC, and of XBRL US, which published the releases of 2009 and 2010.
+/// SEC, and of XBRL US, which published the `us-gaap` and `dei` releases of 2009 and 2010.
 const FAMILIES: &[FamilySpec] = &[
     FamilySpec {
         name: US_GAAP_FAMILY,
@@ -70,11 +70,6 @@ const FAMILIES: &[FamilySpec] = &[
         resolves: true,
     },
     FamilySpec {
-        name: "ecd",
-        uri_patterns: &["http://xbrl.sec.gov/ecd/{release}"],
-        resolves: false,
-    },
-    FamilySpec {
         name: "country",
         uri_patterns: &["http://xbrl.sec.gov/country/{release}"],
         resolves: false,
@@ -85,8 +80,53 @@ const FAMILIES: &[FamilySpec] = &[
         resolves: false,
     },
     FamilySpec {
+        name: "cyd",
+        uri_patterns: &["http://xbrl.sec.gov/cyd/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "ecd",
+        uri_patterns: &["http://xbrl.sec.gov/ecd/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
         name: "exch",
         uri_patterns: &["http://xbrl.sec.gov/exch/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "ffd",
+        uri_patterns: &["http://xbrl.sec.gov/ffd/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "invest",
+        uri_patterns: &["http://xbrl.sec.gov/invest/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "naics",
+        uri_patterns: &["http://xbrl.sec.gov/naics/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "rxp",
+        uri_patterns: &["http://xbrl.sec.gov/rxp/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "sic",
+        uri_patterns: &["http://xbrl.sec.gov/sic/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "snj",
+        uri_patterns: &["http://xbrl.sec.gov/snj/{release}"],
+        resolves: false,
+    },
+    FamilySpec {
+        name: "spac",
+        uri_patterns: &["http://xbrl.sec.gov/spac/{release}"],
         resolves: false,
     },
     FamilySpec {
@@ -99,7 +139,11 @@ const FAMILIES: &[FamilySpec] = &[
 /// The plug-in for US GAAP filings.
 ///
 /// It holds the release, the family declarations, the calculation tree, and the element
-/// reference data of the generated tables. [`Taxonomy::aliases`] returns no alias list yet.
+/// reference data of the generated tables.
+///
+/// [`Taxonomy::aliases`] returns no alias list yet. [`Taxonomy::elements`] holds the elements of
+/// the 2026 schema, including the ones the schema marks as deprecated. It holds no element that an
+/// earlier release removed, such as `SalesRevenueNet`.
 ///
 /// # Examples
 ///
@@ -224,6 +268,7 @@ fn declaration(spec: &FamilySpec) -> FamilyDeclaration {
 /// Returns the calculation arc of one row of the tables.
 fn calculation_arc(row: &table::CalculationRow) -> CalculationArc {
     CalculationArc {
+        role: row.role.to_string(),
         parent: concept(row.parent_family, row.parent_name),
         child: concept(row.child_family, row.child_name),
         weight: BigDecimal::from_str(row.weight)
@@ -418,15 +463,41 @@ mod tests {
     #[test]
     fn should_return_arc_with_negative_weight_when_child_is_subtracted() {
         let us_gaap = UsGaap::new();
+        let role = "http://fasb.org/us-gaap/role/statement/StatementOfFinancialPositionClassifiedFirstAlternative";
+        let parent = concept("srt", "LifeInsuranceInForceNet");
+        let child = concept("srt", "LifeInsuranceInForceCeded");
 
         let expected_result = Some(&CalculationArc {
+            role: role.to_string(),
             parent: concept("srt", "LifeInsuranceInForceNet"),
             child: concept("srt", "LifeInsuranceInForceCeded"),
             weight: BigDecimal::from_str("-1.0")
                 .expect("Given a hardcoded decimal, the parse should always succeed"),
         });
 
-        let result = us_gaap.calculation_tree().arcs.get(1);
+        let result = us_gaap
+            .calculation_tree()
+            .arcs
+            .iter()
+            .find(|arc| arc.role == role && arc.parent == parent && arc.child == child);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_find_every_listed_element_when_looking_up_its_concept() {
+        let us_gaap = UsGaap::new();
+
+        // The expected result lists each of the 17,179 elements. Nobody can write it out, so the
+        // test compares the list with a lookup of each of its concepts.
+        let expected_result: Vec<Option<&ElementReference>> =
+            us_gaap.elements().iter().map(Some).collect();
+
+        let result: Vec<Option<&ElementReference>> = us_gaap
+            .elements()
+            .iter()
+            .map(|element| us_gaap.element(&element.concept))
+            .collect();
 
         assert_eq!(result, expected_result);
     }
