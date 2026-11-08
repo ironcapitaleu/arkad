@@ -494,8 +494,7 @@ section 4.
   with the same end and length, which can be two facts. `core/dedup/more-precise@1` handles both
   cases, see "Dedup Rules".
 - `taxonomy_version` adds no uniqueness, because the filing fixes the version of each family. It
-  stays in the key because the Notes data set gives it on every row, and the draft key of the fact
-  store design names it.
+  stays in the key because the Notes data set gives it on every row, and `as_is_facts` keys on it.
 - The key names the fields only. [`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts", decides the rule for a fact from two
   sources. The write rule of gold is open for a later gold design.
 
@@ -808,8 +807,8 @@ Parsers:
 - How the instance parser picks the main instance and skips the filing-fee exhibit.
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
-- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value
-  and in every key field except `copy_rank`, before it numbers the copies, such as the rows that the filing-fee exhibit repeats.
+- How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value,
+  in `decimals`, and in every key field except `copy_rank`, before it numbers the copies, such as the rows that the filing-fee exhibit repeats.
 - How each parser numbers the copies of one key. The parser assigns `copy_rank` itself, in the
   `iprx` order where Notes gives it. If two rows still share a key and differ in value, for
   example after the parser strips dimension prefixes, the second row gets the next free rank. So
@@ -819,7 +818,7 @@ Parsers:
   `candidates` unit per filing, so step 3 needs no tie-break inside one `FilingId`.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
 
-Input for the parsers. The segment findings of 2026-10-18 measured seven rules that make a Notes row
+The parsers take seven rules from the segment findings of 2026-10-18. The rules make a Notes row
 equal to an instance fact. The as-is layer keeps every value and leaves dedup to the standardized
 layer, so some rules change:
 
@@ -835,7 +834,7 @@ layer, so some rules change:
 
 Where each field of `AsIsFact` comes from:
 
-| Field | Notes data set | Instance XML |
+| Field | Notes data set | Instance path |
 | ----- | -------------- | ------------ |
 | `filing` | `sub.adsh` | The accession number of the filing |
 | `entity` | `sub.cik` | The entity identifier of the context |
@@ -848,7 +847,7 @@ Where each field of `AsIsFact` comes from:
 | `decimals` | `num.dcml` | The `decimals` attribute |
 | `copy_rank` | Assigned by the parser in the order of `num.iprx` | Assigned by the parser in the SEC order of `iprx` |
 | `footnotes` | `num.footnote` | The footnote links |
-| `filed`, `accepted` | `sub.filed`, `sub.accepted` | The filed date of the filing. `accepted` is empty |
+| `filed`, `accepted` | `sub.filed`, `sub.accepted` | The filed date of the daily index. `accepted` is empty |
 
 States and errors:
 

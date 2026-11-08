@@ -149,7 +149,7 @@ Silver stores three kinds of values:
   a daily table of current tickers from the SEC `company_tickers.json` file.
 
 The column sketches below fix the shape. The Arrow types are a proposal for the prototype to
-confirm. The value key of `xbrl/DESIGN.md` and the seven provenance columns below are the final
+confirm. The value key of `xbrl/DESIGN.md` and the seven provenance columns below are the proposed
 fields of the as-is fact model.
 
 ### `as_is_facts`
@@ -603,7 +603,8 @@ as-is concept instead of the standard concept.
 ### Current Facts
 
 A filing can sit in more than one current unit: once per source, and in a monthly and a quarterly
-Notes file after the SEC merges a quarter. Every as-is read takes one unit per filing:
+Notes file after the SEC merges a quarter. Every read of `as_is_facts`, `filings`, and
+`candidates` takes one unit per filing:
 
 1. Take only current units (see [Replays](#replays)).
 2. If an instance unit holds the filing, take it.
@@ -612,7 +613,7 @@ Notes file after the SEC merges a quarter. Every as-is read takes one unit per f
 The rule depends only on the source and the Notes period, never on the order of runs. A filing has
 one filed date and sits in one month and one quarter, so the rule always leaves one unit.
 
-- **Instance over Notes.** Both sources hold the same facts with the same value keys
+- **Instance over Notes.** Both sources hold the same facts
   ([Measured Result](ingestion_paths.md#measured-result)). The instance keeps the units, the text,
   and the footnotes that Notes loses. The comparison recommended the same preference at write time
   (option 2 of [Path Independence](ingestion_paths.md#path-independence)). Silver keeps every
@@ -621,7 +622,8 @@ one filed date and sits in one month and one quarter, so the rule always leaves 
   removes the monthly files at the merge (assumption A4 of
   [Cut-Over Between the Paths](ingestion_paths.md#cut-over-between-the-paths)).
 - **Accepted time.** The instance path gives `filed` only. If the current Notes `filings` row of
-  the same filing has `accepted`, the read copies it onto the filing and its facts. This is the
+  the same filing has `accepted`, the read copies it onto the filing, its facts, and its
+  `candidates` rows. This is the
   only value the read takes from the other source. Silver keeps the instance rows as they are.
 - **`candidates`.** The same rule picks one `candidates` unit per filing, so the series step gets
   one candidate per filing and standard concept.
@@ -819,7 +821,7 @@ under 30 GB, the size of the raw store. See
 ## Open Points
 
 These choices belong to other designs. Silver keeps them open: it stores every copy with its
-source, and each choice is a read rule over silver.
+source.
 
 - **Gold for facts:** the gold tables, the write rule ("upsert by full grain" against
   `ON CONFLICT DO NOTHING`), the replay of a filing in gold, dedup for direct reads, and the

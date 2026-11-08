@@ -1767,7 +1767,8 @@ Rules:
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).
 3. If the run missed a day older than the window, rerun that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
-   Which copy holds the value is open. See [Path Independence](#path-independence).
+   Silver keeps both copies, and a read takes the instance. See
+   [`silver_layer.md`](silver_layer.md#current-facts).
 5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
    month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
    rerun the backfill (rule 8). Then read the newest period in the run summary with the status
@@ -1830,7 +1831,7 @@ Rules:
   company data with older data.
 - **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
 - **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
-  fact is keyed by its accession number and its value key (STA-331): `DO NOTHING`.
+  fact is keyed by its accession number and its value key. The gold write rule is open, see below.
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
 So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
@@ -1950,7 +1951,7 @@ fixed rank. Two conditions applied:
   row per fact. But option 2 picks the value at write time. The STA-145 freeze picks "which
   value wins" at read time. STA-331 must accept that change, or take option 3.
 
-Decided in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": option 3 with the same preference, instance over Notes, applied by a
+Proposed in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": option 3 with the same preference, instance over Notes, applied by a
 read. Silver keeps every copy, so the Notes copy is not dropped at write time.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
@@ -2185,5 +2186,7 @@ to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine d
 
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser.
 
-Decided in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": silver keeps an amendment next to its original, and a read takes the
-instance over Notes for a filing. How gold writes a replay is open for a later gold design.
+Proposed in the silver design: silver keeps an amendment next to its original
+([`silver_layer.md`](silver_layer.md#same-value-in-several-places)), and a read takes the instance
+over Notes for a filing ([`silver_layer.md`](silver_layer.md#current-facts), "Current Facts"). How gold writes a replay is open for a later gold
+design.
