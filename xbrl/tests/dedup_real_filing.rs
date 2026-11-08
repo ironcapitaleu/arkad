@@ -5,10 +5,10 @@
 //! them.
 //!
 //! The filing reports 99 value keys twice. Each pair holds a quarter of three months from 1 July
-//! and a period of four months from 1 June. Both round to 1 quarter, so they share a value key (see
-//! `DESIGN.md`, "Value Key"). The quarter is rank 0, because its length is closer to a full
-//! quarter. The four months hold June plus the quarter, so no pair agrees, and all 99 keys are
-//! conflicts.
+//! and a period of four months from 1 June. Both round to 1 quarter, so they share a value key. The
+//! quarter is rank 0 in both sources. The instance parser ranks the length nearer to a full quarter
+//! first, and the Notes parser follows the order of `iprx` (see `DESIGN.md`, "Value Key"). The four
+//! months hold June plus the quarter, so no pair agrees, and all 99 keys are conflicts.
 //!
 //! The fake plug-in holds the revenue alias list of the fixtures until the US GAAP plug-in has
 //! its own lists.
@@ -49,6 +49,32 @@ fn candidates_of(facts: &[AsIsFact]) -> FilingCandidates {
         "Given one plug-in with four distinct families, the creation should always succeed",
     );
     resolve_aliases(&more_precise(facts), &registry)
+}
+
+/// Returns the rank, period, and value of each copy of revenue without dimensions in the quarter
+/// that ends on 2026-09-30, or nothing if that key has no conflict.
+fn revenue_ranks(facts: &[AsIsFact]) -> Vec<(u16, String, FactValue)> {
+    more_precise(facts)
+        .conflicts()
+        .iter()
+        .find(|ranks| {
+            ranks[0].concept.local_name() == REVENUE_CONCEPT
+                && ranks[0].context.period.end() == date(2026, 9, 30)
+                && ranks[0].context.dimensions == Dimensions::default()
+        })
+        .map(|ranks| {
+            ranks
+                .iter()
+                .map(|fact| {
+                    (
+                        fact.copy_rank,
+                        fact.context.period.to_string(),
+                        fact.value.clone(),
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 fn number(text: &str) -> BigDecimal {
@@ -113,7 +139,8 @@ fn should_find_99_conflicts_when_more_precise_runs_on_the_instance_facts() {
 }
 
 #[test]
-fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_value_key() {
+fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_value_key_in_the_instance()
+ {
     let facts = parse_instance_fixture().facts;
 
     let expected_result = vec![
@@ -129,28 +156,31 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_
         ),
     ];
 
-    let copies = more_precise(&facts);
-    let result: Vec<(u16, String, FactValue)> = copies
-        .conflicts()
-        .iter()
-        .find(|ranks| {
-            ranks[0].concept.local_name() == REVENUE_CONCEPT
-                && ranks[0].context.period.end() == date(2026, 9, 30)
-                && ranks[0].context.dimensions == Dimensions::default()
-        })
-        .map(|ranks| {
-            ranks
-                .iter()
-                .map(|fact| {
-                    (
-                        fact.copy_rank,
-                        fact.context.period.to_string(),
-                        fact.value.clone(),
-                    )
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let result = revenue_ranks(&facts);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_value_key_in_notes()
+{
+    let facts = parse_notes_fixture().facts;
+
+    // Notes gives no exact start, so only the value tells the quarter from the four months.
+    let expected_result = vec![
+        (
+            0,
+            "1 quarters to 2026-09-30".to_string(),
+            FactValue::Numeric(number("2442000000")),
+        ),
+        (
+            1,
+            "1 quarters to 2026-09-30".to_string(),
+            FactValue::Numeric(number("3281000000")),
+        ),
+    ];
+
+    let result = revenue_ranks(&facts);
 
     assert_eq!(result, expected_result);
 }
