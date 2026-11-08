@@ -68,6 +68,9 @@ pub struct Duration {
 }
 
 impl Duration {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "Duration";
+
     /// Creates a [`Duration`] from an exact start and end, and computes its length in quarters.
     ///
     /// The length is `round(days(end - start) / 91.3125)`, the rule that matched Notes `qtrs` on
@@ -98,7 +101,7 @@ impl Duration {
         let days = (end - start).num_days();
         if days < 0 {
             return Err(InvalidValue::new(
-                "Duration",
+                Self::TYPE_NAME,
                 InvalidValueReason::EndBeforeStart,
                 format!("{start} to {end}"),
             ));
@@ -108,7 +111,7 @@ impl Duration {
         let quarters = (16 * days + 730) / 1461;
         let quarters = u16::try_from(quarters).map_err(|_| {
             InvalidValue::new(
-                "Duration",
+                Self::TYPE_NAME,
                 InvalidValueReason::OutOfRange,
                 format!("{start} to {end}"),
             )

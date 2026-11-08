@@ -43,6 +43,12 @@ pub struct FilingId {
 }
 
 impl FilingId {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "FilingId";
+
+    /// The character between the source and the ID in the text form.
+    pub const SEPARATOR: char = ':';
+
     /// Creates a [`FilingId`] from a source, for example `sec`, and an ID within that source.
     ///
     /// # Errors
@@ -51,12 +57,12 @@ impl FilingId {
     pub fn new(source: impl Into<String>, id: impl Into<String>) -> Result<Self, InvalidValue> {
         let source = source.into();
         let id = id.into();
-        require_token("FilingId", &source)?;
-        require_token("FilingId", &id)?;
-        if source.contains(':') {
+        require_token(Self::TYPE_NAME, &source)?;
+        require_token(Self::TYPE_NAME, &id)?;
+        if source.contains(Self::SEPARATOR) {
             return Err(InvalidValue::new(
-                "FilingId",
-                InvalidValueReason::ContainsSeparator(':'),
+                Self::TYPE_NAME,
+                InvalidValueReason::ContainsSeparator(Self::SEPARATOR),
                 source,
             ));
         }
@@ -85,8 +91,12 @@ impl FromStr for FilingId {
     ///
     /// Returns [`InvalidValue`] if the text has no `:` or a part is invalid.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let (source, id) = text.split_once(':').ok_or_else(|| {
-            InvalidValue::new("FilingId", InvalidValueReason::MissingSeparator(':'), text)
+        let (source, id) = text.split_once(Self::SEPARATOR).ok_or_else(|| {
+            InvalidValue::new(
+                Self::TYPE_NAME,
+                InvalidValueReason::MissingSeparator(Self::SEPARATOR),
+                text,
+            )
         })?;
         Self::new(source, id)
     }
@@ -94,7 +104,7 @@ impl FromStr for FilingId {
 
 impl fmt::Display for FilingId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.source, self.id)
+        write!(f, "{}{}{}", self.source, Self::SEPARATOR, self.id)
     }
 }
 
@@ -107,6 +117,9 @@ pub struct EntityId {
 }
 
 impl EntityId {
+    /// The type name that [`InvalidValue`] names when an input breaks a rule.
+    const TYPE_NAME: &'static str = "EntityId";
+
     /// Creates an [`EntityId`] from a scheme and an ID.
     ///
     /// # Errors
@@ -115,8 +128,8 @@ impl EntityId {
     pub fn new(scheme: impl Into<String>, id: impl Into<String>) -> Result<Self, InvalidValue> {
         let scheme = scheme.into();
         let id = id.into();
-        require_token("EntityId", &scheme)?;
-        require_token("EntityId", &id)?;
+        require_token(Self::TYPE_NAME, &scheme)?;
+        require_token(Self::TYPE_NAME, &id)?;
         Ok(Self { scheme, id })
     }
 

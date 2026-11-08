@@ -43,8 +43,47 @@ use crate::core::period::{Duration, Period};
 use crate::core::unit::Unit;
 use crate::error::parsing::ParseErrorKind;
 
+/// The key of the CIK of the company.
+pub const KEY_CIK: &str = "cik";
+
+/// The key of the company name.
+pub const KEY_ENTITY_NAME: &str = "entityName";
+
+/// The key of the facts, grouped by namespace.
+pub const KEY_FACTS: &str = "facts";
+
+/// The key of the data points of a concept, grouped by unit.
+pub const KEY_UNITS: &str = "units";
+
+/// The key of the value of a data point.
+pub const KEY_VALUE: &str = "val";
+
+/// The key of the end date of a data point.
+pub const KEY_END: &str = "end";
+
+/// The key of the start date of a duration.
+pub const KEY_START: &str = "start";
+
+/// The key of the accession number of the filing.
+pub const KEY_ACCESSION_NUMBER: &str = "accn";
+
+/// The key of the filing date.
+pub const KEY_FILED: &str = "filed";
+
+/// The key of the form type of the filing.
+pub const KEY_FORM: &str = "form";
+
+/// The key of the fiscal year of the filing.
+pub const KEY_FISCAL_YEAR: &str = "fy";
+
+/// The key of the fiscal period of the filing.
+pub const KEY_FISCAL_PERIOD: &str = "fp";
+
+/// The format of the dates of the SEC JSON APIs, for example `2024-09-28`.
+pub const DATE_FORMAT: &str = "%Y-%m-%d";
+
 /// Required top-level keys in the SEC Company Facts JSON response.
-pub const REQUIRED_TOP_LEVEL_KEYS: &[&str] = &["cik", "entityName", "facts"];
+pub const REQUIRED_TOP_LEVEL_KEYS: &[&str] = &[KEY_CIK, KEY_ENTITY_NAME, KEY_FACTS];
 
 /// Namespace for general company information (DEI taxonomy).
 pub const COMPANY_INFO_NAMESPACE: &str = "dei";
@@ -84,10 +123,10 @@ pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
     let company_name = extract_entity_name(json)?;
 
     let namespaces = json
-        .get("facts")
+        .get(KEY_FACTS)
         .and_then(serde_json::Value::as_object)
         .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
-            reason: "Expected 'facts' to be a JSON object".to_string(),
+            reason: format!("Expected '{KEY_FACTS}' to be a JSON object"),
         })?;
 
     let mut parser = Parser {
@@ -109,9 +148,14 @@ pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
         for (local_name, concept_data) in concepts {
             let concept = concept_name(namespace, local_name)?;
             let units = concept_data
-                .get("units")
+                .get(KEY_UNITS)
                 .and_then(serde_json::Value::as_object)
-                .ok_or_else(|| invalid(&concept, "Expected 'units' to be a JSON object"))?;
+                .ok_or_else(|| {
+                    invalid(
+                        &concept,
+                        &format!("Expected '{KEY_UNITS}' to be a JSON object"),
+                    )
+                })?;
             for (unit_text, data_points) in units {
                 let unit =
                     Unit::from_str(unit_text).map_err(|error| invalid_value(&concept, error))?;
@@ -141,11 +185,11 @@ pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
 /// Returns [`ParseErrorKind`] if the structure is invalid.
 pub fn extract_entity_name(json: &serde_json::Value) -> Result<String, ParseErrorKind> {
     validate_top_level_structure(json)?;
-    json.get("entityName")
+    json.get(KEY_ENTITY_NAME)
         .and_then(serde_json::Value::as_str)
         .map(ToString::to_string)
         .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
-            reason: "Expected 'entityName' to be a string".to_string(),
+            reason: format!("Expected '{KEY_ENTITY_NAME}' to be a string"),
         })
 }
 
@@ -177,38 +221,44 @@ impl Parser {
                 .ok_or_else(|| invalid(concept, &format!("Field '{key}' is not a string")))
         };
         let date = |key: &str| {
-            NaiveDate::parse_from_str(text(key)?, "%Y-%m-%d")
+            NaiveDate::parse_from_str(text(key)?, DATE_FORMAT)
                 .map_err(|error| invalid(concept, &format!("Field '{key}' is not a date: {error}")))
         };
 
-        let number = field("val")?
+        let number = field(KEY_VALUE)?
             .as_number()
-            .ok_or_else(|| invalid(concept, "Field 'val' is not a number"))?;
-        let value = BigDecimal::from_str(&number.to_string())
-            .map_err(|error| invalid(concept, &format!("Field 'val' is not a number: {error}")))?;
-        let end = date("end")?;
-        let period = if field("start").is_ok() {
+            .ok_or_else(|| invalid(concept, &format!("Field '{KEY_VALUE}' is not a number")))?;
+        let value = BigDecimal::from_str(&number.to_string()).map_err(|error| {
+            invalid(
+                concept,
+                &format!("Field '{KEY_VALUE}' is not a number: {error}"),
+            )
+        })?;
+        let end = date(KEY_END)?;
+        let period = if field(KEY_START).is_ok() {
             Period::Duration(
-                Duration::from_dates(date("start")?, end)
+                Duration::from_dates(date(KEY_START)?, end)
                     .map_err(|error| invalid_value(concept, error))?,
             )
         } else {
             Period::Instant { end }
         };
-        let filing = FilingId::new(SEC_FILING_SOURCE, text("accn")?)
+        let filing = FilingId::new(SEC_FILING_SOURCE, text(KEY_ACCESSION_NUMBER)?)
             .map_err(|error| invalid_value(concept, error))?;
-        let filed = date("filed")?;
+        let filed = date(KEY_FILED)?;
 
-        let form = Form::new(text("form")?).map_err(|error| invalid_value(concept, error))?;
-        let fiscal_year = match field("fy") {
+        let form = Form::new(text(KEY_FORM)?).map_err(|error| invalid_value(concept, error))?;
+        let fiscal_year = match field(KEY_FISCAL_YEAR) {
             Ok(fy) => Some(FiscalYear::new(
                 fy.as_u64()
                     .and_then(|year| u16::try_from(year).ok())
-                    .ok_or_else(|| invalid(concept, "Field 'fy' is not a year"))?,
+                    .ok_or_else(|| {
+                        invalid(concept, &format!("Field '{KEY_FISCAL_YEAR}' is not a year"))
+                    })?,
             )),
             Err(_) => None,
         };
-        let fiscal_period = match text("fp") {
+        let fiscal_period = match text(KEY_FISCAL_PERIOD) {
             Ok(fp) => Some(FiscalPeriod::new(fp).map_err(|error| invalid_value(concept, error))?),
             Err(_) => None,
         };
@@ -258,10 +308,10 @@ impl Parser {
 
 fn entity_id(json: &serde_json::Value) -> Result<EntityId, ParseErrorKind> {
     let cik = json
-        .get("cik")
+        .get(KEY_CIK)
         .and_then(serde_json::Value::as_u64)
         .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
-            reason: "Expected 'cik' to be a number".to_string(),
+            reason: format!("Expected '{KEY_CIK}' to be a number"),
         })?;
     EntityId::new(CIK_SCHEME, format!("{cik:010}")).map_err(|error| {
         ParseErrorKind::UnexpectedJsonSchema {
