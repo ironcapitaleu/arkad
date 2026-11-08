@@ -67,8 +67,10 @@ pub enum InvalidValueReason {
     DuplicateAxis,
     /// The end of a duration lies before its start.
     EndBeforeStart,
-    /// The input is not a number in the expected range.
+    /// The input is not a number.
     NotANumber,
+    /// The input is a number, or gives a number, outside the range of the type.
+    OutOfRange,
 }
 
 impl fmt::Display for InvalidValueReason {
@@ -84,7 +86,8 @@ impl fmt::Display for InvalidValueReason {
             }
             Self::DuplicateAxis => write!(f, "The value names one axis twice"),
             Self::EndBeforeStart => write!(f, "The end lies before the start"),
-            Self::NotANumber => write!(f, "The value is not a number in range"),
+            Self::NotANumber => write!(f, "The value is not a number"),
+            Self::OutOfRange => write!(f, "The value is out of range"),
         }
     }
 }

@@ -34,7 +34,7 @@ impl Period {
         }
     }
 
-    /// Returns the length in quarters, the length the value key holds. An instant has 0.
+    /// Returns the length in quarters. The value key holds this length. An instant has 0.
     #[must_use]
     pub const fn quarters(&self) -> u16 {
         match self {
@@ -109,7 +109,7 @@ impl Duration {
         let quarters = u16::try_from(quarters).map_err(|_| {
             InvalidValue::new(
                 "Duration",
-                InvalidValueReason::NotANumber,
+                InvalidValueReason::OutOfRange,
                 format!("{start} to {end}"),
             )
         })?;
@@ -232,6 +232,22 @@ mod tests {
             "Duration",
             InvalidValueReason::EndBeforeStart,
             "2024-09-28 to 2024-06-30",
+        ));
+
+        let result = Duration::from_dates(start, end);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_duration_when_quarters_exceed_sixteen_bits() {
+        let start = date(1, 1, 1);
+        let end = date(20_000, 1, 1);
+
+        let expected_result = Err(InvalidValue::new(
+            "Duration",
+            InvalidValueReason::OutOfRange,
+            "0001-01-01 to +20000-01-01",
         ));
 
         let result = Duration::from_dates(start, end);

@@ -487,7 +487,10 @@ mod tests {
             .expect("Given a valid status code and header names, building the response should always succeed");
         let inner = reqwest::Response::from(http_response);
 
-        let expected_result = serde_json::json!({ "price": 1.50 });
+        // `serde_json` keeps the text of a number (feature `arbitrary_precision`), so the
+        // expected value is parsed from text. `json!` would turn `1.50` into `1.5`.
+        let expected_result: serde_json::Value = serde_json::from_str(r#"{ "price": 1.50 }"#)
+            .expect("Given a hardcoded JSON object, the parse should always succeed");
 
         let response = SecResponse::<JsonBody>::from_inner(inner).await.expect(
             "Given status 200 and a valid JSON body, building the response should always succeed",

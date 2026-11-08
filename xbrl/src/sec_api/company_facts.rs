@@ -38,15 +38,13 @@ use crate::core::filing::{EntityId, Filing, FilingId};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
 use crate::core::form::Form;
+use crate::core::invalid_value::InvalidValue;
 use crate::core::period::{Duration, Period};
 use crate::core::unit::Unit;
 use crate::error::parsing::ParseErrorKind;
 
 /// Required top-level keys in the SEC Company Facts JSON response.
 pub const REQUIRED_TOP_LEVEL_KEYS: &[&str] = &["cik", "entityName", "facts"];
-
-/// Required taxonomy namespace under the `"facts"` key.
-pub const REQUIRED_FACTS_NAMESPACE: &str = "us-gaap";
 
 /// Namespace for general company information (DEI taxonomy).
 pub const COMPANY_INFO_NAMESPACE: &str = "dei";
@@ -75,8 +73,8 @@ pub struct CompanyFacts {
 ///
 /// # Errors
 ///
-/// Returns [`ParseErrorKind`] if the JSON structure is invalid, a required key is missing, or a data
-/// point lacks a required field.
+/// Returns [`ParseErrorKind`] if the JSON structure is invalid, a required key is missing, a value
+/// of the JSON has the wrong type, or a data point lacks a required field.
 pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
     validate_top_level_structure(json)?;
 
@@ -90,12 +88,6 @@ pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
             reason: "Expected 'facts' to be a JSON object".to_string(),
         })?;
 
-    if !namespaces.contains_key(REQUIRED_FACTS_NAMESPACE) {
-        return Err(ParseErrorKind::MissingNamespace {
-            namespace: REQUIRED_FACTS_NAMESPACE.to_string(),
-        });
-    }
-
     let mut parser = Parser {
         entity,
         company_name: EntityName::new(company_name),
@@ -106,21 +98,28 @@ pub fn parse(json: &serde_json::Value) -> Result<CompanyFacts, ParseErrorKind> {
     };
 
     for (namespace, concepts) in namespaces {
-        let Some(concepts) = concepts.as_object() else {
-            continue;
-        };
+        let concepts =
+            concepts
+                .as_object()
+                .ok_or_else(|| ParseErrorKind::UnexpectedJsonSchema {
+                    reason: format!("Expected namespace '{namespace}' to be a JSON object"),
+                })?;
         for (local_name, concept_data) in concepts {
             let concept = concept_name(namespace, local_name)?;
-            let Some(units) = concept_data
+            let units = concept_data
                 .get("units")
                 .and_then(serde_json::Value::as_object)
-            else {
-                continue;
-            };
+                .ok_or_else(|| invalid(&concept, "Expected 'units' to be a JSON object"))?;
             for (unit_text, data_points) in units {
-                let unit = Unit::from_str(unit_text)
-                    .map_err(|error| invalid(&concept, &error.to_string()))?;
-                for data_point in data_points.as_array().into_iter().flatten() {
+                let unit =
+                    Unit::from_str(unit_text).map_err(|error| invalid_value(&concept, error))?;
+                let data_points = data_points.as_array().ok_or_else(|| {
+                    invalid(
+                        &concept,
+                        &format!("Expected unit '{unit_text}' to hold an array"),
+                    )
+                })?;
+                for data_point in data_points {
                     parser.add(data_point, &concept, &unit)?;
                 }
             }
@@ -180,38 +179,38 @@ impl Parser {
                 .map_err(|error| invalid(concept, &format!("Field '{key}' is not a date: {error}")))
         };
 
-        let value = BigDecimal::from_str(&field("val")?.to_string())
+        let number = field("val")?
+            .as_number()
+            .ok_or_else(|| invalid(concept, "Field 'val' is not a number"))?;
+        let value = BigDecimal::from_str(&number.to_string())
             .map_err(|error| invalid(concept, &format!("Field 'val' is not a number: {error}")))?;
         let end = date("end")?;
         let period = if field("start").is_ok() {
             Period::Duration(
                 Duration::from_dates(date("start")?, end)
-                    .map_err(|error| invalid(concept, &error.to_string()))?,
+                    .map_err(|error| invalid_value(concept, error))?,
             )
         } else {
             Period::Instant { end }
         };
         let filing = FilingId::new(SEC_FILING_SOURCE, text("accn")?)
-            .map_err(|error| invalid(concept, &error.to_string()))?;
+            .map_err(|error| invalid_value(concept, error))?;
         let filed = date("filed")?;
 
+        let form = Form::new(text("form")?).map_err(|error| invalid_value(concept, error))?;
+        let fiscal_year = match field("fy") {
+            Ok(fy) => Some(FiscalYear::new(
+                fy.as_u64()
+                    .and_then(|year| u16::try_from(year).ok())
+                    .ok_or_else(|| invalid(concept, "Field 'fy' is not a year"))?,
+            )),
+            Err(_) => None,
+        };
+        let fiscal_period = match text("fp") {
+            Ok(fp) => Some(FiscalPeriod::new(fp).map_err(|error| invalid_value(concept, error))?),
+            Err(_) => None,
+        };
         if !self.filing_index.contains_key(&filing) {
-            let form =
-                Form::new(text("form")?).map_err(|error| invalid(concept, &error.to_string()))?;
-            let fiscal_year = match field("fy") {
-                Ok(fy) => Some(FiscalYear::new(
-                    fy.as_u64()
-                        .and_then(|year| u16::try_from(year).ok())
-                        .ok_or_else(|| invalid(concept, "Field 'fy' is not a year"))?,
-                )),
-                Err(_) => None,
-            };
-            let fiscal_period = match text("fp") {
-                Ok(fp) => Some(
-                    FiscalPeriod::new(fp).map_err(|error| invalid(concept, &error.to_string()))?,
-                ),
-                Err(_) => None,
-            };
             self.filing_index.insert(filing.clone(), self.filings.len());
             self.filings.push(Filing {
                 id: filing.clone(),
@@ -272,10 +271,17 @@ fn entity_id(json: &serde_json::Value) -> Result<EntityId, ParseErrorKind> {
 fn concept_name(namespace: &str, local_name: &str) -> Result<ConceptName, ParseErrorKind> {
     NamespaceFamily::new(namespace)
         .and_then(|family| ConceptName::new(family, local_name))
-        .map_err(|error| ParseErrorKind::InvalidDataPoint {
+        .map_err(|source| ParseErrorKind::InvalidDataPointValue {
             concept: format!("{namespace}:{local_name}"),
-            reason: error.to_string(),
+            source,
         })
+}
+
+fn invalid_value(concept: &ConceptName, source: InvalidValue) -> ParseErrorKind {
+    ParseErrorKind::InvalidDataPointValue {
+        concept: concept.to_string(),
+        source,
+    }
 }
 
 fn invalid(concept: &ConceptName, reason: &str) -> ParseErrorKind {
@@ -589,17 +595,93 @@ mod tests {
     }
 
     #[test]
-    fn should_return_missing_namespace_error_when_us_gaap_namespace_is_absent() {
+    fn should_keep_ifrs_facts_when_body_has_no_us_gaap_namespace() {
         let json = json!({
-            "cik": 320_193,
-            "entityName": "Apple Inc.",
+            "cik": 1_046_179,
+            "entityName": "Taiwan Semiconductor Manufacturing Co Ltd",
             "facts": {
-                "dei": {}
+                "ifrs-full": {
+                    "Revenue": { "units": { "TWD": [data_point(Some("2023-01-01"), "2023-12-31", &json!(2_161_735_841_000_i64))] } }
+                }
             }
         });
 
-        let expected_result = Some(ParseErrorKind::MissingNamespace {
-            namespace: "us-gaap".to_string(),
+        let expected_result = vec![concept("ifrs-full", "Revenue")];
+
+        let result: Vec<ConceptName> = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed")
+            .facts
+            .into_iter()
+            .map(|fact| fact.concept)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_every_digit_when_value_has_twenty_four_digits_before_the_point() {
+        let val: serde_json::Value = serde_json::from_str("123456789012345678901234.12345678")
+            .expect("Given a hardcoded JSON number, the parse should always succeed");
+        let json = company_facts_json(&json!({
+            "Assets": { "units": { "USD": [data_point(None, "2024-09-28", &val)] } }
+        }));
+
+        let expected_result = FactValue::Numeric(
+            BigDecimal::from_str("123456789012345678901234.12345678")
+                .expect("Given a hardcoded decimal text, the parse should always succeed"),
+        );
+
+        let facts = parse(&json)
+            .expect("Given a valid hardcoded Company Facts body, the parse should always succeed");
+        let result = fact(&facts, "Assets").value.clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_data_point_when_second_data_point_lacks_form() {
+        let mut second = data_point(None, "2023-09-30", &json!(352_583_000_000_i64));
+        second
+            .as_object_mut()
+            .expect("Given the data point helper, the point should always be an object")
+            .remove("form");
+        let json = company_facts_json(&json!({
+            "Assets": { "units": { "USD": [data_point(None, "2024-09-28", &json!(364_980_000_000_i64)), second] } }
+        }));
+
+        let expected_result = Some(ParseErrorKind::InvalidDataPoint {
+            concept: "us-gaap:Assets".to_string(),
+            reason: "Missing field 'form'".to_string(),
+        });
+
+        let result = parse(&json).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_chain_the_invalid_value_when_start_lies_after_end() {
+        let json = company_facts_json(&json!({
+            "Revenues": { "units": { "USD": [data_point(Some("2024-10-01"), "2024-09-28", &json!(1))] } }
+        }));
+
+        let expected_result = Some(
+            "[InvalidDataPointValue] Invalid value in a data point of concept 'us-gaap:Revenues', Caused by: [InvalidValue] Invalid 'Duration', Reason: 'The end lies before the start', Input: '2024-10-01 to 2024-09-28'"
+                .to_string(),
+        );
+
+        let result = parse(&json).err().map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_unexpected_schema_when_namespace_is_not_an_object() {
+        let json =
+            json!({ "cik": 320_193, "entityName": "Apple Inc.", "facts": { "us-gaap": [] } });
+
+        let expected_result = Some(ParseErrorKind::UnexpectedJsonSchema {
+            reason: "Expected namespace 'us-gaap' to be a JSON object".to_string(),
         });
 
         let result = parse(&json).err();

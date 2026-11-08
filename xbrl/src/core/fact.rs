@@ -107,9 +107,8 @@ impl Dimensions {
 
 /// The value of a fact: a decimal number, a text, or nil.
 ///
-/// A decimal holds every digit the source writes, with no limit on the scale. Silver stores
-/// `decimal128(38, 10)`. Measured values have at most 24 digits before the point and at most 8
-/// after it.
+/// A decimal holds every digit the source writes, with no limit on the scale. Measured values have
+/// at most 24 digits before the point and at most 8 after it.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum FactValue {
     /// A numeric value, for example `391035000000` or `6.11`.
@@ -196,6 +195,9 @@ pub struct AsIsFact {
     /// The precision of a numeric value. `None` for text, and if the source gives none.
     pub decimals: Option<Decimals>,
     /// The rank of the copy among facts with the same key in one filing. 0 for the first copy.
+    ///
+    /// Two facts with different exact starts can share a key, because the length in quarters is
+    /// rounded. The dedup of the standardized layer decides whether two ranks are one fact.
     pub copy_rank: u16,
     /// The footnotes the filing attaches to the fact.
     pub footnotes: Vec<String>,
@@ -226,7 +228,8 @@ impl AsIsFact {
 /// instance fact of one filing.
 ///
 /// The key holds the exact end and the length in quarters, not the exact start, because the Notes
-/// data set often gives no exact start.
+/// data set often gives no exact start. So two durations with one end and one rounded length, such
+/// as a 61-day stub and a 91-day quarter, differ only in `copy_rank`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct FactKey {
     /// The filing.
@@ -430,6 +433,21 @@ mod tests {
             "Dimensions",
             InvalidValueReason::DuplicateAxis,
             "LegalEntityAxis",
+        ));
+
+        let result = Dimensions::new(pairs);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_dimensions_when_an_axis_is_empty() {
+        let pairs = [("", "Subsidiary")];
+
+        let expected_result = Err(InvalidValue::new(
+            "Dimensions",
+            InvalidValueReason::Empty,
+            "=Subsidiary",
         ));
 
         let result = Dimensions::new(pairs);

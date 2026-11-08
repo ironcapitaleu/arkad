@@ -260,6 +260,21 @@ mod tests {
     }
 
     #[test]
+    fn should_reject_text_when_a_measure_holds_whitespace() {
+        let text = "US D";
+
+        let expected_result = Err(InvalidValue::new(
+            "Unit",
+            InvalidValueReason::ContainsWhitespace,
+            "US D",
+        ));
+
+        let result = Unit::from_str(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_reject_measure_when_it_holds_a_slash() {
         let text = "USD/shares";
 
