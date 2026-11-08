@@ -298,6 +298,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
 | `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run, for a series unit. Null otherwise |
+| `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
 
 ## Format and Table Layout
@@ -355,7 +356,7 @@ A unit is the smallest set of rows that one write adds, and that one replay writ
 | --------- | ---------- | ---- | ------ |
 | `notes_file` | The Notes period, for example `2024q1` | All filings of one Notes file | The Notes ZIP |
 | `filing_day` | The filed date, for example `2026-11-06` | All new filings of one day | The instances of that day, and the `submissions` files they used |
-| `series_base` | `base`, then the time of a new base | The full series output of every entity | The current `candidates` and `filings` units |
+| `series_base` | `base`, then the time of a new base, plus `-t<n>` for each task | The full series output of every entity | The current `candidates` and `filings` units |
 | `series_delta` | The series run and the task, for example `2026-11-06T0600Z-t0` | The changed rows of one series run, for the buckets of one task | The `candidates` units written since the latest series run that counts, the units they replaced, the current `filings` units, and the current series rows of their entities |
 | `release` | `us-gaap/2026` | The elements of one release | The vendored release |
 
@@ -407,8 +408,8 @@ can remove such files once no attempt of their execution runs.
 | A rollback to an earlier version or digest | same | old | old | A new unit, because step 2 compares with the current unit only |
 
 - A unit key is the dataset, the source, the unit kind, and `unit_key`.
-- The series datasets have no current unit: every `series_delta` unit after the newest
-  `series_base` counts. See [Series Deltas](#series-deltas). The rules below apply to the other
+- The series datasets have no current unit per key: a read takes every `series_delta` of a run
+  that counts, after the newest `series_base`. See [Series Deltas](#series-deltas). The rules below apply to the other
   datasets.
 - The **current unit** of a unit key is the one with the latest `written_at`. A default read takes
   only current units. `written_at` gives the order of runs. Silver uses it only between units of
@@ -442,23 +443,26 @@ Parquet file cannot grow. So an append writes a new file of changed rows next to
 - A later run recomputes the entities of every `candidates` unit with a `written_at` after the
   latest `computed_at` in `silver_files` of a series run that counts. A unit written during a run
   is new for the next run too.
-- A series run counts only when every task of the run wrote its unit. Until then, its units are
-  not current, and the run does not move the recompute point. The job plan of the transform
-  design records the task count of each run.
+- A series run counts when `silver_files` holds `run_tasks` units with its `execution_id`. Until
+  then, no read takes its units, and the run does not move the recompute point.
+- Each task writes its unit and its `silver_files` row, also if no row changed. A unit with no
+  changed row has `row_count` 0 and no Parquet file.
 - The run also recomputes the entities of each `candidates` unit that a new unit replaced. So an
   entity that a replay drops gets `removed` rows.
 - The run reads the current series rows of these entities, compares, and writes only the rows
-  that differ to a `series_delta` unit, with `change` = `new`, `changed`, or `removed`. The run does not write unchanged rows again.
+  that differ to a `series_delta` unit, with `change` = `new`, `changed`, or `removed`. The run
+  does not write unchanged rows again.
 - A `removed` row copies every column of the row it removes, and sets `change` and `computed_at`.
   A query that reads values must drop rows with `change` = `removed`.
 - `computed_at` is the start time of the series run. "After" in the rules below means a later
   `computed_at`.
-- A read of the current values takes the newest `series_base` and every `series_delta` after it,
-  and keeps the row with the latest `computed_at` per key.
-- A read "as silver held it at T" takes the newest `series_base` with `computed_at` on or before T,
-  and every `series_delta` after that base with `computed_at` on or before T. So it reaches back to
-  the first series run, across every new base. A run in progress at T counts in full once it has
-  written its units. So a read as of T can change until every run that started before T has ended.
+- A read of the current values takes the newest `series_base` of a run that counts, and every
+  `series_delta` of a run that counts after it. It keeps the row with the latest `computed_at` per
+  key.
+- A read "as silver held it at T" takes the same units, limited to runs with `computed_at` on or
+  before T. So it reaches back to the first series run, across every new base. A run in progress
+  at T enters in full once it counts. So a read as of T can change until every run that started
+  before T has ended.
 - A `series_base` run and a `series_delta` run never overlap. The job plan of the transform design
   enforces it.
 - One series task writes one delta unit per run, sorted by entity bucket. A daily run touches a few
