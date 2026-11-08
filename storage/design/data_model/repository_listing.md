@@ -78,8 +78,7 @@ Decisions:
    [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md).
 2. **A subtrait of `ReadRepository`.** The subtrait reuses `ReadRepository::Key`, so a caller bound
    to both traits names one `Key`, not two. Every key that `list` yields is a key that `get`
-   accepts. `list_keys` reads no metadata, so it can also yield the keys of other document types
-   under the prefix. The trait documents this.
+   accepts.
 3. **Two methods.** `list_keys` reads only directory entries, so it costs one listing call per
    directory. `list` also reads each metadata file, one read per document. The cut-over check and
    the daily run need only keys. Replay and the integrity check need the metadata.
@@ -239,7 +238,7 @@ item. The listing deletes nothing.
 | Call | Local disk | Mounted bucket |
 | ---- | ---------- | -------------- |
 | `list_keys` | One directory read per directory | One list request per directory |
-| `list` | Plus one read of each metadata file, about 1 KB, and one `stat` of each document file | Plus one read request per metadata file, and one `stat` per document file, which can be one request each |
+| `list` | Plus one read of each metadata file, about 1 KB, and one `stat` of each metadata file and each document file | Plus one read request per metadata file, and one `stat` per metadata file and per document file, which can be one request each. A list request can return the sizes and times, so the measurement can remove the `stat` calls |
 | `get` after a listing | Reads the document | Downloads the document |
 
 None of these numbers is measured. The store holds about 30 GB today, but its file count is not
@@ -287,8 +286,11 @@ A write in flight shows two states for a moment, both in its own directory:
 - A changed key: the new metadata sits beside the old document. `list` yields `Present` with the
   old size, which can differ from the size in the new metadata.
 
-The modified time of the metadata file is the time of its rename. The entry carries it as
-`metadata_modified_at`, from the `stat` call the walk makes anyway. A caller that acts on `Missing`
+The modified time of the metadata file is the end of the write of its temporary file. That write
+comes before the write of the document, and the rename keeps the time. So for a large document,
+such as a Notes file on the bucket, the time is older than the end of the write by the length of
+the document upload. The entry carries it as `metadata_modified_at`, from one `stat` of the
+metadata file. A caller that acts on `Missing`
 or on a size difference waits a grace period: if that time is less than 1 hour old, the caller
 counts the entry as a write in flight, not as a fault. The metadata field `produced_at` does not
 serve here: it names when the producer made the bytes, which can be long before the write. A write
@@ -349,8 +351,8 @@ the store:
 1. Call `list_keys(sec/notes)`.
 2. Parse the period from each file name: the text before `_notes`, through `NotesPeriod::new`.
 3. Take the newest period by `NotesPeriod::last_day`. Its last day is the cut-over date.
-4. Check for a gap from the keys alone, with no SEC request. Each quarter from the first stored
-   quarter through the quarter of the newest period must be covered: by its quarterly file, or by
+4. Check for a gap from the keys alone, with no SEC request. Each quarter from the first period
+   of the backfill, a constant in `sec`, through the quarter of the newest period must be covered: by its quarterly file, or by
    its three monthly files. The quarter of the newest period needs only its months up to the
    newest one. If a quarter is not covered, fail and name it. This is the check of rule 5, read
    from the store instead of a run summary.
@@ -370,16 +372,21 @@ See [Bookmark or Full Index](#bookmark-or-full-index) for the choice. Each run:
 2. Reads the full index of the current quarter. In the first 30 days of a quarter, it also reads
    the full index of the previous quarter.
 3. Keeps the rows with a selected form and a `Date Filed` from the cut-over date through yesterday.
-4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key is in the
-   result. The key holds the CIK and the accession number, so the row maps to its key with no read.
-5. Hands each row whose `index.json` key is in the result, but not its `instance.xml` key, to the
-   store check before any request. The check reruns the selection on the stored folder index. A
-   filing without an instance counts as unextractable, with no request. Any other filing failed
-   after its folder request in an earlier run, and joins the filings of step 6.
+4. Calls `list_keys(sec/filings)` once, and removes each row whose `instance.xml` key and
+   `lab.xml` key are in the result. The key holds the CIK and the accession number, so the row maps
+   to its keys with no read.
+5. Hands each other row with a stored `index.json` or `instance.xml` key to the store check before
+   any request. The check works as today:
+   - An instance without a label file counts as stored if the folder index lists no label file.
+   - A folder index without an instance: the check reruns the selection on it. A filing without an
+     instance counts as unextractable, with no request.
+   - Any other filing failed in an earlier run, and joins the filings of step 6.
 6. Hands the remaining filings, oldest `Date Filed` first, to the filing machines.
 
 `list_keys` reads no file, so this step does not read the stored instances again. A check with `get`
-per row reads the bytes of every stored instance of the quarter, each run.
+per row reads the bytes of every stored instance of the quarter, each run. So step 4 checks no
+size and no SHA-256. A stored file that fails those checks stays until the integrity check reports
+it. The operator then reruns that filing with an exact range.
 
 ### 4. Operator Report
 
@@ -471,8 +478,8 @@ These follow the decisions above. Each is one PR within the review budget.
 3. **`inventory` for `FilesystemRepository`.** The walk that is not typed, for the integrity check:
    documents without metadata and temporary files with their age.
 4. **Cut-over date from the store.** In `sec`: the newest stored Notes period from
-   `list_keys(sec/notes)`, with the gap check against the expected periods. Tests for a merged
-   quarter beside its months and for a missing period.
+   `list_keys(sec/notes)`, with the gap check from the keys. Tests for a merged quarter beside its
+   months, for months that cover a quarter, for a missing first period, and for a missing period.
 5. **`daily_filings` reads the full index minus the stored filings.** Replaces the window of 4
    days. The cap, the exact range, the alert, and the quarter boundary. Blocked by features 2 and 4
    and by the full index source of the catch-up.
