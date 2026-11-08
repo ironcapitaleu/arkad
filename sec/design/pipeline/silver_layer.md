@@ -162,7 +162,7 @@ fields of the as-is fact model.
 | `taxonomy_version` | `utf8`, nullable | `us-gaap/2026`, or the filing for an extension |
 | `period_end` | `date32` | Exact end |
 | `period_start` | `date32`, nullable | Exact start, if the source has it. Not a key field |
-| `quarters` | `uint8` | 0 for an instant |
+| `quarters` | `uint16` | 0 for an instant. Notes `qtrs` reaches 4,007 in `2024q1` (measured), so `uint8` is too small |
 | `unit` | `utf8`, nullable | Canonical text, for example `USD/shares`. Null for text |
 | `dimensions` | `list<struct<axis: utf8, member: utf8>>` | Sorted pairs, legal entity axis included |
 | `value_kind` | `utf8` | `numeric`, `text`, or `nil` |
@@ -268,7 +268,7 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, or `Restatement` |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it |
-| `periods` | `list<struct<period_end: date32, quarters: uint8>>` | |
+| `periods` | `list<struct<period_end: date32, quarters: uint16>>` | |
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` |
 | `step` | `utf8` | `filing` or `series` |
@@ -317,7 +317,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, in a pass separate from the parser. For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
-| `content_digest` | `utf8` | SHA-256 over the parts in the order of `files`, and inside each part over the rows in file order. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
+| `content_digest` | `utf8` | SHA-256 over the list of filing IDs and filing hashes, sorted by filing ID. A filing hash is the SHA-256 over the rows of one filing in value key order. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the digest does not depend on the split, the bucket count, or the parts. The transform code prints the values, not the Arrow crate, so an Arrow upgrade does not change the digest. The silver writer feature fixes the exact form, and a test pins it to `transform_version`. A dataset without `filing_id` groups by its own key instead: the entity for the series datasets, the release for `taxonomy_elements` |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run, for a series unit. Null otherwise |
 | `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
 | `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
@@ -389,14 +389,18 @@ daily path needs no compaction.
 ### Paths
 
 ```text
-gs://<silver-bucket>/<dataset>/source=<notes|instance>/unit=<unit_key>/<digest>-v<transform_version>/<execution_id>-<attempt>/part-<n>.parquet
+gs://<silver-bucket>/<dataset>/source=<notes|instance>/unit_key=<unit_key>/<digest>-v<transform_version>/<execution_id>-<attempt>/part-<n>.parquet
 gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet
 ```
 
 - `<digest>` is the first 16 hex characters of `input_digest`.
 - `<attempt>` is the attempt number of the Cloud Run task, with `-b` if the split switched to B. A
   retry writes to its own paths.
-- The series datasets use `unit=<unit_key>` with no `source=` level.
+- The series datasets use `unit_key=<unit_key>` with no `source=` level.
+- No column name equals a folder label: `source`, `unit_key`, `execution`, or `task`. DuckDB reads
+  a `name=value` folder as a column by default, and Polars, pyarrow, and BigQuery do so with Hive
+  partitioning on. A folder label `unit` overwrote the `unit` column of every row in a DuckDB read
+  (measured). A schema test of the silver writer checks this rule.
 - Inside a file, except in `candidates`, rows sort by `filing_id`, then by the value key. Row groups hold about 100,000
   rows, so a read of one filing skips the other row groups by their statistics.
 
@@ -433,7 +437,13 @@ can remove such files once no attempt of their execution runs.
   that counts, after the newest `series_base`. See [Series Deltas](#series-deltas). The rules below apply to the other
   datasets.
 - The **current unit** of a unit key is the one with the latest `written_at`. A default read takes
-  only current units. `written_at` gives the order of runs. Silver uses it only between units of
+  only current units.
+- **Every read takes its files from `silver_files`.** A reader never lists a dataset directory.
+  A listing also returns the replaced units and the files of failed attempts: a listing of one
+  Notes unit key returned twice its rows (measured). Rust code reads silver through one reader
+  that takes its file list from `silver_files`. A view of the current units serves DuckDB and
+  other analysis tools. A scheduled cleanup removes files that no `silver_files` row names. This
+  rule is the cost of plain Parquet: a Delta Lake or Iceberg log would list the current files. `written_at` gives the order of runs. Silver uses it only between units of
   one key, because they hold the same filings.
 - The old unit stays. A read "as silver held it at T" takes, per unit key, the latest unit written at
   or before T.
