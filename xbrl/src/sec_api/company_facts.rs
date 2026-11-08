@@ -34,7 +34,7 @@ use chrono::NaiveDate;
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::entity_name::EntityName;
 use crate::core::fact::{AsIsFact, Context, Dimensions, FactKey, FactValue, Source};
-use crate::core::filing::{EntityId, Filing, FilingId};
+use crate::core::filing::{CompanyAttributes, EntityId, Filing, FilingId};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
 use crate::core::form::Form;
@@ -274,10 +274,10 @@ impl Parser {
                 period_of_report: None,
                 fiscal_year,
                 fiscal_period,
-                company_name: Some(self.company_name.clone()),
-                sic: None,
-                tickers: Vec::new(),
-                fiscal_year_end: None,
+                company: CompanyAttributes {
+                    name: Some(self.company_name.clone()),
+                    ..CompanyAttributes::default()
+                },
             });
         }
 
@@ -574,10 +574,12 @@ mod tests {
                 FiscalPeriod::new("FY")
                     .expect("Given a hardcoded period, the creation should always succeed"),
             ),
-            company_name: Some(EntityName::new("Apple Inc.")),
-            sic: None,
-            tickers: vec![],
-            fiscal_year_end: None,
+            company: CompanyAttributes {
+                name: Some(EntityName::new("Apple Inc.")),
+                industry: None,
+                tickers: vec![],
+                fiscal_year_end: None,
+            },
         }];
 
         let result = parse(&json)
