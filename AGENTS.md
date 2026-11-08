@@ -36,6 +36,21 @@ migrating an endpoint, fixing a convention), proactively **apply it everywhere i
 one file and leave identical occurrences in other files for a follow-up PR. Search the entire
 codebase for all instances before considering the change complete.
 
+### Open-Closed Principle
+
+A port, trait, or public type is open for extension and closed for modification. Before you propose
+or write a change to an existing port, check whether a new trait, type, or impl can carry it instead.
+
+- Add a new capability as its own trait next to the existing ones. Do not make it a subtrait of an
+  existing trait, and do not move items out of an existing trait to make room for it.
+- If a design must modify an existing port, name the port, say why an extension cannot work, and
+  list the implementors and callers that change.
+- Apply this rule before you offer options. Do not propose a shape that a later step has to modify
+  again.
+
+Example: `ListRepository` is a standalone trait with its own `Key`, so `ReadRepository` stays
+unchanged ([`repository_listing.md`](storage/design/data_model/repository_listing.md), "The Trait").
+
 ### Documentation
 
 - Public items in libraries **must include docstrings** (`///`).
@@ -540,6 +555,8 @@ conclusion), then a code block with the fix. End the review by naming the commit
 - Flag duplicated code
 - Functions should be focused and not overly long
 - Follow single responsibility principle
+- Follow the **Open-Closed Principle**: a change that modifies an existing port where an extension
+  can carry it is a 🟡 finding (see "Open-Closed Principle")
 - Avoid side effects in functions
 - Naming must follow **Ottinger's Naming Rules** (reveal intent, be pronounceable, avoid encodings)
 - Code must follow the **Step-Down Rule** (higher-level concepts first, details later)
