@@ -947,7 +947,8 @@ language-agnostic / reversible-storage property enforceable by the compiler.
   `dimension_sig` grain must be indexed carefully.
 - **LEI coverage** for smaller/foreign filers — CIK fallback must be first-class.
 - **Dual-write consistency** without distributed transactions — mitigated by raw stores as
-  replay source + graph-first ordering; reconciliation cadence needs tuning.
+  replay source + graph-first ordering; reconciliation cadence needs tuning. For the MVP silver
+  load, see the note at the top of §8.
 - **Single-store vs hybrid** — resolved in §13/§14 from research, with the raw-store-as-SoT
   design keeping the storage choice reversible.
 - **Ontology layer / axiomatic enforcement on graph data** — deliberately deferred, but
