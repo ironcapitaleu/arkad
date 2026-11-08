@@ -197,7 +197,7 @@ LineItems (fact concepts)
 
 ### Purpose
 
-Maps concept IDs to human-readable names. Located in `elts/us-gaap-lab-2026.xml` (13MB, covers all ~18,000 concepts).
+Maps concept IDs to human-readable names. Located in `elts/us-gaap-lab-2026.xml` (14 MB, covers all ~18,000 concepts).
 
 ### Structure
 
