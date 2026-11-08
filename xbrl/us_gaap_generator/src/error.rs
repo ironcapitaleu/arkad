@@ -83,7 +83,7 @@ pub enum GeneratorError {
     RepeatedLabel {
         /// The path of the file.
         path: PathBuf,
-        /// The line of the arc that gives the second standard label.
+        /// The line of the arc at which the concept gets a second standard label.
         line: u32,
         /// The concept, as `<family>:<name>`.
         concept: String,
