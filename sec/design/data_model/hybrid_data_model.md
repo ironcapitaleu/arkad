@@ -369,7 +369,7 @@ erDiagram
     string period_end PK
     string dimension_sig PK
     string source_ref PK
-    int64  value
+    decimal value
     string unit
     string period_kind
     date   period_start
