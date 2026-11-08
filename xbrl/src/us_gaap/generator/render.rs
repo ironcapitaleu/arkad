@@ -4,8 +4,8 @@
 
 use std::fmt::Write;
 
-use crate::linkbase::CalculationArc;
-use crate::schema::{Balance, PeriodType};
+use super::linkbase::CalculationArc;
+use super::schema::{Balance, PeriodType};
 
 /// The text that the generated file writes for a concept without a balance.
 const NO_BALANCE: &str = "None";
@@ -76,8 +76,8 @@ fn write_header(source: &mut String, tables: &Tables) {
 //!
 //! Provides the calculation arcs and the element reference data of the release `{release_id}`.
 //!
-//! `us_gaap_generator` writes this file from `{release_folder}/`. Do not edit it. After a change
-//! to the vendored files, run `cargo run -p us_gaap_generator`.
+//! The generator writes this file from `{release_folder}/`. Do not edit it. After a change to the
+//! vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
 
 use super::table::{{CalculationRow, ElementRow}};
 use crate::core::taxonomy::reference::{{Balance, PeriodType}};
@@ -152,7 +152,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::linkbase::ConceptRef;
+    use crate::us_gaap::generator::linkbase::ConceptRef;
 
     #[test]
     fn should_write_rust_literals_for_one_arc_and_one_element() {
@@ -185,8 +185,8 @@ mod tests {
 //!
 //! Provides the calculation arcs and the element reference data of the release `us-gaap/2026`.
 //!
-//! `us_gaap_generator` writes this file from `taxonomy/us-gaap/2026/`. Do not edit it. After a change
-//! to the vendored files, run `cargo run -p us_gaap_generator`.
+//! The generator writes this file from `taxonomy/us-gaap/2026/`. Do not edit it. After a change to the
+//! vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
 
 use super::table::{CalculationRow, ElementRow};
 use crate::core::taxonomy::reference::{Balance, PeriodType};

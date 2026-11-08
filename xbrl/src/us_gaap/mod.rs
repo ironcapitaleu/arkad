@@ -3,7 +3,7 @@
 //! Provides [`UsGaap`], the plug-in for the US GAAP taxonomy of the FASB and the other SEC
 //! taxonomies that US GAAP filings use.
 //!
-//! The plug-in builds its data from the tables of one FASB release, which `us_gaap_generator`
+//! The plug-in builds its data from the tables of one FASB release, which the generator
 //! writes into [`taxonomy`]. It resolves the families `us-gaap`, `srt`, and `dei`. It declares
 //! the other SEC taxonomies without resolving them, so the registry can split their URIs.
 //!
@@ -12,6 +12,8 @@
 //! - [`mappings`]: The alias lists of the standard concepts.
 //! - [`table`]: The row types of the generated tables.
 //! - [`taxonomy`]: The generated tables of the release: calculation arcs and element data.
+//! - `generator`: Writes [`taxonomy`] from the vendored FASB files. Only with the `generator`
+//!   feature.
 
 use std::str::FromStr;
 
@@ -25,10 +27,12 @@ use crate::core::taxonomy::reference::{
     CalculationArc, CalculationTree, ConceptAliases, ElementReference,
 };
 
+#[cfg(feature = "generator")]
+pub mod generator;
 pub mod mappings;
 pub mod table;
-// `us_gaap_generator` writes this file. rustfmt must not reflow it, so a run of the generator
-// gives the checked-in bytes.
+// The generator writes this file. rustfmt must not reflow it, so a run of the generator gives the
+// checked-in bytes.
 #[rustfmt::skip]
 pub mod taxonomy;
 

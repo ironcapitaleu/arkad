@@ -6,7 +6,7 @@ use std::path::Path;
 
 use roxmltree::{Document, Node};
 
-use crate::error::GeneratorError;
+use super::error::GeneratorError;
 
 /// The namespace of XML Schema.
 const XML_SCHEMA_NAMESPACE: &str = "http://www.w3.org/2001/XMLSchema";

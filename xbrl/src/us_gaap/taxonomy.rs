@@ -2,8 +2,8 @@
 //!
 //! Provides the calculation arcs and the element reference data of the release `us-gaap/2026`.
 //!
-//! `us_gaap_generator` writes this file from `taxonomy/us-gaap/2026/`. Do not edit it. After a change
-//! to the vendored files, run `cargo run -p us_gaap_generator`.
+//! The generator writes this file from `taxonomy/us-gaap/2026/`. Do not edit it. After a change to the
+//! vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
 
 use super::table::{CalculationRow, ElementRow};
 use crate::core::taxonomy::reference::{Balance, PeriodType};

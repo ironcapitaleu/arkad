@@ -20,5 +20,5 @@ pub mod core;
 pub mod error;
 pub mod us_gaap;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-fixtures"))]
 pub mod tests;

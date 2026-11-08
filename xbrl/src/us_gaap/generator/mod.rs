@@ -1,11 +1,15 @@
 //! # US GAAP Generator
 //!
-//! Writes the tables of the `us_gaap` plug-in of the `xbrl` crate from the vendored FASB files.
+//! Writes the tables of the `us_gaap` plug-in from the vendored FASB files.
 //!
-//! The build of `xbrl` parses no XML. This crate reads the element schema, the label linkbase, and
-//! the statement calculation linkbases of the vendored release with `roxmltree`. It renders the
-//! tables as Rust source into `xbrl/src/us_gaap/taxonomy.rs`, which is checked in. A developer runs
-//! it once per release.
+//! The build of `xbrl` parses no XML for the tables. This module reads the element schema, the
+//! label linkbase, and the statement calculation linkbases of the vendored release with
+//! `roxmltree`. It renders the tables as Rust source into `src/us_gaap/taxonomy.rs`, which is
+//! checked in. A developer runs it once per release, with
+//! `cargo run -p xbrl --features generator --bin generate_us_gaap`.
+//!
+//! The module is compiled only with the `generator` feature, so a normal build of `xbrl` or of a
+//! crate that depends on it leaves it out.
 //!
 //! ## Modules
 //!
@@ -25,9 +29,9 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
-use crate::error::GeneratorError;
-use crate::linkbase::ConceptRef;
-use crate::render::{ElementLine, Tables};
+use self::error::GeneratorError;
+use self::linkbase::ConceptRef;
+use self::render::{ElementLine, Tables};
 
 pub mod error;
 pub mod linkbase;
@@ -191,8 +195,8 @@ fn read(path: &Path) -> Result<String, GeneratorError> {
 mod tests {
     use pretty_assertions::assert_eq;
 
+    use super::linkbase::CalculationArc;
     use super::*;
-    use crate::linkbase::CalculationArc;
 
     fn arc(weight: &str) -> CalculationArc {
         CalculationArc {

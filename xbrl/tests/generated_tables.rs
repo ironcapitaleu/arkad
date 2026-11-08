@@ -12,13 +12,11 @@ use std::fs;
 use std::path::PathBuf;
 
 use pretty_assertions::assert_eq;
-use us_gaap_generator::{OUTPUT_FILE, generate};
-
-const XBRL_CRATE: &str = "..";
+use xbrl::us_gaap::generator::{OUTPUT_FILE, generate};
 
 #[test]
 fn should_match_checked_in_tables_for_vendored_release() {
-    let xbrl_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(XBRL_CRATE);
+    let xbrl_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
 
     let expected_result = fs::read_to_string(xbrl_crate.join(OUTPUT_FILE))
         .expect("Given the checked-in tables, the generated file should be readable");
