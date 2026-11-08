@@ -590,7 +590,7 @@ fn optional<T>(
     }
 }
 
-fn without_prefix(name: &str) -> &str {
+pub(crate) fn without_prefix(name: &str) -> &str {
     match name.split_once(PREFIX_SEPARATOR) {
         Some((prefix, local_name)) if is_prefix(prefix) && is_local_name(local_name) => local_name,
         _ => name,
