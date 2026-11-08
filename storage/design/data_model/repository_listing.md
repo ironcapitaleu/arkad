@@ -19,6 +19,7 @@ Status: proposed. The decisions below wait for review.
 | [Ordering and Consistency](#ordering-and-consistency) | Sort order, what a listing sees during a write | Yes |
 | [Consumers](#consumers) | How each consumer uses the listing, and the one that keeps `get` | Yes |
 | [Bookmark or Full Index](#bookmark-or-full-index) | The source of the dates of `daily_filings` | Yes, for review by the lead |
+| [Assumptions and Triggers](#assumptions-and-triggers) | What each decision assumes, and what reopens it | No |
 | [Feature Tickets](#feature-tickets) | The work that follows | No |
 
 ## Relation to the Deferred Read Surface
@@ -504,6 +505,88 @@ Rules of the run:
 
 The full index source of the catch-up of `backfill` and this run read the same file. The catch-up
 design picks `form.idx` or `xbrl.idx`, and this run uses the same choice.
+
+## Assumptions and Triggers
+
+Each decision rests on facts that can change. A trigger is an event that reopens the decision. The
+ids A3, A5, and A6 are the assumptions of "Cut-Over Between the Paths" in
+[`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md).
+
+### The Listing
+
+Status: proposed. See [The Trait](#the-trait) and [Filesystem Sketch](#filesystem-sketch).
+
+Assumptions:
+
+- The raw store runs on the filesystem backend, a mounted GCS bucket.
+- The raw store keeps one version per key, and its key layout does not change.
+- Each document has a `.meta.json` beside it.
+
+Triggers:
+
+- The raw store keeps versions per key. A listing then yields versions, not only keys.
+- A native object store or Postgres replaces the filesystem backend.
+- The key layout changes.
+- A consumer needs a consistent snapshot across many keys.
+
+### No Listing in the Live Pipeline
+
+Status: decided. See [Not for the Live Pipeline](#not-for-the-live-pipeline).
+
+Trigger:
+
+- A state needs a view of the whole store that no input can carry.
+
+### Full Index Minus the Stored Filings
+
+Status: proposed, the lead confirms. See [Bookmark or Full Index](#bookmark-or-full-index).
+
+Assumptions:
+
+- The full index lags the daily index by at most one business day. This was measured once, on
+  2026-11-02.
+- The SEC keeps publishing `full-index/YYYY/QTRn/form.idx`, at most about 50 MB per quarter. The file
+  of 2026 Q3 held 47.2 MB.
+- Accession numbers never change and are never reused (A5).
+- The run has a timeout of 30 minutes, and a new filing takes at least 3 requests at one each 110 ms.
+
+Triggers:
+
+- The full index lags more than the daily index, or the SEC changes or drops it.
+- The quarter file grows enough that one download per run costs too much.
+- The selected forms widen, and the filings per quarter grow a lot.
+- The timeout or the rate limit changes.
+- The catch-up of `backfill` picks `xbrl.idx` over `form.idx`. This run then reads the same file.
+
+### Cut-Over Date From the Store
+
+Status: proposed. See [2. Cut-Over Date](#2-cut-over-date).
+
+Assumptions:
+
+- Notes file names keep the form `<period>_notes*.zip`.
+- The backfill starts at `2009q1`, the first quarter of `FIRST_YEAR`.
+- The SEC merges the monthly files of a quarter into a quarterly file about a year later.
+
+Triggers:
+
+- The SEC renames the files or changes the merge.
+- The backfill gets a later start period.
+
+### Limits of the Listing
+
+Status: proposed, not measured. See [Limits](#limits).
+
+Assumptions:
+
+- The bucket is mounted through gcsfuse, with one list request per directory.
+- The filings add about 6,000 directories and 36,000 objects per quarter. This comes from the 6,051
+  selected filings of 2026 Q3.
+
+Triggers:
+
+- The measurement of feature 2.
+- A change of the mount, the timeout, or the selected forms.
 
 ## Feature Tickets
 
