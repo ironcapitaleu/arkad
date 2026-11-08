@@ -781,7 +781,6 @@ mod tests {
     #[test]
     fn should_place_the_directory_before_the_cursor_when_all_its_keys_sort_before_it() {
         let directory = Name::Directory("a".to_owned());
-
         let cursor = "b/x";
         let directory_text = "";
 
@@ -795,7 +794,6 @@ mod tests {
     #[test]
     fn should_place_the_directory_on_the_path_when_the_cursor_sits_below_it() {
         let directory = Name::Directory("x".to_owned());
-
         let cursor = "a/x/y";
         let directory_text = "a";
 
@@ -812,7 +810,6 @@ mod tests {
             name: "c".to_owned(),
             has_document: true,
         };
-
         let cursor = "a/b";
         let directory_text = "a";
 
@@ -829,7 +826,6 @@ mod tests {
             name: "b".to_owned(),
             has_document: true,
         };
-
         let cursor = "a/b";
         let directory_text = "a";
 
