@@ -3,10 +3,6 @@
 //! Provides the sorted walk over the directories under a [`KeyPrefix`], which yields each key that
 //! has a metadata file.
 
-// The `ListRepository` impl is the only caller outside the tests, and it lands in a later change.
-// Until then, the walk is dead code in a build without tests.
-#![cfg_attr(not(test), expect(dead_code))]
-
 use std::collections::HashSet;
 use std::io;
 use std::path::PathBuf;
@@ -172,10 +168,6 @@ impl KeyWalk {
     }
 }
 
-/// Names that refer to a directory, not to a document: the current directory and its parent. No
-/// key can hold them.
-const DIRECTORY_REFERENCES: [&str; 2] = [".", ".."];
-
 /// Whether the error says that the directory to list does not exist, or that a file stands in its
 /// path.
 const fn names_no_directory(error: &FailedFilesystemOperation) -> bool {
@@ -224,6 +216,10 @@ async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesy
     }
     Ok(sorted_names(directories, &files))
 }
+
+/// Names that refer to a directory, not to a document: the current directory and its parent. No
+/// key can hold them.
+const DIRECTORY_REFERENCES: [&str; 2] = [".", ".."];
 
 /// Pairs each metadata file with its document file, and sorts the keys with the subdirectories.
 fn sorted_names(directories: Vec<String>, files: &HashSet<String>) -> Vec<Name> {
