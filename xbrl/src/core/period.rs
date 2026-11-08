@@ -54,10 +54,10 @@ impl fmt::Display for Period {
 }
 
 /// A quarter is `QUARTER_NUMERATOR / QUARTER_DENOMINATOR` days, that is 91.3125 days.
-const QUARTER_NUMERATOR: i64 = 1461;
+pub(crate) const QUARTER_NUMERATOR: i64 = 1461;
 
 /// The denominator of the length of a quarter in days. See [`QUARTER_NUMERATOR`].
-const QUARTER_DENOMINATOR: i64 = 16;
+pub(crate) const QUARTER_DENOMINATOR: i64 = 16;
 
 /// A span of time: an exact end, a length in quarters, and the exact start if the source gives it.
 ///

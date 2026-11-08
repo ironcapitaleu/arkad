@@ -1,6 +1,6 @@
 //! # Builders
 //!
-//! Provides helpers that build a [`FilingSource`], an [`AsIsFact`], and a [`Candidate`] with fixed
+//! Provides helpers that build a [`FilingSource`], an [`AsIsFact`], a [`Candidate`], and a [`Filing`] with fixed
 //! defaults. A test changes the public fields it needs.
 
 use std::str::FromStr;
@@ -15,7 +15,8 @@ use crate::core::elements::CanonicalElement;
 use crate::core::fact::{
     AsIsFact, Context, Decimals, Dimensions, FactValue, FilingSource, TaxonomyVersion,
 };
-use crate::core::filing::{EntityId, FilingId};
+use crate::core::filing::{CompanyAttributes, EntityId, Filing, FilingId};
+use crate::core::form::Form;
 use crate::core::period::{Duration, Period};
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
 use crate::core::rule::RuleId;
@@ -208,5 +209,34 @@ pub fn standardized(period: Period, value: &str) -> StandardizedFact {
         release: release(),
         inputs: vec![input.key()],
         restated: false,
+    }
+}
+
+/// Returns the filing of Apple of `form` for the period that ends on `period_of_report`, filed 30
+/// days later, under the fiscal year end `fiscal_year_end`, for example `0930`.
+///
+/// # Panics
+///
+/// Panics if `form` is empty, or if the filing date lies outside the range of a date.
+#[must_use]
+pub fn filing(form: &str, period_of_report: NaiveDate, fiscal_year_end: &str) -> Filing {
+    let form =
+        Form::new(form).expect("Given a hardcoded form type, the creation should always succeed");
+    Filing {
+        id: FilingId::new("sec", format!("{period_of_report}-{form}")).expect(
+            "Given a date and a form without whitespace, the creation should always succeed",
+        ),
+        entity: apple(),
+        is_amendment: form.is_amendment(),
+        form,
+        filed: period_of_report + chrono::Days::new(30),
+        accepted: None,
+        period_of_report: Some(period_of_report),
+        fiscal_year: None,
+        fiscal_period: None,
+        company: CompanyAttributes {
+            fiscal_year_end: Some(fiscal_year_end.to_owned()),
+            ..CompanyAttributes::default()
+        },
     }
 }
