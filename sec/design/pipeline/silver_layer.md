@@ -150,6 +150,7 @@ Silver stores three kinds of values:
 
 The column sketches below fix the shape. The Arrow types are a proposal for the prototype to
 confirm. The fact store design owns the final fields of `as_is_facts` and of its provenance record.
+[`as_is_fact_store.md`](../data_model/as_is_fact_store.md) confirms both without change.
 
 ### `as_is_facts`
 
@@ -189,7 +190,7 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
   `quarters`, `unit`, `dimensions`, and `copy_rank`. The key is unique within one filing and one
   source document. The parser makes it unique by numbering the copies.
 - A filing that arrives on both paths has two sets of rows, one per `source_kind`. Silver keeps
-  both. Which one a read takes is open (see [Open Points](#open-points)).
+  both. A read takes the instance, see [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Current Facts".
 - `decimal128(38, 10)` holds 28 digits before the point. In `num.tsv` of `2025q3`, a value has at
   most 24 digits before the point and 4 after it (measured). The prototype checks the instance
   values, which Notes rounds to 4 places.
@@ -443,8 +444,8 @@ can remove such files once no attempt of their execution runs.
   takes the SIC of the new fetch, and `sic_retrieved_at` shows it.
 
 A Notes file that the SEC merged into a quarterly file has a new period, so it is a new unit key.
-Both units stay current, and the same filing appears in both. No order of runs picks between them,
-see [Open Points](#open-points).
+Both units stay current, and the same filing appears in both. A read takes the quarterly file,
+see [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Current Facts".
 
 ### Growth
 
@@ -592,8 +593,8 @@ A value of one period can appear in many rows:
 | Copies in one filing | One value at `decimals = -6` and at `0` | Every copy, with `copy_rank` | `core/dedup/more-precise@1` takes rank 0 |
 | Repeated comparative | Q1 revenue in the Q1 10-Q and again in the next year's Q1 10-Q | Both rows | `core/dedup/newest-filing@1` takes the newer filing |
 | Restatement | A 10-K/A with another value | Both rows | `core/dedup/newest-filing@1` takes the newer filing and sets `restated` |
-| One filing on both paths | A Notes row and an instance fact | Both rows, with their `source_kind` | Open, see [Open Points](#open-points) |
-| One filing in two Notes files | A monthly file and its merged quarterly file | Both units | Open, see [Open Points](#open-points) |
+| One filing on both paths | A Notes row and an instance fact | Both rows, with their `source_kind` | The instance, see [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) |
+| One filing in two Notes files | A monthly file and its merged quarterly file | Both units | The quarterly file, see [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) |
 
 The as-is read for one period uses the same order as the standardized layer:
 `core/dedup/more-precise@1` per filing, then `core/dedup/newest-filing@1` across filings, on the
@@ -792,22 +793,15 @@ under 30 GB, the size of the raw store. See
 These choices belong to other designs. Silver keeps them open: it stores every copy with its
 source, and each choice is a read rule over silver.
 
-- **The write rule of the fact store**, "upsert by full grain" against `ON CONFLICT DO NOTHING`. It
-  applies to the gold fact tier. Silver writes units and never upserts rows.
-- **One fact from two sources.** Silver keeps the Notes row and the instance row of one filing.
-  The fact store design picks the read rule, for example instance over Notes.
-- **Which source wins for one filing on both paths.** The transform design decides whether the
-  standardize filing step runs once per filing or once per source. Silver accepts both.
-- **One filing in two Notes files.** After a merge, a monthly unit and the quarterly unit both hold
-  the filing, so `candidates` holds two candidates with one `filing_id`. `core/dedup/newest-filing@1`
-  has no tie-break inside one `FilingId`. The series step needs one unit per filing, chosen by a
-  fixed rule that does not depend on the order of runs, for example the quarterly file over the
-  monthly file. The fact store design picks the rule.
-- **The replay of a filing in gold.** Silver keeps the old and the new unit. The fact store design
-  decides how gold replaces the rows of a replayed filing.
+- **Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md):** the write rule of the gold fact tier (replace by filing), the read rule for
+  one fact from two sources (instance over Notes), the rule for one filing in two Notes files
+  (quarterly over monthly), the replay of a filing in gold (the same replace), and the fields of
+  the ingestion provenance record (the columns above, unchanged).
+- **The standardize filing step per filing or per source.** The transform design decides whether
+  it runs once per filing or once per source. Silver accepts both. The read rule of the fact store
+  picks one `candidates` unit per filing either way.
 - **The reload of a corrected Notes file.** Silver writes a new unit only if the transform runs
   on the new bytes. The transform design decides whether a changed digest starts that run.
-- **The fields of the ingestion provenance record.** The columns above are a sketch.
 - **The change to ADR 0001.** ADR 0001 writes from raw to Postgres. With silver, load reads silver.
   The silver prototype drafts the amendment.
 - **The byte form of `content_digest`.** The silver writer feature of the transform design fixes it.

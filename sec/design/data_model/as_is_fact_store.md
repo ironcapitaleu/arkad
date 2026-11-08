@@ -2,9 +2,9 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed, 2026-11-07 |
-| Scope | The as-is fact model, the ingestion provenance, the write and read rules, and the `FactStore` port |
-| Out of scope | The standardized layer, the parsers, the physical tier (see [Where Facts Live](#where-facts-live)) |
+| Status | Proposed, 2026-11-08 |
+| Scope | The as-is fact model, the ingestion provenance, the read rule over silver, the gold fact tier, and the `FactStore` port |
+| Out of scope | The standardized layer, the parsers, the layout of silver ([`silver_layer.md`](../pipeline/silver_layer.md)) |
 
 ## Purpose
 
@@ -17,42 +17,46 @@ loads instance XML. A standardized layer reads from the store later. This docume
 boundary to that layer and does not design it.
 
 The `xbrl` crate fixes the contract types `AsIsFact` and `Filing` (`xbrl/DESIGN.md`, "Contract
-Types and Parsing"). This store keeps them as they are.
+Types and Parsing"). The silver layer design ([`silver_layer.md`](../pipeline/silver_layer.md))
+fixes where the facts live, the write unit, and the replays. This document decides what silver
+leaves open for the fact store.
 
 ## Decisions
 
 | Question | Decision | Section |
 | -------- | -------- | ------- |
+| Where facts live | Silver first, in the dataset `as_is_facts`. The gold fact tier in Postgres loads the current facts from silver | [Where Facts Live](#where-facts-live) |
 | Value key | The key of `xbrl/DESIGN.md`, "Value Key", is confirmed without change | [Value Key](#value-key) |
-| Unit of write | A load: the facts of one filing from one source document, read by one parser version | [Loads](#loads) |
-| Write rule | Append a load. A load that exists already changes nothing. No row is ever updated or deleted | [Write Rule](#write-rule) |
-| Source document in the grain | Yes. The load ID holds the source format, the SHA-256 of the source, and the parser version | [Loads](#loads) |
-| One fact from two sources | Both loads stay. A read takes the instance load of a filing over its Notes load | [One Filing From Two Sources](#one-filing-from-two-sources) |
-| Replay after a parser fix | A new parser version gives a new load. The read takes the highest parser version | [Replay After a Parser Fix](#replay-after-a-parser-fix) |
-| Notes file that the SEC corrects | A corrected file has a new SHA-256, so a load of it is a new load. The old load stays | [Corrected Notes File](#corrected-notes-file) |
-| Ingestion mode of a load | The mode of its source document | [Ingestion Mode of a Load](#ingestion-mode-of-a-load) |
+| Ingestion provenance | The seven columns of the silver sketch are confirmed without change | [Ingestion Provenance](#ingestion-provenance) |
+| One fact from two sources | Silver keeps both. A read takes the instance over Notes for a whole filing | [Current Facts](#current-facts) |
+| One filing in two Notes files | A read takes the quarterly file over the monthly file | [Current Facts](#current-facts) |
+| Write rule of gold | Replace by filing: one transaction deletes the facts of the filing and inserts its current facts. Neither "upsert-by-full-grain" nor `DO NOTHING` | [Gold Write Rule](#gold-write-rule) |
+| Replay of a filing in gold | The same replace. Silver keeps the old unit | [Gold Write Rule](#gold-write-rule) |
+| Notes file that the SEC corrects | Silver adds a new unit. Gold replaces the filings of that file on the next load | [Gold Write Rule](#gold-write-rule) |
+| Ingestion mode | Each row copies the mode of its own source document. Neither silver nor gold needs a function that maps mixed modes | [Ingestion Mode](#ingestion-mode) |
 | Company key | `EntityId` of the filing, the CIK for the SEC. No lookup before a write | [The Fact Row](#the-fact-row) |
 | Dedup | Not in the store. "More precise wins" and "newest filing wins" are rules of the standardized layer | [Boundary to the Standardized Layer](#boundary-to-the-standardized-layer) |
-| Port | `FactStore::append(&FactLoad)` replaces `FactStore::upsert(&CompanyId, &FactSet)` | [The `FactStore` Port](#the-factstore-port) |
-| Physical tier | Open until the silver layer design lands. A Postgres sketch is below | [Where Facts Live](#where-facts-live) |
+| Port | `FactStore::replace(&FilingFacts)` replaces `FactStore::upsert(&CompanyId, &FactSet)` | [The `FactStore` Port](#the-factstore-port) |
 
 **Keep point-in-time open.** The design keeps it open with five rules:
 
 - Every fact keeps `filed`, and `accepted` where the source gives it.
-- No write changes or deletes a row.
+- Silver changes and deletes no row. Gold replaces only the rows of the filing it loads.
 - "Which value wins" is a read.
-- Company attributes come from the `Filing` of each load.
-- A load keeps its values after the raw file changes.
+- Company attributes come from the `Filing` of each filing.
+- Silver keeps its rows after the raw file changes.
 
 ## The Fact Row
 
-A row of the store is one `AsIsFact`, as `xbrl/DESIGN.md` defines it, plus the ID of the load that
-wrote it. The load holds the ingestion provenance. See [Loads](#loads).
+A row of the store is one `AsIsFact`, as `xbrl/DESIGN.md` defines it, plus its ingestion
+provenance. The columns are those of `as_is_facts` in
+[`silver_layer.md`](../pipeline/silver_layer.md).
 
 - `entity` is the `EntityId` of the filing: the scheme and the ID. For the SEC, the ID is the CIK.
   The parser reads it from the source, so a write needs no lookup.
 - `filed` and `accepted` sit on every row. A point-in-time read filters on them.
 - The store keeps every copy of a fact: each `copy_rank`, the original filing, and each amendment.
+  Silver also keeps each source and each replay.
 
 ### Value Key
 
@@ -62,13 +66,12 @@ The value key of `xbrl/DESIGN.md`, "Value Key", fits the store without change:
 `unit`, `dimensions`, `copy_rank`.
 
 - The key is unique within one filing, because the parser numbers the copies.
-- A row key in the store is the load ID plus the value key. The load fixes the filing, the source
-  document, and the parser version.
-- `taxonomy_version` is never empty in the store. Notes and the instance both give it. Only
+- In silver, the key is unique within one filing and one source document. A filing on both paths
+  has one set of rows per source.
+- In gold, the key is unique per filing, because gold holds one source per filing.
+- `taxonomy_version` is never empty for a Notes or instance fact. Notes and the instance both give it. Only
   `sec_api` facts lack it, and the store does not load `sec_api` facts.
 - `unit` is empty for a text fact. The key treats two empty units as equal.
-- `dimensions` can be long. The key uses the SHA-256 of the canonical text of `Dimensions`, and the
-  row keeps the pairs next to it.
 
 ### Fields and the Parse Rules
 
@@ -108,181 +111,190 @@ them.
 
 Notes loses data in 7.8% of the facts that both sources hold: per-share units, non-ASCII text,
 footnotes, and rounding (`sec/design/pipeline/ingestion_paths.md`, "Measured Result"). The read
-rule of [One Filing From Two Sources](#one-filing-from-two-sources) picks the instance for this
-reason.
+rule of [Current Facts](#current-facts) picks the instance for this reason.
 
-## Loads
+## Where Facts Live
 
-A load is the unit of write. It holds the facts of one filing, read from one source document by
-one parser version, and the ingestion provenance of that read.
+Silver holds the as-is facts first, in the dataset `as_is_facts`, with `filings` next to it. The
+silver layer design fixes the format, the write unit, the paths, and the replays:
 
-```text
-FactLoad {
-    provenance: IngestionProvenance
-    filing:     Filing              // as this source reads it
-    facts:      Vec<AsIsFact>       // every fact has filing.id as its filing
-}
+- A write unit is a Notes file (`notes_file`) or the new filings of one day (`filing_day`).
+- Silver never changes a file. A replay or a corrected Notes file adds a new unit next to the old
+  one.
+- The current unit of a unit key is the one with the latest `written_at`. A default read takes
+  only current units.
 
-IngestionProvenance {
-    mode:           IngestionMode   // Backfill | Incremental, from the source metadata
-    source:         SourceDocument
-    execution_id:   Uuid            // the run that wrote the load, as in DocumentMetadata
-    loaded_at:      DateTime<Utc>
-    parser_version: ParserVersion   // name and semantic version, for example notes 0.3.0
-}
+The gold fact tier in Postgres ([ADR 0001](../../../docs/adr/0001-mvp-database.md)) loads the current
+facts from silver. Gold holds one source per filing. Silver keeps the history: every source, every
+replay, and every corrected file.
 
-SourceDocument {
-    format:        SourceFormat     // Notes | Instance
-    key:           DocumentKey      // the key in the raw store
-    sha256:        Sha256Digest     // of the stored bytes
-    requested_url: Option<String>   // the SEC URL, from the raw metadata
-    fetched_at:    DateTime<Utc>    // produced_at of the raw metadata
-}
-```
+## Ingestion Provenance
 
-- **The load ID** is a UUID v5 of five fields: the filing ID, the source format, the SHA-256 of the
-  source, the parser name, and the parser version. Any run computes the same ID from the same inputs, so a write
-  needs no lookup. See [Load ID Encoding](#load-id-encoding).
-- **The ingestion provenance sits next to each fact.** Each row holds the load ID, and the load ID
-  names one provenance. It is not on `AsIsFact`, because `IngestionMode` lives in `storage`.
-- **The filing provenance** of `xbrl` (accession number, form, fiscal year and period, filed date,
-  period end) is on `Filing`. It is the same for both paths. The ingestion provenance differs by
-  path, so the two stay apart.
-- **A Notes source** is the Notes ZIP that holds the filing. Its key and SHA-256 name the whole
-  file, not the rows of the filing.
-- **The Filing of a load** is the filing as this source reads it. Notes rounds `period` to a month
-  end and `accepted` to the minute. The instance path has no `accepted`. Each load keeps its own
-  values.
-- **Every field of a load comes from an input that never changes after the filing:** the source
-  document, or the `filing` context in its raw metadata (filed date, form, amendment flag). The
-  ticker comes from `dei:TradingSymbol` in the instance or in Notes. A mutable input, such as
-  `submissions`, stays out of the load. Otherwise a rerun reads new values under the same load ID,
-  and `DO NOTHING` drops them.
-- **An instance load has no SIC.** The instance has no SIC, and `submissions` stays out of the
-  load. A read that needs the SIC takes it from the Notes load of the same filing, if one exists.
-  The SIC of a new filing comes from the company data of `ingestion_paths.md`, "Company Data".
+The provenance record of the silver sketch is confirmed without change:
 
-### Load ID Encoding
+| Column | Meaning |
+| ------ | ------- |
+| `source_kind` | `notes` or `instance` |
+| `source_key`, `source_sha256` | The raw document of the row and its digest |
+| `ingestion_mode` | `backfill` or `incremental`, from the raw metadata of the document |
+| `transform_version` | The version of the parser output |
+| `execution_id` | The run that wrote the row |
+| `loaded_at` | The time of the write |
 
-Every writer computes the load ID from the same bytes:
+- Every row of `as_is_facts` carries these columns. Gold keeps them once per filing, copied from
+  silver, see [Gold Schema Sketch](#gold-schema-sketch).
+- The URL and the retrieval time of each raw document sit in `silver_files`, as the silver design
+  says.
+- The record is the ingestion provenance. The filing provenance (accession number, form, fiscal
+  year and period, filed date, period end) is on `Filing`. It is the same for both paths, so the
+  two stay apart.
+- In Rust, `IngestionProvenance` lives in `storage`, next to `IngestionMode`. It is not on
+  `AsIsFact`, because `xbrl` does not depend on `storage`.
 
-```text
-load_id = uuid_v5(10fdd0ae-f445-43df-9355-01cb3344601e,
-                  filing_id || 0x00 || source_format || 0x00 || hex(sha256) || 0x00
-                  || parser_name || 0x00 || parser_version)
-```
+## Current Facts
 
-- `filing_id` is the text of `FilingId`, for example `sec:0000320193-26-000001`.
-- `source_format` is `notes` or `instance`. `hex(sha256)` is 64 lowercase hex digits.
-- `parser_version` is the semantic version as text, for example `0.3.0`.
-- A fixed test vector in the `storage` crate pins the encoding.
-- The table also holds a `UNIQUE` constraint on the five fields. If an encoding drifts, the write
-  fails on that constraint. It never adds a silent second load.
-
-### Write Rule
-
-`FactStore::append` writes one load in one transaction:
-
-1. Insert the load. If a load with the same ID exists, do nothing.
-2. Insert the facts. If a fact with the same load ID and value key exists, do nothing.
-
-So the store is append-only. A rerun with the same inputs computes the same load ID and adds no
-row. `execution_id` and `loaded_at` keep the values of the first write, as the run fields of the
-raw store do.
-
-This rule settles two earlier texts:
-
-- `storage_traits_design.md` named the fact write "upsert-by-full-grain". The full grain is now the
-  load ID plus the value key.
-- `ingestion_paths.md` named it `ON CONFLICT … DO NOTHING` on the accession number and the value
-  key. The rule keeps `DO NOTHING`, and the load ID takes the place of the accession number.
-
-`DO NOTHING` cannot drop a different value. Two writes with the same load ID read the same bytes
-with the same parser, so they hold the same facts. A different value comes from a different source
-or a different parser version, so it gets a different load ID.
-
-### Replay After a Parser Fix
-
-A parser fix must change the parser version. The replay then computes a new load ID and appends a
-new load. The old load stays. The read takes the load with the highest parser version, not the
-latest `loaded_at`. See [Reads](#reads).
-
-- An old binary that loads a filing after the replay adds a load with a lower version. The read
-  does not take it.
-- To roll back a parser, release its old code under a new, higher version. A rerun of the old
-  version adds nothing, because its load exists.
-- No write deletes a fact, so `FactStore` needs no delete.
-- If a parser changes its output and keeps its version, the replay changes nothing. A test must
-  catch this case. See [Feature Tickets](#feature-tickets).
-- Each full replay adds a copy of every fact. Estimate: 168,528 facts in 622 filings give about 270
-  facts per filing. The 29,598 S&P 500 filings from 2011 to September 2026 then hold about 8
-  million facts per source. A prune of loads that no read takes is a later choice. See
-  [Open Points](#open-points).
-
-### Corrected Notes File
-
-The SEC corrects old Notes files about once a year (`ingestion_paths.md`, assumption A4). A
-corrected file has a new SHA-256. A load of it is a new load, and the old load stays. So the store
-keeps the old values after the raw store replaces the file.
-
-Two Notes loads of one filing can have the same parser version: a corrected file and the old one,
-or a monthly file and the quarterly file that merges it. The read then takes the source document
-that extraction fetched last, by `fetched_at` of the source. A replay does not change `fetched_at`,
-so the order of the replay does not decide. The file fetched last is the newest version of the SEC.
-
-The store does not decide when a corrected file gets loaded. Today the backfill does not fetch a
-stored file again. Extraction owns the detection. See [Open Points](#open-points).
-
-### One Filing From Two Sources
-
-A filing reaches the store twice in two cases: the overlap of one day at the cut-over, and a
-backfill after the new-filing path. The store keeps both loads. A read takes one source per
+A filing can sit in more than one current unit of silver: once per source, and in a monthly and a
+quarterly Notes file after the SEC merges a quarter. The read of current facts takes one unit per
 filing:
 
-- If the filing has an instance load, the read takes it.
-- Otherwise, the read takes the Notes load.
+1. Take only current units. This is the rule of the silver design.
+2. If an instance unit holds the filing, take it.
+3. Otherwise, take the Notes unit of the quarterly file over the Notes unit of the monthly file.
 
-The read takes a whole filing from one source, never a mix of facts. The instance load has no
-`accepted`, so the current facts of such a filing have `filed` only. A read that needs the
-acceptance time takes it from the Notes load of the same filing, if one exists. Both sources hold the same
-facts with the same value keys (`ingestion_paths.md`, "Measured Result"). The instance keeps the
-units, the text, and the footnotes that Notes loses. A filing that only Notes delivered keeps the
-Notes form of these facts.
+The rule depends only on the source and the Notes period, never on the order of runs. A filing has
+one filed date and sits in one month and one quarter, so the rule always leaves one unit.
 
-This is option 3 of `ingestion_paths.md`, "Path Independence": both copies with their provenance,
-and a read picks one. The order in which loads arrive never decides a value. The comparison of the two sources
-recommended option 2, the same preference applied at write time. Option 2 drops the Notes copy,
-and the store keeps every copy, so the preference moves to the read.
+- **Instance over Notes.** Both sources hold the same facts with the same value keys
+  (`ingestion_paths.md`, "Measured Result"). The instance keeps the units, the text, and the
+  footnotes that Notes loses. A filing that only Notes delivered keeps the Notes form of these
+  facts. The comparison of the sources recommended the same preference at write time (option 2).
+  Silver keeps every copy, so the preference is a read (option 3 of "Path Independence").
+- **Quarterly over monthly.** The SEC builds the quarterly file after the monthly files, and
+  removes the monthly files at the merge (`ingestion_paths.md`, assumption A4).
+- **Accepted time.** The instance path gives `filed` only. So the current facts of a filing on
+  both paths have no `accepted`. A read that needs it takes it from the Notes rows of the same
+  filing.
+- The same rule picks the unit of `candidates` per filing, so the series step gets one candidate
+  per filing and standard concept.
 
-### Ingestion Mode of a Load
+The rule runs as a view over silver and as the selection of the gold load. The other reads of the
+silver design ("as public on day D", "as silver held it at time T") apply this rule after their own
+filter.
 
-A load carries the mode of its source document, from `DocumentMetadata::ingestion_mode()` of that
-document. Other inputs of the transform, such as the label file or `submissions`, do not change
-it.
+## Gold Write Rule
 
-- Notes ZIPs come from the backfill, so a Notes load is `Backfill`.
-- An instance from the catch-up of the backfill is `Backfill`. An instance from `daily_filings` is
-  `Incremental`.
-- A replay keeps the mode of the source. The parser version and `loaded_at` show the replay.
+Gold replaces by filing. The load writes each filing in one transaction:
 
-So a load never has mixed modes. The mode of a standardized output that joins many loads is a
-question of the standardized layer. See [Open Points](#open-points).
+1. Upsert the company in the graph tier, as `ingestion_paths.md`, "Idempotent Writes" says.
+2. Upsert the row of the filing in `as_is_filings`, keyed by `filing_id`, with the provenance of
+   its current unit.
+3. Delete the facts of the filing from `as_is_facts`.
+4. Insert the current facts of the filing.
 
-## Reads
+- **No read before a write.** The delete and the insert need no lookup.
+- **Idempotent.** A rerun writes the same rows again.
+- **Never overwrite a value with a later filing.** The replace touches one filing only. An
+  amendment is a filing of its own, so the original stays next to it.
+- **The order of loads does not decide a value.** Each load takes the current facts of silver.
+  Loads run one at a time, as the job plan of the transform design fixes.
 
-The store answers three reads. Their signatures wait for the read methods of `storage`.
+This settles the two earlier texts:
 
-| Read | Rule |
-| ---- | ---- |
-| Current facts | Per filing, take one load: the instance load over the Notes load, then the highest parser version, then the source document fetched last, then the highest load ID |
-| As of filed date D | The current facts of the filings with `filed` on or before D |
-| As known at time T | The same rule as current facts, over the loads with `loaded_at` on or before T |
+- `storage_traits_design.md` named the fact write "upsert-by-full-grain". The grain is now the
+  filing and the value key, in gold.
+- `ingestion_paths.md` named it `ON CONFLICT … DO NOTHING`. `DO NOTHING` keeps old facts after a
+  replay, so gold uses the replace.
 
-- "As known at time T" is not in the MVP. The data for it is in the store from the first load.
-- A read never collapses two copies within one filing or across filings. The standardized layer
-  does that.
-- The segment view is a read: it keeps a fact only if every axis on it is on the list of segment
-  axes.
+The cases of the silver design:
+
+| Case | Silver | Gold |
+| ---- | ------ | ---- |
+| A replay after a parser fix | A new unit with a new `transform_version` | The next load replaces the filings of the unit |
+| A Notes file that the SEC corrected | A new unit with a new digest, if the transform runs on the new bytes | The same replace |
+| A filing that arrives on the second path | A unit of the other source | The same replace. The instance wins, see [Current Facts](#current-facts) |
+| The merged quarterly Notes file | A unit with a new unit key | The same replace. The quarterly file wins |
+
+`FactStore` needs no delete method. The delete is a step inside `replace`.
+
+### Gold Schema Sketch
+
+```sql
+CREATE TABLE as_is_filings (
+    filing_id           text        PRIMARY KEY,  -- 'sec:0000320193-26-000001'
+    entity_scheme       text        NOT NULL,
+    entity_id           text        NOT NULL,     -- the CIK for the SEC
+    form                text        NOT NULL,
+    is_amendment        boolean     NOT NULL,
+    filed               date        NOT NULL,
+    accepted            timestamptz,
+    period_of_report    date,
+    fiscal_year         smallint,
+    fiscal_period       text,
+    company_name        text,
+    sic                 text,
+    fiscal_year_end_raw text,
+    -- ingestion provenance of the current unit
+    source_kind         text        NOT NULL CHECK (source_kind IN ('notes', 'instance')),
+    source_key          text        NOT NULL,
+    source_sha256       text        NOT NULL,
+    ingestion_mode      text        NOT NULL CHECK (ingestion_mode IN ('backfill', 'incremental')),
+    transform_version   text        NOT NULL,
+    execution_id        text        NOT NULL,
+    loaded_at           timestamptz NOT NULL
+);
+
+CREATE TABLE as_is_facts (
+    filing_id           text        NOT NULL REFERENCES as_is_filings,
+    entity_scheme       text        NOT NULL,
+    entity_id           text        NOT NULL,
+    concept_family      text        NOT NULL,  -- 'us-gaap', 'dei', or an extension prefix
+    concept_name        text        NOT NULL,
+    taxonomy_version    text        NOT NULL,
+    period_start        date,
+    period_end          date        NOT NULL,
+    quarters            smallint    NOT NULL,  -- 0 for an instant
+    unit                text,                  -- null for text
+    dimensions          jsonb       NOT NULL,  -- sorted axis and member pairs
+    dimensions_sha256   bytea       NOT NULL,
+    copy_rank           integer     NOT NULL,
+    value_numeric       numeric,
+    value_text          text,
+    is_nil              boolean     NOT NULL,
+    decimals            smallint,
+    decimals_infinite   boolean     NOT NULL,
+    footnotes           text[]      NOT NULL,
+    filed               date        NOT NULL,
+    accepted            timestamptz,
+    UNIQUE NULLS NOT DISTINCT (filing_id, concept_family, concept_name, taxonomy_version,
+                               period_end, quarters, unit, dimensions_sha256, copy_rank),
+    CHECK (num_nonnulls(value_numeric, value_text) + is_nil::int = 1),
+    CHECK (NOT decimals_infinite OR decimals IS NULL)
+);
+
+CREATE INDEX ON as_is_facts (entity_scheme, entity_id, concept_family, concept_name, period_end);
+```
+
+- `UNIQUE NULLS NOT DISTINCT` needs Postgres 15. Supabase runs Postgres 15 or later.
+- `dimensions` can be long. The key uses the SHA-256 of the canonical text of `Dimensions`.
+- The provenance sits once per filing in `as_is_filings`. Every fact of a filing has the same
+  source in gold, so a join gives each fact its provenance.
+- `entity_*`, `filed`, and `accepted` repeat on each fact, so a read by company and time needs no
+  join.
+- The SIC of a new filing comes from `submissions`. Its own provenance columns stay in silver
+  `filings`.
+- The tickers of a filing are a list. Their gold table waits for the screener design.
+
+## Ingestion Mode
+
+Each row of silver copies `ingestion_mode` from the raw metadata of its own document, so no row
+mixes modes. The owner decided this for silver on 2026-11-08. Gold copies the mode of each filing
+from silver, so gold needs no function that maps mixed modes either. A standardized fact reaches
+the modes of its sources through `inputs`.
+
+- Notes ZIPs come from the backfill, so a Notes row is `backfill`.
+- An instance from the catch-up of the backfill is `backfill`. An instance from `daily_filings` is
+  `incremental`.
+- A replay keeps the mode of the source. `transform_version` and `loaded_at` show the replay.
 
 ## The `FactStore` Port
 
@@ -294,148 +306,47 @@ fact carries its `EntityId`.
 // store/facts.rs
 #[async_trait]
 pub trait FactStore: Backend {
-    /// Appends one load. A load that the store holds already changes nothing.
-    async fn append(&self, load: &FactLoad) -> Result<(), WriteError>;
+    /// Replaces the facts of one filing with the given facts.
+    async fn replace(&self, filing: &FilingFacts) -> Result<(), WriteError>;
 }
 ```
 
-- `FactLoad`, `IngestionProvenance`, `SourceDocument`, `SourceFormat`, and `ParserVersion` live in
-  `storage`. `AsIsFact` and `Filing` come from `xbrl`, which `storage` already depends on.
-- `FactLoad::new` checks that every fact names the filing of the load. A fact of another filing is
-  an error, not a dropped row.
-- `SecRepository::persist` calls `self.facts.append(&record.facts)`. `FilingRecord` loses its
+```text
+FilingFacts {
+    filing:     Filing               // from xbrl
+    provenance: IngestionProvenance  // of the current unit of the filing
+    facts:      Vec<AsIsFact>        // every fact has filing.id as its filing
+}
+```
+
+- `FactStore` is the port of the gold fact tier. The silver writer of the transform design writes
+  silver units. It does not go through `FactStore`.
+- `FilingFacts::new` checks that every fact names the filing. A fact of another filing is an error,
+  not a dropped row.
+- `SecRepository::persist` calls `self.facts.replace(&record.facts)`. `FilingRecord` loses its
   `company` field.
-
-## Where Facts Live
-
-Open. The silver layer design decides if as-is facts live in silver Parquet first, with Postgres as
-the gold layer that loads from them. Decided with the owner on 2026-11-07: this design stays
-neutral to the tier. A load maps to both tiers without a change to the model:
-
-- **Postgres** (ADR 0001): one table of loads, one table of facts, and the write path below.
-- **Silver Parquet**: one load is one file, or one partition, of the as-is dataset. The load ID is
-  a column on each row. Append-only fits a store of files, because no file changes after a write.
-  The silver layer design picks the format, the partitions, and the manifest.
-
-### Postgres Schema Sketch
-
-```sql
-CREATE TABLE fact_loads (
-    load_id          uuid        PRIMARY KEY,  -- UUID v5 of the five load fields
-    filing_id        text        NOT NULL,     -- 'sec:0000320193-26-000001'
-    source_format    text        NOT NULL CHECK (source_format IN ('notes', 'instance')),
-    source_sha256    bytea       NOT NULL,
-    parser_name      text        NOT NULL,     -- 'notes', 'instance'
-    parser_version   integer[]   NOT NULL,     -- {0,3,0}, so 0.10.0 sorts after 0.9.0
-    ingestion_mode   text        NOT NULL CHECK (ingestion_mode IN ('backfill', 'incremental')),
-    source_key       text        NOT NULL,
-    source_url       text,
-    source_fetched_at timestamptz NOT NULL,
-    execution_id     uuid        NOT NULL,
-    loaded_at        timestamptz NOT NULL,
-    -- Filing, as this source reads it
-    entity_scheme    text        NOT NULL,
-    entity_id        text        NOT NULL,     -- the CIK for the SEC
-    form             text        NOT NULL,
-    is_amendment     boolean     NOT NULL,
-    filed            date        NOT NULL,
-    accepted         timestamptz,
-    period_of_report date,
-    fiscal_year      smallint,
-    fiscal_period    text,
-    company_name     text,
-    sic              text,
-    ticker           text,
-    exchange         text,
-    fiscal_year_end  text,
-    UNIQUE (filing_id, source_format, source_sha256, parser_name, parser_version),
-    CHECK (array_length(parser_version, 1) = 3 AND array_position(parser_version, NULL) IS NULL)
-);
-
-CREATE TABLE as_is_facts (
-    load_id           uuid        NOT NULL REFERENCES fact_loads,
-    filing_id         text        NOT NULL,
-    entity_scheme     text        NOT NULL,
-    entity_id         text        NOT NULL,
-    concept_family    text        NOT NULL,  -- 'us-gaap', 'dei', or an extension prefix
-    concept_name      text        NOT NULL,
-    taxonomy_version  text        NOT NULL,
-    period_start      date,
-    period_end        date        NOT NULL,
-    quarters          smallint    NOT NULL,  -- 0 for an instant
-    unit              text,                  -- empty for text
-    dimensions        jsonb       NOT NULL,  -- sorted axis and member pairs
-    dimensions_sha256 bytea       NOT NULL,
-    copy_rank         integer     NOT NULL,
-    value_numeric     numeric,
-    value_text        text,
-    is_nil            boolean     NOT NULL,
-    decimals          smallint,
-    decimals_infinite boolean     NOT NULL,
-    footnotes         text[]      NOT NULL,
-    filed             date        NOT NULL,
-    accepted          timestamptz,
-    UNIQUE NULLS NOT DISTINCT (load_id, concept_family, concept_name, taxonomy_version,
-                               period_end, quarters, unit, dimensions_sha256, copy_rank),
-    CHECK (num_nonnulls(value_numeric, value_text) + is_nil::int = 1),
-    CHECK (NOT decimals_infinite OR decimals IS NULL)
-);
-
-CREATE INDEX ON as_is_facts (entity_scheme, entity_id, concept_family, concept_name, period_end);
-CREATE INDEX ON fact_loads (filing_id, (source_format = 'instance') DESC, parser_version DESC,
-                            source_fetched_at DESC, load_id DESC);
-
--- Current facts: one load per filing, see "Reads".
-CREATE VIEW current_fact_loads AS
-SELECT DISTINCT ON (filing_id) *
-FROM fact_loads
-ORDER BY filing_id, (source_format = 'instance') DESC, parser_version DESC,
-         source_fetched_at DESC, load_id DESC;
-```
-
-- `UNIQUE NULLS NOT DISTINCT` needs Postgres 15. Supabase runs Postgres 15 or later.
-- `entity_*`, `filing_id`, `filed`, and `accepted` repeat on each fact, so a read by company and
-  time needs no join.
-- The schema keeps no `companies` table. Company attributes come from the `Filing` of each load.
-  The company node of the graph tier keeps its own rule (`ingestion_paths.md`, "Idempotent
-  Writes").
-
-### Write Path
-
-ADR 0001 runs the graph and fact writes of one filing in one Postgres transaction. The fact part
-of that transaction is:
-
-```sql
-INSERT INTO fact_loads (...) VALUES (...)
-ON CONFLICT (load_id) DO NOTHING;
-
-INSERT INTO as_is_facts (...)
-SELECT ... FROM unnest($1::uuid[], $2::text[], ...)
-ON CONFLICT DO NOTHING;
-```
-
-- The order in the transaction stays: company, then filing, then facts. The load row is the filing
-  of the fact store.
-- No statement reads before it writes.
-- The backfill can load through `COPY` into a temporary table and then the same `INSERT … ON
-  CONFLICT DO NOTHING`. The rule and the result stay the same.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
-  subgraph Raw[Raw store]
-    NZ[Notes ZIP<br/>key, SHA-256, mode]
-    IX[Instance XML<br/>key, SHA-256, mode]
+  subgraph Raw[Bronze: raw store]
+    NZ[Notes ZIP]
+    IX[Instance XML]
   end
   NZ --> PN[Notes parser]
   IX --> PI[Instance parser]
-  PN -- "FactLoad: provenance, Filing, AsIsFact" --> AP["FactStore::append"]
-  PI -- "FactLoad: provenance, Filing, AsIsFact" --> AP
-  AP --> FL[(fact_loads)]
-  AP --> AF[(as_is_facts)]
-  FL --> CR{{"Read: instance over Notes,<br/>then highest parser version"}}
-  AF --> CR
+  subgraph Silver[Silver]
+    AF[(as_is_facts<br/>every source, every unit)]
+    FI[(filings)]
+  end
+  PN --> AF
+  PN --> FI
+  PI --> AF
+  PI --> FI
+  AF --> CR{{"Current facts:<br/>current units, instance over Notes,<br/>quarterly over monthly"}}
+  FI --> CR
+  CR -- "FactStore::replace, one filing per transaction" --> GD[(Gold: as_is_filings,<br/>as_is_facts)]
   CR --> SL[Standardized layer<br/>dedup, resolution]
 ```
 
@@ -444,7 +355,7 @@ flowchart LR
 - The standardized layer reads current facts. It never writes to the as-is store.
 - It owns `core/dedup/more-precise@1` and `core/dedup/newest-filing@1` (`xbrl/DESIGN.md`, "Dedup
   Rules"). The store keeps every copy that these rules choose from.
-- It can rebuild from the store at any time, with no download and no parse.
+- It can rebuild from silver at any time, with no download and no parse.
 - Its concepts are our own set, so a later source such as ESEF maps into the same concepts. The
   as-is store of that source is a separate design.
 
@@ -452,28 +363,23 @@ flowchart LR
 
 | Point | Owner |
 | ----- | ----- |
-| Where facts live: Postgres only, or silver Parquet first with Postgres as gold | The silver layer design |
-| When to prune loads that no read takes | The lead, after the first full replay shows the size |
-| How extraction detects a Notes file that the SEC corrects, and when transform loads it | Extraction |
-| The ingestion mode of a standardized output that joins loads of mixed modes | The transform design |
-| The signatures of the three reads | The read methods of `storage`, when the screener needs them |
+| When transform runs on a Notes file that the SEC corrects | The transform design |
 | The acceptance time on the new-filing path, from a machine-readable source | Extraction |
-| The SIC as filed on the new-filing path. Today it comes from `submissions`, which is not as filed | Extraction |
+| The gold tables of tickers and of the standardized facts | The screener design |
+| The amendment of ADR 0001: load reads silver, not raw | The silver prototype |
+| The signatures of the reads | The read methods of `storage`, when the screener needs them |
 
 ## Feature Tickets
 
-1. **Provenance types in `storage`.** `IngestionProvenance`, `SourceDocument`, `SourceFormat`,
-   `ParserVersion`, and `FactLoad` with its ID and the filing check. Adds `xbrl` and the `v5`
-   feature of `uuid` to `storage`. Tests for the load ID test vector and for a fact of another
-   filing.
-2. **`FactStore::append`.** Replace `upsert` on the port, update `SecRepository` and
-   `FilingRecord`, and add an in-memory fake with the write rule. Tests for a rerun, a new parser
-   version, and a second source.
-3. **Parser version guard.** A test per parser that compares its output on fixed filings with a
-   stored result, and fails if the output changes while the version stays.
-4. **Postgres fact tier.** The migration for `fact_loads` and `as_is_facts`, and `append` in the
-   Postgres store, inside the transaction of ADR 0001. Starts after the silver layer design
-   confirms the tier.
-5. **Current-fact read.** The read of current facts and the read as of a filed date, with tests for
-   both sources, a replay, an amendment, an older parser version with a newer `loaded_at`, and two
-   Notes files of one filing with the same parser version.
+1. **Provenance types in `storage`.** `IngestionProvenance` and `FilingFacts` with its filing
+   check. Tests for a fact of another filing.
+2. **Current-facts read over silver.** The view with the three steps of
+   [Current Facts](#current-facts). Tests for both sources, a monthly and a quarterly Notes file,
+   a replay, and an amendment.
+3. **`FactStore::replace`.** Replace `upsert` on the port, update `SecRepository` and
+   `FilingRecord`, and add an in-memory fake with the replace rule. Tests for a rerun, a replay,
+   and a filing that arrives on the second path.
+4. **Gold fact tier.** The migration for `as_is_filings` and `as_is_facts`, and `replace` in the
+   Postgres store, inside the transaction of ADR 0001.
+5. **Gold load from silver.** The job that reads the current facts per filing and calls
+   `replace`. Starts after the silver writer exists.

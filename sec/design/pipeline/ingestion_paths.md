@@ -654,9 +654,8 @@ quarter) or a month (year and month).
 - `notes_periods(sec_client, today, on_retry)` in `sec/src/bin/shared/notes_periods.rs` calls it
   with the month before today and `DEFAULT_RETRY_DELAYS`. `backfill` logs each retry as
   `batch_notes_probe_retried`, with the quarter. A monthly file that the store holds but whose quarter the SEC has merged is
-  not requested. Its quarter covers the same filings. The transform loads a filing once per source
-  file and parser version, so the merged file adds a second Notes load. See
-  [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Corrected Notes File".
+  not requested. Its quarter covers the same filings, so silver holds the filing in both files. A
+  read takes the quarterly file. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Current Facts".
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
 - Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
   403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
@@ -1830,16 +1829,14 @@ Rules:
   `WHERE excluded.as_of >= companies.as_of`. Without it, a Notes file loaded late overwrites newer
   company data with older data.
 - **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
-- **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
-  fact is keyed by its load ID and its value key: `DO NOTHING`. The load ID names the filing, the
-  source document, and the parser version. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Write Rule".
-- **A filing reaches the fact store as a load.** The load row is the filing of the fact store,
-  keyed by the load ID: `DO NOTHING`.
+- **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. The
+  gold fact tier replaces the facts of a filing in one transaction: a delete and an insert, keyed
+  by the filing and the value key. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Gold Write Rule".
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
 So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
-A copy of a fact from the other source is a separate load, so neither copy wins at write time.
-See [Path Independence](#path-independence).
+Silver keeps the copy of each source. Gold loads one source per filing, by a read rule. See
+[Path Independence](#path-independence).
 
 The fact store keys each fact by the `EntityId` of its filing, the CIK for the SEC. A write needs
 no lookup. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
@@ -1872,17 +1869,17 @@ Rules:
 3. **Same filing, same facts.** A test runs both parsers on filings that are in both sources. A
    difference in parser logic fails the test. A difference in the source data is a finding for
    rule 4, not a test failure.
-4. **Order never decides a value.** The fact store keeps the load of each source. A read takes
-   the instance load of a filing over its Notes load, so arrival never decides. Option 3 in the
-   table below, decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
+4. **Order never decides a value.** Silver keeps the rows of each source. A read takes the
+   instance over Notes for a filing, so arrival never decides. Option 3 in the table below,
+   decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md).
 5. **Provenance on every fact.** The DoD of STA-331 lists these fields: the ingestion path
    (`ingestion_mode` in the raw metadata, `backfill` or `incremental`), the source document
    (Notes file or instance, with its key and SHA-256), the `execution_id`, the load time, and the
    parser version.
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
-   - A replay after a parser fix has a new parser version, so it appends a new load. A read takes
-     the newest load, and `FactStore` needs no delete. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Replay After a Parser Fix".
+   - A replay adds a new silver unit next to the old one. Gold replaces the facts of each filing
+     of the unit, so `FactStore` needs no delete method. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Gold Write Rule".
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
      A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
      run. If the store cannot verify the file, the run downloads the current SEC version and marks
@@ -1899,8 +1896,8 @@ The fact store design already has a rule for two sources (STA-145, see
 `hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
 into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
 (`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
-points to option 3, but does not decide this case. [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) takes option 3. The load ID names the
-source document, so the two copies no longer share a grain.
+points to option 3, but does not decide this case. [`as_is_fact_store.md`](../data_model/as_is_fact_store.md) takes option 3. Silver keeps a row per
+source, with the source document on each row.
 
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
@@ -1954,8 +1951,8 @@ fixed rank. The recommendation had two conditions:
 - Option 2 picks the value at write time. `storage_traits_design.md` picks "which value wins" at
   read time.
 
-Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): option 3 with the same preference, instance over Notes, applied by a read. The
-store keeps every copy, so it does not drop the Notes copy at write time.
+Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): option 3 with the same preference, instance over Notes, applied by a read. Silver
+keeps every copy, so the Notes copy is not dropped at write time.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
 
@@ -2015,8 +2012,8 @@ The metadata of each raw document records the ingestion mode of the run that cre
   rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
   `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
-- Transform copies the mode of the source document onto each load of facts. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Ingestion
-  Mode of a Load".
+- Transform copies the mode of the source document onto each as-is row. See [`as_is_fact_store.md`](../data_model/as_is_fact_store.md), "Ingestion
+  Mode".
 
 ## Handover to Transform
 
@@ -2190,4 +2187,4 @@ to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine d
 Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser.
 
 Decided in [`as_is_fact_store.md`](../data_model/as_is_fact_store.md): the fact store keeps an amendment next to its original, a read takes the instance
-load of a filing over its Notes load, and a replay appends a new load.
+over Notes for a filing, and gold replaces the facts of a replayed filing.

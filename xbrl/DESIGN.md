@@ -505,8 +505,7 @@ section 4.
 `sec:0000320193-26-000001`. Neither is a trait. One `Filing` per filing: `FilingId`, `EntityId`, form as open text (`10-K/A`), `is_amendment`,
 `filed`, `accepted`, the period of report, the fiscal year and period as filed, and the company
 attributes as filed: name, SIC, ticker, exchange, fiscal year end. A later filing with another
-value is a change over time, not a conflict. The instance has no SIC, so a `Filing` from the
-instance has none. See `sec/design/data_model/as_is_fact_store.md`, "Loads".
+value is a change over time, not a conflict.
 
 ### Key Design Decisions
 
@@ -816,8 +815,9 @@ Parsers:
   example after the parser strips dimension prefixes, the second row gets the next free rank. So
   the key stays unique, and `core/dedup/more-precise@1` compares the rows.
 - Whether the standardize filing state runs once per filing or once per source. A read of the
-  fact store takes the instance over Notes for a filing, see [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md), "One Filing From Two Sources". Both runs share one `FilingId`, so step 3 has no
-  tie-break between them.
+  fact store takes one source per filing, the instance over Notes, see [`as_is_fact_store.md`](../sec/design/data_model/as_is_fact_store.md), "Current Facts". The
+  same rule picks one `candidates` unit per filing, so step 3 needs no tie-break inside one
+  `FilingId`.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
 
 States and errors:
