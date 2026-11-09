@@ -3,6 +3,11 @@
 //! Canonical name constants and concept definition arrays mapping
 //! XBRL taxonomy concept names to canonical financial elements.
 //!
+//! A later concept of a list can be wider or narrower than the standard concept, for example
+//! `Cash` for cash and equivalents. A comment at the list names each such concept, what it adds
+//! or leaves out, and when a filer reports it. Tier 2 gives such a value the `Synonym`
+//! confidence.
+//!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
 //! canonical element, as `xbrl/DESIGN.md`, "`us_gaap`", describes.
 //!
@@ -204,7 +209,9 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::CashAndEquivalents,
-        // A filer with no cash equivalents reports only `Cash`.
+        // `Cash` is narrower than the standard concept: it holds no cash equivalents. A filer
+        // that holds no cash equivalents reports only `Cash`, so for that filer the two are the
+        // same amount. A filer that reports both gets the first concept.
         &["CashAndCashEquivalentsAtCarryingValue", "Cash"],
         CASH_AND_EQUIVALENTS_RULE,
         false,
@@ -217,8 +224,10 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::AccountsReceivable,
-        // A filer that shows one line for all receivables reports `ReceivablesNetCurrent`. The
-        // line also holds receivables that are not from customers.
+        // `ReceivablesNetCurrent` is wider than the standard concept: it also holds receivables
+        // that are not from customers, such as notes and receivables from related parties. A
+        // filer that shows one line for all receivables reports only this concept. The value is
+        // then that line, not the trade receivables alone.
         &["AccountsReceivableNetCurrent", "ReceivablesNetCurrent"],
         ACCOUNTS_RECEIVABLE_RULE,
         false,
@@ -231,7 +240,9 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::PropertyPlantEquipment,
-        // A filer that shows finance lease assets in the same line reports the second concept.
+        // The second concept is wider than the standard concept: it also holds the
+        // right-of-use assets of finance leases. A filer that shows both in one line reports
+        // only the second concept. The value is then that line.
         &[
             "PropertyPlantAndEquipmentNet",
             "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
@@ -247,7 +258,9 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::IntangibleAssets,
-        // A filer with only finite-lived intangible assets reports `FiniteLivedIntangibleAssetsNet`.
+        // `FiniteLivedIntangibleAssetsNet` is narrower than the standard concept: it holds no
+        // indefinite-lived intangible assets. A filer with only finite-lived intangible assets
+        // reports only this concept, so for that filer the two are the same amount.
         &[
             "IntangibleAssetsNetExcludingGoodwill",
             "FiniteLivedIntangibleAssetsNet",
@@ -272,8 +285,10 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ConceptDefinition::new(
         CanonicalElement::LongTermDebt,
         // The parent is `NonCurrentLiabilities`, so the list holds the noncurrent part only.
-        // `LongTermDebt` includes the current maturities, so it is not in the list. A filer that
-        // shows finance lease obligations in the same line reports the second concept.
+        // `LongTermDebt` includes the current maturities, so it is not in the list. The second
+        // concept is wider than the standard concept: it also holds finance lease obligations. A
+        // filer that shows both in one line reports only the second concept. The value is then
+        // that line.
         &[
             "LongTermDebtNoncurrent",
             "LongTermDebtAndCapitalLeaseObligations",
