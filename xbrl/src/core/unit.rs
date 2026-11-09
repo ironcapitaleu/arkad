@@ -5,8 +5,8 @@
 use std::fmt;
 use std::str::FromStr;
 
+use super::currency_codes::iso_4217::{CURRENCY_CODES, HISTORIC_CURRENCY_CODES};
 use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
-use super::iso_4217::{CURRENCY_CODES, HISTORIC_CURRENCY_CODES};
 
 /// One measure of a unit, for example `USD`, `EUR`, `shares`, or `pure`.
 ///

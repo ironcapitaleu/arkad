@@ -768,10 +768,11 @@ year-to-date only. The result has confidence `Derived`.
   year end.
 - A unit is a currency if it is one ISO 4217 code and divides by nothing (`Unit::is_currency`).
   The measures carry no prefix. Two tables compiled into the binary tell a currency from a custom
-  measure such as `BOE`. `core::iso_4217::CURRENCY_CODES` comes from List One of the maintenance
-  agency SIX. `HISTORIC_CURRENCY_CODES` comes from List Three. The withdrawn codes count, because a series reaches
-  back to 2009 and an old filing reports in a currency such as `HRK`. The tables leave out the
-  codes that are not money: fund codes, and units of account, metals, `XTS`, and `XXX`.
+  measure such as `BOE`. `core::currency_codes::iso_4217::CURRENCY_CODES` comes from List One of
+  the maintenance agency SIX. `HISTORIC_CURRENCY_CODES` comes from List Three. The withdrawn codes
+  count, because a series reaches back to 2009 and an old filing reports in a currency such as
+  `HRK`. The tables leave out the codes that are not money: fund codes, and units of account,
+  metals, `XTS`, and `XXX`.
 - The year must end 47 to 137 days after the nine-month end, so that the Q4 rounds to one quarter.
   If several nine-month values fit, the rule takes the latest end.
 - The rule derives nothing for a Q4 that the series already holds or that a conflict blocks.

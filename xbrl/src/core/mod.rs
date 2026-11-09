@@ -13,6 +13,7 @@
 //! - [`chronology`]: The gap check over time.
 //! - [`concept`]: Concept names, namespace families, and namespaces.
 //! - [`confidence`]: How a standardized value was resolved.
+//! - [`currency_codes`]: The tables of currency codes.
 //! - [`dedup`]: The dedup rules of the standardized layer.
 //! - [`elements`]: The standard concept set.
 //! - [`entity_name`]: The name of a company.
@@ -25,7 +26,6 @@
 //! - [`form`]: The form type of a filing as filed.
 //! - [`graph`]: The resolution and validation engine.
 //! - [`invalid_value`]: The error of a core value type.
-//! - [`iso_4217`]: The codes of the current and withdrawn ISO 4217 currencies.
 //! - [`period`]: Instants and durations.
 //! - [`period_identity`]: The derivation of the fourth quarter from the fiscal year.
 //! - [`release`]: The taxonomy release of a plug-in.
@@ -39,6 +39,7 @@ pub mod candidate;
 pub mod chronology;
 pub mod concept;
 pub mod confidence;
+pub mod currency_codes;
 pub mod dedup;
 pub mod elements;
 pub mod entity_name;
@@ -51,7 +52,6 @@ pub mod fiscal_year;
 pub mod form;
 pub mod graph;
 pub mod invalid_value;
-pub mod iso_4217;
 pub mod period;
 pub mod period_identity;
 pub mod release;
