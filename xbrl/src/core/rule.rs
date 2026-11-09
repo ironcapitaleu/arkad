@@ -10,7 +10,8 @@ use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 /// The ID of a rule in the form `<owner>/<kind>/<name>@<version>`, for example
 /// `us-gaap/alias/revenue@1` or `core/dedup/newest-filing@1`.
 ///
-/// The version goes up when the rule itself changes. A new taxonomy release does not change it.
+/// From the MVP on, the version goes up when the rule itself changes. Until then, every rule
+/// stays at version 1. A new taxonomy release does not change it.
 ///
 /// # Examples
 ///

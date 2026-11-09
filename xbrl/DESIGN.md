@@ -787,11 +787,13 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
 
-The version goes up when we change the rule itself. A new release changes the release on the fact,
-not the version. A core rule carries the release of the plug-in that resolved the concept.
+From the MVP on, the version goes up when we change the rule itself. Until then, every rule stays
+at version 1, even when it changes (decided by the owner on 2026-11-09). A standardized fact stored
+before the MVP does not need to name the form of the rule that made it. The as-is layer keeps every
+input, so the standardized layer can be built again from it.
 
-Until the MVP ships, every rule stays at version 1, even when it changes. No standardized fact is
-stored before then, so no stored value can point to an older form of a rule.
+A new release changes the release on the fact, not the version. A core rule carries the release of
+the plug-in that resolved the concept.
 
 ### Three Layers
 
