@@ -87,13 +87,17 @@ pub enum CanonicalElement {
     EarningsPerShareDiluted,
 
     // --- Level 2: Cash Flow sub-elements ---
-    /// Depreciation and amortization.
+    /// Depreciation, depletion, and amortization: the add-back of the cash flow statement
+    /// (`DepreciationDepletionAndAmortization`).
     DepreciationAmortization,
-    /// Capital expenditures.
+    /// Capital expenditures: the payments for every productive asset, intangible assets and
+    /// software included (`PaymentsToAcquireProductiveAssets`).
     CapitalExpenditures,
-    /// Dividends paid.
+    /// Dividends paid: every dividend payment, including to preferred stock and to the
+    /// noncontrolling interest, and capital distributions (`PaymentsOfDividends`).
     DividendsPaid,
-    /// Share repurchases (buybacks).
+    /// Share repurchases: the payments for the repurchase of every class of equity
+    /// (`PaymentsForRepurchaseOfEquity`).
     ShareRepurchases,
     /// Share-based compensation expense.
     ShareBasedCompensation,
