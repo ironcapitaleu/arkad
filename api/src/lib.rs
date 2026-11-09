@@ -14,6 +14,7 @@
 //! - [`logging`]: The JSON logger and the events of the binary.
 //! - [`middleware`]: The middleware that the router runs on every request.
 //! - [`routes`]: The versioned routes and their spec.
+//! - [`shared`]: The domain types, which depend on no route.
 
 use axum::middleware::from_fn;
 use axum::routing::get;
@@ -27,6 +28,7 @@ pub mod health;
 pub mod logging;
 pub mod middleware;
 pub mod routes;
+pub mod shared;
 
 /// Builds the router with every route of the API.
 ///
