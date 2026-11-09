@@ -1,7 +1,7 @@
 //! # Reference Data
 //!
-//! Provides the tables a plug-in hands to the core: [`ConceptAliases`], [`CalculationTree`], and
-//! [`ElementReference`].
+//! Provides the tables a plug-in hands to the core: [`ConceptAliases`], [`PartAliases`],
+//! [`CalculationTree`], and [`ElementReference`].
 //!
 //! The types are records. A plug-in fills them from static data compiled into the binary, so every
 //! field is public.
@@ -25,6 +25,25 @@ pub struct ConceptAliases {
     pub rule: RuleId,
     /// The taxonomy concepts in priority order.
     pub concepts: Vec<ConceptName>,
+    /// The parts that stand for the whole standard concept when no concept of the list resolves.
+    pub parts: Option<PartAliases>,
+}
+
+/// The parts of a standard concept that stand for the whole if a filing reports no other part.
+///
+/// A part is a taxonomy concept that holds a part of the standard concept, for example
+/// `StockholdersEquity` for the equity with the noncontrolling interest. If a filing reports the
+/// part and none of [`PartAliases::other_parts`] in one period, the part equals the whole. An other
+/// part counts in any dimension of the period, and only with a value other than zero.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct PartAliases {
+    /// The ID of the part rule, for example `us-gaap/part/equity@1`.
+    pub rule: RuleId,
+    /// The parts in priority order.
+    pub parts: Vec<ConceptName>,
+    /// The other parts of the standard concept. If a filing reports one of them in the period, no
+    /// part stands for the whole.
+    pub other_parts: Vec<ConceptName>,
 }
 
 /// One arc of a calculation linkbase: within one role, the parent sums its children, each times its

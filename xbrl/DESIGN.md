@@ -741,6 +741,8 @@ The fact store stores rows of facts.
 A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 
 - `us-gaap/alias/revenue@1`: the alias list of a plug-in.
+- `us-gaap/part/equity@1`: the parts of a standard concept that stand for the whole if the filing
+  reports no other part.
 - `core/sfac6/balance-sheet@1`: an SFAC 6 identity.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
@@ -767,7 +769,7 @@ Each element has a tiered resolution chain:
 | Tier | Confidence | Mechanism |
 | ---- | ---------- | --------- |
 | 1 | `Exact` | The first concept of the alias list of a plug-in |
-| 2 | `Synonym` | A later concept of the alias list, or an ESEF anchor |
+| 2 | `Synonym` | A later concept of the alias list, a part with no other part reported, or an ESEF anchor |
 | 3 | `Derived` | An identity the core knows: an SFAC 6 identity or a period identity |
 | 4 | `Computed` | A sum along the calculation tree of a plug-in |
 
@@ -933,6 +935,9 @@ Rules the code fixes where the table above leaves a choice:
 - In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
   registry routes its family to the plug-in of the alias list. If two plug-ins map one standard
   concept, the plug-in of the first family in name order wins.
+- If no concept of an alias list resolves, the first part of its `PartAliases` that the filing
+  reports wins, with `Synonym`. It wins only if the filing reports none of `other_parts` in the
+  same period and unit, in any dimension, with a value other than zero or with a conflict.
 
 Other cases:
 

@@ -6,7 +6,7 @@ description: >
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.1
+version: 0.3.2
 ---
 
 # XBRL Standardization
@@ -32,8 +32,8 @@ When mapping a US GAAP concept to a CanonicalElement:
 
 1. If the concept is the first concept of the alias list of a plug-in (`REQUIRED_CONCEPTS` or
    `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
-2. If it is a later concept of that alias list, or an ESEF anchor (planned `ifrs` plug-in), use it
-   (Tier 2: Synonym)
+2. If it is a later concept of that alias list, a part that the filing reports with no other part
+   (the part rule), or an ESEF anchor (planned `ifrs` plug-in), use it (Tier 2: Synonym)
 3. If no alias resolves, apply an identity the core knows: an SFAC 6 identity or a period identity,
    such as Q4 = FY − 9-month year to date (Tier 3: Derived)
 4. If still unresolved, sum the children of the concept along the calculation tree of a plug-in.

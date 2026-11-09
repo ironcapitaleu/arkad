@@ -157,7 +157,7 @@ resulting fact with its `Confidence`:
 | Tier | Confidence | Mechanism |
 | --- | --- | --- |
 | 1 | `Exact` | direct canonical concept match |
-| 2 | `Synonym` | alias list (dialect-specific, e.g. `Revenues`, `SalesRevenueNet`) |
+| 2 | `Synonym` | alias list (dialect-specific, e.g. `Revenues`, `SalesRevenueNet`), or a part with no other part reported |
 | 3 | `Derived` | SFAC-6 identity / calculation-linkbase children (`parent = Σ childᵢ·weightᵢ`) |
 | 4 | `Computed` | full taxonomy linkbase graph traversal |
 
