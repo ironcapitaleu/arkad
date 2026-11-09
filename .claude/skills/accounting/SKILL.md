@@ -37,13 +37,13 @@ These hold under both frameworks:
 
 1. **Balance sheet:** Assets = Liabilities + Equity
 2. **Comprehensive income:** Comprehensive Income = Revenue − Expenses + Gains − Losses
-3. **Changes in equity:** ΔEquity = Comprehensive Income + Contributions from Owners −
+3. **Changes in equity:** ΔEquity = Comprehensive Income + Investments by Owners −
    Distributions to Owners
 4. **Net income:** Comprehensive Income = Net Income + Other Comprehensive Income
 5. **Cash flow:** Operating CF + Investing CF + Financing CF + Effect of exchange rates
    = ΔCash and cash equivalents
 
-Identities 1 to 3 follow from the elements. Identity 4 comes from ASC 220 and IAS 1. Identity 5
+Identities 1 to 3 follow from the elements. Identity 4 comes from ASC 220 and IAS 1 (IFRS 18 from 2027). Identity 5
 comes from ASC 230 and IAS 7. Under US GAAP, the cash total of identity 5 includes restricted cash.
 
 ## US GAAP and IFRS Differences
@@ -55,12 +55,17 @@ comes from ASC 230 and IAS 7. Under US GAAP, the cash total of identity 5 includ
 | Inventory cost | LIFO allowed | LIFO not allowed (IAS 2) |
 | Impairment reversal | not allowed for assets held and used | allowed, except for goodwill (IAS 36) |
 | Development costs | expensed, with few exceptions | capitalized if criteria are met (IAS 38) |
-| Lessee accounting | operating and finance leases (ASC 842) | one model, every lease on the balance sheet (IFRS 16) |
+| Lessee accounting | operating lease: one straight-line lease cost, payments in operating cash flow (ASC 842) | every lease: depreciation and interest, principal payments in financing cash flow (IFRS 16) |
 | Interest paid in cash flow | operating | operating or financing (IAS 7) |
 
-IFRS 18 replaces IAS 1 for periods from 1 January 2027. It adds required subtotals to the
-statement of profit or loss and changes the cash flow classification of interest and dividends.
-Check the effective standard for the period of a report.
+Under both frameworks, a lessee puts its leases on the balance sheet and can exempt short-term
+leases. IFRS 16 also exempts leases of low-value assets.
+
+IFRS 18 replaces IAS 1 for annual periods that begin on or after 1 January 2027. Early application
+is allowed. It applies retroactively, so a report under IFRS 18 also changes its comparatives. It
+adds required subtotals to the statement of profit or loss and changes the cash flow
+classification of interest and dividends.
+Check which standard applies to the period of a report.
 
 ## Balances and Flows
 
@@ -81,11 +86,12 @@ Check the effective standard for the period of a report.
   September. Its end moves by up to 6 days from the end of the month, and some years have 53
   weeks.
 - A company that changes its fiscal year end reports a transition period between the old end and
-  the new end. The transition period is shorter than a year.
+  the new end. At the SEC, the transition period is shorter than a year. Under IFRS (IAS 1.36), it
+  can be shorter or longer than a year.
 - A quarterly reporter has the periods `Q1` to `Q4` and `FY`. A half-yearly reporter has `H1`,
   `H2`, and `FY`.
-- A fourth quarter or a second half is often not reported on its own. It is the fiscal year less
-  the earlier periods. This works only for values that add over periods.
+- A company often does not report a fourth quarter or a second half on its own. It is the fiscal
+  year less the earlier periods. This works only for values that add over periods.
 
 ## Reporting Calendars
 
@@ -98,7 +104,10 @@ Check the effective standard for the period of a report.
 - At the SEC, `10-KT` and `10-QT` report a transition period. A suffix `/A` marks an amendment,
   for example `10-K/A`.
 - A `10-Q` reports the cash flow statement for the year to date only.
-- An EU issuer reports under IFRS as adopted by the EU. Its half-yearly report covers `H1`.
+- An EU listed group reports its consolidated accounts under IFRS as adopted by the EU. Its
+  half-yearly report covers `H1`.
+- A foreign private issuer at the SEC can use IFRS as issued by the IASB with no reconciliation to
+  US GAAP.
 
 ## Restatement and Repeated Comparative
 
@@ -106,8 +115,9 @@ A later report repeats the values of earlier periods as comparatives. Two copies
 agree or differ:
 
 - **Repeated comparative:** the copies agree within the precision of the less precise copy.
-- **Restatement:** the copies differ beyond that precision. The later value corrects the earlier
-  one.
+- **Restatement:** the copies differ beyond that precision. The later value replaces the earlier
+  one. The cause is a correction of an error, a change in accounting policy, or a re-presentation,
+  for example of a discontinued operation (ASC 250, IAS 8, ASC 205-20, IFRS 5).
 
 The latest report holds the current value. A read as of an earlier date uses the latest report
 published by that date.
