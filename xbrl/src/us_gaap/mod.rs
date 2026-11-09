@@ -310,8 +310,9 @@ fn concept_aliases(
 
 /// Returns the parts of one definition of [`mappings::PART_CONCEPTS`].
 ///
-/// The other parts hold each concept of `other_parts`, then each concept of `other_part_trees`
-/// with the concepts below it in `tree`, in name order and once each.
+/// The other parts hold each concept of `other_parts` in table order. Then each root of
+/// `other_part_trees` follows, with the concepts below it in `tree` in name order. Each concept
+/// appears once.
 fn part_aliases(definition: &mappings::PartDefinition, tree: &CalculationTree) -> PartAliases {
     let concepts = |names: &[&str]| -> Vec<ConceptName> {
         names
@@ -616,6 +617,55 @@ mod tests {
     }
 
     #[test]
+    fn should_keep_each_part_out_of_its_other_parts_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result: Vec<ConceptName> = Vec::new();
+
+        let result: Vec<ConceptName> = us_gaap
+            .aliases()
+            .iter()
+            .filter_map(|aliases| aliases.parts.as_ref())
+            .flat_map(|parts| {
+                parts
+                    .parts
+                    .iter()
+                    .filter(|part| parts.other_parts.contains(part))
+            })
+            .cloned()
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_revenue_when_a_bank_reports_contract_revenue_next_to_other_noninterest_revenue()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "120000000",
+            ),
+            fact(
+                &filing,
+                "RevenueNotFromContractWithCustomerExcludingInterestIncome",
+                "80000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_attach_the_parts_of_each_part_definition_to_its_alias_list_when_created() {
         let us_gaap = UsGaap::new();
 
@@ -676,6 +726,10 @@ mod tests {
                     concept("us-gaap", "NetInvestmentIncome"),
                     concept("us-gaap", "NoninterestIncome"),
                     concept("us-gaap", "RevenueNotFromContractWithCustomer"),
+                    concept(
+                        "us-gaap",
+                        "RevenueNotFromContractWithCustomerExcludingInterestIncome",
+                    ),
                     concept("us-gaap", "RevenuesExcludingInterestAndDividends"),
                     concept("us-gaap", "SaleOfTrustAssetsToPayExpenses"),
                     concept("us-gaap", "SalesTypeLeaseInterestIncome"),
