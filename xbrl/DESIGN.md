@@ -273,7 +273,9 @@ lines that no standard concept holds, so the children do not cover the parent.
 
 A child of a closed group can count as **zero if absent**. Most filers have no temporary equity, no
 noncontrolling interest, and no exchange rate effect, and they report no zero for it. If such a
-child has no value for the period, the group uses zero.
+child has no value for the period, the group uses zero. `ExchangeRateEffect` has one limit: with no
+value, it counts as zero for the check but blocks the derivation (see "Derivation From a Closed
+Group").
 
 #### "Other" Lines
 
@@ -471,7 +473,8 @@ So the check of that group is skipped for that period.
 #### Derivation From a Closed Group
 
 A closed group with exactly one unknown member gives that member as a Tier 3 value. The unknown can
-be the parent, the start, or a child. A child that is zero if absent counts as known.
+be the parent, the start, or a child. A child that is zero if absent counts as known, except
+`ExchangeRateEffect` (see below).
 
 - The rule ID is `core/roll-up/<group>@1`, for example `core/roll-up/liabilities@1`. The balance
   sheet identity keeps `core/sfac6/balance-sheet@1`.
@@ -484,17 +487,19 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
 - `gross-profit` never derives its parent. A single-step filer chooses not to present gross
   profit, and its cost of revenue can leave out depreciation. The group can still derive
   `Revenue` or `CostOfRevenue`.
-- `ExchangeRateEffect` counts as zero for the check of `net-change-in-cash`, but not to derive a
-  value. Filings before 2018 report the exchange rate effect under
+- If `ExchangeRateEffect` has no value, `net-change-in-cash` derives nothing, and its check uses
+  zero. Filings before 2018 report the exchange rate effect under
   `EffectOfExchangeRateOnCashAndCashEquivalents`. That concept leaves out restricted cash, so it is
   no alias. If it counted as zero, the rule would derive a wrong `NetChangeInCash` for every
   multinational before 2018.
-- In each pass, the rule visits the groups in the order of the group table. The first group that
-  gives a value wins. Every other group that holds the member is still checked, so a disagreement
-  is a `RollUpMismatch` finding.
+- In each pass, the rule visits the groups in the order in which they first appear in the tables
+  of "Roll-Up Tree". The first group that gives a value wins. The rule still checks every other
+  group that holds the member, so a disagreement is a `RollUpMismatch` finding.
 - The series key (`period_end`, `quarters`) does not tell a three-month value from a four-month
-  value in Notes. So the rule can combine the two, as the cash flow of "Worked Example" shows. The
-  dedup conflict of such a key blocks both values, so the rule gets no input from it.
+  value in Notes. If one concept has only a three-month copy and another has only a four-month
+  copy, no dedup conflict arises, and the rule can combine them. In the fixture of "Worked
+  Example", the series gets operating cash flow of four months and no net income, because dedup
+  blocks net income.
 
 This rule fills common gaps. In CY2025, 5,564 filers reported `Liabilities`, and 6,090 reported
 `LiabilitiesAndStockholdersEquity`. Only 781 reported `AssetsNoncurrent`, against 4,908 for
@@ -652,7 +657,7 @@ parse.
 - The derived values of `core/roll-up/<group>@1` are rows of `standardized_facts`, with
   confidence `Derived` and the rule ID in `rule`.
 - `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. `concepts` holds the
-  parent of the group first, then its members in the order of the table. `reason` holds the name
+  parent of the group first, then its members in the order of the tables of "Roll-Up Tree". `reason` holds the name
   of the group, such as `liabilities`.
 
 #### Worked Example
@@ -705,10 +710,10 @@ filing reports its cash flow lines only for this period:
 | Exchange rate effect | −1 | |
 | Net change in cash | 137 | 390 − 138 − 114 − 1. The closed group holds |
 
-In this fixture, dedup blocks these values, because a four-month copy and a three-month copy share
-each value key (see "Dedup Rules"). Net income and D&A have both copies. The cash flow lines have
-only the four-month copy. The example takes every line from the four-month copy to show the
-arithmetic only.
+In this fixture, dedup blocks net income and D&A. Each has a three-month and a four-month copy that
+disagree (see "Dedup Rules"). The cash flow lines have only the four-month copy, so they pass dedup,
+and the series stores them under `quarters` 1. The example takes every line from the four-month
+copy to show the arithmetic only.
 
 #### Open Points
 
@@ -1918,8 +1923,8 @@ The series step does not fail on a broken identity. It records each failed check
 as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
 validates one statement, such as a publish gate. `NetIncomeIdentity` goes away with `Expenses`,
 `Gains`, and `Losses`. The checks of the series step use the tolerance of "Checks the Tree Gives",
-for every group and identity. `is_exact()` applies only to a caller that validates one statement
-with values the core computed.
+for every group and identity. `is_exact()` applies only to a caller that validates one statement,
+such as a publish gate.
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
