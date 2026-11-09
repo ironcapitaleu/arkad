@@ -616,11 +616,13 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
     PartDefinition::new(
         CanonicalElement::SellingGeneralAdmin,
         &["GeneralAndAdministrativeExpense"],
-        // A filer with no selling expense reports only `GeneralAndAdministrativeExpense`. The
+        // A filer with no selling expense reports only `GeneralAndAdministrativeExpense`. Most
         // concepts below `SellingAndMarketingExpense` do not count, because filers disclose
-        // advertising and warranty expense in the notes whatever line holds it. `SellingExpense`
-        // is the one concept below it that filers report as a line of the statement.
+        // advertising and warranty expense in the notes, whatever line holds it.
+        // `SellingExpense` and `MarketingExpense` count, because filers report them as a line of
+        // the statement.
         &[
+            "MarketingExpense",
             "OtherSellingGeneralAndAdministrativeExpense",
             "SellingAndMarketingExpense",
             "SellingExpense",
@@ -641,10 +643,21 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
     PartDefinition::new(
         CanonicalElement::InterestExpense,
         &["InterestExpenseNonoperating"],
-        // A commercial filer reports its interest expense as `InterestExpenseNonoperating`. A bank
-        // reports `InterestExpenseOperating`, and it gets a value only from `InterestExpense`.
-        &["InterestExpenseOperating"],
-        &[],
+        // The 2026 calculation tree has no arc from `InterestExpense` to these. Its label,
+        // "Interest Expense, Operating and Nonoperating", names the two parts. A commercial filer
+        // reports its interest expense as `InterestExpenseNonoperating`. A bank reports
+        // `InterestExpenseOperating`, or the concepts below it, and it gets a value only from
+        // `InterestExpense`. The bank lines below `InterestExpenseOperating` count, and the
+        // deposits with each concept below them. `InterestExpenseBorrowings` does not count:
+        // below it sit the interest on long-term debt and on commercial paper, which commercial
+        // filers report in the debt note as a part of `InterestExpenseNonoperating`.
+        &[
+            "InterestExpenseOperating",
+            "InterestExpenseBeneficialInterestsIssuedByConsolidatedVariableInterestEntities",
+            "InterestExpenseTradingLiabilities",
+            "InterestExpenseTrustPreferredSecurities",
+        ],
+        &["InterestExpenseDeposits"],
         INTEREST_EXPENSE_PART_RULE,
     ),
     PartDefinition::new(
