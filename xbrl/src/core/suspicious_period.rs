@@ -30,8 +30,9 @@ const CONFIRMATION_YEARS: i32 = 3;
 /// Checks the period of each value in `series`, and returns one [`Finding::SuspiciousPeriod`] per
 /// value that hits a signal.
 ///
-/// The finding names every signal the value hits. The check reports and never fails. A flagged
-/// value keeps its period.
+/// The finding names every signal the value hits. A value whose period differs from the period of
+/// its first input, such as a derived Q4, gets no finding: the finding on the input names the typo.
+/// The check reports and never fails. A flagged value keeps its period.
 ///
 /// - [`PeriodSignal::StartBeforeEarliestYear`]: the period starts before 1900. For an instant,
 ///   the date counts. If the source gives no exact start, the start is the end less the length
@@ -55,6 +56,11 @@ pub fn suspicious_periods(series: &Series, filings: &[Filing]) -> Vec<Finding> {
         let Some(key) = fact.inputs.first() else {
             continue;
         };
+        // A derived value, such as a Q4 of `core/period/q4-from-fy@1`, has the period of no input.
+        // The finding on the input names the typo.
+        if key.period_end != fact.period.end() || key.quarters != fact.period.quarters() {
+            continue;
+        }
         let signals = signals(fact, filings);
         if signals.is_empty() {
             continue;
@@ -160,6 +166,7 @@ mod tests {
     use super::*;
     use crate::core::elements::CanonicalElement;
     use crate::core::period::Duration;
+    use crate::core::period_identity::derive_q4;
     use crate::tests::fixtures::sample_fact::{date, filing as sample_filing, standardized};
 
     /// Returns the value `value` of the period that ends on `end` and lasts `quarters`, with no
@@ -169,6 +176,13 @@ mod tests {
             Period::Duration(Duration::from_end_and_quarters(end, quarters)),
             value,
         );
+        fact.inputs[0].filing = filing.id.clone();
+        fact
+    }
+
+    /// Returns the value `value` of `period`, reported in `filing`.
+    fn value_in_period(filing: &Filing, period: Period, value: &str) -> StandardizedFact {
+        let mut fact = standardized(period, value);
         fact.inputs[0].filing = filing.id.clone();
         fact
     }
@@ -461,6 +475,30 @@ mod tests {
         )];
 
         let result = suspicious_periods(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_flag_only_the_inputs_when_a_fourth_quarter_derives_from_typo_periods() {
+        let report = sample_filing("10-K", date(2024, 12, 31), "1231");
+        let span = |start, end| {
+            Period::Duration(
+                Duration::from_dates(start, end)
+                    .expect("Given an end after the start, the creation should always succeed"),
+            )
+        };
+        let year = value_in_period(&report, span(date(2923, 1, 1), date(2923, 12, 31)), "100");
+        let nine_months = value_in_period(&report, span(date(2923, 1, 1), date(2923, 9, 30)), "70");
+        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]));
+        let facts = series([vec![year.clone(), nine_months.clone()], fourth_quarter].concat());
+
+        let expected_result = vec![
+            finding(&year, &[PeriodSignal::EndFarFromReport], None),
+            finding(&nine_months, &[PeriodSignal::EndFarFromReport], None),
+        ];
+
+        let result = suspicious_periods(&facts, &[report]);
 
         assert_eq!(result, expected_result);
     }

@@ -985,8 +985,10 @@ Finding::SuspiciousPeriod {
 }
 ```
 
-**Signals.** A value that hits a signal gets one finding. The finding names every signal it hits,
-so an instant before 1900 names both.
+**Signals.** A value that hits a signal gets one finding. The finding names every signal the value
+hits, so an instant before 1900 names both. A value whose period differs from the period of its
+first input, such as a Q4 of `core/period/q4-from-fy@1`, gets no finding. The finding on the
+input names the typo.
 
 | Signal | Rule |
 | ------ | ---- |

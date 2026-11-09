@@ -38,7 +38,7 @@ fn revenue_series() -> Series {
 }
 
 #[test]
-fn should_flag_no_period_when_a_new_registrant_reports_a_comparative_of_the_year_before() {
+fn should_flag_no_period_when_a_real_filing_reports_a_comparative_of_the_year_before() {
     let series = revenue_series();
     let filings = vec![parse_notes_fixture().filing];
     series
