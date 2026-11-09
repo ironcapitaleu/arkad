@@ -793,6 +793,11 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
 
+> **Note:** until the MVP ships, we ignore the version rule above. Every rule stays at version 1,
+> even when it changes (decided by the owner on 2026-11-09). A standardized fact stored before the
+> MVP does not need to name the form of the rule that made it. The as-is layer keeps every input, so
+> the standardized layer can be built again from it.
+
 ### Three Layers
 
 **Layer 1 — Canonical Elements (SFAC 6)**
