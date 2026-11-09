@@ -20,14 +20,14 @@ use super::standardized::StandardizedFact;
 /// The ID of the rule that derives the fourth quarter from the fiscal year.
 pub const Q4_FROM_FY: &str = "core/period/q4-from-fy@1";
 
-/// The length in quarters of a fiscal year.
-const YEAR_QUARTERS: u16 = 4;
+/// The length of a fiscal year, in quarters.
+const YEAR_LENGTH: u16 = 4;
 
-/// The length in quarters of the year to date at the end of the third quarter.
-const NINE_MONTHS_QUARTERS: u16 = 3;
+/// The length of the year to date at the end of the third quarter, in quarters.
+const NINE_MONTHS_LENGTH: u16 = 3;
 
-/// The length in quarters of the derived fourth quarter.
-const QUARTER: u16 = 1;
+/// The length of the derived fourth quarter, in quarters.
+const QUARTER_LENGTH: u16 = 1;
 
 /// The days from start to end under which a fiscal year with an exact start is short: 51 weeks.
 /// A 52-53 week year spans 363 or 370 days, and a calendar year 364 or 365.
@@ -71,11 +71,11 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
     series
         .facts
         .iter()
-        .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_QUARTERS)
+        .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_LENGTH)
         .filter(|year| !short_year_signals.is_short_year(year))
         .filter_map(|year| {
             let mut key = year.series_key();
-            key.quarters = QUARTER;
+            key.quarters = QUARTER_LENGTH;
             if known.contains(&key) {
                 return None;
             }
@@ -179,12 +179,12 @@ fn fourth_quarter<'a>(
         (Some(year_start), Some(nine_months_start)) => year_start == nine_months_start,
         _ => true,
     };
-    if !same_series || !same_start || nine_months_period.quarters() != NINE_MONTHS_QUARTERS {
+    if !same_series || !same_start || nine_months_period.quarters() != NINE_MONTHS_LENGTH {
         return None;
     }
     let start = nine_months_period.end().succ_opt()?;
     let quarter = Duration::from_dates(start, year_period.end()).ok()?;
-    (quarter.quarters() == QUARTER).then_some((quarter, nine_months))
+    (quarter.quarters() == QUARTER_LENGTH).then_some((quarter, nine_months))
 }
 
 fn subtract(

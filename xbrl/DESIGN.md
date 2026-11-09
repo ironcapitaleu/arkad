@@ -942,8 +942,8 @@ Finding::Conflict {
 ```
 
 - If tiers 1 and 2 would pick the conflicting concept, that filing gives a blocked candidate for
-  the standard concept. A conflict on a lower alias, or on a concept no plug-in maps, blocks
-  nothing.
+  the standard concept. A conflict on a lower alias, on a concept no plug-in maps, or on a fact
+  with dimensions blocks nothing.
 - Step 3 ranks a blocked candidate with the others. If it wins, the standard concept has no value
   for that entity and period. Step 3 does not fall back to an older filing, because the newer
   filing can hold the restatement. Step 4 derives no value for the blocked concept.
@@ -965,8 +965,10 @@ Rules the code fixes where the table above leaves a choice:
 - A fact gets `restated` if an older candidate of its series reports a value that disagrees with it,
   by the rule of "Agreement of copies". A blocked older candidate sets nothing.
 - In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
-  registry routes its family to the plug-in of the alias list. If two plug-ins map one standard
-  concept, the plug-in of the first family in name order wins.
+  registry routes its family to the plug-in of the alias list. A fact with dimensions gives no
+  candidate. It still counts as an other part in the part rule, and its conflict still gives a
+  `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
+  name order wins.
 - If no concept of an alias list resolves, the first part of its `PartAliases` that the filing
   reports wins, with `Synonym`. An other part in the same period and unit blocks it, in any
   dimension. A value of zero does not block. A conflict does.
@@ -1035,6 +1037,19 @@ It never fails.
   report of a quarterly report replaces an expected end within 7 days of it, or adds one. The fiscal
   period that the report names replaces the computed one. So a filing that never came still leaves
   an expected period.
+- **Length.** `Finding::Gap` names the length of the expected period in `quarters`, as in the
+  value key. A Q4 value and a fiscal year value share `period_end`, so the length is part of the
+  key.
+  - A step of 3 months gives 1 quarter, a step of 12 months 4 quarters.
+  - A quarterly report gives 1 quarter, a `10-QT` included.
+  - A fiscal year end gives 4 quarters, except at a `10-KT`.
+  - A `10-KT` reports a transition period, which is shorter than a year. Its length runs from the
+    previous fiscal year end, rounded as `Duration::from_dates` rounds, and is limited to 4
+    quarters. So a `10-KT` within 45 days of the previous fiscal year end gives 0 quarters, as its
+    value key does. A `10-KT` more than a year after the previous fiscal year end gives 4
+    quarters, because a fiscal year report between them is missing. A `10-KT` with no previous
+    fiscal year end gives 4 quarters.
+  - If no value of the timeline is a duration, as on a balance sheet, the gap has 0 quarters.
 - **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
   concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
   "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
@@ -1516,7 +1531,7 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 **Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
 
-**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP.
+**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The legal entity axis is a dimension, so a fact of a coregistrant gives no candidate either. The as-is layer keeps every fact with its dimensions.
 
 **Overlapping concept names** — First alias in the priority list wins. Already how `ConceptDefinition` works.
 

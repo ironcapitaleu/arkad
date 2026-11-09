@@ -31,6 +31,9 @@ pub struct FilingCandidates {
 
 /// Applies tiers 1 and 2 to the as-is facts of one filing after `core/dedup/more-precise@1`.
 ///
+/// Only facts without dimensions give candidates. A fact with dimensions gives no candidate, but it
+/// still counts in the part rule and still gives its [`Finding::Conflict`].
+///
 /// For each period and each alias list, the first concept of the list that the filing reports
 /// wins. The first concept gives confidence [`Confidence::Exact`], a later one
 /// [`Confidence::Synonym`]. A fact counts only if the registry routes its family to the plug-in of
@@ -67,7 +70,10 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
     let mut taken = BTreeSet::new();
     for plugin in plugins(copies, registry) {
         for aliases in plugin.aliases() {
-            for (period, concepts) in &periods {
+            for (period, concepts) in periods
+                .iter()
+                .filter(|(period, _)| period.dimensions.is_empty())
+            {
                 if taken.contains(&(aliases.element, period)) {
                     continue;
                 }
@@ -305,7 +311,7 @@ mod tests {
     use crate::core::concept::NamespaceFamily;
     use crate::core::dedup::{more_precise, newest_filing};
     use crate::core::elements::CanonicalElement;
-    use crate::core::fact::Decimals;
+    use crate::core::fact::{Decimals, FilingSource};
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
     use crate::core::taxonomy::reference::PartAliases;
@@ -383,6 +389,22 @@ mod tests {
             .iter()
             .map(|candidate| candidate.value.clone())
             .collect()
+    }
+
+    /// Returns the dimensions of the segment member `member` on the business segments axis.
+    fn segment(member: &str) -> Dimensions {
+        Dimensions::new([("BusinessSegments", member)])
+            .expect("Given one hardcoded pair, the creation should always succeed")
+    }
+
+    /// Returns two ranks of revenue on the services segment that disagree.
+    fn segment_conflict(filing: &FilingSource) -> Vec<AsIsFact> {
+        let mut quarter = fact(filing, "Revenues", "24000000000");
+        quarter.context.dimensions = segment("ServicesMember");
+        let mut stub = quarter.clone();
+        stub.value = FactValue::Numeric(BigDecimal::from(16_000_000_000_i64));
+        stub.copy_rank = 1;
+        vec![quarter, stub]
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -913,6 +935,76 @@ mod tests {
         )];
 
         let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_only_the_candidate_without_dimensions_when_the_filing_reports_both() {
+        let plugin = us_gaap_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut segment_revenue = fact(&filing, "Revenues", "100000000000");
+        segment_revenue.context.dimensions = segment("ServicesMember");
+        let facts = vec![fact(&filing, "Revenues", "391035000000"), segment_revenue];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            Dimensions::default(),
+            CandidateValue::Reported {
+                value: BigDecimal::from(391_035_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Exact,
+            },
+        )];
+
+        let result: Vec<(Dimensions, CandidateValue)> = resolve_aliases(&copies, &registry)
+            .candidates
+            .into_iter()
+            .map(|candidate| (candidate.dimensions, candidate.value))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_blocked_candidate_when_the_conflict_is_on_a_fact_with_dimensions() {
+        let plugin = us_gaap_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = segment_conflict(&filing);
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<CandidateValue> = Vec::new();
+
+        let result = values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_conflict_finding_when_the_conflict_is_on_a_fact_with_dimensions() {
+        let plugin = us_gaap_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = segment_conflict(&filing);
+        let quarter = &facts[0];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![Finding::Conflict {
+            entity: quarter.context.entity.clone(),
+            key: quarter.key(),
+            ranks: vec![1],
+            standard_concept: Some(CanonicalElement::Revenue),
+        }];
+
+        let result = resolve_aliases(&copies, &registry).findings;
 
         assert_eq!(result, expected_result);
     }

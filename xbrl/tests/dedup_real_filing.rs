@@ -90,13 +90,12 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElement, usize> 
 
 /// The count of standardized facts per standard concept in the fixture filing, for both sources.
 ///
-/// Equity has 27 facts: 3 without dimensions, and 24 with a member of the equity components axis.
-/// Interest expense has 1 fact without dimensions, because a conflict blocks the 2026 quarter.
-/// Every other concept has 2 facts without dimensions.
+/// Equity has 3 facts, and interest expense has 1, because a conflict blocks the 2026 quarter.
+/// Every other concept has 2. Facts with dimensions give no standardized fact.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
     BTreeMap::from([
         (CanonicalElement::Assets, 2),
-        (CanonicalElement::Equity, 27),
+        (CanonicalElement::Equity, 3),
         (CanonicalElement::Revenue, 2),
         (CanonicalElement::NetIncome, 2),
         (CanonicalElement::OperatingCashFlow, 2),
@@ -136,20 +135,16 @@ fn fedex_freight() -> EntityId {
     )
 }
 
-fn dimensions(pairs: &[(&str, &str)]) -> Dimensions {
-    Dimensions::new(pairs.iter().copied())
-        .expect("Given hardcoded pairs with distinct axes, the creation should always succeed")
-}
-
-/// Returns the series key of revenue in USD for the quarter that ends on `period_end`.
-fn revenue_quarter(period_end: NaiveDate, pairs: &[(&str, &str)]) -> SeriesKey {
+/// Returns the series key of revenue in USD without dimensions for the quarter that ends on
+/// `period_end`.
+fn revenue_quarter(period_end: NaiveDate) -> SeriesKey {
     SeriesKey {
         entity: fedex_freight(),
         concept: CanonicalElement::Revenue,
         period_end,
         quarters: 1,
         unit: usd(),
-        dimensions: dimensions(pairs),
+        dimensions: Dimensions::default(),
     }
 }
 
@@ -272,6 +267,25 @@ fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_qua
 }
 
 #[test]
+fn should_give_a_conflict_finding_for_each_conflict_with_dimensions_when_tiers_1_and_2_run_on_the_instance_facts()
+ {
+    let facts = parse_instance_fixture().facts;
+
+    // 52 of the 99 conflicts are on facts with dimensions. Each still gives a finding.
+    let expected_result = 52;
+
+    let result = candidates_of(&facts)
+        .findings
+        .iter()
+        .filter(|finding| {
+            matches!(finding, Finding::Conflict { key, .. } if !key.dimensions.is_empty())
+        })
+        .count();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
 fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
@@ -316,32 +330,11 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
 fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // The revenue concept has a conflict in each quarter, so each quarter gets no revenue.
+    // The revenue concept has a conflict in each quarter, so each quarter gets no revenue. The
+    // segment members of revenue have conflicts too, but a fact with dimensions gives no candidate.
     let expected_result = vec![
-        revenue_quarter(date(2025, 9, 30), &[]),
-        revenue_quarter(
-            date(2025, 9, 30),
-            &[("BusinessSegments", "ReportableSegment")],
-        ),
-        revenue_quarter(date(2025, 9, 30), &[("ProductOrService", "Economy")]),
-        revenue_quarter(date(2025, 9, 30), &[("ProductOrService", "Other")]),
-        revenue_quarter(date(2025, 9, 30), &[("ProductOrService", "Priority")]),
-        revenue_quarter(
-            date(2025, 9, 30),
-            &[("RelatedPartyTransactionsByRelatedParty", "RelatedParty")],
-        ),
-        revenue_quarter(date(2026, 9, 30), &[]),
-        revenue_quarter(
-            date(2026, 9, 30),
-            &[("BusinessSegments", "ReportableSegment")],
-        ),
-        revenue_quarter(date(2026, 9, 30), &[("ProductOrService", "Economy")]),
-        revenue_quarter(date(2026, 9, 30), &[("ProductOrService", "Other")]),
-        revenue_quarter(date(2026, 9, 30), &[("ProductOrService", "Priority")]),
-        revenue_quarter(
-            date(2026, 9, 30),
-            &[("RelatedPartyTransactionsByRelatedParty", "RelatedParty")],
-        ),
+        revenue_quarter(date(2025, 9, 30)),
+        revenue_quarter(date(2026, 9, 30)),
     ];
 
     let result: Vec<SeriesKey> = newest_filing(&candidates_of(&facts).candidates)
@@ -354,7 +347,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_34_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -365,7 +358,7 @@ fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_34_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
