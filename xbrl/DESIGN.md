@@ -958,8 +958,8 @@ Rules the code fixes where the table above leaves a choice:
 - In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
   registry routes its family to the plug-in of the alias list. A fact with dimensions gives no
   candidate. It still counts as an other part in the part rule, and its conflict still gives a
-  `Finding::Conflict`, which blocks nothing. If two plug-ins map one standard concept, the plug-in
-  of the first family in name order wins.
+  `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
+  name order wins.
 - If no concept of an alias list resolves, the first part of its `PartAliases` that the filing
   reports wins, with `Synonym`. An other part in the same period and unit blocks it, in any
   dimension. A value of zero does not block. A conflict does.
@@ -1522,7 +1522,7 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 **Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
 
-**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The as-is layer keeps every fact with its dimensions.
+**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The legal entity axis is a dimension, so a fact of a coregistrant gives no candidate either. The as-is layer keeps every fact with its dimensions.
 
 **Overlapping concept names** — First alias in the priority list wins. Already how `ConceptDefinition` works.
 

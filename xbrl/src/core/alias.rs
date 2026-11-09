@@ -46,7 +46,7 @@ pub struct FilingCandidates {
 /// such as the noncontrolling interest on the equity components axis, also stops the part.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
-/// lower alias, on a concept no plug-in maps, or on a fact with dimensions blocks nothing. Every conflict gives a
+/// lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict gives a
 /// [`Finding::Conflict`], with the standard concept if an alias list of its plug-in names the
 /// concept. If two plug-ins map one standard concept, the plug-in of the first family in name
 /// order wins.
@@ -311,7 +311,7 @@ mod tests {
     use crate::core::concept::NamespaceFamily;
     use crate::core::dedup::{more_precise, newest_filing};
     use crate::core::elements::CanonicalElement;
-    use crate::core::fact::Decimals;
+    use crate::core::fact::{Decimals, FilingSource};
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
     use crate::core::taxonomy::reference::PartAliases;
@@ -395,6 +395,16 @@ mod tests {
     fn segment(member: &str) -> Dimensions {
         Dimensions::new([("BusinessSegments", member)])
             .expect("Given one hardcoded pair, the creation should always succeed")
+    }
+
+    /// Returns two ranks of revenue on the services segment that disagree.
+    fn segment_conflict(filing: &FilingSource) -> Vec<AsIsFact> {
+        let mut quarter = fact(filing, "Revenues", "24000000000");
+        quarter.context.dimensions = segment("ServicesMember");
+        let mut stub = quarter.clone();
+        stub.value = FactValue::Numeric(BigDecimal::from(16_000_000_000_i64));
+        stub.copy_rank = 1;
+        vec![quarter, stub]
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -966,12 +976,7 @@ mod tests {
             "Given one plug-in with one family, the registry creation should always succeed",
         );
         let filing = source("0000320193-24-000123", date(2024, 11, 1));
-        let mut quarter = fact(&filing, "Revenues", "24000000000");
-        quarter.context.dimensions = segment("ServicesMember");
-        let mut stub = quarter.clone();
-        stub.value = FactValue::Numeric(BigDecimal::from(16_000_000_000_i64));
-        stub.copy_rank = 1;
-        let facts = vec![quarter, stub];
+        let facts = segment_conflict(&filing);
         let copies = more_precise(&facts);
 
         let expected_result: Vec<CandidateValue> = Vec::new();
@@ -988,12 +993,8 @@ mod tests {
             "Given one plug-in with one family, the registry creation should always succeed",
         );
         let filing = source("0000320193-24-000123", date(2024, 11, 1));
-        let mut quarter = fact(&filing, "Revenues", "24000000000");
-        quarter.context.dimensions = segment("ServicesMember");
-        let mut stub = quarter.clone();
-        stub.value = FactValue::Numeric(BigDecimal::from(16_000_000_000_i64));
-        stub.copy_rank = 1;
-        let facts = vec![quarter.clone(), stub];
+        let facts = segment_conflict(&filing);
+        let quarter = &facts[0];
         let copies = more_precise(&facts);
 
         let expected_result = vec![Finding::Conflict {

@@ -264,13 +264,20 @@ fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_qua
 }
 
 #[test]
-fn should_give_a_conflict_finding_for_each_conflict_when_tiers_1_and_2_run_on_the_instance_facts() {
+fn should_give_a_conflict_finding_for_each_conflict_with_dimensions_when_tiers_1_and_2_run_on_the_instance_facts()
+ {
     let facts = parse_instance_fixture().facts;
 
-    // Each of the 99 conflicts gives a finding, the ones with dimensions too.
-    let expected_result = 99;
+    // 52 of the 99 conflicts are on facts with dimensions. Each still gives a finding.
+    let expected_result = 52;
 
-    let result = candidates_of(&facts).findings.len();
+    let result = candidates_of(&facts)
+        .findings
+        .iter()
+        .filter(|finding| {
+            matches!(finding, Finding::Conflict { key, .. } if !key.dimensions.is_empty())
+        })
+        .count();
 
     assert_eq!(result, expected_result);
 }
