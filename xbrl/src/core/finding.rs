@@ -80,8 +80,8 @@ pub enum Finding {
         /// The key of the restated value.
         key: SeriesKey,
     },
-    /// The period of a standardized value hits a [`PeriodSignal`], so it is most likely a typo of
-    /// the filer. The value keeps its period as filed.
+    /// The period of a standardized value hits a [`PeriodSignal`]. In the measured Notes files,
+    /// such a period is a typo of the filer. The value keeps its period as filed.
     SuspiciousPeriod {
         /// The entity the value is about.
         entity: EntityId,

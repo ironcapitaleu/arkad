@@ -22,6 +22,11 @@ const EARLIEST_YEAR: i32 = 1900;
 /// 100 years. Ends 10 to 100 years ahead are real, such as debt terms or carbon price assumptions.
 const MONTHS_FROM_REPORT: u32 = 1200;
 
+/// The years by which the end of a confirming value can lie away from the period of report of the
+/// flagged filing. A 10-K compares 3 years, and every confirmation in the measurement ends within
+/// 2 years. The limit keeps a common value, such as 0, of another year from confirming by chance.
+const CONFIRMATION_YEARS: i32 = 3;
+
 /// Checks the period of each value in `series`, and returns one [`Finding::SuspiciousPeriod`] per
 /// value that hits a signal.
 ///
@@ -37,7 +42,9 @@ const MONTHS_FROM_REPORT: u32 = 1200;
 ///
 /// The value key of the finding is the first input of the value. Another value confirms the
 /// flagged value if it has the same concept, unit, dimensions, and value, hits no signal, ends on
-/// the same month and day, and comes from another filing. A typo in a comparative has its
+/// the same month and day within 3 years of the period of report of the flagged filing, and comes
+/// from another filing. If the flagged filing is missing from `filings` or has no period of
+/// report, no value confirms it. A typo in a comparative has its
 /// original in an earlier filing, and a typo in a new value has its comparative in a later one,
 /// so both count. If several filings confirm, the finding names the newest: the latest `filed`,
 /// then the latest `accepted`, then the highest filing ID.
@@ -69,12 +76,7 @@ fn signals(fact: &StandardizedFact, filings: &[Filing]) -> Vec<PeriodSignal> {
     if starts_before_earliest_year(&fact.period) {
         signals.push(PeriodSignal::StartBeforeEarliestYear);
     }
-    let report = fact
-        .inputs
-        .first()
-        .and_then(|key| filing(filings, &key.filing))
-        .and_then(|filing| filing.period_of_report);
-    if report.is_some_and(|report| is_far_from(fact.period.end(), report)) {
+    if report_of(fact, filings).is_some_and(|report| is_far_from(fact.period.end(), report)) {
         signals.push(PeriodSignal::EndFarFromReport);
     }
     signals
@@ -111,6 +113,7 @@ fn confirmation(
     filings: &[Filing],
 ) -> Option<FilingId> {
     let end = flagged.period.end();
+    let report = report_of(flagged, filings)?;
     series
         .facts
         .iter()
@@ -122,12 +125,21 @@ fn confirmation(
                 && other.value == flagged.value
                 && other.period.end().month() == end.month()
                 && other.period.end().day() == end.day()
+                && (other.period.end().year() - report.year()).abs() <= CONFIRMATION_YEARS
                 && signals(other, filings).is_empty()
         })
         .filter_map(|other| other.inputs.first().map(|key| &key.filing))
         .filter(|filing_id| *filing_id != flagged_filing)
         .max_by(|left, right| filing_order(left, right, filings))
         .cloned()
+}
+
+/// Returns the period of report of the filing of the first input of `fact`.
+fn report_of(fact: &StandardizedFact, filings: &[Filing]) -> Option<NaiveDate> {
+    fact.inputs
+        .first()
+        .and_then(|key| filing(filings, &key.filing))
+        .and_then(|filing| filing.period_of_report)
 }
 
 fn filing<'a>(filings: &'a [Filing], id: &FilingId) -> Option<&'a Filing> {
@@ -414,6 +426,41 @@ mod tests {
         let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
 
         let result = suspicious_periods(&facts, &[report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_no_filing_when_the_other_value_ends_more_than_3_years_from_the_report() {
+        let old = sample_filing("10-K", date(2016, 6, 30), "0630");
+        let report = sample_filing("10-Q", date(2024, 6, 30), "1231");
+        let year = value_in(&old, date(2015, 6, 30), 4, "0");
+        let flagged = value_in(&report, date(2923, 6, 30), 3603, "0");
+        let facts = series(vec![year, flagged.clone()]);
+
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
+
+        let result = suspicious_periods(&facts, &[old, report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_flag_start_before_earliest_year_when_only_the_exact_start_lies_before_1900() {
+        // 131 days round to 1 quarter. The estimate from 1 quarter starts on 1900-01-30, so only
+        // the exact start on 1899-12-20 raises the flag.
+        let period = Duration::from_dates(date(1899, 12, 20), date(1900, 4, 30))
+            .expect("Given an end after the start, the creation should always succeed");
+        let flagged = standardized(Period::Duration(period), "50000");
+        let facts = series(vec![flagged.clone()]);
+
+        let expected_result = vec![finding(
+            &flagged,
+            &[PeriodSignal::StartBeforeEarliestYear],
+            None,
+        )];
+
+        let result = suspicious_periods(&facts, &[]);
 
         assert_eq!(result, expected_result);
     }
