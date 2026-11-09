@@ -1547,7 +1547,9 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 **Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
 
-**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The legal entity axis is a dimension, so a fact of a coregistrant gives no candidate either. The as-is layer keeps every fact with its dimensions.
+**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The as-is layer keeps every fact with its dimensions.
+
+**Coregistrants** — A coregistrant is a second registrant, with its own CIK, that files the same report as the main filer. An example is a subsidiary in the combined report of a utility group. Its facts carry a member of the legal entity axis, which the instance XML gives as `dei:LegalEntityAxis` and Notes as `coreg`. A filer can also tag other entities on that axis, such as its parent. Both parsers write the member into `dimensions` on the `LegalEntity` axis. So tiers 1 and 2 give a coregistrant fact no candidate, and the standardized layer holds only facts of the main filer.
 
 **Overlapping concept names** — First alias in the priority list wins. Already how `ConceptDefinition` works.
 
