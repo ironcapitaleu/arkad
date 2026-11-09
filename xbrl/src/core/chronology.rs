@@ -1,7 +1,8 @@
 //! # Chronology
 //!
 //! Provides [`check_chronology`], the gap check: it orders the standardized values of each entity
-//! and concept over time, and reports gaps, overlaps, and restatements as findings.
+//! and concept over time, and reports gaps, overlaps, restatements, and suspicious periods as
+//! findings.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
@@ -18,6 +19,7 @@ use super::fiscal_period::FiscalPeriod;
 use super::form::Form;
 use super::invalid_value::{InvalidValue, InvalidValueReason};
 use super::period::days_of_quarters;
+use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
 
 /// The days by which two period ends can differ and still name the same period. A 52-53 week
@@ -47,7 +49,8 @@ const FISCAL_PERIODS: [&str; 4] = ["FY", "Q3", "Q2", "Q1"];
 pub struct Chronology {
     /// The values after dedup and derivation, unchanged.
     pub series: Series,
-    /// The `Gap`, `Overlap`, and `Restatement` findings, then the findings of dedup.
+    /// The `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings, then the findings of
+    /// dedup.
     pub findings: Vec<Finding>,
 }
 
@@ -72,6 +75,7 @@ pub struct Chronology {
 /// - An **overlap** is a pair of values of the same length whose ends lie closer than that length,
 ///   less 7 days.
 /// - A **restatement** is a value with `restated`.
+/// - A **suspicious period** is a period that hits a signal of [`suspicious_periods`].
 ///
 /// `findings` holds the findings of dedup, for example [`Finding::Conflict`], after the findings
 /// of the check.
@@ -95,6 +99,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
                 key: fact.series_key(),
             }),
     );
+    checked.extend(suspicious_periods(&series, filings));
     checked.extend(findings);
     Chronology {
         series,
@@ -468,6 +473,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::finding::PeriodSignal;
     use crate::core::period::{Duration, Period};
     use crate::core::standardized::StandardizedFact;
     use crate::tests::fixtures::sample_fact::{date, fact, filing, source, standardized};
@@ -904,6 +910,38 @@ mod tests {
 
         let result =
             check_chronology(series(vec![first, second], Vec::new()), &[], findings).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_order_restatements_then_suspicious_periods_then_dedup_findings() {
+        let mut restated = value(date(2023, 6, 30), 4);
+        restated.restated = true;
+        // 7,297 quarters start in the year 200.
+        let suspicious = value(date(2024, 12, 31), 7297);
+        let findings = vec![conflict()];
+
+        let expected_result = vec![
+            Finding::Restatement {
+                key: restated.series_key(),
+            },
+            Finding::SuspiciousPeriod {
+                entity: suspicious.entity.clone(),
+                key: suspicious.inputs[0].clone(),
+                standard_concept: CanonicalElement::Revenue,
+                signal: PeriodSignal::StartBeforeEarliestYear,
+                confirmed_by: None,
+            },
+            conflict(),
+        ];
+
+        let result = check_chronology(
+            series(vec![restated, suspicious], Vec::new()),
+            &[],
+            findings,
+        )
+        .findings;
 
         assert_eq!(result, expected_result);
     }

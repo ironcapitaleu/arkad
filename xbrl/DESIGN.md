@@ -62,6 +62,7 @@ xbrl/
       dedup.rs             <- dedup rules of the standardized layer
       period_identity.rs   <- core/period/q4-from-fy@1
       chronology.rs        <- order over time, gap check
+      suspicious_period.rs <- periods that no filer means, and the filing that confirms the value
     us_gaap/
       mod.rs               <- UsGaap: impl Taxonomy, family declarations
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
@@ -921,10 +922,10 @@ It never fails.
   delisting makes no gap.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
-- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`), the entity, the
+- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
-- **Report:** chronology returns its own `Gap`, `Overlap`, and `Restatement` findings next to the
+- **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
   series, together with the `Conflict` findings of `core/dedup/more-precise@1`. Chronology derives
   `Restatement` from the `restated` flag of `StandardizedFact`.
 - **A blocked period** (see "Conflict") has no value, so it is a gap with the reason `Conflict`.
@@ -963,8 +964,85 @@ It never fails.
   gets the reason `FiscalYearChange`. A short period gets no finding: no finding kind exists for it.
 - **Overlap.** Two values of one timeline and the same length overlap if their ends lie closer
   than that length less 7 days. An instant has no length, so it never overlaps.
-- **Order.** The gaps and overlaps of each timeline, then the restatements, then the findings of
-  dedup in the order the caller gives them.
+- **Order.** The gaps and overlaps of each timeline, then the restatements, then the suspicious
+  periods (see "Suspicious Periods"), then the findings of dedup in the order the caller gives
+  them.
+
+### Suspicious Periods
+
+Some Notes periods are typos of the filer. For example, a 10-Q of 2024 reports revenue for 3,603
+quarters that end on 2923-06-30. The filer meant 2023-06-30. The as-is layer keeps every value as
+filed. The series step flags the value with `Finding::SuspiciousPeriod` and keeps its period as
+filed. `core::suspicious_period::suspicious_periods` runs inside `check_chronology`.
+
+```text
+Finding::SuspiciousPeriod {
+    entity:            EntityId
+    key:               FactKey            // the first input: filing, as-is concept, period end, quarters
+    standard_concept:  CanonicalElement
+    signal:            PeriodSignal       // StartBeforeEarliestYear or EndFarFromReport
+    confirmed_by:      Option<FilingId>   // the newest other filing with the same value, or None
+}
+```
+
+**Signals.** A value gets one finding per signal it hits.
+
+| Signal | Rule |
+| ------ | ---- |
+| `StartBeforeEarliestYear` | The period starts before 1900. For an instant, the date counts. Without an exact start, the start is the end less the length of 91.3125 days per quarter |
+| `EndFarFromReport` | The end lies more than 100 years before or after the period of report of the filing of the value |
+
+**Confirmation.** Another value confirms a flagged value if it has the same entity, concept,
+unit, dimensions, and value, hits no signal, ends on the same month and day, and comes from
+another filing. A typo in a comparative has its original in an earlier filing. A typo in a new
+value has its comparative in a later filing. So both directions count. If several filings
+confirm, the finding names the newest, in the order of `core/dedup/newest-filing@1`.
+
+#### Measurement
+
+The thresholds come from a measurement over 23 Notes files, `2023q1` to `2025q3` and `2025_10`
+to `2026_10`. It counts rows of copy rank 0 in filings of 2023-10-01 to 2026-10-30, so every hit
+has 9 months of earlier filings that can confirm it. The window holds 305,793 filings of 10,211
+entities. The first filing of an entity comes from the SEC submissions JSON. A confirmation uses
+the rule above on the as-is rows of every concept, not only standard concepts.
+
+| Signal candidate | Rows | Filings | Entities | Confirmed |
+| ---------------- | ---- | ------- | -------- | --------- |
+| Start or instant before 1900 | 22 | 18 | 11 | 4 |
+| End more than 100 years after the period of report | 28 | 10 | 7 | 21 (11 by a later filing, 18 by an earlier one) |
+| End 10 to 100 years after the period of report | 365 | 203 | 61 | 15 |
+| End 10 to 100 years before the period of report | 42,681 | 10,977 | 2,316 | 2,157 |
+| Start before the first filing of the entity | 1,411,980 | 13,838 | 2,949 | not counted |
+| Start more than 3 years before the first filing | 13,797 | 2,253 | 610 | 45 |
+
+- **Before 1900.** Every hit is a typo, such as `0205` for `2025`, except 7 rows of one filer that
+  tag the area of a property on 1870-12-31.
+- **More than 100 years away.** 21 of 28 hits are confirmed. The `qtrs` of 4,007 in `2024q1`
+  belongs here: its end is 3024-07-31, and its start of 2022 is plausible. Ends 10 to 100 years
+  ahead are mostly real, such as debt terms, carbon prices, and health cost trend rates. Their 15
+  confirmations are equal values by chance, such as a gas price of 3.0. So the limit is 100 years.
+  An end more than 100 years back also lies before 1900 in this window.
+- **Start before the first filing.** The check leaves this signal out. 1,068,973 of the rows
+  belong to 1,184 new registrants whose first filing is from 2023 or later, such as the fixture
+  filer FedEx Freight with 493 rows. With 3 years for comparatives, 13,797 rows stay, and only
+  0.3% of them are confirmed. The rest are values since inception and the history of the
+  operating company after a SPAC merger or a reverse merger. The signal needs its own design.
+- **Comparatives.** Of the 25 confirmed hits of the first two signals, 15 are comparatives whose
+  original came first, and 10 are new values that a later comparative repeats.
+
+#### Cases Next to the Signals
+
+The measurement also counted four cases that the signals do not catch. Each has a ticket.
+
+| Case | Count | Decision |
+| ---- | ----- | -------- |
+| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derives a wrong fourth quarter from them. A guard is a bug fix of that rule |
+| Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | Detection sources for the guard above |
+| Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
+| Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | A design decision: whether a known length splits the conflict |
+
+Notes `durp` is `qtrs` less the true length in quarters. June alone has `qtrs` 0 and `durp`
+-0.32. The description of the SEC gives the opposite sign.
 
 ---
 
@@ -1102,7 +1180,7 @@ Series step:
 - Which filings trigger a new run of the series step for an entity.
 - The storage in the diagram is a proposal. The
   [silver layer design](../sec/design/pipeline/silver_layer.md) fixes the datasets, including
-  where the `Conflict`, `Gap`, `Overlap`, and `Restatement` findings live.
+  where the `Conflict`, `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings live.
 
 ---
 

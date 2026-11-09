@@ -119,7 +119,7 @@ store holds today.
 | `filings` | `Filing`, with the company attributes as filed | Notes `sub.tsv` and `txt.tsv`, or the instance and `submissions` | Parse filing |
 | `candidates` | Standardized candidate of one filing, blocked ones included | `as_is_facts` | Standardize filing |
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
-| `findings` | `Conflict`, `Gap`, `Overlap`, or `Restatement` finding | Both standardize steps | Standardize filing, standardize series |
+| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, or `SuspiciousPeriod` finding | Both standardize steps | Standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
 | `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
 
@@ -265,12 +265,13 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
-| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, or `Restatement` |
+| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, or `SuspiciousPeriod` |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict` |
-| `filing_id` | `utf8`, nullable | Set for `Conflict` |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. The signal for `SuspiciousPeriod`, for example `EndFarFromReport` |
+| `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
+| `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
 | `step` | `utf8` | `filing` or `series` |
 | `change` | `utf8`, nullable | `new`, `changed`, or `resolved` for a series row. Null for a filing row |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
@@ -279,8 +280,8 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 The key of a finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`, for a filing
 row and for a series row. The series rows of `findings` are append-only like `standardized_facts`. A null `filing_id` matches a
 null `filing_id` (`IS NOT DISTINCT FROM`). A finding is open from its
-`new` row until a later `resolved` row of the same key. A `changed` row records a new `reason` of an
-open finding.
+`new` row until a later `resolved` row of the same key. A `changed` row records a new `reason` or a new
+`confirmed_by` of an open finding.
 
 A dataset, not a report, for three reasons:
 
@@ -288,8 +289,8 @@ A dataset, not a report, for three reasons:
 - A report is a query over the dataset. A dataset is not a query over a report.
 - Silver keeps every finding of every run, with the time it opened and resolved.
 
-The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`, and
-`Restatement`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
+The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`,
+`Restatement`, and `SuspiciousPeriod`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
 read of the report takes the rows with `step = series`.
 
 ### `taxonomy_elements`

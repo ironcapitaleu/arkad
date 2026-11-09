@@ -80,6 +80,30 @@ pub enum Finding {
         /// The key of the restated value.
         key: SeriesKey,
     },
+    /// The period of a standardized value hits a [`PeriodSignal`], so it is most likely a typo of
+    /// the filer. The value keeps its period as filed.
+    SuspiciousPeriod {
+        /// The entity the value is about.
+        entity: EntityId,
+        /// The value key of the as-is fact. It names the filing, the as-is concept, and the period.
+        key: FactKey,
+        /// The standard concept of the value.
+        standard_concept: CanonicalElement,
+        /// The signal the period hits.
+        signal: PeriodSignal,
+        /// The newest other filing that reports the same value for a plausible period, or `None`.
+        confirmed_by: Option<FilingId>,
+    },
+}
+
+/// The rule that a [`Finding::SuspiciousPeriod`] hits.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PeriodSignal {
+    /// The period starts before 1900. For an instant, the date lies before 1900.
+    StartBeforeEarliestYear,
+    /// The period ends more than 100 years before or after the period of report of its filing.
+    EndFarFromReport,
 }
 
 /// The known reason of a [`Finding::Gap`].
@@ -107,5 +131,10 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_gap_reason() {
         implements_auto_traits::<GapReason>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_period_signal() {
+        implements_auto_traits::<PeriodSignal>();
     }
 }
