@@ -806,7 +806,8 @@ year-to-date only. The result has confidence `Derived`.
     from the dates alone. The `fye` field of a filing can lag the change by several filings, so
     the rule does not read it.
 - Notes gives no exact start, and the guard reads no `durp`, because the as-is layer does not keep
-  it. So a short first fiscal year in Notes with no `10-KT` and no change of `fye` still gets a Q4.
+  it. So a short first fiscal year in Notes with no `10-KT` and no earlier annual report still gets
+  a Q4.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
@@ -1075,7 +1076,7 @@ The measurement also counted four cases that the signals do not catch. Each has 
 
 | Case | Count | Decision |
 | ---- | ----- | -------- |
-| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule now skips a short year ("Period identities" in "Three Layers"). In Notes it catches only the years with a `10-KT` or a change of `fye` |
+| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule now skips a short year ("Period identities" in "Three Layers"). In Notes it catches only the years with a `10-KT` or an annual report less than 357 days earlier |
 | Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | Detection sources for the guard above |
 | Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
 | Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | A design decision: whether a known length splits the conflict |

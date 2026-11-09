@@ -99,7 +99,7 @@ struct ShortYearSignalsByEntity<'a> {
 #[derive(Debug)]
 struct ShortYearSignals {
     /// The periods of report of the transition reports.
-    report_ends: BTreeSet<NaiveDate>,
+    transition_ends: BTreeSet<NaiveDate>,
     /// The periods of report of the annual reports, transition reports included.
     annual_ends: BTreeSet<NaiveDate>,
 }
@@ -114,7 +114,7 @@ impl<'a> ShortYearSignalsByEntity<'a> {
             .into_iter()
             .map(|(entity, filings)| {
                 let signals = ShortYearSignals {
-                    report_ends: report_ends(&filings, &TRANSITION_REPORT_FORMS),
+                    transition_ends: report_ends(&filings, &TRANSITION_REPORT_FORMS),
                     annual_ends: report_ends(&filings, &ANNUAL_FORMS),
                 };
                 (entity, signals)
@@ -135,7 +135,7 @@ impl<'a> ShortYearSignalsByEntity<'a> {
         }
         let end = period.end();
         self.by_entity.get(&year.entity).is_some_and(|signals| {
-            signals.report_ends.contains(&end)
+            signals.transition_ends.contains(&end)
                 || signals
                     .annual_ends
                     .range(..end)
@@ -320,10 +320,7 @@ mod tests {
     #[test]
     fn should_derive_nothing_when_a_transition_report_ends_with_the_year() {
         let facts = short_year_without_start();
-        let filings = vec![
-            filing("10-K", date(2023, 1, 31), "1231"),
-            filing("10-KT", date(2023, 12, 31), "1231"),
-        ];
+        let filings = vec![filing("10-KT", date(2023, 12, 31), "1231")];
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
@@ -345,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn should_derive_nothing_when_the_year_ends_after_a_fiscal_year_end_change() {
+    fn should_derive_nothing_when_the_previous_annual_report_ends_under_357_days_before_the_year() {
         let facts = short_year_without_start();
         let filings = vec![
             filing("10-K", date(2023, 1, 31), "0131"),
@@ -360,7 +357,7 @@ mod tests {
     }
 
     #[test]
-    fn should_derive_the_fourth_quarter_when_the_year_ends_before_a_fiscal_year_end_change() {
+    fn should_derive_the_fourth_quarter_when_no_annual_report_ends_before_the_year() {
         let facts = series(vec![
             standardized(
                 Period::Duration(Duration::from_end_and_quarters(date(2023, 1, 31), 4)),
@@ -387,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn should_derive_the_fourth_quarter_when_a_full_year_ends_twelve_months_after_the_last_report_under_the_old_fiscal_year_end()
+    fn should_derive_the_fourth_quarter_when_a_full_year_ends_twelve_months_after_a_transition_report()
      {
         let facts = series(vec![
             standardized(
