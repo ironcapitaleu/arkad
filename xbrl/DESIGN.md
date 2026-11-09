@@ -542,8 +542,9 @@ ticket decides where the removed elements live.
   the `Synonym` confidence does not show it.
   - Wider: `ReceivablesNetCurrent` also holds receivables that are not from customers, so it is not
     an alias of `AccountsReceivable`.
-  - Part: `Cash` is one part of `CashAndCashEquivalentsAtCarryingValue`. A filer that reports
-    `Cash` and its cash equivalents without the total gets the part as the total.
+  - Part: `Cash` is one part of `CashAndCashEquivalentsAtCarryingValue`. As an alias, it gives
+    the part as the total to a filer that reports `Cash` and its cash equivalents without the
+    total. Such a filer now gets no value.
   - A comment at each list in `mappings.rs` names the concepts it leaves out and why.
   - The required lists of `Revenue` and `Equity` are older than this rule and still hold a part
     of the total. `RevenueFromContractWithCustomerExcludingAssessedTax` is a part of `Revenues`.
