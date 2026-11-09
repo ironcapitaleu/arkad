@@ -33,7 +33,7 @@ const QUARTERLY_FORMS: [&str; 2] = ["10-Q", "10-QT"];
 const DOMESTIC_ANNUAL_FORMS: [&str; 2] = ["10-K", "10-KT"];
 
 /// The forms of an annual report. A `10-KT` reports a transition period.
-const ANNUAL_FORMS: [&str; 4] = ["10-K", "10-KT", "20-F", "40-F"];
+pub(super) const ANNUAL_FORMS: [&str; 4] = ["10-K", "10-KT", "20-F", "40-F"];
 
 /// The months between two expected periods of a filer that reports every quarter.
 const QUARTER_MONTHS: u32 = 3;
@@ -304,7 +304,7 @@ impl Calendar {
 }
 
 /// Returns `true` if the form, without the amendment suffix, is one of `forms`.
-fn is_form(form: &Form, forms: &[&str]) -> bool {
+pub(super) fn is_form(form: &Form, forms: &[&str]) -> bool {
     let base = form
         .as_str()
         .strip_suffix(Form::AMENDMENT_SUFFIX)
