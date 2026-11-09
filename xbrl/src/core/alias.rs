@@ -5,6 +5,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 
 use super::candidate::{Candidate, CandidateValue};
@@ -37,7 +38,10 @@ pub struct FilingCandidates {
 ///
 /// If no concept of the list resolves, the first part of [`ConceptAliases::parts`] that the filing
 /// reports wins, with the part rule and confidence [`Confidence::Synonym`]. A part wins only if the
-/// filing reports none of the other parts in the period, with or without a conflict.
+/// filing reports none of the other parts with a value other than zero, or with a conflict, in the
+/// period. The check covers every dimension of the period, so an other part with a member, such as
+/// the noncontrolling interest on the equity components axis, also stops the part. An other part
+/// of zero stops nothing, because then the part equals the whole.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
 /// lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict gives a
@@ -59,6 +63,7 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
             concepts.insert(&ranks[0].concept, Reported::Conflict(ranks));
         }
     }
+    let present = present_in_any_dimension(&periods);
     let mut candidates = Vec::new();
     let mut taken = BTreeSet::new();
     for plugin in plugins(copies, registry) {
@@ -67,7 +72,11 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
                 if taken.contains(&(aliases.element, period)) {
                     continue;
                 }
-                if let Some(candidate) = pick(plugin, aliases, concepts, registry) {
+                let other_part_reported =
+                    |other: &ConceptName| present.contains(&(period.span(), other));
+                if let Some(candidate) =
+                    pick(plugin, aliases, concepts, &other_part_reported, registry)
+                {
                     taken.insert((aliases.element, period));
                     candidates.push(candidate);
                 }
@@ -111,7 +120,19 @@ struct PeriodKey {
     dimensions: Dimensions,
 }
 
+/// The fields of a [`PeriodKey`] without the dimensions.
+type PeriodSpan = (EntityId, NaiveDate, u16, Unit);
+
 impl PeriodKey {
+    fn span(&self) -> PeriodSpan {
+        (
+            self.entity.clone(),
+            self.period_end,
+            self.quarters,
+            self.unit.clone(),
+        )
+    }
+
     fn of(fact: &AsIsFact) -> Option<Self> {
         Some(Self {
             entity: fact.context.entity.clone(),
@@ -146,36 +167,58 @@ fn plugins<'a>(copies: &Copies<'_>, registry: &Registry<'a>) -> Vec<&'a dyn Taxo
     plugins
 }
 
+/// Returns the period without dimensions and the concept of each fact with a value other than
+/// zero, and of each conflict.
+fn present_in_any_dimension<'a>(
+    periods: &BTreeMap<PeriodKey, BTreeMap<&'a ConceptName, Reported<'_>>>,
+) -> BTreeSet<(PeriodSpan, &'a ConceptName)> {
+    let zero = BigDecimal::from(0);
+    periods
+        .iter()
+        .flat_map(|(period, concepts)| {
+            concepts
+                .iter()
+                .filter(|(_, reported)| match reported {
+                    Reported::Single(fact) => {
+                        !matches!(&fact.value, FactValue::Numeric(value) if *value == zero)
+                    }
+                    Reported::Conflict(_) => true,
+                })
+                .map(|(concept, _)| (period.span(), *concept))
+        })
+        .collect()
+}
+
 fn pick(
     plugin: &dyn Taxonomy,
     aliases: &ConceptAliases,
     concepts: &BTreeMap<&ConceptName, Reported<'_>>,
+    other_part_reported: &dyn Fn(&ConceptName) -> bool,
     registry: &Registry<'_>,
 ) -> Option<Candidate> {
-    let (position, reported, rule) = first_reported(&aliases.concepts, plugin, concepts, registry)
-        .map(|(position, reported)| (position, reported, &aliases.rule))
-        .or_else(|| {
-            let parts = aliases.parts.as_ref()?;
-            let other_part_reported = parts
-                .other_parts
-                .iter()
-                .any(|other| concepts.contains_key(other));
-            if other_part_reported {
-                return None;
-            }
-            let (_, reported) = first_reported(&parts.parts, plugin, concepts, registry)?;
-            Some((1, reported, &parts.rule))
-        })?;
+    let (confidence, reported, rule) =
+        first_reported(&aliases.concepts, plugin, concepts, registry)
+            .map(|(position, reported)| {
+                let confidence = if position == 0 {
+                    Confidence::Exact
+                } else {
+                    Confidence::Synonym
+                };
+                (confidence, reported, &aliases.rule)
+            })
+            .or_else(|| {
+                let parts = aliases.parts.as_ref()?;
+                if parts.other_parts.iter().any(other_part_reported) {
+                    return None;
+                }
+                let (_, reported) = first_reported(&parts.parts, plugin, concepts, registry)?;
+                Some((Confidence::Synonym, reported, &parts.rule))
+            })?;
     let fact = reported.first();
     let (value, inputs) = match reported {
         Reported::Single(fact) => {
             let FactValue::Numeric(value) = &fact.value else {
                 return None;
-            };
-            let confidence = if position == 0 {
-                Confidence::Exact
-            } else {
-                Confidence::Synonym
             };
             let value = CandidateValue::Reported {
                 value: value.clone(),
@@ -296,8 +339,8 @@ mod tests {
         )
     }
 
-    /// Returns a plug-in whose equity list holds the total, with `StockholdersEquity` as a part
-    /// next to `MinorityInterest`.
+    /// Returns a plug-in whose equity list holds the total, with `StockholdersEquity` and then
+    /// `ParentEquity` as parts next to `MinorityInterest`.
     fn equity_plugin() -> FakeTaxonomy {
         let equity = ConceptAliases {
             element: CanonicalElement::Equity,
@@ -308,7 +351,10 @@ mod tests {
             )],
             parts: Some(PartAliases {
                 rule: rule_of("us-gaap/part/equity@1"),
-                parts: vec![concept_of("us-gaap", "StockholdersEquity")],
+                parts: vec![
+                    concept_of("us-gaap", "StockholdersEquity"),
+                    concept_of("us-gaap", "ParentEquity"),
+                ],
                 other_parts: vec![concept_of("us-gaap", "MinorityInterest")],
             }),
         };
@@ -794,6 +840,80 @@ mod tests {
         }];
 
         let result = resolve_aliases(&copies, &registry).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_another_part_has_a_member_of_an_axis() {
+        let plugin = equity_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut minority = fact(&filing, "MinorityInterest", "1000000000");
+        minority.context.dimensions = Dimensions::new([(
+            "StatementEquityComponentsAxis",
+            "NoncontrollingInterestMember",
+        )])
+        .expect("Given one hardcoded pair, the creation should always succeed");
+        let facts = vec![fact(&filing, "StockholdersEquity", "56950000000"), minority];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_part_candidate_when_another_part_is_zero() {
+        let plugin = equity_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "StockholdersEquity", "56950000000"),
+            fact(&filing, "MinorityInterest", "0"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/equity@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(56_950_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_second_part_when_the_filing_reports_only_the_second_part() {
+        let plugin = equity_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(&filing, "ParentEquity", "56950000000")];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/equity@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(56_950_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
 
         assert_eq!(result, expected_result);
     }

@@ -29,19 +29,19 @@ pub struct ConceptAliases {
     pub parts: Option<PartAliases>,
 }
 
-/// The parts of a standard concept that stand for the whole when a filing reports no other part.
+/// The parts of a standard concept that stand for the whole if a filing reports no other part.
 ///
-/// A part is a taxonomy concept that holds a piece of the standard concept, for example
-/// `StockholdersEquity` for the equity with the noncontrolling interest. A filing that reports the
-/// part and none of [`PartAliases::other_parts`] in one period has no other piece, so the part
-/// equals the whole.
+/// A part is a taxonomy concept that holds a part of the standard concept, for example
+/// `StockholdersEquity` for the equity with the noncontrolling interest. If a filing reports the
+/// part and none of [`PartAliases::other_parts`] in one period, the part equals the whole. An other
+/// part counts in any dimension of the period, and only with a value other than zero.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct PartAliases {
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     pub rule: RuleId,
     /// The parts in priority order.
     pub parts: Vec<ConceptName>,
-    /// The other pieces of the standard concept. If a filing reports one of them in the period, no
+    /// The other parts of the standard concept. If a filing reports one of them in the period, no
     /// part stands for the whole.
     pub other_parts: Vec<ConceptName>,
 }

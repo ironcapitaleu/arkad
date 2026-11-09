@@ -1,6 +1,6 @@
 ---
 source: xbrl/DESIGN.md (section "3) Resolution", "Three Layers")
-last-verified: 2026-11-08
+last-verified: 2026-11-09
 update-frequency: on-design-change
 ---
 
@@ -16,7 +16,8 @@ Example: `Assets` → CanonicalElement::Assets
 
 ## Tier 2: Synonym/Alias (Confidence::Synonym)
 
-The concept is a later concept of the alias list, or an ESEF anchor (planned `ifrs` plug-in).
+The concept is a later concept of the alias list, a part that the filing reports with no other
+part (the part rule, `PartAliases`), or an ESEF anchor (planned `ifrs` plug-in).
 
 Example: `RevenueFromContractWithCustomerExcludingAssessedTax` → CanonicalElement::Revenue (alias defined in REQUIRED_CONCEPTS for Revenue)
 
@@ -55,7 +56,7 @@ The procedure is in `SKILL.md`, "Computation Rules (Tier 4)".
 | Tier | Confidence | Mechanism |
 | --- | --- | --- |
 | 1 | Exact | The first concept of the alias list of a plug-in |
-| 2 | Synonym | A later concept of the alias list, or an ESEF anchor (planned `ifrs` plug-in) |
+| 2 | Synonym | A later concept of the alias list, a part with no other part reported, or an ESEF anchor (planned `ifrs` plug-in) |
 | 3 | Derived | An identity the core knows: an SFAC 6 identity or a period identity |
 | 4 | Computed | A sum along the calculation tree of a plug-in |
 

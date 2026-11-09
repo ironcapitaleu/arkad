@@ -905,6 +905,9 @@ Rules the code fixes where the table above leaves a choice:
 - In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
   registry routes its family to the plug-in of the alias list. If two plug-ins map one standard
   concept, the plug-in of the first family in name order wins.
+- If no concept of an alias list resolves, the first part of its `PartAliases` that the filing
+  reports wins, with `Synonym`. It wins only if the filing reports none of `other_parts` in the
+  same period and unit, in any dimension, with a value other than zero or with a conflict.
 
 Other cases:
 
