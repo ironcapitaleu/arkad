@@ -5,9 +5,11 @@
 //!
 //! ## Modules
 //!
-//! - [`builders`]: The helpers that build a filing source, an as-is fact, a candidate, and a
-//!   standardized fact.
+//! - [`builders`]: The helpers that build a filing source, an as-is fact, a candidate, a
+//!   standardized fact, and a filing.
 
 pub mod builders;
 
-pub use builders::{candidate, date, fact, revenue_aliases, source, standardized, us_gaap_plugin};
+pub use builders::{
+    candidate, date, fact, filing, revenue_aliases, source, standardized, us_gaap_plugin,
+};

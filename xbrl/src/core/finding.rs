@@ -2,11 +2,16 @@
 //!
 //! Provides [`Finding`], a fact about the data that a step reports without failing the run.
 
+use chrono::NaiveDate;
+
+use super::candidate::SeriesKey;
 use super::concept::NamespaceFamily;
 use super::elements::CanonicalElement;
-use super::fact::FactKey;
+use super::fact::{Dimensions, FactKey};
 use super::filing::{EntityId, FilingId};
+use super::fiscal_period::FiscalPeriod;
 use super::invalid_value::InvalidValue;
+use super::unit::Unit;
 
 /// A fact about the data that a step reports without failing the run.
 ///
@@ -44,6 +49,49 @@ pub enum Finding {
         /// The standard concept of the as-is concept, if a plug-in maps it.
         standard_concept: Option<CanonicalElement>,
     },
+    /// The series has no value for an expected period between its first and its last value.
+    Gap {
+        /// The entity the series is about.
+        entity: EntityId,
+        /// The standard concept of the series.
+        concept: CanonicalElement,
+        /// The unit of the series.
+        unit: Unit,
+        /// The axis and member pairs of the series.
+        dimensions: Dimensions,
+        /// The end of the expected period.
+        period_end: NaiveDate,
+        /// The expected fiscal period, for example `Q2`, if it is known.
+        fiscal_period: Option<FiscalPeriod>,
+        /// Why the value is missing, if the reason is known.
+        reason: Option<GapReason>,
+    },
+    /// Two values of one series have the same length, and their periods overlap without being
+    /// the same period.
+    Overlap {
+        /// The key of the value with the earlier end.
+        first: SeriesKey,
+        /// The key of the value with the later end.
+        second: SeriesKey,
+    },
+    /// An older filing reported another value for the standardized value of this key or for one
+    /// of its inputs.
+    Restatement {
+        /// The key of the restated value.
+        key: SeriesKey,
+    },
+}
+
+/// The known reason of a [`Finding::Gap`].
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GapReason {
+    /// The copy ranks of the newest filing disagree, so dedup blocks the value. A
+    /// [`Finding::Conflict`] names the ranks.
+    Conflict,
+    /// The expected period lies in the 12 months after the latest period of report under the old
+    /// fiscal year end.
+    FiscalYearChange,
 }
 
 #[cfg(test)]
@@ -54,5 +102,10 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_finding() {
         implements_auto_traits::<Finding>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_gap_reason() {
+        implements_auto_traits::<GapReason>();
     }
 }

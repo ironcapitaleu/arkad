@@ -59,6 +59,11 @@ const QUARTER_NUMERATOR: i64 = 1461;
 /// The denominator of the length of a quarter in days. See [`QUARTER_NUMERATOR`].
 const QUARTER_DENOMINATOR: i64 = 16;
 
+/// Returns the days of `quarters` quarters, rounded down.
+pub(crate) fn days_of_quarters(quarters: u16) -> i64 {
+    i64::from(quarters) * QUARTER_NUMERATOR / QUARTER_DENOMINATOR
+}
+
 /// A span of time: an exact end, a length in quarters, and the exact start if the source gives it.
 ///
 /// The Notes data set gives the length but often no exact start. So the length is a field, and the

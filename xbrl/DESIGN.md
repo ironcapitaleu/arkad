@@ -921,6 +921,43 @@ It never fails.
   series, together with the `Conflict` findings of `core/dedup/more-precise@1`. Chronology derives
   `Restatement` from the `restated` flag of `StandardizedFact`.
 - **A blocked period** (see "Conflict") has no value, so it is a gap with the reason `Conflict`.
+  A blocked period after the last value is no gap. Only its `Conflict` finding reports it.
+  `Conflict` wins over `FiscalYearChange` as the reason.
+
+`core::chronology::check_chronology` fixes these rules where the list above leaves a choice:
+
+- **Timeline.** One entity, standard concept, unit, and dimensions. Values of every length belong
+  to it. A value of any length fills an expected period if its end lies within 7 days of the
+  expected end. A 52-53 week year ends up to 6 days away from the end of its month.
+- **Forms.** The form counts without its `/A` suffix. `10-Q` and `10-QT` make a quarterly filer.
+  `10-K`, `10-KT`, `20-F`, and `40-F` are annual reports. A `T` form reports a transition period.
+  An entity with neither expects no period.
+- **Expected ends.** The period of report of each annual report is a fiscal year end. Between two
+  fiscal year ends, the check steps back from the later end while the step lies more than 7 days
+  after the earlier end. The step is 3 months if the annual report for the later end is a `10-K` or
+  `10-KT` and the entity filed a quarterly report before that end, otherwise 12 months. So an issuer
+  that moves from 20-F to 10-K and 10-Q expects quarters only from the year of its first quarterly
+  report on. A 10-Q filer that skips the 10-Q filings of a whole year still expects its quarters. A
+  filer that moves to 20-F or 40-F expects only fiscal years again. After the last fiscal year end,
+  the check steps forward up to the latest period of report. The step is 3 months if the last annual
+  report is a `10-K` or `10-KT` and the entity filed any quarterly report, otherwise 12 months.
+  Before the first fiscal year end, only the quarterly reports give expected ends. The period of
+  report of a quarterly report replaces an expected end within 7 days of it, or adds one. The fiscal
+  period that the report names replaces the computed one. So a filing that never came still leaves
+  an expected period.
+- **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
+  concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
+  "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
+- **Fiscal year change.** The filings count in the order they were filed, because a filing
+  states its fiscal year end as of its filing date. An amendment does not count, because it can
+  state the end of the year it amends. The text `0930` of the Notes data set and
+  `--09-30` of an instance document give the same end. Two ends more than 7 days apart around the
+  year are a change. A gap in the 12 months after the latest period of report under the old end
+  gets the reason `FiscalYearChange`. A short period gets no finding: no finding kind exists for it.
+- **Overlap.** Two values of one timeline and the same length overlap if their ends lie closer
+  than that length less 7 days. An instant has no length, so it never overlaps.
+- **Order.** The gaps and overlaps of each timeline, then the restatements, then the findings of
+  dedup in the order the caller gives them.
 
 ---
 

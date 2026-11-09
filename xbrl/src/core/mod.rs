@@ -10,6 +10,7 @@
 //!
 //! - [`alias`]: Tiers 1 and 2 of resolution on one filing.
 //! - [`candidate`]: The value one filing gives for one standard concept.
+//! - [`chronology`]: The gap check over time.
 //! - [`concept`]: Concept names, namespace families, and namespaces.
 //! - [`confidence`]: How a standardized value was resolved.
 //! - [`dedup`]: The dedup rules of the standardized layer.
@@ -34,6 +35,7 @@
 
 pub mod alias;
 pub mod candidate;
+pub mod chronology;
 pub mod concept;
 pub mod confidence;
 pub mod dedup;
