@@ -195,13 +195,15 @@ Invariant: `Assets = Liabilities + Equity`
 
 ### 0.3) Income Statement
 
-Roll-up items:
-- Revenue
-- Expenses
-- Gains
-- Losses
-- Net Income (= Revenue - Expenses + Gains - Losses)
-- Comprehensive Income (= Net Income + OCI items)
+A cascade of subtotals from revenue to net income:
+- Revenue − Cost of Revenue = Gross Profit
+- Gross Profit − Operating Expenses = Operating Income
+- Operating Income − Interest Expense = Pretax Income
+- Pretax Income − Income Tax Expense = Net Income
+- Net Income + OCI = Comprehensive Income
+
+Each step also has an "other" line. SFAC 6 splits income into revenue, expenses, gains, and losses,
+but filers do not present these totals. See "Roll-Up Tree".
 
 ### 0.4) Changes in Equity
 
@@ -209,40 +211,12 @@ Links the other statements. Explains additional investment / payout of company s
 
 `ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners`
 
+The MVP builds no statement of changes in equity. See "Roll-Up Tree", "Side Groups".
+
 ### CanonicalElement Enum
 
-> **[DECISION NEEDED]** Enumerate the full set before implementation. Draft below.
-
-```rust
-enum CanonicalElement {
-    // --- SFAC 6 Level 1 (root invariants) ---
-    Assets, Liabilities, Equity,
-    Revenue, Expenses, Gains, Losses, NetIncome,
-    OtherComprehensiveIncome, ComprehensiveIncome,
-    OperatingCashFlow, InvestingCashFlow, FinancingCashFlow,
-
-    // --- Level 2: Balance Sheet sub-elements ---
-    CurrentAssets, NonCurrentAssets,
-    CashAndEquivalents, ShortTermInvestments,
-    AccountsReceivable, Inventory,
-    PropertyPlantEquipment, Goodwill, IntangibleAssets,
-    CurrentLiabilities, NonCurrentLiabilities,
-    LongTermDebt, RetainedEarnings,
-
-    // --- Level 2: Income Statement sub-elements ---
-    CostOfRevenue, GrossProfit,
-    SellingGeneralAdmin, ResearchDevelopment,
-    InterestExpense, OperatingIncome,
-    EarningsPerShareBasic, EarningsPerShareDiluted,
-
-    // --- Level 2: Cash Flow sub-elements ---
-    DepreciationAmortization, CapitalExpenditures,
-    DividendsPaid, ShareRepurchases,
-    ShareBasedCompensation,
-}
-```
-
-These are all standard US-GAAP taxonomy concepts served by the SEC JSON API. Verified against Apple and Alphabet company facts data.
+Decided. The concepts are the lines of the trees and the side groups in "Roll-Up Tree": 52
+concepts. `xbrl/src/core/elements.rs` holds the enum.
 
 ### Standard Concept Set
 
@@ -252,12 +226,481 @@ equity, income, and expenses in the same terms. So US GAAP and IFRS both map int
 the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` both map to
 `Revenue`.
 
-- The MVP freezes the 13 Level-1 roots. Level 2 grows by the checklist of the `xbrl-standardization`
-  skill.
+- The MVP freezes the top lines of the trees in "Roll-Up Tree". A new concept gets a placement in
+  a tree or in a side group, by the checklist of the `xbrl-standardization` skill.
 - A taxonomy concept with no faithful match stays an as-is fact. It never maps to the nearest
   element.
 - For one entity, period, and dimensions, at most one concept fills each element. The alias
   order picks it.
+
+### Roll-Up Tree
+
+The standard concepts form one fixed tree per statement. The tree is the same for every company
+and every source. It gives the layout of each statement, the "other" lines, the checks, and one
+more Tier 3 rule. A concept that belongs to no sum sits in a side group next to the trees.
+
+#### Groups
+
+A **group** is one sum: a parent and the concepts that add up to it. Each concept has one
+**placement**:
+
+- `Top(statement)`: a total or subtotal on the top level of a statement, such as `Assets` or
+  `GrossProfit`.
+- `Child { group, weight }`: a member of one group. The weight is `+1` or `−1`.
+- `Side(side_group)`: a value outside every sum, such as `EarningsPerShareBasic`.
+
+A group has one of two kinds:
+
+- A **breakdown** splits a parent into its components: `CurrentAssets` into cash, receivables, and
+  inventory. The children of a breakdown sit below the parent.
+- A **step** makes a subtotal from a **start** line and items: `GrossProfit` = `Revenue` −
+  `CostOfRevenue`. The start is the previous subtotal, so steps chain into the cascade of the income
+  statement. The start can belong to another statement: `NetIncome` starts the cash flow step of
+  `OperatingCashFlow`.
+
+A concept is a child in at most one group. It can be the parent of more than one group and the
+start of more than one step. For example, `NetIncome` is the result of the step from
+`PretaxIncome`. It is also the parent of its split between the parent and the noncontrolling
+interest, and the start of two steps.
+
+The weight follows the sign convention of the `accounting` skill. A value keeps the sign of the
+filing, and an expense or a payment is positive. So `CostOfRevenue`, `CapitalExpenditures`, and
+`TreasuryStock` carry the weight `−1`.
+
+A group is **closed** if its members equal the parent by definition, such as
+`Assets` = `CurrentAssets` + `NonCurrentAssets`. Every other group is **open**: a filer reports
+lines that no standard concept holds, so the children do not cover the parent.
+
+A child of a closed group can count as **zero if absent**. Most filers have no temporary equity, no
+noncontrolling interest, and no exchange rate effect, and they report no zero for it. If such a
+child has no value for the period, the group uses zero.
+
+#### "Other" Lines
+
+Each open group gets one "other" line: the parent less the start and the weighted children.
+
+```
+other = parent − start − Σ(weight × child)
+```
+
+- The other line exists only if the parent has a value. A child with no value counts as zero, so
+  its amount lands in the other line.
+- If a parent has no value, it is transparent. Its children count in the group of the nearest
+  ancestor with a value. For example, a bank reports no `CurrentAssets`, so `CashAndEquivalents`
+  counts against `Assets`. In the cascade, a step whose start has no value starts from the previous
+  subtotal. The items of the skipped step join it.
+- A closed group gets no other line. Its members must add up, and the check of "Checks the Tree
+  Gives" tests it.
+- **Silver does not store other lines.** The statement output type computes them at read time from
+  the standardized facts and the table. An other line is a pure function of stored values and a
+  fixed table. A stored copy goes stale whenever a child or the table changes, and it has no as-is
+  inputs to name. The gold load builds statements with the output type, so it gets the same lines.
+
+#### Balance Sheet
+
+Instant values. Two top lines, `Assets` and `LiabilitiesAndEquity`, and the identity
+`Assets` = `LiabilitiesAndEquity`. New concepts are in bold.
+
+| Concept | Group | Parent | Weight | Closed | Zero if absent |
+| ------- | ----- | ------ | ------ | ------ | -------------- |
+| `Assets` | top | | | | |
+| `CurrentAssets` | `assets` | `Assets` | +1 | yes | no |
+| `NonCurrentAssets` | `assets` | `Assets` | +1 | yes | no |
+| `CashAndEquivalents` | `current-assets` | `CurrentAssets` | +1 | no | |
+| `ShortTermInvestments` | `current-assets` | `CurrentAssets` | +1 | no | |
+| `AccountsReceivable` | `current-assets` | `CurrentAssets` | +1 | no | |
+| `Inventory` | `current-assets` | `CurrentAssets` | +1 | no | |
+| `PropertyPlantEquipment` | `non-current-assets` | `NonCurrentAssets` | +1 | no | |
+| `Goodwill` | `non-current-assets` | `NonCurrentAssets` | +1 | no | |
+| `IntangibleAssets` | `non-current-assets` | `NonCurrentAssets` | +1 | no | |
+| **`LiabilitiesAndEquity`** | top | | | | |
+| `Liabilities` | `liabilities-and-equity` | `LiabilitiesAndEquity` | +1 | yes | no |
+| **`TemporaryEquity`** | `liabilities-and-equity` | `LiabilitiesAndEquity` | +1 | yes | yes |
+| `Equity` | `liabilities-and-equity` | `LiabilitiesAndEquity` | +1 | yes | no |
+| `CurrentLiabilities` | `liabilities` | `Liabilities` | +1 | yes | no |
+| `NonCurrentLiabilities` | `liabilities` | `Liabilities` | +1 | yes | no |
+| **`AccountsPayable`** | `current-liabilities` | `CurrentLiabilities` | +1 | no | |
+| **`ShortTermDebt`** | `current-liabilities` | `CurrentLiabilities` | +1 | no | |
+| `LongTermDebt` | `non-current-liabilities` | `NonCurrentLiabilities` | +1 | no | |
+| **`EquityAttributableToParent`** | `equity` | `Equity` | +1 | yes | no |
+| **`NoncontrollingInterest`** | `equity` | `Equity` | +1 | yes | yes |
+| **`AdditionalPaidInCapital`** | `equity-attributable-to-parent` | `EquityAttributableToParent` | +1 | no | |
+| `RetainedEarnings` | `equity-attributable-to-parent` | `EquityAttributableToParent` | +1 | no | |
+| **`TreasuryStock`** | `equity-attributable-to-parent` | `EquityAttributableToParent` | −1 | no | |
+| **`AccumulatedOtherComprehensiveIncome`** | `equity-attributable-to-parent` | `EquityAttributableToParent` | +1 | no | |
+
+- `LiabilitiesAndEquity` holds temporary equity. Under SEC rules, redeemable stock sits between
+  liabilities and equity. Without it, `Assets` = `Liabilities` + `Equity` fails for each filer with
+  temporary equity.
+- `CommitmentsAndContingencies` is also a child of `LiabilitiesAndStockholdersEquity` in the 2026
+  calculation tree. Filers tag it with no value or zero. The group leaves it out. A filer that gives
+  it a value fails the check, and the finding shows it.
+- A classified balance sheet makes `assets` and `liabilities` closed. An unclassified balance
+  sheet, such as of a bank or an insurer, reports no current subtotals. Then both subtotals are
+  transparent, and the children count against `Assets` and `Liabilities`.
+
+#### Income Statement
+
+Duration values. The income statement is a cascade of steps, not a tree of components. The
+balance sheet splits each total into parts. The income statement starts from revenue and adds or
+subtracts items until it reaches net income. Each subtotal is the start of the next step.
+
+| Concept | Group | Kind | Parent | Start | Weight | Closed |
+| ------- | ----- | ---- | ------ | ----- | ------ | ------ |
+| `Revenue` | top | | | | | |
+| `CostOfRevenue` | `gross-profit` | step | `GrossProfit` | `Revenue` | −1 | yes |
+| `GrossProfit` | top | | | | | |
+| **`OperatingExpenses`** | `operating-income` | step | `OperatingIncome` | `GrossProfit` | −1 | no |
+| `SellingGeneralAdmin` | `operating-expenses` | breakdown | `OperatingExpenses` | | +1 | no |
+| `ResearchDevelopment` | `operating-expenses` | breakdown | `OperatingExpenses` | | +1 | no |
+| `OperatingIncome` | top | | | | | |
+| `InterestExpense` | `pretax-income` | step | `PretaxIncome` | `OperatingIncome` | −1 | no |
+| **`PretaxIncome`** | top | | | | | |
+| **`IncomeTaxExpense`** | `net-income` | step | `NetIncome` | `PretaxIncome` | −1 | no |
+| `NetIncome` | top | | | | | |
+| **`NetIncomeAttributableToParent`** | `net-income-attribution` | breakdown | `NetIncome` | | +1 | yes |
+| **`NetIncomeAttributableToNoncontrollingInterest`** | `net-income-attribution` | breakdown | `NetIncome` | | +1 | yes, zero if absent |
+
+The other line of each open step has a name in the layout:
+
+| Group | Other line | What it holds |
+| ----- | ---------- | ------------- |
+| `operating-income` | Other operating income (expense) | Gains on disposals, government assistance, and other operating lines |
+| `operating-expenses` | Other operating expenses | Depreciation shown on its own line, restructuring, and other expense lines |
+| `pretax-income` | Other non-operating income (expense) | Interest income, equity method income before tax, foreign exchange gains, and pension costs other than service cost |
+| `net-income` | Other items after tax | Discontinued operations, and equity method income after tax |
+
+- The cascade has no `Expenses`, `Gains`, or `Losses`. No filer presents the SFAC 6 totals, so
+  these concepts leave the enum (see "Verdict on the 39 Concepts").
+- `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
+  interest expense. Many filers use it for a total that includes interest. The other line of
+  `pretax-income` holds the same amount without that doubt.
+- A single-step filer reports `CostsAndExpenses` and no gross profit. Then `GrossProfit` has no
+  value, `operating-income` starts from `Revenue`, and the cost of revenue counts in the step.
+- Known limit: some filers tag their total costs, cost of revenue included, as
+  `OperatingExpenses`. If such a filer also reports `CostOfRevenue`, the cascade counts the cost of
+  revenue twice. The other line of
+  `operating-income` then holds the cost of revenue with a positive sign. A measurement on real
+  filings decides whether this needs a guard.
+
+#### Comprehensive Income
+
+Duration values. One closed step, `comprehensive-income`: `ComprehensiveIncome` = `NetIncome` +
+`OtherComprehensiveIncome`. `NetIncome` is the start, and `OtherComprehensiveIncome` is the item
+with weight `+1`. A filer can present it in one statement with the income statement or in a second
+statement. The layout shows it as its own statement.
+
+#### Cash Flow Statement
+
+Duration values. The top line is `NetChangeInCash`.
+
+| Concept | Group | Kind | Parent | Start | Weight | Closed |
+| ------- | ----- | ---- | ------ | ----- | ------ | ------ |
+| **`NetChangeInCash`** | top | | | | | |
+| `OperatingCashFlow` | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes |
+| `InvestingCashFlow` | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes |
+| `FinancingCashFlow` | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes |
+| **`ExchangeRateEffect`** | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes, zero if absent |
+| `DepreciationAmortization` | `operating-cash-flow` | step | `OperatingCashFlow` | `NetIncome` | +1 | no |
+| `ShareBasedCompensation` | `operating-cash-flow` | step | `OperatingCashFlow` | `NetIncome` | +1 | no |
+| `CapitalExpenditures` | `investing-cash-flow` | breakdown | `InvestingCashFlow` | | −1 | no |
+| `DividendsPaid` | `financing-cash-flow` | breakdown | `FinancingCashFlow` | | −1 | no |
+| `ShareRepurchases` | `financing-cash-flow` | breakdown | `FinancingCashFlow` | | −1 | no |
+
+- `operating-cash-flow` is a step from `NetIncome`, because the indirect method starts from net
+  income. Its other line holds the other adjustments and the changes in working capital. A filer
+  that uses the direct method reports no reconciliation in the statement. Then the other line holds
+  the receipts and payments less net income.
+- `NetIncome` in the cash flow statement is the same standardized fact as in the income statement.
+  So the cross-statement check of "5) Validation" on net income always holds and needs no code.
+- The cash balance at the start and the end of the period is not in the tree. A check of
+  `NetChangeInCash` against two balances needs the balance at the start date. A Notes period has
+  no exact start, so this check waits for a later round.
+
+#### Side Groups
+
+A side group holds values that belong to no sum. Its concepts have no parent, no other line, and
+no roll-up check.
+
+- `PerShare`: `EarningsPerShareBasic` and `EarningsPerShareDiluted`. A per-share value does not add
+  with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
+- Planned: a group for the debt maturities and other financing data, from its own design. Segments
+  are not a side group. A segment value is a standard concept with a member of a segment axis, and
+  its own design decides how the tree applies to it.
+
+`SideGroup` is an enum with `#[non_exhaustive]`. A new side group adds a variant and its concepts.
+It changes no placement, no group, and no check of the trees.
+
+**Changes in equity** get no statement in the MVP. The statement of changes in equity is a roll
+forward per component of equity, such as retained earnings and treasury stock. Filers tag each
+column with a member of `StatementEquityComponentsAxis`. In the MVP, tiers 1 and 2 give a fact
+with dimensions no candidate. The balance sheet already holds the closing balance of each
+component, and the cash flow statement holds the dividends and repurchases paid. A later design
+adds the roll forward with the dimensions.
+
+#### Checks the Tree Gives
+
+The checks run in the series step, on the values after `core/dedup/newest-filing@1` and the period
+identities. Each failed check is a finding. A check never removes a value.
+
+1. **Closed group.** The members of a closed group must equal the parent. This covers `assets`,
+   `liabilities-and-equity`, `liabilities`, `equity`, `gross-profit`, `net-income-attribution`,
+   `comprehensive-income`, and `net-change-in-cash`. A failure is a `RollUpMismatch` finding.
+2. **Balance sheet identity.** `Assets` must equal `LiabilitiesAndEquity`. It is the check of
+   `core/sfac6/balance-sheet@1`. A failure is a `RollUpMismatch` finding.
+3. **Negative other.** The other line of `current-assets`, `non-current-assets`,
+   `current-liabilities`, `non-current-liabilities`, and `operating-expenses` must not fall below
+   zero. Each child of these groups is a part of the parent with the same sign. A negative other
+   line means that two children overlap, or that an alias list holds a wider concept. A failure is a
+   `NegativeOther` finding. Other lines of steps and of equity can be negative, so they get no
+   check.
+
+The tolerance is the one of "5) Validation", ±0.1%, with one change. The base is the largest
+absolute value in the group, not the parent. In a step, the parent can be near zero while its
+members are large. Net income of 1 from revenue of 10,000 is an example. Then a base of the parent
+fails on the rounding of the members.
+
+A value that `core/roll-up/<group>@1` derived from a group makes that group hold by construction.
+So the check of that group is skipped for that period.
+
+#### Derivation From a Closed Group
+
+A closed group with exactly one unknown member gives that member as a Tier 3 value. The unknown can
+be the parent, the start, or a child. A child that is zero if absent counts as known.
+
+- The rule ID is `core/roll-up/<group>@1`, for example `core/roll-up/liabilities@1`. The balance
+  sheet identity keeps `core/sfac6/balance-sheet@1`.
+- The rule runs after `core/period/q4-from-fy@1` and fills only a period that has no value.
+- The rule repeats until no group gives a new value. For example, `Liabilities` comes from
+  `liabilities-and-equity`, and then `NonCurrentLiabilities` comes from `liabilities`.
+- Every member must have the same unit. The confidence is `Derived`, or the weakest confidence of
+  an input.
+- Open groups give no derivation. Their other line is unknown.
+
+This rule fills common gaps. In CY2025, 5,564 filers reported `Liabilities`, and 6,090 reported
+`LiabilitiesAndStockholdersEquity`. Only 781 reported `AssetsNoncurrent`, against 4,908 for
+`AssetsCurrent` (SEC frames API).
+
+Risk: a zero-if-absent child that a filer reports under a concept outside its alias list counts as
+zero. Then the derived value absorbs it. The balance sheet identity still holds, so no check
+catches it.
+
+#### Verdict on the 39 Concepts
+
+No concept changes its name. A move changes the placement only.
+
+| Concept | Verdict | Placement |
+| ------- | ------- | --------- |
+| `Assets` | keep | top of the balance sheet |
+| `Liabilities` | move | child of `liabilities-and-equity` |
+| `Equity` | move | child of `liabilities-and-equity` |
+| `Revenue` | keep | top of the income statement, start of `gross-profit` |
+| `Expenses` | remove | |
+| `Gains` | remove | |
+| `Losses` | remove | |
+| `NetIncome` | keep | top of the income statement |
+| `OtherComprehensiveIncome` | move | item of `comprehensive-income` |
+| `ComprehensiveIncome` | keep | top of the comprehensive income statement |
+| `OperatingCashFlow` | move | child of `net-change-in-cash` |
+| `InvestingCashFlow` | move | child of `net-change-in-cash` |
+| `FinancingCashFlow` | move | child of `net-change-in-cash` |
+| `CurrentAssets` | keep | child of `assets` |
+| `NonCurrentAssets` | keep | child of `assets` |
+| `CashAndEquivalents` | keep | child of `current-assets` |
+| `ShortTermInvestments` | keep | child of `current-assets` |
+| `AccountsReceivable` | keep | child of `current-assets` |
+| `Inventory` | keep | child of `current-assets` |
+| `PropertyPlantEquipment` | keep | child of `non-current-assets` |
+| `Goodwill` | keep | child of `non-current-assets` |
+| `IntangibleAssets` | keep | child of `non-current-assets` |
+| `CurrentLiabilities` | keep | child of `liabilities` |
+| `NonCurrentLiabilities` | keep | child of `liabilities` |
+| `LongTermDebt` | keep | child of `non-current-liabilities` |
+| `RetainedEarnings` | move | child of `equity-attributable-to-parent` |
+| `CostOfRevenue` | keep | item of `gross-profit` |
+| `GrossProfit` | keep | top of the income statement |
+| `SellingGeneralAdmin` | move | child of `operating-expenses` |
+| `ResearchDevelopment` | move | child of `operating-expenses` |
+| `InterestExpense` | move | item of `pretax-income` |
+| `OperatingIncome` | move | top of the income statement |
+| `EarningsPerShareBasic` | move | side group `PerShare` |
+| `EarningsPerShareDiluted` | move | side group `PerShare` |
+| `DepreciationAmortization` | move | item of `operating-cash-flow` |
+| `CapitalExpenditures` | keep | child of `investing-cash-flow` |
+| `DividendsPaid` | keep | child of `financing-cash-flow` |
+| `ShareRepurchases` | keep | child of `financing-cash-flow` |
+| `ShareBasedCompensation` | move | item of `operating-cash-flow` |
+
+"Keep" means the enum already puts the concept where the tree puts it. "Move" means its old level
+or section differs from its new placement.
+
+`Expenses`, `Gains`, and `Losses` leave the enum. No US GAAP concept holds them, no rule fills
+them, and no filer presents them. The cascade replaces them with `OperatingExpenses`,
+`InterestExpense`, `IncomeTaxExpense`, and the other lines. SFAC 6 still defines them. The
+identity in "Three Layers" names them, but no standard concept holds them.
+
+`is_level_one()` goes away. The placement replaces Level 1 and Level 2.
+
+#### Concepts to Add
+
+Each concept below is a line of filers' statements. The count is the number of filers that
+reported the first concept of the alias list in the SEC frames API. The frames are `CY2025Q4I` for
+instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 filers reported `Assets` and
+5,795 reported `NetCashProvidedByUsedInOperatingActivities`.
+
+| Concept | Alias list | Parts | Filers |
+| ------- | ---------- | ----- | ------ |
+| `LiabilitiesAndEquity` | `LiabilitiesAndStockholdersEquity` | | 6,090 |
+| `TemporaryEquity` | `TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests` | `TemporaryEquityCarryingAmountAttributableToParent` (448) and `RedeemableNoncontrollingInterestEquityCarryingAmount` (311). Each blocks the other | 130 |
+| `AccountsPayable` | `AccountsPayableCurrent` | | 3,615 |
+| `ShortTermDebt` | `DebtCurrent` | `LongTermDebtAndCapitalLeaseObligationsCurrent` (354) and `ShortTermBorrowings` (756). Each blocks the other | 365 |
+| `EquityAttributableToParent` | `StockholdersEquity` | | 5,810 |
+| `NoncontrollingInterest` | `MinorityInterest` | | 1,543 |
+| `AdditionalPaidInCapital` | `AdditionalPaidInCapital` | `AdditionalPaidInCapitalCommonStock` (1,972), other part `AdditionalPaidInCapitalPreferredStock` | 3,505 |
+| `TreasuryStock` | `TreasuryStockValue` | `TreasuryStockCommonValue` (1,056), other part `TreasuryStockPreferredValue` | 854 |
+| `AccumulatedOtherComprehensiveIncome` | `AccumulatedOtherComprehensiveIncomeLossNetOfTax` | | 3,821 |
+| `OperatingExpenses` | `OperatingExpenses` | | 2,929 |
+| `PretaxIncome` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` (382), other part `IncomeLossFromEquityMethodInvestments` | 4,561 |
+| `IncomeTaxExpense` | `IncomeTaxExpenseBenefit` | | 4,848 |
+| `NetIncomeAttributableToParent` | `NetIncomeLoss` | | 5,707 |
+| `NetIncomeAttributableToNoncontrollingInterest` | `NetIncomeLossAttributableToNoncontrollingInterest` | | 1,471 |
+| `NetChangeInCash` | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect` | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect` (1,324), other part the alias list of `ExchangeRateEffect` | 4,511 |
+| `ExchangeRateEffect` | `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations` | `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` (1,747), other part `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations` | 857 |
+
+- Each list follows the rules of "`us_gaap`": it holds only concepts that equal the whole total.
+  The FEATURE ticket of each statement checks the other parts against the 2026 calculation tree,
+  as `PART_CONCEPTS` does today.
+- `AccountsPayableAndAccruedLiabilitiesCurrent` (965) is wider than `AccountsPayable`. It is not
+  in the list.
+- `DebtCurrent` holds the current finance lease obligations. `LongTermDebt` leaves out the
+  noncurrent ones. No US GAAP concept holds current debt without leases. See "Open Points".
+- `StockholdersEquity` stays the part of `Equity` and becomes the alias of
+  `EquityAttributableToParent`. `NetIncomeLoss` stays the part of `NetIncome` and becomes the alias
+  of `NetIncomeAttributableToParent`. A concept in two lists is allowed, as "`us_gaap`" says.
+- The rule IDs follow the existing form, for example `us-gaap/alias/accounts-payable@1` and
+  `us-gaap/part/treasury-stock@1`.
+
+The count after the change: 39 − 3 + 16 = 52 standard concepts.
+
+#### Concepts Not Added
+
+These lines are common but stay in an other line for now. A later round can add each one as a
+child, with no change to the groups above.
+
+| Line | Concept | Filers | Lands in |
+| ---- | ------- | ------ | -------- |
+| Operating lease right-of-use assets | `OperatingLeaseRightOfUseAsset` | 4,331 | other non-current assets |
+| Operating lease liabilities | `OperatingLeaseLiabilityCurrent`, `OperatingLeaseLiabilityNoncurrent` | 3,590, 3,528 | other current and non-current liabilities |
+| Accrued liabilities | `AccruedLiabilitiesCurrent` | 2,558 | other current liabilities |
+| Deferred revenue | `ContractWithCustomerLiabilityCurrent` | 1,925 | other current liabilities |
+| Deferred income taxes | `DeferredIncomeTaxLiabilitiesNet` | 1,988 | other non-current liabilities |
+| Common stock at par | `CommonStockValue` | 4,591 | other equity attributable to parent |
+| Interest income | `InvestmentIncomeInterest` | 1,612 | other non-operating income |
+| Acquisitions | `PaymentsToAcquireBusinessesNetOfCashAcquired` | 1,328 | other investing cash flow |
+| Debt issued and repaid | `ProceedsFromIssuanceOfLongTermDebt`, `RepaymentsOfLongTermDebt` | 898, 1,132 | other financing cash flow |
+| Weighted average shares | `WeightedAverageNumberOfSharesOutstandingBasic` | 5,218 | side group `PerShare`, later |
+
+#### Alias Lists After the Tree
+
+Every alias list and part rule of `mappings.rs` stays. No list moves to another standard concept.
+The changes are to comments and to the new lists.
+
+| List | Verdict |
+| ---- | ------- |
+| `Revenue`, `OperatingIncome`, `Assets`, `Liabilities`, `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays |
+| `NetIncome`, `Equity` | stays. The part rule stays. `NetIncomeLoss` and `StockholdersEquity` also start the new lists |
+| `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
+| `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
+| `CostOfRevenue`, `GrossProfit`, `SellingGeneralAdmin`, `ResearchDevelopment`, `InterestExpense` | stays |
+| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts move to the side group `PerShare` |
+| `DepreciationAmortization`, `CapitalExpenditures`, `DividendsPaid`, `ShareRepurchases`, `ShareBasedCompensation` | stays |
+| `OtherComprehensiveIncome`, `ComprehensiveIncome` | stays |
+| The comment on `Expenses`, `Gains`, and `Losses` | goes away with the three concepts |
+
+The flag `required` stays as it is. The completeness check of "5) Validation" reads it.
+
+#### Names in Silver
+
+The `concept` column of `standardized_facts` stores the variant name, such as `NetIncome`, not the
+label of `Display`. The ticket for the stable name adds the method that gives this name and its
+parse.
+
+- No concept changes its name, so every stored row keeps its key.
+- The three removed concepts have no rows. No rule fills them.
+- The 16 new concepts add new names. Their name is their variant name.
+- A move changes no name. Silver stores no placement and no group.
+- Other lines and statements have no name in silver. They are not stored.
+- The derived values of `core/roll-up/<group>@1` are rows of `standardized_facts`, with
+  confidence `Derived` and the rule ID in `rule`.
+- `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. `concepts` holds the
+  parent of the group first, then its members in the order of the table. `reason` holds the name
+  of the group, such as `liabilities`.
+
+#### Worked Example
+
+The 10-Q fixture `0001628280-26-068246`, as-is values with no dimensions, in millions of USD.
+
+Balance sheet on 2026-09-30:
+
+| Line | Value | Source |
+| ---- | ----- | ------ |
+| Assets | 7,216 | `Assets` |
+| Current assets | 1,846 | `AssetsCurrent` |
+| Cash and equivalents | 388 | `Cash`, part rule |
+| Other current assets | 1,458 | other line: receivables of 1,262 and prepaid expenses of 196 |
+| Non-current assets | 5,370 | `core/roll-up/assets@1` |
+| Goodwill | 602 | `Goodwill` |
+| Other non-current assets | 4,768 | other line |
+| Liabilities and equity | 7,216 | `LiabilitiesAndStockholdersEquity` |
+| Liabilities | 7,468 | `core/roll-up/liabilities-and-equity@1`. The filing reports no total |
+| Current liabilities | 1,136 | `LiabilitiesCurrent` |
+| Accounts payable | 210 | `AccountsPayableCurrent` |
+| Short-term debt | 45 | `LongTermDebtAndCapitalLeaseObligationsCurrent`, part rule |
+| Other current liabilities | 881 | other line: accrued and employee liabilities, and current operating leases |
+| Non-current liabilities | 6,332 | `LiabilitiesNoncurrent` |
+| Equity | −252 | `StockholdersEquity`, part rule |
+| Equity attributable to parent | −252 | `StockholdersEquity` |
+| Retained earnings | −280 | `RetainedEarningsAccumulatedDeficit` |
+| Additional paid-in capital | 19 | `AdditionalPaidInCapitalCommonStock`, part rule |
+| Accumulated OCI | −6 | `AccumulatedOtherComprehensiveIncomeLossNetOfTax` |
+| Other equity attributable to parent | 15 | other line: `CommonStockValue` of 15 |
+
+The derived `Liabilities` of 7,468 equals `LiabilitiesCurrent` + `LiabilitiesNoncurrent`, so the
+group `liabilities` holds. `LongTermDebt` has no value: the filing reports `LongTermDebt`, which
+also holds the current maturities, and that concept is not in the list.
+
+Cash flow statement, quarter to 2026-09-30, the copy of rank 0:
+
+| Line | Value | Source |
+| ---- | ----- | ------ |
+| Net income | 147 | `NetIncomeLoss`, part rule |
+| Depreciation and amortization | 114 | `DepreciationDepletionAndAmortization` |
+| Share-based compensation | 16 | `ShareBasedCompensation` |
+| Other operating cash flow | 113 | other line |
+| Operating cash flow | 390 | `NetCashProvidedByUsedInOperatingActivities` |
+| Capital expenditures | −151 | `PaymentsToAcquireProductiveAssets`, weight −1 |
+| Other investing cash flow | 13 | other line: proceeds from the sale of equipment |
+| Investing cash flow | −138 | |
+| Financing cash flow | −114 | |
+| Exchange rate effect | −1 | |
+| Net change in cash | 137 | 390 − 138 − 114 − 1. The closed group holds |
+
+In this fixture, dedup blocks the quarter values, because a four-month copy conflicts with each
+one (see "Dedup Rules"). The example uses the copy of rank 0 to show the arithmetic only.
+
+#### Open Points
+
+These need a decision of the owner. The design above assumes the first option of each.
+
+1. **Remove `Expenses`, `Gains`, and `Losses`.** "Standard Concept Set" froze the 13 roots for the
+   MVP. The alternative keeps the three variants with no placement and no rule.
+2. **`ShortTermDebt` holds current finance leases**, through `DebtCurrent`. `LongTermDebt` leaves
+   them out. The alternative gives `ShortTermDebt` only the part rule, with no alias list, so most
+   filers get no value.
+3. **The tolerance base is the largest member of the group**, not the parent.
+4. **Layer 3 drops the check `NetIncome` = `Revenue` − `Expenses` + `Gains` − `Losses`** and adds
+   the exchange rate effect to the cash flow check. The `xbrl-standardization` skill names this
+   difference to the `accounting` skill as a decision of the owner.
 
 ---
 
@@ -589,8 +1032,7 @@ ticket decides where the removed elements live.
   `NetIncome` and `Equity` do. The part of the parent stands for each only through the part rule.
 - `Expenses`, `Gains`, and `Losses` have no alias list. No US GAAP concept holds the expenses,
   gains, or losses of SFAC 6. `CostsAndExpenses` holds only the cost of revenue and the operating
-  expenses. The SFAC 6 identity gives only their net amount, not each one. No rule fills them
-  yet.
+  expenses. "Roll-Up Tree" removes the three concepts.
 - The alias lists of `Revenue` and `Equity` hold only totals. The customer-contract revenue
   concepts and `StockholdersEquity` are parts.
 
@@ -787,6 +1229,7 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `us-gaap/part/equity@1`: the parts of a standard concept that stand for the whole if the filing
   reports no other part.
 - `core/sfac6/balance-sheet@1`: an SFAC 6 identity.
+- `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
 
@@ -884,10 +1327,13 @@ year-to-date only. The result has confidence `Derived`.
 Once elements are populated, enforce the identities:
 
 ```
-Check:  Assets == Liabilities + Equity
-Check:  Net Income == Revenue - Expenses + Gains - Losses
-Check:  Operating CF + Investing CF + Financing CF ≈ ΔCash
+Check:  Assets == LiabilitiesAndEquity == Liabilities + TemporaryEquity + Equity
+Check:  NetChangeInCash == Operating CF + Investing CF + Financing CF + ExchangeRateEffect
+Check:  every closed group of the roll-up tree adds up
 ```
+
+"Roll-Up Tree", "Checks the Tree Gives", lists every check. The cascade of the income statement
+replaces the check Net Income = Revenue − Expenses + Gains − Losses.
 
 A validation failure with all Tier 1 values = the company filed inconsistent data.
 A validation failure with Tier 3 or 4 values = your derivation logic has a bug.
@@ -905,14 +1351,20 @@ Mode 2 = Validate         (verify all edges hold)
 
 ### Graph Structure
 
-> **[DECISION NEEDED]** Define the graph data structure before implementation.
->
-> Options:
-> - Adjacency list with weighted edges (+1.0, -1.0) matching FASB linkbase format
-> - Trait-based: both SFAC 6 invariants and FASB linkbase implement a common `ResolutionGraph` trait
-> - Hardcoded invariant functions for Level 1, linkbase-driven for Level 2+
->
-> This determines whether resolution and validation share actual code or just a conceptual model.
+Decided: a static table of weighted edges in `xbrl::core`, the same for every plug-in.
+
+- The table gives each standard concept its placement. A placement is a top line, a child of one
+  group with a weight of +1 or −1, or a side group. A second table lists the groups: the parent, the start of a
+  step, and whether the group is closed. "Roll-Up Tree" holds both.
+- Resolution and validation share the table. Tier 3 derives the one unknown member of a closed
+  group. Validation checks that each closed group adds up. The statement output type reads the
+  same table for the layout and the other lines.
+- The calculation tree of a plug-in stays a separate structure. It links taxonomy concepts, not
+  standard concepts, and Tier 4 reads it.
+- No trait. The table has one implementation, and a plug-in adds no edges. A trait with one
+  implementor adds an indirection and no extension.
+- The SFAC 6 identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
+  check, `core/sfac6/balance-sheet@1`, next to the table.
 
 ---
 
@@ -1319,8 +1771,9 @@ Three levels, applied in order of strictness:
 3. **Precision** — Do sub-items sum exactly to their reported parent totals? A rounding or classification issue.
 
 Specific checks include:
-- Balance Sheet Identity holds (`Assets == Liabilities + Equity`)
-- Roll-up items equal the sum of all sub-items
+- Balance Sheet Identity holds (`Assets == LiabilitiesAndEquity`)
+- Each closed group of the roll-up tree adds up, and no other line of a breakdown falls below zero
+  (see "Roll-Up Tree", "Checks the Tree Gives")
 - Sign checks (Assets > 0, Liabilities > 0, Revenue > 0 for non-loss companies)
 - Cross-statement consistency (Net Income in IS == Net Income in CF reconciliation)
 - Rules inspired by DQC Rules (https://github.com/DataQualityCommittee/dqc_us_rules)
@@ -1439,17 +1892,21 @@ All financial relationships are invariants — the only difference is whether th
 
 Exact invariant violations produce `InconsistentIdentity` (hard error). Non-exact invariant violations produce `ImpreciseRollup` (tolerance-based).
 
+The series step does not fail on a broken identity. It records each failed check of the roll-up tree
+as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
+validates one statement, such as a publish gate. `NetIncomeIdentity` goes away with `Expenses`,
+`Gains`, and `Losses`.
+
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Invariant {
     // Exact — SFAC 6 identities, must hold with zero tolerance
-    BalanceSheetIdentity,        // Assets = Liabilities + Equity
-    NetIncomeIdentity,           // Net Income = Revenue - Expenses + Gains - Losses
+    BalanceSheetIdentity,        // Assets = LiabilitiesAndEquity
     ComprehensiveIncomeIdentity, // Comprehensive Income = Net Income + OCI
     EquityChangeIdentity,        // ΔEquity = CompIncome + Investments - Distributions
 
     // Non-exact — must hold within tolerance
-    CashFlowReconciliation,     // Operating + Investing + Financing ≈ ΔCash
+    CashFlowReconciliation,     // Operating + Investing + Financing + FX ≈ NetChangeInCash
 }
 
 impl Invariant {
@@ -1457,7 +1914,6 @@ impl Invariant {
         matches!(
             self,
             Self::BalanceSheetIdentity
-                | Self::NetIncomeIdentity
                 | Self::ComprehensiveIncomeIdentity
                 | Self::EquityChangeIdentity
         )
@@ -1477,63 +1933,44 @@ impl Invariant {
 
 ## 7) Financial Statement Output Types
 
-> **[DECISION NEEDED]** Define output types. One generic `FinancialStatement` or typed per-statement?
->
-> Option A — Typed:
-> ```
-> BalanceSheet      { entity, period: Instant,  facts: HashMap<CanonicalElement, StandardizedFact> }
-> IncomeStatement   { entity, period: Duration, facts: HashMap<CanonicalElement, StandardizedFact> }
-> CashFlowStatement { entity, period: Duration, facts: HashMap<CanonicalElement, StandardizedFact> }
-> ```
->
-> Option B — Generic:
-> ```
-> FinancialStatement { entity, period, statement_type, facts: HashMap<CanonicalElement, StandardizedFact> }
-> ```
->
-> Option A catches period-type mismatches at compile time (BS is always instant, IS/CF always duration).
-> Option B is simpler and more extensible.
+Decided: one generic type, built from the roll-up table.
+
+```rust
+pub struct Statement {
+    pub kind: StatementKind, // BalanceSheet, IncomeStatement, ComprehensiveIncome, CashFlow
+    pub entity: EntityId,
+    pub period_end: NaiveDate,
+    pub quarters: u16,       // 0 for the balance sheet
+    pub lines: Vec<StatementLine>,
+}
+
+pub struct StatementLine {
+    pub line: Line,          // Line::Standard(CanonicalElement) or Line::Other { group }
+    pub depth: u8,
+    pub value: Option<BigDecimal>,
+}
+```
+
+- `Statement::build(kind, facts)` takes the current standardized facts of one entity and one
+  period. It orders the lines by the table, computes the other lines, and skips a parent with no
+  value as "Roll-Up Tree" describes.
+- A line of `Line::Standard` points to its standardized fact, so a reader can see its confidence,
+  rule, and inputs.
+- The kind fixes the period type: instant for the balance sheet, duration for the rest. The table
+  gives each concept one statement, so `build` rejects a fact of another kind at run time.
+- Typed structs per statement were the alternative. They catch a wrong period type at compile
+  time, but a map from `CanonicalElement` to a fact still accepts a concept of another statement.
+  The table already holds the statement of each concept, so a typed struct adds no check.
+- Side groups need no layout. A reader takes their values from the standardized facts.
+- Silver stores no statement. The gold load builds statements with this type.
 
 ---
 
 ## 8) Data Modeling — Level 2 Sub-Elements
 
-SFAC 6 gives top-level identities. A useful financial dataset needs the breakdown beneath them.
-
-**Level 1 — SFAC 6 backbone:**
-Assets, Liabilities, Equity, Revenue, Expenses, Gains, Losses, Net Income, Other Comprehensive Income, Comprehensive Income, Operating CF, Investing CF, Financing CF
-
-**Level 2 — Key sub-elements:**
-
-Balance Sheet:
-- Cash & Cash Equivalents
-- Short-term Investments
-- Accounts Receivable
-- Inventory
-- Current Assets (subtotal)
-- PP&E (Property, Plant & Equipment)
-- Goodwill & Intangibles
-- Current Liabilities (subtotal)
-- Long-term Debt
-- Retained Earnings
-
-Income Statement:
-- Cost of Goods Sold / Cost of Revenue
-- Gross Profit
-- SG&A (Selling, General & Administrative)
-- R&D Expense
-- Interest Expense
-- EPS Basic / Diluted
-
-Cash Flow:
-- Depreciation & Amortization
-- Capital Expenditures
-- Dividends Paid
-- Share Repurchases
-
-These are all standard base taxonomy concepts. The same FASB calculation linkbase defines how they sum into the SFAC 6 parents. The SEC JSON API reports them — verified with Apple and Alphabet data.
-
-The model stays the same — just more nodes in the graph. Each sub-element gets the same tiered resolution (exact -> synonym -> derived -> computed).
+"Roll-Up Tree" replaces Level 1 and Level 2. A concept has a placement in a tree of one statement,
+or in a side group. Its depth in the tree replaces its level. Each concept keeps the tiered
+resolution: exact, synonym, derived, computed.
 
 ---
 
@@ -1571,9 +2008,9 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 ## Decisions Needed Before Implementation
 
-1. **CanonicalElement enum** — Finalize the Level-2 enumeration. The MVP freezes the 13 Level-1 roots (see "Standard Concept Set")
-2. **Graph structure** — Adjacency list vs trait-based vs hardcoded functions
-3. **Financial statement output types** — Typed per-statement vs generic
+1. **CanonicalElement enum** — Decided. See "Roll-Up Tree", "Verdict on the 39 Concepts" and "Concepts to Add"
+2. **Graph structure** — Decided: a static table in `xbrl::core`. See "Graph Structure"
+3. **Financial statement output types** — Decided: one generic `Statement`. See "7) Financial Statement Output Types"
 
 The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided above.
 

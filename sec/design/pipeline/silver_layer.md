@@ -119,7 +119,7 @@ store holds today.
 | `filings` | `Filing`, with the company attributes as filed | Notes `sub.tsv` and `txt.tsv`, or the instance and `submissions` | Parse filing |
 | `candidates` | Standardized candidate of one filing, blocked ones included | `as_is_facts` | Standardize filing |
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
-| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, or `SuspiciousPeriod` finding | Both standardize steps | Standardize filing, standardize series |
+| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, or `NegativeOther` finding | Both standardize steps | Standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
 | `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
 
@@ -257,6 +257,10 @@ bucket, by their statistics.
 | `computed_at` | `timestamp[ms, UTC]` | The start time of the series run that computed the row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
+`concept` holds the variant name of `CanonicalElement`, such as `NetIncome`, never the label of
+`Display`. Silver stores no "other" line and no statement layout. The roll-up tree of
+`xbrl/DESIGN.md`, "Roll-Up Tree", computes both at read time.
+
 `standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
 entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. The current value of a key is
 its row with the latest `computed_at`, unless that row has `change` = `removed`.
@@ -265,11 +269,11 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
-| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, or `SuspiciousPeriod` |
+| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, or `NegativeOther` |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport` |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch` and `NegativeOther`, the name of the group of the roll-up tree, for example `liabilities` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
 | `step` | `utf8` | `filing` or `series` |
