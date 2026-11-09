@@ -1,6 +1,6 @@
 ---
 source: FASB Statement of Financial Accounting Concepts No. 6 (1985)
-last-verified: 2026-06-14
+last-verified: 2026-11-09
 update-frequency: never
 ---
 
@@ -63,4 +63,3 @@ for them.
 
 - **Balance Sheet items** (Assets, Liabilities, Equity): measured at a point in time (Instant)
 - **Flow items** (Revenue, Expenses, Gains, Losses, Comprehensive Income): measured over a period (Duration)
-- **Cash Flow items**: measured over a period (Duration), classified by activity type
