@@ -712,7 +712,7 @@ filing reports its cash flow lines only for this period:
 | Share-based compensation | 16 | `ShareBasedCompensation` |
 | Other operating cash flow | −8 | other line |
 | Operating cash flow | 390 | `NetCashProvidedByUsedInOperatingActivities` |
-| Capital expenditures | −151 | `PaymentsToAcquireProductiveAssets`, weight −1 |
+| Capital expenditures | 151 | `PaymentsToAcquireProductiveAssets`, weight −1 |
 | Other investing cash flow | 13 | other line: proceeds from the sale of equipment |
 | Investing cash flow | −138 | |
 | Financing cash flow | −114 | |
