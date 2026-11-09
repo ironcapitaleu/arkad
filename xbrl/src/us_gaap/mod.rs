@@ -25,7 +25,7 @@ use crate::core::rule::RuleId;
 use crate::core::taxonomy::Taxonomy;
 use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{
-    CalculationArc, CalculationTree, ConceptAliases, ElementReference,
+    CalculationArc, CalculationTree, ConceptAliases, ElementReference, PartAliases,
 };
 
 // rustdoc sees the generator too, so the doc check covers it. A normal build leaves it out.
@@ -296,7 +296,26 @@ fn concept_aliases(definition: &mappings::ConceptDefinition) -> ConceptAliases {
             .iter()
             .map(|name| concept(US_GAAP_FAMILY, name))
             .collect(),
-        parts: None,
+        parts: mappings::PART_CONCEPTS
+            .iter()
+            .find(|parts| parts.canonical_element() == definition.canonical_element())
+            .map(part_aliases),
+    }
+}
+
+/// Returns the parts of one definition of [`mappings::PART_CONCEPTS`].
+fn part_aliases(definition: &mappings::PartDefinition) -> PartAliases {
+    let concepts = |names: &[&str]| {
+        names
+            .iter()
+            .map(|name| concept(US_GAAP_FAMILY, name))
+            .collect()
+    };
+    PartAliases {
+        rule: RuleId::from_str(definition.part_rule())
+            .expect("Given a rule ID of the definitions, the parse should always succeed"),
+        parts: concepts(definition.parts()),
+        other_parts: concepts(definition.other_parts()),
     }
 }
 
@@ -539,7 +558,7 @@ mod tests {
     }
 
     #[test]
-    fn should_find_reference_data_for_every_alias_except_the_removed_ones_when_created() {
+    fn should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created() {
         let us_gaap = UsGaap::new();
 
         // `xbrl/DESIGN.md`, "Release in Use Today", names these two as not in the 2026 release.
@@ -551,7 +570,13 @@ mod tests {
         let mut result: Vec<ConceptName> = us_gaap
             .aliases()
             .iter()
-            .flat_map(|aliases| aliases.concepts.iter())
+            .flat_map(|aliases| {
+                let parts = aliases
+                    .parts
+                    .iter()
+                    .flat_map(|parts| parts.parts.iter().chain(&parts.other_parts));
+                aliases.concepts.iter().chain(parts)
+            })
             .filter(|concept| us_gaap.element(concept).is_none())
             .cloned()
             .collect();
@@ -561,7 +586,30 @@ mod tests {
     }
 
     #[test]
-    fn should_return_revenue_concepts_in_priority_order_when_created() {
+    fn should_attach_the_parts_of_each_part_definition_to_its_alias_list_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            CanonicalElement::Revenue,
+            CanonicalElement::NetIncome,
+            CanonicalElement::Equity,
+            CanonicalElement::CashAndEquivalents,
+            CanonicalElement::ShortTermInvestments,
+            CanonicalElement::IntangibleAssets,
+        ];
+
+        let result: Vec<CanonicalElement> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| aliases.parts.is_some())
+            .map(|aliases| aliases.element)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_revenue_concepts_and_parts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
@@ -569,17 +617,22 @@ mod tests {
             rule: rule("us-gaap/alias/revenue@1"),
             concepts: vec![
                 concept("us-gaap", "Revenues"),
-                concept(
-                    "us-gaap",
-                    "RevenueFromContractWithCustomerExcludingAssessedTax",
-                ),
                 concept("us-gaap", "SalesRevenueNet"),
-                concept(
-                    "us-gaap",
-                    "RevenueFromContractWithCustomerIncludingAssessedTax",
-                ),
             ],
-            parts: None,
+            parts: Some(PartAliases {
+                rule: rule("us-gaap/part/revenue@1"),
+                parts: vec![
+                    concept(
+                        "us-gaap",
+                        "RevenueFromContractWithCustomerExcludingAssessedTax",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "RevenueFromContractWithCustomerIncludingAssessedTax",
+                    ),
+                ],
+                other_parts: vec![concept("us-gaap", "RevenueNotFromContractWithCustomer")],
+            }),
         });
 
         let result = us_gaap
@@ -591,20 +644,47 @@ mod tests {
     }
 
     #[test]
-    fn should_return_equity_concepts_in_priority_order_when_created() {
+    fn should_return_net_income_concepts_and_parts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(&ConceptAliases {
+            element: CanonicalElement::NetIncome,
+            rule: rule("us-gaap/alias/net-income@1"),
+            concepts: vec![concept("us-gaap", "ProfitLoss")],
+            parts: Some(PartAliases {
+                rule: rule("us-gaap/part/net-income@1"),
+                parts: vec![concept("us-gaap", "NetIncomeLoss")],
+                other_parts: vec![concept(
+                    "us-gaap",
+                    "NetIncomeLossAttributableToNoncontrollingInterest",
+                )],
+            }),
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::NetIncome);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_equity_concepts_and_parts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
             element: CanonicalElement::Equity,
             rule: rule("us-gaap/alias/equity@1"),
-            concepts: vec![
-                concept(
-                    "us-gaap",
-                    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
-                ),
-                concept("us-gaap", "StockholdersEquity"),
-            ],
-            parts: None,
+            concepts: vec![concept(
+                "us-gaap",
+                "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+            )],
+            parts: Some(PartAliases {
+                rule: rule("us-gaap/part/equity@1"),
+                parts: vec![concept("us-gaap", "StockholdersEquity")],
+                other_parts: vec![concept("us-gaap", "MinorityInterest")],
+            }),
         });
 
         let result = us_gaap
@@ -620,91 +700,136 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
-            ConceptAliases {
-                element: CanonicalElement::CurrentAssets,
-                rule: rule("us-gaap/alias/current-assets@1"),
-                concepts: vec![concept("us-gaap", "AssetsCurrent")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::NonCurrentAssets,
-                rule: rule("us-gaap/alias/non-current-assets@1"),
-                concepts: vec![concept("us-gaap", "AssetsNoncurrent")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::CashAndEquivalents,
-                rule: rule("us-gaap/alias/cash-and-equivalents@1"),
-                concepts: vec![concept("us-gaap", "CashAndCashEquivalentsAtCarryingValue")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::ShortTermInvestments,
-                rule: rule("us-gaap/alias/short-term-investments@1"),
-                concepts: vec![concept("us-gaap", "ShortTermInvestments")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::AccountsReceivable,
-                rule: rule("us-gaap/alias/accounts-receivable@1"),
-                concepts: vec![concept("us-gaap", "AccountsReceivableNetCurrent")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::Inventory,
-                rule: rule("us-gaap/alias/inventory@1"),
-                concepts: vec![concept("us-gaap", "InventoryNet")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::PropertyPlantEquipment,
-                rule: rule("us-gaap/alias/property-plant-equipment@1"),
-                concepts: vec![concept("us-gaap", "PropertyPlantAndEquipmentNet")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::Goodwill,
-                rule: rule("us-gaap/alias/goodwill@1"),
-                concepts: vec![concept("us-gaap", "Goodwill")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::IntangibleAssets,
-                rule: rule("us-gaap/alias/intangible-assets@1"),
-                concepts: vec![concept("us-gaap", "IntangibleAssetsNetExcludingGoodwill")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::CurrentLiabilities,
-                rule: rule("us-gaap/alias/current-liabilities@1"),
-                concepts: vec![concept("us-gaap", "LiabilitiesCurrent")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::NonCurrentLiabilities,
-                rule: rule("us-gaap/alias/non-current-liabilities@1"),
-                concepts: vec![concept("us-gaap", "LiabilitiesNoncurrent")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::LongTermDebt,
-                rule: rule("us-gaap/alias/long-term-debt@1"),
-                concepts: vec![concept("us-gaap", "LongTermDebtNoncurrent")],
-                parts: None,
-            },
-            ConceptAliases {
-                element: CanonicalElement::RetainedEarnings,
-                rule: rule("us-gaap/alias/retained-earnings@1"),
-                concepts: vec![concept("us-gaap", "RetainedEarningsAccumulatedDeficit")],
-                parts: None,
-            },
+            (
+                CanonicalElement::CurrentAssets,
+                rule("us-gaap/alias/current-assets@1"),
+                vec![concept("us-gaap", "AssetsCurrent")],
+            ),
+            (
+                CanonicalElement::NonCurrentAssets,
+                rule("us-gaap/alias/non-current-assets@1"),
+                vec![concept("us-gaap", "AssetsNoncurrent")],
+            ),
+            (
+                CanonicalElement::CashAndEquivalents,
+                rule("us-gaap/alias/cash-and-equivalents@1"),
+                vec![concept("us-gaap", "CashAndCashEquivalentsAtCarryingValue")],
+            ),
+            (
+                CanonicalElement::ShortTermInvestments,
+                rule("us-gaap/alias/short-term-investments@1"),
+                vec![concept("us-gaap", "ShortTermInvestments")],
+            ),
+            (
+                CanonicalElement::AccountsReceivable,
+                rule("us-gaap/alias/accounts-receivable@1"),
+                vec![concept("us-gaap", "AccountsReceivableNetCurrent")],
+            ),
+            (
+                CanonicalElement::Inventory,
+                rule("us-gaap/alias/inventory@1"),
+                vec![concept("us-gaap", "InventoryNet")],
+            ),
+            (
+                CanonicalElement::PropertyPlantEquipment,
+                rule("us-gaap/alias/property-plant-equipment@1"),
+                vec![concept("us-gaap", "PropertyPlantAndEquipmentNet")],
+            ),
+            (
+                CanonicalElement::Goodwill,
+                rule("us-gaap/alias/goodwill@1"),
+                vec![concept("us-gaap", "Goodwill")],
+            ),
+            (
+                CanonicalElement::IntangibleAssets,
+                rule("us-gaap/alias/intangible-assets@1"),
+                vec![concept("us-gaap", "IntangibleAssetsNetExcludingGoodwill")],
+            ),
+            (
+                CanonicalElement::CurrentLiabilities,
+                rule("us-gaap/alias/current-liabilities@1"),
+                vec![concept("us-gaap", "LiabilitiesCurrent")],
+            ),
+            (
+                CanonicalElement::NonCurrentLiabilities,
+                rule("us-gaap/alias/non-current-liabilities@1"),
+                vec![concept("us-gaap", "LiabilitiesNoncurrent")],
+            ),
+            (
+                CanonicalElement::LongTermDebt,
+                rule("us-gaap/alias/long-term-debt@1"),
+                vec![concept("us-gaap", "LongTermDebtNoncurrent")],
+            ),
+            (
+                CanonicalElement::RetainedEarnings,
+                rule("us-gaap/alias/retained-earnings@1"),
+                vec![concept("us-gaap", "RetainedEarningsAccumulatedDeficit")],
+            ),
         ];
 
-        let result: Vec<ConceptAliases> = us_gaap
+        let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
             .aliases()
             .iter()
             .skip(mappings::REQUIRED_CONCEPTS.len())
-            .cloned()
+            .map(|aliases| {
+                (
+                    aliases.element,
+                    aliases.rule.clone(),
+                    aliases.concepts.clone(),
+                )
+            })
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_parts_of_optional_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (
+                CanonicalElement::CashAndEquivalents,
+                PartAliases {
+                    rule: rule("us-gaap/part/cash-and-equivalents@1"),
+                    parts: vec![concept("us-gaap", "Cash")],
+                    other_parts: vec![
+                        concept("us-gaap", "CashEquivalentsAtCarryingValue"),
+                        concept("us-gaap", "DueFromBanks"),
+                        concept("us-gaap", "InterestBearingDepositsInBanks"),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::ShortTermInvestments,
+                PartAliases {
+                    rule: rule("us-gaap/part/short-term-investments@1"),
+                    parts: vec![concept("us-gaap", "MarketableSecuritiesCurrent")],
+                    other_parts: vec![
+                        concept("us-gaap", "DebtSecuritiesCurrent"),
+                        concept("us-gaap", "EquitySecuritiesFvNi"),
+                        concept("us-gaap", "OtherShortTermInvestments"),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::IntangibleAssets,
+                PartAliases {
+                    rule: rule("us-gaap/part/intangible-assets@1"),
+                    parts: vec![concept("us-gaap", "FiniteLivedIntangibleAssetsNet")],
+                    other_parts: vec![concept(
+                        "us-gaap",
+                        "IndefiniteLivedIntangibleAssetsExcludingGoodwill",
+                    )],
+                },
+            ),
+        ];
+
+        let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
+            .aliases()
+            .iter()
+            .skip(mappings::REQUIRED_CONCEPTS.len())
+            .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
 
         assert_eq!(result, expected_result);
@@ -730,7 +855,8 @@ mod tests {
     }
 
     #[test]
-    fn should_give_synonym_with_revenue_rule_id_when_registry_with_us_gaap_resolves_later_alias() {
+    fn should_give_synonym_with_revenue_part_rule_id_when_registry_with_us_gaap_resolves_a_part_alone()
+     {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
             .expect("Given one plug-in with distinct families, the registry should always start");
@@ -743,7 +869,7 @@ mod tests {
 
         let expected_result = vec![(
             CanonicalElement::Revenue,
-            rule("us-gaap/alias/revenue@1"),
+            rule("us-gaap/part/revenue@1"),
             Some(Confidence::Synonym),
         )];
 

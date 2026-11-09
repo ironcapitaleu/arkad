@@ -18,7 +18,7 @@
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
@@ -33,6 +33,7 @@ use xbrl::core::elements::CanonicalElement;
 use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, FactValue, TaxonomyVersion};
 use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::finding::Finding;
+use xbrl::core::rule::RuleId;
 use xbrl::core::taxonomy::registry::Registry;
 use xbrl::core::unit::Unit;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
@@ -40,7 +41,7 @@ use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::tests::fixtures::sample_fact::date;
 use xbrl::us_gaap::UsGaap;
 
-/// The as-is concept of revenue in the fixture filing, the second concept of the revenue alias list.
+/// The as-is concept of revenue in the fixture filing, the first part of the revenue part rule.
 const REVENUE_CONCEPT: &str = "RevenueFromContractWithCustomerExcludingAssessedTax";
 
 /// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts` with [`UsGaap`].
@@ -101,12 +102,18 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
         (CanonicalElement::InvestingCashFlow, 2),
         (CanonicalElement::FinancingCashFlow, 2),
         (CanonicalElement::CurrentAssets, 2),
+        (CanonicalElement::CashAndEquivalents, 2),
         (CanonicalElement::Goodwill, 2),
         (CanonicalElement::CurrentLiabilities, 2),
         (CanonicalElement::NonCurrentLiabilities, 2),
         (CanonicalElement::RetainedEarnings, 2),
         (CanonicalElement::OperatingIncome, 2),
     ])
+}
+
+fn rule(text: &str) -> RuleId {
+    RuleId::from_str(text)
+        .expect("Given a hardcoded rule ID in the documented form, the parse should always succeed")
 }
 
 fn number(text: &str) -> BigDecimal {
@@ -265,7 +272,7 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     // Only the month of June has no conflict. June lasts 30 days, so its length rounds to 0
-    // quarters. Its concept is the second of the alias list, so its confidence is a synonym.
+    // quarters. Its concept is a part of revenue, so its confidence is a synonym.
     let expected_result = vec![
         (
             date(2025, 6, 30),
@@ -343,7 +350,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_51_standardized_facts_in_13_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -354,13 +361,76 @@ fn should_give_51_standardized_facts_in_13_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_51_standardized_facts_in_13_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
     let expected_result = expected_standardized_counts();
 
     let result = standardized_counts(&facts);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_resolve_revenue_net_income_equity_and_cash_by_their_part_rules_when_the_dedup_rules_run_on_the_notes_facts()
+ {
+    let facts = parse_notes_fixture().facts;
+
+    // The filer reports the part of the parent, and no other part, for these four concepts.
+    let expected_result = BTreeSet::from([
+        (CanonicalElement::Assets, rule("us-gaap/alias/assets@1")),
+        (CanonicalElement::Equity, rule("us-gaap/part/equity@1")),
+        (CanonicalElement::Revenue, rule("us-gaap/part/revenue@1")),
+        (
+            CanonicalElement::NetIncome,
+            rule("us-gaap/part/net-income@1"),
+        ),
+        (
+            CanonicalElement::OperatingCashFlow,
+            rule("us-gaap/alias/operating-cash-flow@1"),
+        ),
+        (
+            CanonicalElement::InvestingCashFlow,
+            rule("us-gaap/alias/investing-cash-flow@1"),
+        ),
+        (
+            CanonicalElement::FinancingCashFlow,
+            rule("us-gaap/alias/financing-cash-flow@1"),
+        ),
+        (
+            CanonicalElement::CurrentAssets,
+            rule("us-gaap/alias/current-assets@1"),
+        ),
+        (
+            CanonicalElement::CashAndEquivalents,
+            rule("us-gaap/part/cash-and-equivalents@1"),
+        ),
+        (CanonicalElement::Goodwill, rule("us-gaap/alias/goodwill@1")),
+        (
+            CanonicalElement::CurrentLiabilities,
+            rule("us-gaap/alias/current-liabilities@1"),
+        ),
+        (
+            CanonicalElement::NonCurrentLiabilities,
+            rule("us-gaap/alias/non-current-liabilities@1"),
+        ),
+        (
+            CanonicalElement::RetainedEarnings,
+            rule("us-gaap/alias/retained-earnings@1"),
+        ),
+        (
+            CanonicalElement::OperatingIncome,
+            rule("us-gaap/alias/operating-income@1"),
+        ),
+    ]);
+
+    let result: BTreeSet<(CanonicalElement, RuleId)> =
+        newest_filing(&candidates_of(&facts).candidates)
+            .facts
+            .into_iter()
+            .map(|fact| (fact.concept, fact.rule))
+            .collect();
 
     assert_eq!(result, expected_result);
 }

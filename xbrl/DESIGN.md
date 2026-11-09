@@ -424,10 +424,11 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 27 tags are picked by hand from filings. 25 of them
+- `us_gaap/mappings.rs` names no release. Its 41 tags are picked by hand from filings. 39 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
-  The unit test `should_find_reference_data_for_every_alias_except_the_removed_ones_when_created`
-  checks that the other 25 are in the 2026 schema. An alias list bridges renames across releases,
+  The unit test
+  `should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created`
+  checks that the other 39 are in the 2026 schema. An alias list bridges renames across releases,
   so it does not come from one release.
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
   Code").
@@ -536,20 +537,30 @@ ticket decides where the removed elements live.
   lists from the definitions, so the `xbrl` crate holds each list once. Each definition names its rule ID as a
   const next to the list. The rule name is the kebab case of the standard concept, at version 1,
   for example `us-gaap/alias/operating-cash-flow@1`.
-- An alias list of an optional concept holds only concepts that equal the whole standard concept,
-  such as the names of one total across releases. It holds no concept that is wider than its standard concept, and no
+- An alias list holds only concepts that equal the whole standard concept, such as the names of
+  one total across releases. It holds no concept that is wider than its standard concept, and no
   part of the total. Such a concept gives the standard concept a different meaning per filer, and
-  the `Synonym` confidence does not show it.
-  - Wider: `ReceivablesNetCurrent` also holds receivables that are not from customers, so it is not
-    an alias of `AccountsReceivable`.
-  - Part: `Cash` is one part of `CashAndCashEquivalentsAtCarryingValue`. As an alias, it gives
-    the part as the total to a filer that reports `Cash` and its cash equivalents without the
-    total. Such a filer now gets no value.
-  - A comment at each list in `mappings.rs` names the concepts it leaves out and why.
-  - The required lists of `Revenue` and `Equity` are older than this rule and still hold a part
-    of the total. `RevenueFromContractWithCustomerExcludingAssessedTax` is a part of `Revenues`.
-    `StockholdersEquity` is a part of the equity with the noncontrolling interest. A later change
-    decides these two lists.
+  the `Synonym` confidence does not show it. For example, `ReceivablesNetCurrent` also holds
+  receivables that are not from customers, so it is not an alias of `AccountsReceivable`.
+- A part stands for the whole only through the part rule, `us-gaap/part/<standard concept>@1`.
+  `PART_CONCEPTS` in `mappings.rs` names the parts of a standard concept and its other parts. The
+  other parts are the siblings of the part below the total in the 2026 calculation tree.
+  - The part rule runs only if no concept of the alias list resolves. The first part that the
+    filing reports wins, with confidence `Synonym`.
+  - The part wins only if the filing reports none of the other parts in the same period, with the
+    same unit and dimensions. Then the filing shows no second piece, so the part equals the whole.
+    Otherwise the standard concept gets no value from tiers 1 and 2.
+  - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
+    `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
+    equivalents.
+  - The other parts leave out a sibling that filers also report outside the total, such as
+    `GainsLossesOnSalesOfAssets` below `Revenues`. Its fact does not show a second piece of the
+    total, so it would block the part with no cause.
+  - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
+    pieces, so the filing reports no other piece, and the check would pass with the wrong value.
+- `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the
+  `Equity` of `Assets = Liabilities + Equity`. `NetIncomeLoss`, the part of the parent, stands for
+  it only if the filing reports no `NetIncomeLossAttributableToNoncontrollingInterest`.
 
 ### What `ifrs` Needs on Top
 
@@ -1562,5 +1573,5 @@ This touches the `sec` crate's public API and downstream consumers.
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for Level 2
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 2 of its 27 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 2 of its 41 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element

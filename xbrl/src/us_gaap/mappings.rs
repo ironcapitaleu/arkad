@@ -72,6 +72,64 @@ impl ConceptDefinition {
     }
 }
 
+/// The parts of a standard concept that stand for the whole when a filing reports no other part.
+///
+/// A part counts only if no concept of the alias list resolves, and only if the filing reports
+/// none of the `other_parts` in the period. `xbrl/DESIGN.md`, "`us_gaap`", gives the rule.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PartDefinition {
+    /// The standard concept the parts stand for.
+    canonical_element: CanonicalElement,
+    /// The parts, in priority order.
+    parts: &'static [&'static str],
+    /// The other pieces of the standard concept.
+    other_parts: &'static [&'static str],
+    /// The ID of the part rule, for example `us-gaap/part/equity@1`.
+    part_rule: &'static str,
+}
+
+impl PartDefinition {
+    /// Creates a new [`PartDefinition`].
+    #[must_use]
+    pub const fn new(
+        canonical_element: CanonicalElement,
+        parts: &'static [&'static str],
+        other_parts: &'static [&'static str],
+        part_rule: &'static str,
+    ) -> Self {
+        Self {
+            canonical_element,
+            parts,
+            other_parts,
+            part_rule,
+        }
+    }
+
+    /// Returns the standard concept the parts stand for.
+    #[must_use]
+    pub const fn canonical_element(&self) -> CanonicalElement {
+        self.canonical_element
+    }
+
+    /// Returns the parts in priority order.
+    #[must_use]
+    pub const fn parts(&self) -> &'static [&'static str] {
+        self.parts
+    }
+
+    /// Returns the other pieces of the standard concept.
+    #[must_use]
+    pub const fn other_parts(&self) -> &'static [&'static str] {
+        self.other_parts
+    }
+
+    /// Returns the ID of the part rule, for example `us-gaap/part/equity@1`.
+    #[must_use]
+    pub const fn part_rule(&self) -> &'static str {
+        self.part_rule
+    }
+}
+
 /// The ID of the alias rule of [`CanonicalElement::Revenue`].
 pub const REVENUE_RULE: &str = "us-gaap/alias/revenue@1";
 /// The ID of the alias rule of [`CanonicalElement::OperatingIncome`].
@@ -97,12 +155,9 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     // Income Statement backbone
     ConceptDefinition::new(
         CanonicalElement::Revenue,
-        &[
-            "Revenues",
-            "RevenueFromContractWithCustomerExcludingAssessedTax",
-            "SalesRevenueNet",
-            "RevenueFromContractWithCustomerIncludingAssessedTax",
-        ],
+        // The two `RevenueFromContractWithCustomer` concepts are parts, next to
+        // `RevenueNotFromContractWithCustomer`. `PART_CONCEPTS` holds them.
+        &["Revenues", "SalesRevenueNet"],
         REVENUE_RULE,
         true,
     ),
@@ -114,7 +169,9 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::NetIncome,
-        &["NetIncomeLoss"],
+        // `ProfitLoss` holds the noncontrolling interest, as the equity of the `Equity` list does.
+        // `NetIncomeLoss` is the part of the parent. `PART_CONCEPTS` holds it.
+        &["ProfitLoss"],
         NET_INCOME_RULE,
         true,
     ),
@@ -128,13 +185,10 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::Equity,
-        // The total with the noncontrolling interest comes first, because it is the equity of
-        // `Assets = Liabilities + Equity`. A filer without a noncontrolling interest reports only
-        // `StockholdersEquity`.
-        &[
-            "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
-            "StockholdersEquity",
-        ],
+        // The total with the noncontrolling interest is the equity of
+        // `Assets = Liabilities + Equity`. `StockholdersEquity` is the part of the parent.
+        // `PART_CONCEPTS` holds it.
+        &["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],
         EQUITY_RULE,
         true,
     ),
@@ -207,17 +261,15 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::CashAndEquivalents,
-        // `Cash` is not in the list. It is one part of the total, next to the cash equivalents.
-        // As an alias, it gives the part as the total to a filer that reports both parts
-        // without the total.
+        // `Cash` is a part, next to the cash equivalents. `PART_CONCEPTS` holds it.
         &["CashAndCashEquivalentsAtCarryingValue"],
         CASH_AND_EQUIVALENTS_RULE,
         false,
     ),
     ConceptDefinition::new(
         CanonicalElement::ShortTermInvestments,
-        // `MarketableSecuritiesCurrent` is not in the list. It is one part of the total, next to
-        // debt securities, equity securities, and other short-term investments.
+        // `MarketableSecuritiesCurrent` is a part, next to debt securities, equity securities,
+        // and other short-term investments. `PART_CONCEPTS` holds it.
         &["ShortTermInvestments"],
         SHORT_TERM_INVESTMENTS_RULE,
         false,
@@ -254,9 +306,8 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::IntangibleAssets,
-        // `FiniteLivedIntangibleAssetsNet` is not in the list. It is one part of the total. As an
-        // alias, it gives the part as the total to a filer that reports it next to
-        // `IndefiniteLivedIntangibleAssetsExcludingGoodwill` without the total.
+        // `FiniteLivedIntangibleAssetsNet` is a part, next to
+        // `IndefiniteLivedIntangibleAssetsExcludingGoodwill`. `PART_CONCEPTS` holds it.
         &["IntangibleAssetsNetExcludingGoodwill"],
         INTANGIBLE_ASSETS_RULE,
         false,
@@ -292,5 +343,74 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         &["RetainedEarningsAccumulatedDeficit"],
         RETAINED_EARNINGS_RULE,
         false,
+    ),
+];
+
+/// The ID of the part rule of [`CanonicalElement::Revenue`].
+pub const REVENUE_PART_RULE: &str = "us-gaap/part/revenue@1";
+/// The ID of the part rule of [`CanonicalElement::NetIncome`].
+pub const NET_INCOME_PART_RULE: &str = "us-gaap/part/net-income@1";
+/// The ID of the part rule of [`CanonicalElement::Equity`].
+pub const EQUITY_PART_RULE: &str = "us-gaap/part/equity@1";
+/// The ID of the part rule of [`CanonicalElement::CashAndEquivalents`].
+pub const CASH_AND_EQUIVALENTS_PART_RULE: &str = "us-gaap/part/cash-and-equivalents@1";
+/// The ID of the part rule of [`CanonicalElement::ShortTermInvestments`].
+pub const SHORT_TERM_INVESTMENTS_PART_RULE: &str = "us-gaap/part/short-term-investments@1";
+/// The ID of the part rule of [`CanonicalElement::IntangibleAssets`].
+pub const INTANGIBLE_ASSETS_PART_RULE: &str = "us-gaap/part/intangible-assets@1";
+
+/// The parts of the standard concepts. Each element has an alias list in [`REQUIRED_CONCEPTS`] or
+/// [`OPTIONAL_CONCEPTS`].
+///
+/// The other parts are the siblings of the part below the total in the 2026 calculation tree. A
+/// sibling that filers also report outside the total, such as `GainsLossesOnSalesOfAssets` below
+/// `Revenues`, is not in the list, because its fact does not show a second piece of the total.
+pub const PART_CONCEPTS: &[PartDefinition] = &[
+    PartDefinition::new(
+        CanonicalElement::Revenue,
+        &[
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "RevenueFromContractWithCustomerIncludingAssessedTax",
+        ],
+        &["RevenueNotFromContractWithCustomer"],
+        REVENUE_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::NetIncome,
+        &["NetIncomeLoss"],
+        &["NetIncomeLossAttributableToNoncontrollingInterest"],
+        NET_INCOME_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::Equity,
+        &["StockholdersEquity"],
+        &["MinorityInterest"],
+        EQUITY_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::CashAndEquivalents,
+        &["Cash"],
+        &[
+            "CashEquivalentsAtCarryingValue",
+            "DueFromBanks",
+            "InterestBearingDepositsInBanks",
+        ],
+        CASH_AND_EQUIVALENTS_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::ShortTermInvestments,
+        &["MarketableSecuritiesCurrent"],
+        &[
+            "DebtSecuritiesCurrent",
+            "EquitySecuritiesFvNi",
+            "OtherShortTermInvestments",
+        ],
+        SHORT_TERM_INVESTMENTS_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::IntangibleAssets,
+        &["FiniteLivedIntangibleAssetsNet"],
+        &["IndefiniteLivedIntangibleAssetsExcludingGoodwill"],
+        INTANGIBLE_ASSETS_PART_RULE,
     ),
 ];
