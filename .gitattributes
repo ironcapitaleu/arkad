@@ -2,3 +2,5 @@
 xbrl/taxonomy/** -text
 # GitHub collapses the generated US GAAP tables in diffs. The generator test guards their content.
 xbrl/src/us_gaap/taxonomy.rs linguist-generated=true
+# GitHub collapses the generated ISO 4217 table in diffs.
+xbrl/src/core/iso_4217.rs linguist-generated=true

@@ -6,6 +6,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
+use super::iso_4217::CURRENCY_CODES;
 
 /// One measure of a unit, for example `USD`, `EUR`, `shares`, or `pure`.
 ///
@@ -91,9 +92,6 @@ impl Unit {
     /// The character between two measures of one side in the text form.
     pub const MULTIPLICATION: char = '*';
 
-    /// The number of letters of an ISO 4217 currency code.
-    pub const CURRENCY_CODE_LENGTH: usize = 3;
-
     /// Creates a [`Unit`] from its numerator and denominator measures, and sorts each side.
     ///
     /// # Errors
@@ -133,9 +131,10 @@ impl Unit {
     /// Returns `true` if the unit is one currency, for example `USD` or `EUR`, and divides by
     /// nothing.
     ///
-    /// A currency measure is an ISO 4217 code: three ASCII capital letters. The measures carry no
-    /// prefix, so the form of the code is the only mark of a currency. A custom measure of three
-    /// capital letters, such as `BOE`, also counts. `shares`, `pure`, and `USD/shares` do not.
+    /// A currency is a code in [`CURRENCY_CODES`], the current ISO 4217 currencies. The measures
+    /// carry no prefix, so the table tells a currency from a custom measure such as `BOE`. The table
+    /// leaves out codes that are not money, such as `XAU` (gold) and `XDR`. `shares`, `pure`, and
+    /// `USD/shares` are not a currency either.
     ///
     /// # Examples
     ///
@@ -144,7 +143,7 @@ impl Unit {
     ///
     /// use xbrl::core::unit::Unit;
     ///
-    /// let unit = Unit::from_str("USD/shares").expect("Given a hardcoded unit with one measure per side, the parse should always succeed");
+    /// let unit = Unit::from_str("BOE").expect("Given a hardcoded unit with one measure, the parse should always succeed");
     ///
     /// let expected_result = false;
     ///
@@ -155,13 +154,7 @@ impl Unit {
     #[must_use]
     pub fn is_currency(&self) -> bool {
         match (self.numerator.as_slice(), self.denominator.as_slice()) {
-            ([measure], []) => {
-                measure.as_str().len() == Self::CURRENCY_CODE_LENGTH
-                    && measure
-                        .as_str()
-                        .bytes()
-                        .all(|byte| byte.is_ascii_uppercase())
-            }
+            ([measure], []) => CURRENCY_CODES.binary_search(&measure.as_str()).is_ok(),
             _ => false,
         }
     }
@@ -260,9 +253,9 @@ mod tests {
     }
 
     #[test]
-    fn should_report_a_currency_when_the_unit_is_one_iso_code() {
-        let unit = Unit::from_str("EUR")
-            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+    fn should_report_a_currency_when_the_unit_is_usd() {
+        let unit = Unit::from_str("USD")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
 
         let expected_result = true;
 
@@ -272,13 +265,96 @@ mod tests {
     }
 
     #[test]
-    fn should_report_no_currency_when_the_unit_is_shares() {
-        let unit = Unit::from_str("shares")
-            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+    fn should_report_a_currency_when_the_unit_is_eur() {
+        let unit = Unit::from_str("EUR")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = true;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_is_a_custom_measure_of_three_capitals() {
+        let unit = Unit::from_str("BOE")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
 
         let expected_result = false;
 
         let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_is_gold() {
+        let unit = Unit::from_str("XAU")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_is_a_unit_of_account() {
+        let unit = Unit::from_str("XDR")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_is_a_fund_code() {
+        let unit = Unit::from_str("USN")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_is_shares() {
+        let unit = Unit::from_str("shares")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_currency_when_the_unit_divides_a_currency() {
+        let unit = Unit::from_str("USD/shares")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = false;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_sorted_codes_for_the_currency_table() {
+        let codes = CURRENCY_CODES;
+
+        let expected_result = true;
+
+        let result = codes.is_sorted_by(|left, right| left < right);
 
         assert_eq!(result, expected_result);
     }

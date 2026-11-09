@@ -25,6 +25,7 @@
 //! - [`form`]: The form type of a filing as filed.
 //! - [`graph`]: The resolution and validation engine.
 //! - [`invalid_value`]: The error of a core value type.
+//! - [`iso_4217`]: The codes of the current ISO 4217 currencies.
 //! - [`period`]: Instants and durations.
 //! - [`period_identity`]: The derivation of the fourth quarter from the fiscal year.
 //! - [`release`]: The taxonomy release of a plug-in.
@@ -50,6 +51,7 @@ pub mod fiscal_year;
 pub mod form;
 pub mod graph;
 pub mod invalid_value;
+pub mod iso_4217;
 pub mod period;
 pub mod period_identity;
 pub mod release;
