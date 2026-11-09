@@ -1,12 +1,12 @@
 //! # US GAAP Generator
 //!
-//! Writes the tables of the `us_gaap` plug-in from the vendored FASB files.
+//! Writes the tables of the `us_gaap` plug-in from the vendored FASB and SEC files.
 //!
-//! The build of `xbrl` parses no XML for the tables. This module reads the element schema, the
-//! label linkbase, and the statement calculation linkbases of the vendored release with
-//! `roxmltree`. It renders the tables as Rust source into `src/us_gaap/taxonomy.rs`, which is
-//! checked in. A developer runs it once per release, with
-//! `cargo run -p xbrl --features generator --bin generate_us_gaap`.
+//! The build of `xbrl` parses no XML for the tables. This module reads the vendored files with
+//! `roxmltree`: the statement calculation linkbases of the US GAAP release, and the element schema
+//! and label linkbase of `us-gaap` and of the `srt` and `dei` releases that it imports. It renders
+//! the tables as Rust source into `src/us_gaap/taxonomy.rs`, which is checked in. A developer runs
+//! it once per release, with `cargo run -p xbrl --features generator --bin generate_us_gaap`.
 //!
 //! The module is compiled only with the `generator` feature, so a normal build of `xbrl` or of a
 //! crate that depends on it leaves it out.
@@ -41,20 +41,47 @@ pub mod schema;
 /// The ID of the release that the generator reads.
 pub const RELEASE_ID: &str = "us-gaap/2026";
 
-/// The folder of the vendored release, relative to the `xbrl` crate.
+/// The folder of the vendored US GAAP release, relative to the `xbrl` crate.
 pub const RELEASE_FOLDER: &str = "taxonomy/us-gaap/2026";
 
+/// The vendored folders that the release checksum covers, relative to the `xbrl` crate.
+///
+/// The checksum joins their `MANIFEST` files in this order. The first folder is the US GAAP
+/// release. The others hold the `srt` and `dei` releases that it imports.
+pub const CHECKSUM_FOLDERS: &[&str] = &[RELEASE_FOLDER, SRT_FOLDER, DEI_FOLDER];
+
 /// The generated file, relative to the `xbrl` crate.
+///
+/// `.gitattributes` marks this path as generated. Change both together.
 pub const OUTPUT_FILE: &str = "src/us_gaap/taxonomy.rs";
 
-/// The namespace family of the concepts of the element schema.
-const FAMILY: &str = "us-gaap";
+/// The folder of the vendored `srt` release, relative to the `xbrl` crate.
+const SRT_FOLDER: &str = "taxonomy/srt/2026";
 
-/// The element schema, relative to the release folder.
-const SCHEMA_FILE: &str = "elts/us-gaap-2026.xsd";
+/// The folder of the vendored `dei` release, relative to the `xbrl` crate.
+const DEI_FOLDER: &str = "taxonomy/dei/2026";
 
-/// The label linkbase, relative to the release folder.
-const LABEL_FILE: &str = "elts/us-gaap-lab-2026.xml";
+/// The element schemas that the generator reads, with the family of their concepts.
+const ELEMENT_SCHEMAS: &[ElementSchema] = &[
+    ElementSchema {
+        family: "us-gaap",
+        folder: RELEASE_FOLDER,
+        schema_file: "elts/us-gaap-2026.xsd",
+        label_file: "elts/us-gaap-lab-2026.xml",
+    },
+    ElementSchema {
+        family: "srt",
+        folder: SRT_FOLDER,
+        schema_file: "elts/srt-2026.xsd",
+        label_file: "elts/srt-lab-2026.xml",
+    },
+    ElementSchema {
+        family: "dei",
+        folder: DEI_FOLDER,
+        schema_file: "dei-2026.xsd",
+        label_file: "dei-2026_lab.xsd",
+    },
+];
 
 /// The folder of the statement groups, relative to the release folder.
 const STATEMENT_FOLDER: &str = "stm";
@@ -62,13 +89,26 @@ const STATEMENT_FOLDER: &str = "stm";
 /// The part of a file name that marks a calculation linkbase.
 const CALCULATION_MARKER: &str = "-cal-";
 
-/// The manifest of the vendored files, relative to the release folder.
+/// The manifest of the vendored files, relative to a vendored folder.
 const MANIFEST_FILE: &str = "MANIFEST";
+
+/// One vendored element schema and its label linkbase.
+struct ElementSchema {
+    /// The namespace family of the concepts of the schema.
+    family: &'static str,
+    /// The vendored folder, relative to the `xbrl` crate.
+    folder: &'static str,
+    /// The element schema, relative to `folder`.
+    schema_file: &'static str,
+    /// The label linkbase, relative to `folder`.
+    label_file: &'static str,
+}
 
 /// Returns the Rust source of `us_gaap/taxonomy.rs`, read from the release below `xbrl_crate`.
 ///
-/// The calculation arcs come from the statement groups in `stm/`. The disclosure groups of the
-/// release are not vendored.
+/// The calculation arcs come from the statement groups in `stm/` of the US GAAP release. The
+/// disclosure groups of the release are not vendored. The elements come from the element schemas
+/// of `us-gaap`, `srt`, and `dei`.
 ///
 /// # Errors
 ///
@@ -76,27 +116,36 @@ const MANIFEST_FILE: &str = "MANIFEST";
 /// breaks an XBRL rule that the generator relies on, such as a concept without a standard label.
 pub fn generate(xbrl_crate: &Path) -> Result<String, GeneratorError> {
     let release = xbrl_crate.join(RELEASE_FOLDER);
+    let mut elements = Vec::new();
+    for schema in ELEMENT_SCHEMAS {
+        elements.extend(schema_elements(xbrl_crate, schema)?);
+    }
+    elements.sort();
     let tables = Tables {
         release_id: RELEASE_ID.to_string(),
-        release_folder: RELEASE_FOLDER.to_string(),
-        checksum: manifest_checksum(&release.join(MANIFEST_FILE))?,
+        folders: CHECKSUM_FOLDERS.iter().map(ToString::to_string).collect(),
+        checksum: release_checksum(xbrl_crate)?,
         arcs: calculation_arcs(&release.join(STATEMENT_FOLDER))?,
-        elements: elements(&release)?,
+        elements,
     };
     Ok(render::render(&tables))
 }
 
-/// Returns the concepts of the element schema with their standard labels, sorted by name.
-fn elements(release: &Path) -> Result<Vec<ElementLine>, GeneratorError> {
-    let schema_path = release.join(SCHEMA_FILE);
-    let label_path = release.join(LABEL_FILE);
+/// Returns the concepts of one element schema with their family and standard labels.
+fn schema_elements(
+    xbrl_crate: &Path,
+    schema: &ElementSchema,
+) -> Result<Vec<ElementLine>, GeneratorError> {
+    let folder = xbrl_crate.join(schema.folder);
+    let schema_path = folder.join(schema.schema_file);
+    let label_path = folder.join(schema.label_file);
     let concepts = schema::concepts(&schema_path, &read(&schema_path)?)?;
     let mut labels = linkbase::standard_labels(&label_path, &read(&label_path)?)?;
-    let mut elements = concepts
+    concepts
         .into_iter()
         .map(|concept| {
             let key = ConceptRef {
-                family: FAMILY.to_string(),
+                family: schema.family.to_string(),
                 name: concept.name,
             };
             let label = labels
@@ -105,6 +154,7 @@ fn elements(release: &Path) -> Result<Vec<ElementLine>, GeneratorError> {
                     concept: key.to_string(),
                 })?;
             Ok(ElementLine {
+                family: key.family,
                 name: key.name,
                 label,
                 data_type: concept.data_type,
@@ -112,9 +162,7 @@ fn elements(release: &Path) -> Result<Vec<ElementLine>, GeneratorError> {
                 period_type: concept.period_type,
             })
         })
-        .collect::<Result<Vec<_>, GeneratorError>>()?;
-    elements.sort();
-    Ok(elements)
+        .collect()
 }
 
 /// Returns the arcs of every calculation linkbase in `statements`, sorted by role, parent, and
@@ -170,14 +218,20 @@ fn check_weights(arcs: &[linkbase::CalculationArc]) -> Result<(), GeneratorError
     Ok(())
 }
 
-/// Returns the SHA-256 of the file at `manifest`, as 64 lowercase hex digits.
-fn manifest_checksum(manifest: &Path) -> Result<String, GeneratorError> {
-    let bytes = fs::read(manifest).map_err(|error| GeneratorError::FailedFileRead {
-        path: manifest.to_path_buf(),
-        reason: error.to_string(),
-    })?;
+/// Returns the SHA-256 of the `MANIFEST` files of [`CHECKSUM_FOLDERS`], joined in that order, as
+/// 64 lowercase hex digits.
+fn release_checksum(xbrl_crate: &Path) -> Result<String, GeneratorError> {
+    let mut hasher = Sha256::new();
+    for folder in CHECKSUM_FOLDERS {
+        let manifest = xbrl_crate.join(folder).join(MANIFEST_FILE);
+        let bytes = fs::read(&manifest).map_err(|error| GeneratorError::FailedFileRead {
+            path: manifest.clone(),
+            reason: error.to_string(),
+        })?;
+        hasher.update(&bytes);
+    }
     let mut checksum = String::new();
-    for byte in Sha256::digest(&bytes) {
+    for byte in hasher.finalize() {
         write!(checksum, "{byte:02x}").expect("Given a String, a write should never fail");
     }
     Ok(checksum)
