@@ -52,7 +52,7 @@ To extract the concept name: strip the `loc_` prefix from the label, or parse th
 
 ### Purpose
 
-Defines arithmetic (summation) relationships: "parent = sum of children with weights". Used for Tier 3 derivation.
+Defines arithmetic (summation) relationships: "parent = sum of children with weights". Used for Tier 4 computation.
 
 ### Arc Role
 

@@ -91,13 +91,6 @@ CashCashEquivalentsRestrictedCash...PeriodIncreaseDecreaseIncludingExchangeRateE
   + EffectOfExchangeRateOnCash...
 ```
 
-## How to Apply (Tier 3 Derivation)
+## How to Apply
 
-When a company doesn't report a parent concept, derive it by summing children:
-
-1. Check if parent concept exists → use it (Tier 1/2)
-2. If not, check if ALL required children exist in the filing
-3. If yes, compute: `parent = Σ(child_i × weight_i)`
-4. Store with `confidence: Derived`
-
-Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + `LiabilitiesNoncurrent`. Derive: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
+The calculation tree feeds Tier 4. The procedure is in `SKILL.md`, "Computation Rules (Tier 4)".

@@ -4,7 +4,7 @@ description: >
   Use when working on the xbrl crate, concept resolution, normalization,
   SFAC 6 invariants, US GAAP taxonomy concepts, calculation linkbase,
   or expanding alias/concept coverage.
-version: 0.1.0
+version: 0.2.0
 ---
 
 # XBRL Accounting Domain Knowledge
@@ -29,12 +29,17 @@ These are the validation checks the system enforces. Violation of identity #1 is
 
 When mapping a US GAAP concept to a CanonicalElement:
 
-1. Check if the concept key matches exactly in `REQUIRED_CONCEPTS` or `OPTIONAL_CONCEPTS` (Tier 1: Exact)
-2. Check if it matches any known alias in a ConceptDefinition's alias list (Tier 2: Synonym)
-3. If no direct mapping, check if the concept can be derived from children via calculation linkbase (Tier 3: Derived)
-4. If still unresolved, traverse the full FASB linkbase graph for indirect relationships (Tier 4: Computed)
+1. If the concept is the first concept of the alias list of a plug-in (`REQUIRED_CONCEPTS` or
+   `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
+2. If it is a later concept of that alias list, or an ESEF anchor (planned `ifrs` plug-in), use it
+   (Tier 2: Synonym)
+3. If no alias resolves, apply an identity the core knows: an SFAC 6 identity or a period identity,
+   such as Q4 = FY − 9-month year to date (Tier 3: Derived)
+4. If still unresolved, sum the children of the concept along the calculation tree of a plug-in.
+   The sum takes the arcs of one role (Tier 4: Computed)
 
-Always assign the appropriate `Confidence` level matching the tier used.
+Assign the `Confidence` level of the tier used. A derived or computed value takes the weakest level
+of its own tier and its inputs.
 
 ## Adding New Concepts — Checklist
 
@@ -48,14 +53,24 @@ Always assign the appropriate `Confidence` level matching the tier used.
 
 ## Derivation Rules (Tier 3)
 
-When a company doesn't report a parent concept, derive it from children:
+A Tier 3 value comes from an identity the core knows, not from the calculation tree:
 
-1. Look up the parent's children in the calculation linkbase
-2. Check if ALL required children are present in the filing
-3. Compute: `parent = Σ(child_i × weight_i)` where weight is +1 or -1
-4. Store with `confidence: Derived`
+1. An SFAC 6 identity, for example `Assets = Liabilities + Equity`
+2. A period identity, for example `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date.
+   It applies only to duration concepts in one currency, with no per-share unit
+3. Store with `confidence: Derived`, or the weaker level of an input
 
-Example: Amazon doesn't report `Liabilities` but reports `LiabilitiesCurrent` + `LiabilitiesNoncurrent`. Derive: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
+## Computation Rules (Tier 4)
+
+When a company does not report a parent concept, sum its children along the calculation tree:
+
+1. Look up the children of the parent in the calculation arcs of one role
+2. Check that the filing reports ALL children
+3. Compute: `parent = Σ(child_i × weight_i)`, where the weight is +1 or −1
+4. Store with `confidence: Computed`
+
+Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` and
+`LiabilitiesNoncurrent`. Compute: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
 
 ## Critical Invariants
 
