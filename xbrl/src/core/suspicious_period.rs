@@ -22,9 +22,10 @@ const EARLIEST_YEAR: i32 = 1900;
 /// 100 years. Ends 10 to 100 years ahead are real, such as debt terms or carbon price assumptions.
 const MONTHS_FROM_REPORT: u32 = 1200;
 
-/// The years by which the end of a confirming value can lie away from the period of report of the
-/// flagged filing. A 10-K compares 3 years, and every confirmation in the measurement ends within
-/// 2 years. The limit keeps a common value, such as 0, of another year from confirming by chance.
+/// The years by which the year of the end of a confirming value can lie away from the year of the
+/// period of report of the flagged filing. A 10-K compares 3 years, and every confirmation in the
+/// measurement ends within 2 years. The limit keeps a common value, such as 0, of another year
+/// from confirming by chance.
 const CONFIRMATION_YEARS: i32 = 3;
 
 /// Checks the period of each value in `series`, and returns one [`Finding::SuspiciousPeriod`] per
@@ -43,8 +44,8 @@ const CONFIRMATION_YEARS: i32 = 3;
 ///
 /// The value key of the finding is the first input of the value. Another value confirms the
 /// flagged value if it has the same concept, unit, dimensions, and value, hits no signal, ends on
-/// the same month and day within 3 years of the period of report of the flagged filing, and comes
-/// from another filing. If the flagged filing is missing from `filings` or has no period of
+/// the same month and day in a year at most 3 from the year of the period of report of the flagged
+/// filing, and comes from another filing. If the flagged filing is missing from `filings` or has no period of
 /// report, no value confirms it. A typo in a comparative has its
 /// original in an earlier filing, and a typo in a new value has its comparative in a later one,
 /// so both count. If several filings confirm, the finding names the newest: the latest `filed`,
@@ -56,8 +57,6 @@ pub fn suspicious_periods(series: &Series, filings: &[Filing]) -> Vec<Finding> {
         let Some(key) = fact.inputs.first() else {
             continue;
         };
-        // A derived value, such as a Q4 of `core/period/q4-from-fy@1`, has the period of no input.
-        // The finding on the input names the typo.
         if key.period_end != fact.period.end() || key.quarters != fact.period.quarters() {
             continue;
         }
@@ -490,8 +489,10 @@ mod tests {
         };
         let year = value_in_period(&report, span(date(2923, 1, 1), date(2923, 12, 31)), "100");
         let nine_months = value_in_period(&report, span(date(2923, 1, 1), date(2923, 9, 30)), "70");
-        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]));
-        let facts = series([vec![year.clone(), nine_months.clone()], fourth_quarter].concat());
+        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]))
+            .pop()
+            .expect("Given a year and 9 months of one currency series, derive_q4 should always derive a Q4");
+        let facts = series(vec![year.clone(), nine_months.clone(), fourth_quarter]);
 
         let expected_result = vec![
             finding(&year, &[PeriodSignal::EndFarFromReport], None),
@@ -499,6 +500,40 @@ mod tests {
         ];
 
         let result = suspicious_periods(&facts, &[report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_filing_when_the_other_value_ends_3_years_before_the_report() {
+        let old = sample_filing("10-K", date(2021, 12, 31), "1231");
+        let report = sample_filing("10-Q", date(2024, 6, 30), "1231");
+        let quarter = value_in(&old, date(2021, 6, 30), 1, "50000");
+        let flagged = value_in(&report, date(2921, 6, 30), 1, "50000");
+        let facts = series(vec![quarter, flagged.clone()]);
+
+        let expected_result = vec![finding(
+            &flagged,
+            &[PeriodSignal::EndFarFromReport],
+            Some(&old),
+        )];
+
+        let result = suspicious_periods(&facts, &[old, report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_no_filing_when_the_other_value_ends_4_years_before_the_report() {
+        let old = sample_filing("10-K", date(2020, 12, 31), "1231");
+        let report = sample_filing("10-Q", date(2024, 6, 30), "1231");
+        let quarter = value_in(&old, date(2020, 6, 30), 1, "50000");
+        let flagged = value_in(&report, date(2920, 6, 30), 1, "50000");
+        let facts = series(vec![quarter, flagged.clone()]);
+
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
+
+        let result = suspicious_periods(&facts, &[old, report]);
 
         assert_eq!(result, expected_result);
     }

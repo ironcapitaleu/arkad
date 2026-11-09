@@ -996,12 +996,13 @@ input names the typo.
 | `EndFarFromReport` | The end lies more than 100 years before or after the period of report of the filing of the value |
 
 **Confirmation.** Another value confirms a flagged value if it has the same entity, concept,
-unit, dimensions, and value, hits no signal, ends on the same month and day within 3 years of the
-period of report of the flagged filing, and comes from another filing. The 3 years keep a common
-value, such as 0, of another year from confirming by chance. Every confirmation in the
-measurement ends within 2 years. A typo in a comparative has its original in an earlier filing. A typo in a new
-value has its comparative in a later filing. So both directions count. If several filings
-confirm, the finding names the newest, in the order of `core/dedup/newest-filing@1`.
+unit, dimensions, and value, hits no signal, ends on the same month and day in a year at most 3
+from the year of the period of report of the flagged filing, and comes from another filing. The
+limit of 3 years keeps a common value, such as 0, of another year from confirming by chance.
+Every confirmation in the measurement ends within 2 years. A typo in a comparative has its
+original in an earlier filing. A typo in a new value has its comparative in a later filing. So
+both directions count. If several filings confirm, the finding names the newest, in the order of
+`core/dedup/newest-filing@1`.
 
 #### Measurement
 
