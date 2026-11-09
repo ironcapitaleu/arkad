@@ -620,6 +620,14 @@ mod tests {
                 CanonicalElement::ShareBasedCompensation,
                 "us-gaap/alias/share-based-compensation@1",
             ),
+            (
+                CanonicalElement::OtherComprehensiveIncome,
+                "us-gaap/alias/other-comprehensive-income@1",
+            ),
+            (
+                CanonicalElement::ComprehensiveIncome,
+                "us-gaap/alias/comprehensive-income@1",
+            ),
         ];
 
         let result: Vec<(CanonicalElement, &str)> = us_gaap
@@ -730,6 +738,8 @@ mod tests {
             CanonicalElement::CapitalExpenditures,
             CanonicalElement::DividendsPaid,
             CanonicalElement::ShareRepurchases,
+            CanonicalElement::OtherComprehensiveIncome,
+            CanonicalElement::ComprehensiveIncome,
         ];
 
         let result: Vec<CanonicalElement> = us_gaap
@@ -1132,6 +1142,510 @@ mod tests {
             })
             .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    // The test writes out the expanded other parts, so it passes 100 lines.
+    #[allow(clippy::too_many_lines)]
+    #[test]
+    fn should_return_other_comprehensive_income_concepts_and_parts_in_priority_order_when_created()
+    {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(&ConceptAliases {
+            element: CanonicalElement::OtherComprehensiveIncome,
+            rule: rule("us-gaap/alias/other-comprehensive-income@1"),
+            concepts: vec![concept("us-gaap", "OtherComprehensiveIncomeLossNetOfTax")],
+            parts: Some(PartAliases {
+                rule: rule("us-gaap/part/other-comprehensive-income@1"),
+                parts: vec![concept(
+                    "us-gaap",
+                    "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
+                )],
+                other_parts: vec![
+                    concept("us-gaap", "OtherComprehensiveIncomeLossNetOfTax"),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciEquityMethodInvestmentAfterTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciEquityMethodInvestmentBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciEquityMethodInvestmentTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciLiabilityForFuturePolicyBenefitGainLossAfterReclassificationAdjustmentAndTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciLiabilityForFuturePolicyBenefitGainLossAfterReclassificationAdjustmentBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciLiabilityForFuturePolicyBenefitGainLossAfterReclassificationAdjustmentTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciMarketRiskBenefitInstrumentSpecificCreditRiskGainLossAfterAdjustmentsAndTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciMarketRiskBenefitInstrumentSpecificCreditRiskGainLossAfterAdjustmentsBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciMarketRiskBenefitInstrumentSpecificCreditRiskGainLossAfterAdjustmentsTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeAvailableforsaleSecuritiesAdjustmentBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeAvailableforsaleSecuritiesAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeAvailableforsaleSecuritiesTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeDefinedBenefitPlansAdjustmentBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeDefinedBenefitPlansAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeDefinedBenefitPlansTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeForeignCurrencyTransactionAndTranslationAdjustmentBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeForeignCurrencyTransactionAndTranslationAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeForeignCurrencyTranslationAdjustmentTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationAndTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossDerivativeExcludedComponentIncreaseDecreaseAfterAdjustmentsAndTaxNoncontrollingInterest1",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossDerivativeExcludedComponentIncreaseDecreaseAfterAdjustmentsBeforeTaxNoncontrollingInterest1",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossDerivativeExcludedComponentIncreaseDecreaseAfterAdjustmentsTaxNoncontrollingInterest1",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossFinancialLiabilityFairValueOptionAfterReclassificationAdjustmentTaxAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossFinancialLiabilityFairValueOptionAfterTaxAndReclassificationAdjustmentAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossFinancialLiabilityFairValueOptionBeforeTaxAfterReclassificationAdjustmentAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                ],
+            }),
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::OtherComprehensiveIncome);
+
+        assert_eq!(result, expected_result);
+    }
+
+    // The test writes out the expanded other parts, so it passes 100 lines.
+    #[allow(clippy::too_many_lines)]
+    #[test]
+    fn should_return_comprehensive_income_concepts_and_parts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(&ConceptAliases {
+            element: CanonicalElement::ComprehensiveIncome,
+            rule: rule("us-gaap/alias/comprehensive-income@1"),
+            concepts: vec![concept(
+                "us-gaap",
+                "ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest",
+            )],
+            parts: Some(PartAliases {
+                rule: rule("us-gaap/part/comprehensive-income@1"),
+                parts: vec![concept("us-gaap", "ComprehensiveIncomeNetOfTax")],
+                other_parts: vec![
+                    concept(
+                        "us-gaap",
+                        "ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "ComprehensiveIncomeNetOfTaxAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NetIncomeLossAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NetIncomeLossAttributableToNonredeemableNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NetIncomeLossAttributableToRedeemableNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossJointVenturePartnersNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossJointVenturePartnersRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossLimitedPartnershipsNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossLimitedPartnershipsRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOperatingPartnershipsNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOperatingPartnershipsRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOtherNoncontrollingInterestsNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOtherNoncontrollingInterestsRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossPreferredUnitHoldersNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossPreferredUnitHoldersRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciEquityMethodInvestmentAfterTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciEquityMethodInvestmentBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciEquityMethodInvestmentTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciLiabilityForFuturePolicyBenefitGainLossAfterReclassificationAdjustmentAndTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciLiabilityForFuturePolicyBenefitGainLossAfterReclassificationAdjustmentBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciLiabilityForFuturePolicyBenefitGainLossAfterReclassificationAdjustmentTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciMarketRiskBenefitInstrumentSpecificCreditRiskGainLossAfterAdjustmentsAndTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciMarketRiskBenefitInstrumentSpecificCreditRiskGainLossAfterAdjustmentsBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OciMarketRiskBenefitInstrumentSpecificCreditRiskGainLossAfterAdjustmentsTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeAvailableforsaleSecuritiesAdjustmentBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeAvailableforsaleSecuritiesAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeAvailableforsaleSecuritiesTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeDefinedBenefitPlansAdjustmentBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeDefinedBenefitPlansAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeDefinedBenefitPlansTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeForeignCurrencyTransactionAndTranslationAdjustmentBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeForeignCurrencyTransactionAndTranslationAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeForeignCurrencyTranslationAdjustmentTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossBeforeTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationAndTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationBeforeTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossCashFlowHedgeGainLossAfterReclassificationTaxNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossDerivativeExcludedComponentIncreaseDecreaseAfterAdjustmentsAndTaxNoncontrollingInterest1",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossDerivativeExcludedComponentIncreaseDecreaseAfterAdjustmentsBeforeTaxNoncontrollingInterest1",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossDerivativeExcludedComponentIncreaseDecreaseAfterAdjustmentsTaxNoncontrollingInterest1",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossFinancialLiabilityFairValueOptionAfterReclassificationAdjustmentTaxAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossFinancialLiabilityFairValueOptionAfterTaxAndReclassificationAdjustmentAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossFinancialLiabilityFairValueOptionBeforeTaxAfterReclassificationAdjustmentAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "OtherComprehensiveIncomeLossTaxPortionAttributableToNoncontrollingInterest",
+                    ),
+                ],
+            }),
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::ComprehensiveIncome);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_comprehensive_income_part_rule_id_when_registry_with_us_gaap_resolves_a_part_alone()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(&filing, "ComprehensiveIncomeNetOfTax", "900000000")];
+
+        let expected_result = vec![(
+            CanonicalElement::ComprehensiveIncome,
+            rule("us-gaap/part/comprehensive-income@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_other_comprehensive_income_part_rule_id_when_registry_with_us_gaap_resolves_a_part_alone()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
+            "-30000000",
+        )];
+
+        let expected_result = vec![(
+            CanonicalElement::OtherComprehensiveIncome,
+            rule("us-gaap/part/other-comprehensive-income@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_comprehensive_income_when_the_filing_reports_the_parent_part_next_to_the_noncontrolling_net_income()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "ComprehensiveIncomeNetOfTax", "900000000"),
+            fact(
+                &filing,
+                "NetIncomeLossAttributableToNoncontrollingInterest",
+                "50000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_other_comprehensive_income_when_the_filing_reports_the_parent_part_next_to_a_noncontrolling_component()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
+                "-30000000",
+            ),
+            fact(
+                &filing,
+                "OtherComprehensiveIncomeForeignCurrencyTransactionAndTranslationAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                "-2000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_other_comprehensive_income_when_the_filing_reports_the_parent_part_next_to_the_noncontrolling_share()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
+                "-30000000",
+            ),
+            fact(
+                &filing,
+                "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest",
+                "-2000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_comprehensive_income_when_the_filing_reports_the_parent_part_next_to_the_noncontrolling_share()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "ComprehensiveIncomeNetOfTax", "900000000"),
+            fact(
+                &filing,
+                "ComprehensiveIncomeNetOfTaxAttributableToNoncontrollingInterest",
+                "100000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
 
         assert_eq!(result, expected_result);
     }

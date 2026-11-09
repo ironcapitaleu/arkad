@@ -274,6 +274,10 @@ pub const DIVIDENDS_PAID_RULE: &str = "us-gaap/alias/dividends-paid@1";
 pub const SHARE_REPURCHASES_RULE: &str = "us-gaap/alias/share-repurchases@1";
 /// The ID of the alias rule of [`CanonicalElement::ShareBasedCompensation`].
 pub const SHARE_BASED_COMPENSATION_RULE: &str = "us-gaap/alias/share-based-compensation@1";
+/// The ID of the alias rule of [`CanonicalElement::OtherComprehensiveIncome`].
+pub const OTHER_COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/other-comprehensive-income@1";
+/// The ID of the alias rule of [`CanonicalElement::ComprehensiveIncome`].
+pub const COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/comprehensive-income@1";
 
 /// Optional concept definitions that enrich financial statements when available.
 /// Their absence does not cause validation failure.
@@ -472,6 +476,30 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         SHARE_BASED_COMPENSATION_RULE,
         false,
     ),
+    // Level 1 detail. Many filers present no other comprehensive income, so these lists are
+    // optional.
+    //
+    // `Expenses`, `Gains`, and `Losses` have no list. No US GAAP concept holds the expenses,
+    // gains, or losses of SFAC 6. `CostsAndExpenses` holds the cost of revenue and the operating
+    // expenses only, without interest and income tax. The SFAC 6 identity of `xbrl/DESIGN.md`,
+    // "Three Layers", gives only their net amount, not each one. No rule fills them yet.
+    ConceptDefinition::new(
+        CanonicalElement::OtherComprehensiveIncome,
+        // The total with the noncontrolling interest, as `NetIncome` and `Equity` hold it.
+        // `OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent` is a part.
+        // `PART_CONCEPTS` holds it.
+        &["OtherComprehensiveIncomeLossNetOfTax"],
+        OTHER_COMPREHENSIVE_INCOME_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::ComprehensiveIncome,
+        // The total with the noncontrolling interest, as `NetIncome` and `Equity` hold it.
+        // `ComprehensiveIncomeNetOfTax` is the part of the parent. `PART_CONCEPTS` holds it.
+        &["ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest"],
+        COMPREHENSIVE_INCOME_RULE,
+        false,
+    ),
 ];
 
 /// The ID of the part rule of [`CanonicalElement::Revenue`].
@@ -502,6 +530,10 @@ pub const CAPITAL_EXPENDITURES_PART_RULE: &str = "us-gaap/part/capital-expenditu
 pub const DIVIDENDS_PAID_PART_RULE: &str = "us-gaap/part/dividends-paid@1";
 /// The ID of the part rule of [`CanonicalElement::ShareRepurchases`].
 pub const SHARE_REPURCHASES_PART_RULE: &str = "us-gaap/part/share-repurchases@1";
+/// The ID of the part rule of [`CanonicalElement::OtherComprehensiveIncome`].
+pub const OTHER_COMPREHENSIVE_INCOME_PART_RULE: &str = "us-gaap/part/other-comprehensive-income@1";
+/// The ID of the part rule of [`CanonicalElement::ComprehensiveIncome`].
+pub const COMPREHENSIVE_INCOME_PART_RULE: &str = "us-gaap/part/comprehensive-income@1";
 
 /// The parts of the standard concepts. Each element has an alias list in [`REQUIRED_CONCEPTS`] or
 /// [`OPTIONAL_CONCEPTS`].
@@ -737,5 +769,24 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         &[],
         SHARE_REPURCHASES_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::OtherComprehensiveIncome,
+        &["OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent"],
+        // The part of the parent is the total minus the share of the noncontrolling interest.
+        // The total blocks the part if the filing reports it only with a member.
+        &["OtherComprehensiveIncomeLossNetOfTax"],
+        &["OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest"],
+        OTHER_COMPREHENSIVE_INCOME_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::ComprehensiveIncome,
+        &["ComprehensiveIncomeNetOfTax"],
+        // `ComprehensiveIncomeNetOfTax` is the total minus the share of the noncontrolling
+        // interest. The total blocks the part if the filing reports it only with a member.
+        // `NetIncomeLossAttributableToNoncontrollingInterest` sits below the share, so it blocks.
+        &["ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest"],
+        &["ComprehensiveIncomeNetOfTaxAttributableToNoncontrollingInterest"],
+        COMPREHENSIVE_INCOME_PART_RULE,
     ),
 ];

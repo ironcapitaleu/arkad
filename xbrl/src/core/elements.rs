@@ -29,9 +29,11 @@ pub enum CanonicalElement {
     Losses,
     /// Net income (loss), including the portion of the noncontrolling interest.
     NetIncome,
-    /// Other comprehensive income (unrealized gains/losses, FX, pensions).
+    /// Other comprehensive income (unrealized gains/losses, FX, pensions), including the portion
+    /// of the noncontrolling interest.
     OtherComprehensiveIncome,
-    /// Comprehensive income (net income + OCI).
+    /// Comprehensive income (net income + OCI), including the portion of the noncontrolling
+    /// interest.
     ComprehensiveIncome,
     /// Net cash from operating activities.
     OperatingCashFlow,
