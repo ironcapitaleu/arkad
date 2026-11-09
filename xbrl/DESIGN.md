@@ -428,7 +428,8 @@ file fails at run time).
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
   The unit test
   `should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created`
-  checks that the other 57 are in the 2026 schema. An alias list bridges renames across releases,
+  checks that the other 57, and each concept below a root of `other_part_trees`, are in the 2026
+  schema. An alias list bridges renames across releases,
   so it does not come from one release.
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
   Code").
@@ -547,9 +548,11 @@ ticket decides where the removed elements live.
   other parts are the concepts that sum to the total with the part: the siblings of the part, and
   the siblings of each concept between the part and the total, in the 2026 calculation tree.
   - An other part in `other_part_trees` also counts with each concept below it, because filers
-    often report those concepts instead. The other parts of revenue below `NoninterestIncome`,
-    `NetInvestmentIncome`, and `InterestIncomeExpenseAfterProvisionForLoanLoss` do not count.
-    They hold interest expense and gains that most filers report outside revenue.
+    often report those concepts instead. Of the concepts below `NoninterestIncome`,
+    `NetInvestmentIncome`, and `InterestIncomeExpenseAfterProvisionForLoanLoss`, only
+    `RevenueNotFromContractWithCustomerExcludingInterestIncome` counts. It is the sibling of the
+    part below `NoninterestIncome`. The rest holds interest expense and gains that most filers
+    report outside revenue.
   - The part rule runs only if no concept of the alias list resolves. The first part that the
     filing reports wins, with confidence `Synonym`.
   - An other part in the same period and unit blocks the part, in any dimension. Then the

@@ -389,11 +389,10 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
         // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
         // `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`, and
-        // `SubleaseIncome`. In one role, `NoninterestIncome` is the parent of the part, so it
-        // also counts as the total of a bank. Of the concepts below `NoninterestIncome`,
-        // `NetInvestmentIncome`, and `InterestIncomeExpenseAfterProvisionForLoanLoss`, only the
-        // sibling of the part counts. The rest holds interest expense and gains that most filers
-        // report outside revenue.
+        // `SubleaseIncome`. In two roles, `NoninterestIncome` is the parent of a part. Of the
+        // concepts below `NoninterestIncome`, `NetInvestmentIncome`, and
+        // `InterestIncomeExpenseAfterProvisionForLoanLoss`, only the sibling of the part counts.
+        // The rest holds interest expense and gains that most filers report outside revenue.
         &[
             "ContractuallySpecifiedServicingFeesLateFeesAndAncillaryFeesEarnedInExchangeForServicingFinancialAssets",
             "DirectFinancingLeaseInterestIncome",
@@ -406,7 +405,6 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "NetInvestmentIncome",
             "NoninterestIncome",
             "RevenueNotFromContractWithCustomer",
-            // The sibling of the part below `NoninterestIncome`.
             "RevenueNotFromContractWithCustomerExcludingInterestIncome",
             "RevenuesExcludingInterestAndDividends",
             "SaleOfTrustAssetsToPayExpenses",
