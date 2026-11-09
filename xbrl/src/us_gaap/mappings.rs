@@ -481,8 +481,8 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     //
     // `Expenses`, `Gains`, and `Losses` have no list. No US GAAP concept holds the expenses,
     // gains, or losses of SFAC 6. `CostsAndExpenses` holds the cost of revenue and the operating
-    // expenses only, without interest and income tax. Tier 3 is the tier that fills them, from
-    // an SFAC 6 identity of `xbrl/DESIGN.md`, "Three Layers". No such derivation exists yet.
+    // expenses only, without interest and income tax. The SFAC 6 identity of `xbrl/DESIGN.md`,
+    // "Three Layers", gives only their net amount, not each one. No rule fills them yet.
     ConceptDefinition::new(
         CanonicalElement::OtherComprehensiveIncome,
         // The total with the noncontrolling interest, as `NetIncome` and `Equity` hold it.
@@ -757,11 +757,10 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &["OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent"],
         // The part of the parent is the total minus the share of the noncontrolling interest.
         // The total blocks the part if the filing reports it only with a member.
-        &[
-            "OtherComprehensiveIncomeLossNetOfTax",
-            "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest",
-        ],
-        &[],
+        // The share of the noncontrolling interest counts with each concept below it, because
+        // filers often report its components instead.
+        &["OtherComprehensiveIncomeLossNetOfTax"],
+        &["OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest"],
         OTHER_COMPREHENSIVE_INCOME_PART_RULE,
     ),
     PartDefinition::new(
@@ -769,11 +768,11 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &["ComprehensiveIncomeNetOfTax"],
         // `ComprehensiveIncomeNetOfTax` is the total minus the share of the noncontrolling
         // interest. The total blocks the part if the filing reports it only with a member.
-        &[
-            "ComprehensiveIncomeNetOfTaxAttributableToNoncontrollingInterest",
-            "ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest",
-        ],
-        &[],
+        // The share of the noncontrolling interest counts with each concept below it, such as
+        // `NetIncomeLossAttributableToNoncontrollingInterest`, which filers report on the income
+        // statement.
+        &["ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest"],
+        &["ComprehensiveIncomeNetOfTaxAttributableToNoncontrollingInterest"],
         COMPREHENSIVE_INCOME_PART_RULE,
     ),
 ];

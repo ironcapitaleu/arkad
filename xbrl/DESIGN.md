@@ -570,8 +570,9 @@ ticket decides where the removed elements live.
   - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
     `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
     equivalents.
-  - For `Equity` and `NetIncome`, the total is also an other part. A filer can tag the total only
-    with a member, such as the noncontrolling interest. Then the parent part is not the whole.
+  - For `Equity`, `NetIncome`, `OtherComprehensiveIncome`, and `ComprehensiveIncome`, the total is
+    also an other part. A filer can tag the total only with a member, such as the noncontrolling
+    interest. Then the parent part is not the whole.
   - The other parts leave out a sibling that filers also report outside the total, such as
     `GainsLossesOnSalesOfAssets` below `Revenues`. Its fact does not show a second part of the
     total, so it blocks the part with no cause.
@@ -584,8 +585,8 @@ ticket decides where the removed elements live.
   `NetIncome` and `Equity` do. The part of the parent stands for each only through the part rule.
 - `Expenses`, `Gains`, and `Losses` have no alias list. No US GAAP concept holds the expenses,
   gains, or losses of SFAC 6. `CostsAndExpenses` holds only the cost of revenue and the operating
-  expenses. Tier 3 is the tier that fills them, from an SFAC 6 identity. No such derivation
-  exists yet.
+  expenses. The SFAC 6 identity gives only their net amount, not each one. No rule fills them
+  yet.
 - The alias lists of `Revenue` and `Equity` hold only totals. The customer-contract revenue
   concepts and `StockholdersEquity` are parts.
 
