@@ -1,15 +1,21 @@
 //! # ISO 4217 Currency Codes
 //!
-//! Provides [`CURRENCY_CODES`], the codes of the current currencies of ISO 4217.
+//! Provides [`CURRENCY_CODES`], the codes of the current ISO 4217 currencies, and
+//! [`HISTORIC_CURRENCY_CODES`], the codes of withdrawn ISO 4217 currencies.
 //!
-//! Source: ISO 4217 List One (current currency and funds), XML, published 2026-09-17, from the
-//! maintenance agency SIX:
-//! <https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml>
+//! Sources, both XML files of the maintenance agency SIX:
 //!
-//! The table holds each code of the list once. It leaves out the codes that are not money: the
-//! entries with no minor unit (`N.A.`), such as `XAU`, `XDR`, `XTS`, and `XXX`, and the fund
-//! codes (`IsFund="true"`), such as `BOV` and `USN`. Do not edit the table by hand. Build it again
-//! from a new list with the same two rules.
+//! - List One (current currencies), published 2026-09-17, SHA-256
+//!   `33139b438657d1cee116ba737807ea71d19d6de4b90f799a09c56f0cc6a1b0ff`:
+//!   <https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml>
+//! - List Three (historic denominations), published 2026-01-01, SHA-256
+//!   `98fde2423cdb916dd59dcf5fe96222edad8fa198d865c1c83dbc464b9cc52387`:
+//!   <https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-three.xml>
+//!
+//! The tables leave out the codes that are not money: fund codes, the List One entries with no
+//! minor unit (`N.A.`), such as `XAU`, `XDR`, `XTS`, and `XXX`, and the List Three codes that
+//! start with `X`, such as `XEU`. A code of both lists is only in [`CURRENCY_CODES`]. Do not edit
+//! the tables by hand. A script writes them. The pull request that adds a list holds the script.
 
 /// The codes of the current ISO 4217 currencies, sorted, for example `EUR` and `USD`.
 pub const CURRENCY_CODES: &[&str] = &[
@@ -25,4 +31,18 @@ pub const CURRENCY_CODES: &[&str] = &[
     "SGD", "SHP", "SLE", "SOS", "SRD", "SSP", "STN", "SVC", "SYP", "SZL", "THB", "TJS", "TMT",
     "TND", "TOP", "TRY", "TTD", "TWD", "TZS", "UAH", "UGX", "USD", "UYU", "UZS", "VED", "VES",
     "VND", "VUV", "WST", "XAF", "XCD", "XCG", "XOF", "XPF", "YER", "ZAR", "ZMW", "ZWG",
+];
+
+/// The codes of withdrawn ISO 4217 currencies, sorted, for example `DEM` and `HRK`.
+pub const HISTORIC_CURRENCY_CODES: &[&str] = &[
+    "ADP", "AFA", "ALK", "ANG", "AOK", "AON", "AOR", "ARA", "ARP", "ARY", "ATS", "AYM", "AZM",
+    "BAD", "BEC", "BEF", "BEL", "BGJ", "BGK", "BGL", "BGN", "BOP", "BRB", "BRC", "BRE", "BRN",
+    "BRR", "BUK", "BYB", "BYR", "CHC", "CSD", "CSJ", "CSK", "CUC", "CYP", "DDM", "DEM", "ECS",
+    "ECV", "EEK", "ESA", "ESB", "ESP", "FIM", "FRF", "GEK", "GHC", "GHP", "GNE", "GNS", "GQE",
+    "GRD", "GWE", "GWP", "HRD", "HRK", "IEP", "ILP", "ILR", "ISJ", "ITL", "LAJ", "LSM", "LTL",
+    "LTT", "LUC", "LUF", "LUL", "LVL", "LVR", "MGF", "MLF", "MRO", "MTL", "MTP", "MVQ", "MXP",
+    "MZE", "MZM", "NIC", "NLG", "PEH", "PEI", "PES", "PLZ", "PTE", "RHD", "ROK", "ROL", "RUR",
+    "SDD", "SDP", "SIT", "SKK", "SLL", "SRG", "STD", "SUR", "TJR", "TMM", "TPE", "TRL", "UAK",
+    "UGS", "UGW", "USS", "UYN", "UYP", "VEB", "VEF", "VNC", "YDD", "YUD", "YUM", "YUN", "ZAL",
+    "ZMK", "ZRN", "ZRZ", "ZWC", "ZWD", "ZWL", "ZWN", "ZWR",
 ];

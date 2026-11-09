@@ -25,7 +25,7 @@
 //! - [`form`]: The form type of a filing as filed.
 //! - [`graph`]: The resolution and validation engine.
 //! - [`invalid_value`]: The error of a core value type.
-//! - [`iso_4217`]: The codes of the current ISO 4217 currencies.
+//! - [`iso_4217`]: The codes of the current and withdrawn ISO 4217 currencies.
 //! - [`period`]: Instants and durations.
 //! - [`period_identity`]: The derivation of the fourth quarter from the fiscal year.
 //! - [`release`]: The taxonomy release of a plug-in.

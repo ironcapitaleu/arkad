@@ -766,11 +766,12 @@ year-to-date only. The result has confidence `Derived`.
   fiscal year if its end lies one quarter before the end of the year. If both periods have an exact
   start, the starts must be equal. The Q4 period runs from the day after the nine-month end to the
   year end.
-- A unit is a currency if it is one code of the current ISO 4217 list and divides by nothing
-  (`Unit::is_currency`). The measures carry no prefix, so `core::iso_4217::CURRENCY_CODES`, a
-  table compiled into the binary, tells a currency from a custom measure such as `BOE`. The table
-  comes from List One of the maintenance agency SIX. It leaves out the codes that are not money:
-  entries with no minor unit, such as `XAU`, `XDR`, and `XXX`, and fund codes, such as `USN`.
+- A unit is a currency if it is one ISO 4217 code and divides by nothing (`Unit::is_currency`).
+  The measures carry no prefix. Two tables compiled into the binary tell a currency from a custom
+  measure such as `BOE`: `core::iso_4217::CURRENCY_CODES` (List One of the maintenance agency SIX)
+  and `HISTORIC_CURRENCY_CODES` (List Three). The withdrawn codes count, because a series reaches
+  back to 2009 and an old filing reports in a currency such as `HRK`. The tables leave out the
+  codes that are not money: fund codes, and units of account, metals, `XTS`, and `XXX`.
 - The year must end 47 to 137 days after the nine-month end, so that the Q4 rounds to one quarter.
   If several nine-month values fit, the rule takes the latest end.
 - The rule derives nothing for a Q4 that the series already holds or that a conflict blocks.

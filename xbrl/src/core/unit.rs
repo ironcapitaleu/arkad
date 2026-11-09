@@ -6,7 +6,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
-use super::iso_4217::CURRENCY_CODES;
+use super::iso_4217::{CURRENCY_CODES, HISTORIC_CURRENCY_CODES};
 
 /// One measure of a unit, for example `USD`, `EUR`, `shares`, or `pure`.
 ///
@@ -131,10 +131,11 @@ impl Unit {
     /// Returns `true` if the unit is one currency, for example `USD` or `EUR`, and divides by
     /// nothing.
     ///
-    /// A currency is a code in [`CURRENCY_CODES`], the current ISO 4217 currencies. The measures
-    /// carry no prefix, so the table tells a currency from a custom measure such as `BOE`. The table
-    /// leaves out codes that are not money, such as `XAU` (gold) and `XDR`. `shares`, `pure`, and
-    /// `USD/shares` are not a currency either.
+    /// A currency is a code in [`CURRENCY_CODES`] or [`HISTORIC_CURRENCY_CODES`]. The measures carry
+    /// no prefix, so the tables tell a currency from a custom measure such as `BOE`. A withdrawn
+    /// code such as `BGN` counts, because an old filing reports in it. The tables leave out codes
+    /// that are not money, such as `XAU` (gold) and `XDR`. `shares`, `pure`, and `USD/shares` are
+    /// not a currency either.
     ///
     /// # Examples
     ///
@@ -154,7 +155,11 @@ impl Unit {
     #[must_use]
     pub fn is_currency(&self) -> bool {
         match (self.numerator.as_slice(), self.denominator.as_slice()) {
-            ([measure], []) => CURRENCY_CODES.binary_search(&measure.as_str()).is_ok(),
+            ([measure], []) => {
+                let code = measure.as_str();
+                CURRENCY_CODES.binary_search(&code).is_ok()
+                    || HISTORIC_CURRENCY_CODES.binary_search(&code).is_ok()
+            }
             _ => false,
         }
     }
@@ -277,6 +282,18 @@ mod tests {
     }
 
     #[test]
+    fn should_report_a_currency_when_the_unit_is_a_withdrawn_currency() {
+        let unit = Unit::from_str("BGN")
+            .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
+
+        let expected_result = true;
+
+        let result = unit.is_currency();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_report_no_currency_when_the_unit_is_a_custom_measure_of_three_capitals() {
         let unit = Unit::from_str("BOE")
             .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
@@ -337,7 +354,7 @@ mod tests {
     }
 
     #[test]
-    fn should_report_no_currency_when_the_unit_divides_a_currency() {
+    fn should_report_no_currency_when_a_currency_divides_by_shares() {
         let unit = Unit::from_str("USD/shares")
             .expect("Given a hardcoded unit with valid measures, the parse should always succeed");
 
@@ -349,12 +366,68 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_sorted_codes_for_the_currency_table() {
+    fn should_hold_sorted_codes_for_the_current_currency_table() {
         let codes = CURRENCY_CODES;
 
         let expected_result = true;
 
         let result = codes.is_sorted_by(|left, right| left < right);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_sorted_codes_for_the_historic_currency_table() {
+        let codes = HISTORIC_CURRENCY_CODES;
+
+        let expected_result = true;
+
+        let result = codes.is_sorted_by(|left, right| left < right);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_only_three_capital_letters_for_the_current_currency_table() {
+        let codes = CURRENCY_CODES;
+
+        let expected_result: Vec<&str> = vec![];
+
+        let result: Vec<&str> = codes
+            .iter()
+            .copied()
+            .filter(|code| code.len() != 3 || !code.bytes().all(|byte| byte.is_ascii_uppercase()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_only_three_capital_letters_for_the_historic_currency_table() {
+        let codes = HISTORIC_CURRENCY_CODES;
+
+        let expected_result: Vec<&str> = vec![];
+
+        let result: Vec<&str> = codes
+            .iter()
+            .copied()
+            .filter(|code| code.len() != 3 || !code.bytes().all(|byte| byte.is_ascii_uppercase()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_no_shared_code_for_the_current_and_historic_tables() {
+        let historic = HISTORIC_CURRENCY_CODES;
+
+        let expected_result: Vec<&str> = vec![];
+
+        let result: Vec<&str> = historic
+            .iter()
+            .copied()
+            .filter(|code| CURRENCY_CODES.binary_search(code).is_ok())
+            .collect();
 
         assert_eq!(result, expected_result);
     }
