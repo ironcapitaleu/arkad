@@ -424,9 +424,10 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 14 tags are picked by hand from filings. 12 of them
+- `us_gaap/mappings.rs` names no release. Its 33 tags are picked by hand from filings. 31 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
-  An alias list bridges renames across releases, so it does not come from one release.
+  A unit test checks this. An alias list bridges renames across releases, so it does not come from
+  one release.
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
   Code").
 - The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB

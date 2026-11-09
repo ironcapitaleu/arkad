@@ -157,6 +157,134 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ),
 ];
 
+/// The ID of the alias rule of [`CanonicalElement::CurrentAssets`].
+pub const CURRENT_ASSETS_RULE: &str = "us-gaap/alias/current-assets@1";
+/// The ID of the alias rule of [`CanonicalElement::NonCurrentAssets`].
+pub const NON_CURRENT_ASSETS_RULE: &str = "us-gaap/alias/non-current-assets@1";
+/// The ID of the alias rule of [`CanonicalElement::CashAndEquivalents`].
+pub const CASH_AND_EQUIVALENTS_RULE: &str = "us-gaap/alias/cash-and-equivalents@1";
+/// The ID of the alias rule of [`CanonicalElement::ShortTermInvestments`].
+pub const SHORT_TERM_INVESTMENTS_RULE: &str = "us-gaap/alias/short-term-investments@1";
+/// The ID of the alias rule of [`CanonicalElement::AccountsReceivable`].
+pub const ACCOUNTS_RECEIVABLE_RULE: &str = "us-gaap/alias/accounts-receivable@1";
+/// The ID of the alias rule of [`CanonicalElement::Inventory`].
+pub const INVENTORY_RULE: &str = "us-gaap/alias/inventory@1";
+/// The ID of the alias rule of [`CanonicalElement::PropertyPlantEquipment`].
+pub const PROPERTY_PLANT_EQUIPMENT_RULE: &str = "us-gaap/alias/property-plant-equipment@1";
+/// The ID of the alias rule of [`CanonicalElement::Goodwill`].
+pub const GOODWILL_RULE: &str = "us-gaap/alias/goodwill@1";
+/// The ID of the alias rule of [`CanonicalElement::IntangibleAssets`].
+pub const INTANGIBLE_ASSETS_RULE: &str = "us-gaap/alias/intangible-assets@1";
+/// The ID of the alias rule of [`CanonicalElement::CurrentLiabilities`].
+pub const CURRENT_LIABILITIES_RULE: &str = "us-gaap/alias/current-liabilities@1";
+/// The ID of the alias rule of [`CanonicalElement::NonCurrentLiabilities`].
+pub const NON_CURRENT_LIABILITIES_RULE: &str = "us-gaap/alias/non-current-liabilities@1";
+/// The ID of the alias rule of [`CanonicalElement::LongTermDebt`].
+pub const LONG_TERM_DEBT_RULE: &str = "us-gaap/alias/long-term-debt@1";
+/// The ID of the alias rule of [`CanonicalElement::RetainedEarnings`].
+pub const RETAINED_EARNINGS_RULE: &str = "us-gaap/alias/retained-earnings@1";
+
 /// Optional concept definitions that enrich financial statements when available.
 /// Their absence does not cause validation failure.
-pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[];
+pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
+    // Balance Sheet detail
+    ConceptDefinition::new(
+        CanonicalElement::CurrentAssets,
+        &["AssetsCurrent"],
+        CURRENT_ASSETS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::NonCurrentAssets,
+        // Most filers report no noncurrent total. Tier 4 then sums the children of
+        // `AssetsNoncurrent` along the calculation tree.
+        &["AssetsNoncurrent"],
+        NON_CURRENT_ASSETS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::CashAndEquivalents,
+        // A filer with no cash equivalents reports only `Cash`.
+        &["CashAndCashEquivalentsAtCarryingValue", "Cash"],
+        CASH_AND_EQUIVALENTS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::ShortTermInvestments,
+        &["ShortTermInvestments", "MarketableSecuritiesCurrent"],
+        SHORT_TERM_INVESTMENTS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::AccountsReceivable,
+        // A filer that shows one line for all receivables reports `ReceivablesNetCurrent`. The
+        // line also holds receivables that are not from customers.
+        &["AccountsReceivableNetCurrent", "ReceivablesNetCurrent"],
+        ACCOUNTS_RECEIVABLE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::Inventory,
+        &["InventoryNet"],
+        INVENTORY_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::PropertyPlantEquipment,
+        // A filer that shows finance lease assets in the same line reports the second concept.
+        &[
+            "PropertyPlantAndEquipmentNet",
+            "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
+        ],
+        PROPERTY_PLANT_EQUIPMENT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::Goodwill,
+        &["Goodwill"],
+        GOODWILL_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::IntangibleAssets,
+        // A filer with only finite-lived intangible assets reports `FiniteLivedIntangibleAssetsNet`.
+        &[
+            "IntangibleAssetsNetExcludingGoodwill",
+            "FiniteLivedIntangibleAssetsNet",
+        ],
+        INTANGIBLE_ASSETS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::CurrentLiabilities,
+        &["LiabilitiesCurrent"],
+        CURRENT_LIABILITIES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::NonCurrentLiabilities,
+        // Most filers report no noncurrent total. Tier 4 then sums the children of
+        // `LiabilitiesNoncurrent` along the calculation tree.
+        &["LiabilitiesNoncurrent"],
+        NON_CURRENT_LIABILITIES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::LongTermDebt,
+        // The parent is `NonCurrentLiabilities`, so the list holds the noncurrent part only.
+        // `LongTermDebt` includes the current maturities, so it is not in the list. A filer that
+        // shows finance lease obligations in the same line reports the second concept.
+        &[
+            "LongTermDebtNoncurrent",
+            "LongTermDebtAndCapitalLeaseObligations",
+        ],
+        LONG_TERM_DEBT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::RetainedEarnings,
+        &["RetainedEarningsAccumulatedDeficit"],
+        RETAINED_EARNINGS_RULE,
+        false,
+    ),
+];

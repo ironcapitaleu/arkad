@@ -477,6 +477,55 @@ mod tests {
                 CanonicalElement::FinancingCashFlow,
                 rule("us-gaap/alias/financing-cash-flow@1"),
             ),
+            (
+                CanonicalElement::CurrentAssets,
+                rule("us-gaap/alias/current-assets@1"),
+            ),
+            (
+                CanonicalElement::NonCurrentAssets,
+                rule("us-gaap/alias/non-current-assets@1"),
+            ),
+            (
+                CanonicalElement::CashAndEquivalents,
+                rule("us-gaap/alias/cash-and-equivalents@1"),
+            ),
+            (
+                CanonicalElement::ShortTermInvestments,
+                rule("us-gaap/alias/short-term-investments@1"),
+            ),
+            (
+                CanonicalElement::AccountsReceivable,
+                rule("us-gaap/alias/accounts-receivable@1"),
+            ),
+            (
+                CanonicalElement::Inventory,
+                rule("us-gaap/alias/inventory@1"),
+            ),
+            (
+                CanonicalElement::PropertyPlantEquipment,
+                rule("us-gaap/alias/property-plant-equipment@1"),
+            ),
+            (CanonicalElement::Goodwill, rule("us-gaap/alias/goodwill@1")),
+            (
+                CanonicalElement::IntangibleAssets,
+                rule("us-gaap/alias/intangible-assets@1"),
+            ),
+            (
+                CanonicalElement::CurrentLiabilities,
+                rule("us-gaap/alias/current-liabilities@1"),
+            ),
+            (
+                CanonicalElement::NonCurrentLiabilities,
+                rule("us-gaap/alias/non-current-liabilities@1"),
+            ),
+            (
+                CanonicalElement::LongTermDebt,
+                rule("us-gaap/alias/long-term-debt@1"),
+            ),
+            (
+                CanonicalElement::RetainedEarnings,
+                rule("us-gaap/alias/retained-earnings@1"),
+            ),
         ];
 
         let result: Vec<(CanonicalElement, RuleId)> = us_gaap
@@ -484,6 +533,28 @@ mod tests {
             .iter()
             .map(|aliases| (aliases.element, aliases.rule.clone()))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_find_reference_data_for_every_alias_except_the_removed_ones_when_created() {
+        let us_gaap = UsGaap::new();
+
+        // `xbrl/DESIGN.md`, "Release in Use Today", names these two as removed before 2026.
+        let expected_result = vec![
+            concept("us-gaap", "IncomeLossFromOperations"),
+            concept("us-gaap", "SalesRevenueNet"),
+        ];
+
+        let mut result: Vec<ConceptName> = us_gaap
+            .aliases()
+            .iter()
+            .flat_map(|aliases| aliases.concepts.iter())
+            .filter(|concept| us_gaap.element(concept).is_none())
+            .cloned()
+            .collect();
+        result.sort_by(|left, right| left.local_name().cmp(right.local_name()));
 
         assert_eq!(result, expected_result);
     }
