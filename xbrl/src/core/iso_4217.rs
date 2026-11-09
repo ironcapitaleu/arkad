@@ -12,10 +12,11 @@
 //!   `98fde2423cdb916dd59dcf5fe96222edad8fa198d865c1c83dbc464b9cc52387`:
 //!   <https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-three.xml>
 //!
-//! The tables leave out the codes that are not money: fund codes, the List One entries with no
-//! minor unit (`N.A.`), such as `XAU`, `XDR`, `XTS`, and `XXX`, and the List Three codes that
-//! start with `X`, such as `XEU`. A code of both lists is only in [`CURRENCY_CODES`]. Do not edit
-//! the tables by hand. The script in the description of pull request #479 writes them.
+//! The tables leave out the codes that are not money. These are fund codes, and the List One
+//! entries with no minor unit (`N.A.`), such as `XAU`, `XDR`, `XTS`, and `XXX`. They are also the
+//! List Three codes that start with `X`, such as `XEU`. A code of both lists is only in
+//! [`CURRENCY_CODES`]. Do not edit the tables by hand. The script in the description of pull
+//! request #479 writes them.
 
 /// The codes of the current ISO 4217 currencies, sorted, for example `EUR` and `USD`.
 pub const CURRENCY_CODES: &[&str] = &[
