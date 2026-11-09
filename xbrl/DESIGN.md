@@ -514,8 +514,10 @@ ticket decides where the removed elements live.
   elements. It returns `None` for `srt` and `dei`, whose schemas are not vendored, and for an
   element that a release before 2026 removed.
 - The calculation tree holds the arcs of every role. Each arc names its role.
-- `aliases()` returns no alias list yet. The alias lists of `mappings.rs` need a rule ID per
-  standard concept, for example `us-gaap/alias/revenue@1`, and no rule names exist yet.
+- `aliases()` returns one alias list per definition of `mappings.rs`. `UsGaap::new` builds the
+  lists from the definitions, so the `xbrl` crate holds each list once. Each definition names its rule ID as a
+  const next to the list. The rule name is the kebab case of the standard concept, at version 1,
+  for example `us-gaap/alias/operating-cash-flow@1`.
 
 ### What `ifrs` Needs on Top
 
