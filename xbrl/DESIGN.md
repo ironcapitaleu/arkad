@@ -544,7 +544,12 @@ ticket decides where the removed elements live.
   receivables that are not from customers, so it is not an alias of `AccountsReceivable`.
 - A part stands for the whole only through the part rule, `us-gaap/part/<standard concept>@1`.
   `PART_CONCEPTS` in `mappings.rs` names the parts of a standard concept and its other parts. The
-  other parts are the siblings of the part below the total in the 2026 calculation tree.
+  other parts are the concepts that sum to the total with the part: the siblings of the part, and
+  the siblings of each concept between the part and the total, in the 2026 calculation tree.
+  - An other part in `other_part_trees` also counts with each concept below it, because filers
+    often report those concepts instead. The other parts of revenue below `NoninterestIncome`,
+    `NetInvestmentIncome`, and `InterestIncomeExpenseAfterProvisionForLoanLoss` do not count.
+    They hold interest expense and gains that most filers report outside revenue.
   - The part rule runs only if no concept of the alias list resolves. The first part that the
     filing reports wins, with confidence `Synonym`.
   - An other part in the same period and unit blocks the part, in any dimension. Then the

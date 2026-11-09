@@ -38,7 +38,7 @@ pub struct FilingCandidates {
 ///
 /// If no concept of the list resolves, the first part of [`ConceptAliases::parts`] that the filing
 /// reports wins, with the part rule and confidence [`Confidence::Synonym`]. A part wins only if the
-/// filing reports none of the other parts in the period. A value of zero does not count, a
+/// filing reports none of the other parts in the period. A value of zero does not count. A
 /// conflict does. The check covers every dimension of the period, so an other part with a member,
 /// such as the noncontrolling interest on the equity components axis, also stops the part.
 ///

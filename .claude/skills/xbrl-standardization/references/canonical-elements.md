@@ -1,6 +1,6 @@
 ---
 source: xbrl/src/core/elements.rs
-last-verified: 2026-06-14
+last-verified: 2026-11-09
 update-frequency: on-code-change
 ---
 
@@ -54,8 +54,8 @@ These are the 42 CanonicalElement enum variants the system resolves to. Grouped 
 | ResearchDevelopment | Expenses | Duration |
 | InterestExpense | Expenses | Duration |
 | OperatingIncome | Derived | Duration |
-| EarningsPerShareBasic | NetIncome | Duration |
-| EarningsPerShareDiluted | NetIncome | Duration |
+| EarningsPerShareBasic | NetIncome (the part of the parent, `NetIncomeLoss`) | Duration |
+| EarningsPerShareDiluted | NetIncome (the part of the parent, `NetIncomeLoss`) | Duration |
 
 ## Level 2 — Cash Flow
 

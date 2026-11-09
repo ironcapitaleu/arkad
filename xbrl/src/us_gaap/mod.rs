@@ -15,6 +15,7 @@
 //! - [`generator`]: Writes [`taxonomy`] from the vendored FASB files. Only with the `generator`
 //!   feature.
 
+use std::collections::BTreeSet;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
@@ -190,6 +191,12 @@ impl UsGaap {
             .expect("Given the generated release ID, the creation should always succeed");
         let checksum = Sha256::from_str(taxonomy::RELEASE_CHECKSUM)
             .expect("Given the generated hex digest, the parse should always succeed");
+        let calculation_tree = CalculationTree {
+            arcs: taxonomy::CALCULATION_ARCS
+                .iter()
+                .map(calculation_arc)
+                .collect(),
+        };
         Self {
             release: TaxonomyRelease {
                 id: release_id.clone(),
@@ -199,14 +206,9 @@ impl UsGaap {
             aliases: mappings::REQUIRED_CONCEPTS
                 .iter()
                 .chain(mappings::OPTIONAL_CONCEPTS)
-                .map(concept_aliases)
+                .map(|definition| concept_aliases(definition, &calculation_tree))
                 .collect(),
-            calculation_tree: CalculationTree {
-                arcs: taxonomy::CALCULATION_ARCS
-                    .iter()
-                    .map(calculation_arc)
-                    .collect(),
-            },
+            calculation_tree,
             elements: taxonomy::ELEMENTS
                 .iter()
                 .map(|row| element_reference(row, &release_id))
@@ -286,7 +288,10 @@ fn declaration(spec: &FamilySpec) -> FamilyDeclaration {
 }
 
 /// Returns the alias list of one definition of [`mappings`].
-fn concept_aliases(definition: &mappings::ConceptDefinition) -> ConceptAliases {
+fn concept_aliases(
+    definition: &mappings::ConceptDefinition,
+    tree: &CalculationTree,
+) -> ConceptAliases {
     ConceptAliases {
         element: definition.canonical_element(),
         rule: RuleId::from_str(definition.alias_rule())
@@ -299,24 +304,49 @@ fn concept_aliases(definition: &mappings::ConceptDefinition) -> ConceptAliases {
         parts: mappings::PART_CONCEPTS
             .iter()
             .find(|parts| parts.canonical_element() == definition.canonical_element())
-            .map(part_aliases),
+            .map(|parts| part_aliases(parts, tree)),
     }
 }
 
 /// Returns the parts of one definition of [`mappings::PART_CONCEPTS`].
-fn part_aliases(definition: &mappings::PartDefinition) -> PartAliases {
-    let concepts = |names: &[&str]| {
+///
+/// The other parts hold each concept of `other_parts`, then each concept of `other_part_trees`
+/// with the concepts below it in `tree`, in name order and once each.
+fn part_aliases(definition: &mappings::PartDefinition, tree: &CalculationTree) -> PartAliases {
+    let concepts = |names: &[&str]| -> Vec<ConceptName> {
         names
             .iter()
             .map(|name| concept(US_GAAP_FAMILY, name))
             .collect()
     };
+    let mut other_parts = concepts(definition.other_parts());
+    for root in concepts(definition.other_part_trees()) {
+        let below = below(&root, tree);
+        other_parts.push(root);
+        other_parts.extend(below);
+    }
+    let mut seen = BTreeSet::new();
+    other_parts.retain(|concept| seen.insert(concept.clone()));
     PartAliases {
         rule: RuleId::from_str(definition.part_rule())
             .expect("Given a rule ID of the definitions, the parse should always succeed"),
         parts: concepts(definition.parts()),
-        other_parts: concepts(definition.other_parts()),
+        other_parts,
     }
+}
+
+/// Returns each concept below `root` in `tree`, in every role, in name order.
+fn below(root: &ConceptName, tree: &CalculationTree) -> BTreeSet<ConceptName> {
+    let mut found = BTreeSet::new();
+    let mut open = vec![root];
+    while let Some(parent) = open.pop() {
+        for arc in tree.arcs.iter().filter(|arc| &arc.parent == parent) {
+            if arc.child != *root && found.insert(arc.child.clone()) {
+                open.push(&arc.child);
+            }
+        }
+    }
+    found
 }
 
 /// Returns the calculation arc of one row of the tables.
@@ -631,7 +661,34 @@ mod tests {
                         "RevenueFromContractWithCustomerIncludingAssessedTax",
                     ),
                 ],
-                other_parts: vec![concept("us-gaap", "RevenueNotFromContractWithCustomer")],
+                other_parts: vec![
+                    concept(
+                        "us-gaap",
+                        "ContractuallySpecifiedServicingFeesLateFeesAndAncillaryFeesEarnedInExchangeForServicingFinancialAssets",
+                    ),
+                    concept("us-gaap", "DirectFinancingLeaseInterestIncome"),
+                    concept("us-gaap", "DirectFinancingLeaseRevenue"),
+                    concept("us-gaap", "DirectFinancingLeaseVariableLeaseIncome"),
+                    concept("us-gaap", "FeeIncome"),
+                    concept("us-gaap", "InsuranceAgencyManagementFee"),
+                    concept("us-gaap", "InsuranceCommissionsAndFees"),
+                    concept("us-gaap", "InterestIncomeExpenseAfterProvisionForLoanLoss"),
+                    concept("us-gaap", "NetInvestmentIncome"),
+                    concept("us-gaap", "NoninterestIncome"),
+                    concept("us-gaap", "RevenueNotFromContractWithCustomer"),
+                    concept("us-gaap", "RevenuesExcludingInterestAndDividends"),
+                    concept("us-gaap", "SaleOfTrustAssetsToPayExpenses"),
+                    concept("us-gaap", "SalesTypeLeaseInterestIncome"),
+                    concept("us-gaap", "SalesTypeLeaseRevenue"),
+                    concept("us-gaap", "SalesTypeLeaseVariableLeaseIncome"),
+                    concept("us-gaap", "OperatingLeaseLeaseIncome"),
+                    concept("us-gaap", "OperatingLeaseLeaseIncomeLeasePayments"),
+                    concept("us-gaap", "OperatingLeaseVariableLeaseIncome"),
+                    concept("us-gaap", "PremiumsEarnedNet"),
+                    concept("us-gaap", "AssumedPremiumsEarned"),
+                    concept("us-gaap", "CededPremiumsEarned"),
+                    concept("us-gaap", "DirectPremiumsEarned"),
+                ],
             }),
         });
 
@@ -655,11 +712,59 @@ mod tests {
                 rule: rule("us-gaap/part/net-income@1"),
                 parts: vec![concept("us-gaap", "NetIncomeLoss")],
                 other_parts: vec![
+                    concept("us-gaap", "ProfitLoss"),
                     concept(
                         "us-gaap",
                         "NetIncomeLossAttributableToNoncontrollingInterest",
                     ),
-                    concept("us-gaap", "ProfitLoss"),
+                    concept(
+                        "us-gaap",
+                        "NetIncomeLossAttributableToNonredeemableNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NetIncomeLossAttributableToRedeemableNoncontrollingInterest",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossJointVenturePartnersNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossJointVenturePartnersRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossLimitedPartnershipsNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossLimitedPartnershipsRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOperatingPartnershipsNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOperatingPartnershipsRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOtherNoncontrollingInterestsNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossOtherNoncontrollingInterestsRedeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossPreferredUnitHoldersNonredeemable",
+                    ),
+                    concept(
+                        "us-gaap",
+                        "NoncontrollingInterestInNetIncomeLossPreferredUnitHoldersRedeemable",
+                    ),
                 ],
             }),
         });
@@ -687,11 +792,18 @@ mod tests {
                 rule: rule("us-gaap/part/equity@1"),
                 parts: vec![concept("us-gaap", "StockholdersEquity")],
                 other_parts: vec![
-                    concept("us-gaap", "MinorityInterest"),
                     concept(
                         "us-gaap",
                         "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
                     ),
+                    concept("us-gaap", "MinorityInterest"),
+                    concept("us-gaap", "MinorityInterestInJointVentures"),
+                    concept("us-gaap", "MinorityInterestInLimitedPartnerships"),
+                    concept("us-gaap", "MinorityInterestInOperatingPartnerships"),
+                    concept("us-gaap", "MinorityInterestInPreferredUnitHolders"),
+                    concept("us-gaap", "NoncontrollingInterestInVariableInterestEntity"),
+                    concept("us-gaap", "NonredeemableNoncontrollingInterest"),
+                    concept("us-gaap", "OtherMinorityInterests"),
                 ],
             }),
         });
@@ -803,9 +915,19 @@ mod tests {
                     rule: rule("us-gaap/part/cash-and-equivalents@1"),
                     parts: vec![concept("us-gaap", "Cash")],
                     other_parts: vec![
-                        concept("us-gaap", "CashEquivalentsAtCarryingValue"),
                         concept("us-gaap", "DueFromBanks"),
                         concept("us-gaap", "InterestBearingDepositsInBanks"),
+                        concept("us-gaap", "CashEquivalentsAtCarryingValue"),
+                        concept("us-gaap", "AssetBackedSecuritiesAtCarryingValue"),
+                        concept("us-gaap", "CertificatesOfDepositAtCarryingValue"),
+                        concept("us-gaap", "CommercialPaperAtCarryingValue"),
+                        concept("us-gaap", "CreditAndDebitCardReceivablesAtCarryingValue"),
+                        concept("us-gaap", "MoneyMarketFundsAtCarryingValue"),
+                        concept("us-gaap", "MunicipalDebtSecuritiesAtCarryingValue"),
+                        concept("us-gaap", "OtherCashEquivalentsAtCarryingValue"),
+                        concept("us-gaap", "TimeDepositsAtCarryingValue"),
+                        concept("us-gaap", "USGovernmentAgenciesSecuritiesAtCarryingValue"),
+                        concept("us-gaap", "USGovernmentSecuritiesAtCarryingValue"),
                     ],
                 },
             ),
@@ -815,9 +937,20 @@ mod tests {
                     rule: rule("us-gaap/part/short-term-investments@1"),
                     parts: vec![concept("us-gaap", "MarketableSecuritiesCurrent")],
                     other_parts: vec![
-                        concept("us-gaap", "DebtSecuritiesCurrent"),
                         concept("us-gaap", "EquitySecuritiesFvNi"),
                         concept("us-gaap", "OtherShortTermInvestments"),
+                        concept("us-gaap", "DebtSecuritiesCurrent"),
+                        concept("us-gaap", "AvailableForSaleSecuritiesDebtSecuritiesCurrent"),
+                        concept(
+                            "us-gaap",
+                            "DebtSecuritiesHeldToMaturityAllowanceForCreditLossCurrent",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "DebtSecuritiesHeldToMaturityAmortizedCostAfterAllowanceForCreditLossCurrent",
+                        ),
+                        concept("us-gaap", "HeldToMaturitySecuritiesCurrent"),
+                        concept("us-gaap", "TradingSecuritiesDebt"),
                     ],
                 },
             ),
@@ -826,10 +959,18 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/intangible-assets@1"),
                     parts: vec![concept("us-gaap", "FiniteLivedIntangibleAssetsNet")],
-                    other_parts: vec![concept(
-                        "us-gaap",
-                        "IndefiniteLivedIntangibleAssetsExcludingGoodwill",
-                    )],
+                    other_parts: vec![
+                        concept(
+                            "us-gaap",
+                            "IndefiniteLivedIntangibleAssetsExcludingGoodwill",
+                        ),
+                        concept("us-gaap", "IndefiniteLivedContractualRights"),
+                        concept("us-gaap", "IndefiniteLivedFranchiseRights"),
+                        concept("us-gaap", "IndefiniteLivedLicenseAgreements"),
+                        concept("us-gaap", "IndefiniteLivedTradeNames"),
+                        concept("us-gaap", "IndefiniteLivedTrademarks"),
+                        concept("us-gaap", "OtherIndefiniteLivedIntangibleAssets"),
+                    ],
                 },
             ),
         ];
@@ -881,6 +1022,69 @@ mod tests {
             rule("us-gaap/part/revenue@1"),
             Some(Confidence::Synonym),
         )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_revenue_when_a_lessor_reports_contract_revenue_next_to_lease_income() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "40000000",
+            ),
+            fact(&filing, "OperatingLeaseLeaseIncome", "960000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_short_term_investments_when_a_concept_below_an_other_part_is_reported() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "MarketableSecuritiesCurrent", "300000000"),
+            fact(
+                &filing,
+                "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+                "700000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_equity_when_the_filing_reports_stockholders_equity_next_to_minority_interest()
+    {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "StockholdersEquity", "56950000000"),
+            fact(&filing, "MinorityInterest", "1000000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 

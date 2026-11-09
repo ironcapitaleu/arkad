@@ -75,15 +75,17 @@ impl ConceptDefinition {
 /// The parts of a standard concept that stand for the whole when a filing reports no other part.
 ///
 /// A part counts only if no concept of the alias list resolves, and only if the filing reports
-/// none of the `other_parts` in the period. `xbrl/DESIGN.md`, "`us_gaap`", gives the rule.
+/// none of the other parts in the period. `xbrl/DESIGN.md`, "`us_gaap`", gives the rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartDefinition {
     /// The standard concept the parts stand for.
     canonical_element: CanonicalElement,
     /// The parts, in priority order.
     parts: &'static [&'static str],
-    /// The other pieces of the standard concept.
+    /// The other parts of the standard concept, which count as they are.
     other_parts: &'static [&'static str],
+    /// The other parts that also count with each concept below them in the 2026 calculation tree.
+    other_part_trees: &'static [&'static str],
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     part_rule: &'static str,
 }
@@ -95,12 +97,14 @@ impl PartDefinition {
         canonical_element: CanonicalElement,
         parts: &'static [&'static str],
         other_parts: &'static [&'static str],
+        other_part_trees: &'static [&'static str],
         part_rule: &'static str,
     ) -> Self {
         Self {
             canonical_element,
             parts,
             other_parts,
+            other_part_trees,
             part_rule,
         }
     }
@@ -117,10 +121,17 @@ impl PartDefinition {
         self.parts
     }
 
-    /// Returns the other pieces of the standard concept.
+    /// Returns the other parts of the standard concept, which count as they are.
     #[must_use]
     pub const fn other_parts(&self) -> &'static [&'static str] {
         self.other_parts
+    }
+
+    /// Returns the other parts that also count with each concept below them in the 2026
+    /// calculation tree.
+    #[must_use]
+    pub const fn other_part_trees(&self) -> &'static [&'static str] {
+        self.other_part_trees
     }
 
     /// Returns the ID of the part rule, for example `us-gaap/part/equity@1`.
@@ -362,9 +373,12 @@ pub const INTANGIBLE_ASSETS_PART_RULE: &str = "us-gaap/part/intangible-assets@1"
 /// The parts of the standard concepts. Each element has an alias list in [`REQUIRED_CONCEPTS`] or
 /// [`OPTIONAL_CONCEPTS`].
 ///
-/// The other parts are the siblings of the part below the total in the 2026 calculation tree. A
-/// sibling that filers also report outside the total, such as `GainsLossesOnSalesOfAssets` below
-/// `Revenues`, is not in the list, because its fact does not show a second piece of the total.
+/// The other parts are the concepts that sum to the total with the part: the siblings of the part,
+/// and the siblings of each concept between the part and the total, in the 2026 calculation tree.
+/// An other part in `other_part_trees` also counts with each concept below it, because filers
+/// often report the concepts below it instead. A sibling that filers also report outside the
+/// total is left out, because its fact does not show a second part of the total. A comment names
+/// each sibling that is left out.
 pub const PART_CONCEPTS: &[PartDefinition] = &[
     PartDefinition::new(
         CanonicalElement::Revenue,
@@ -372,18 +386,41 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
         ],
-        &["RevenueNotFromContractWithCustomer"],
+        // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
+        // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
+        // `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`, and
+        // `SubleaseIncome`. The concepts below `NoninterestIncome`, `NetInvestmentIncome`, and
+        // `InterestIncomeExpenseAfterProvisionForLoanLoss` do not count, because they hold
+        // interest expense and gains that most filers report outside revenue.
+        &[
+            "ContractuallySpecifiedServicingFeesLateFeesAndAncillaryFeesEarnedInExchangeForServicingFinancialAssets",
+            "DirectFinancingLeaseInterestIncome",
+            "DirectFinancingLeaseRevenue",
+            "DirectFinancingLeaseVariableLeaseIncome",
+            "FeeIncome",
+            "InsuranceAgencyManagementFee",
+            "InsuranceCommissionsAndFees",
+            "InterestIncomeExpenseAfterProvisionForLoanLoss",
+            "NetInvestmentIncome",
+            "NoninterestIncome",
+            "RevenueNotFromContractWithCustomer",
+            "RevenuesExcludingInterestAndDividends",
+            "SaleOfTrustAssetsToPayExpenses",
+            "SalesTypeLeaseInterestIncome",
+            "SalesTypeLeaseRevenue",
+            "SalesTypeLeaseVariableLeaseIncome",
+        ],
+        &["OperatingLeaseLeaseIncome", "PremiumsEarnedNet"],
         REVENUE_PART_RULE,
     ),
     PartDefinition::new(
         CanonicalElement::NetIncome,
         &["NetIncomeLoss"],
+        // `NetIncomeLoss` is `ProfitLoss` minus the share of the noncontrolling interest.
         // `ProfitLoss` is the total. As an other part it blocks the part if the filing reports the
         // total only with a member, such as the noncontrolling interest.
-        &[
-            "NetIncomeLossAttributableToNoncontrollingInterest",
-            "ProfitLoss",
-        ],
+        &["ProfitLoss"],
+        &["NetIncomeLossAttributableToNoncontrollingInterest"],
         NET_INCOME_PART_RULE,
     ),
     PartDefinition::new(
@@ -391,35 +428,32 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &["StockholdersEquity"],
         // The total blocks the part if the filing reports it only with a member, such as the
         // noncontrolling interest on the equity components axis.
-        &[
-            "MinorityInterest",
-            "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
-        ],
+        &["StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"],
+        &["MinorityInterest"],
         EQUITY_PART_RULE,
     ),
     PartDefinition::new(
         CanonicalElement::CashAndEquivalents,
         &["Cash"],
-        &[
-            "CashEquivalentsAtCarryingValue",
-            "DueFromBanks",
-            "InterestBearingDepositsInBanks",
-        ],
+        // `Cash` sits below `CashAndDueFromBanks`, next to `DueFromBanks`. The cash equivalents
+        // and the deposits in banks sit one level up.
+        &["DueFromBanks", "InterestBearingDepositsInBanks"],
+        &["CashEquivalentsAtCarryingValue"],
         CASH_AND_EQUIVALENTS_PART_RULE,
     ),
     PartDefinition::new(
         CanonicalElement::ShortTermInvestments,
         &["MarketableSecuritiesCurrent"],
-        &[
-            "DebtSecuritiesCurrent",
-            "EquitySecuritiesFvNi",
-            "OtherShortTermInvestments",
-        ],
+        &["EquitySecuritiesFvNi", "OtherShortTermInvestments"],
+        &["DebtSecuritiesCurrent"],
         SHORT_TERM_INVESTMENTS_PART_RULE,
     ),
     PartDefinition::new(
         CanonicalElement::IntangibleAssets,
         &["FiniteLivedIntangibleAssetsNet"],
+        // `CapitalizedComputerSoftwareNet` is a sibling of the part, but it is left out, because
+        // filers also report internal-use software in property, plant, and equipment.
+        &[],
         &["IndefiniteLivedIntangibleAssetsExcludingGoodwill"],
         INTANGIBLE_ASSETS_PART_RULE,
     ),

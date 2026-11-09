@@ -377,7 +377,7 @@ fn should_resolve_revenue_net_income_equity_and_cash_by_their_part_rules_when_th
  {
     let facts = parse_notes_fixture().facts;
 
-    // The filer reports the part of the parent, and no other part, for these four concepts.
+    // For these four concepts, the filer reports a part and no other part.
     let expected_result = BTreeSet::from([
         (CanonicalElement::Assets, rule("us-gaap/alias/assets@1")),
         (CanonicalElement::Equity, rule("us-gaap/part/equity@1")),
