@@ -304,7 +304,7 @@ impl Calendar {
 }
 
 /// Returns `true` if the form, without the amendment suffix, is one of `forms`.
-fn is_form(form: &Form, forms: &[&str]) -> bool {
+pub(super) fn is_form(form: &Form, forms: &[&str]) -> bool {
     let base = form
         .as_str()
         .strip_suffix(Form::AMENDMENT_SUFFIX)
@@ -382,7 +382,7 @@ fn fiscal_period(months: u32) -> Option<FiscalPeriod> {
 /// The filings count in the order they were filed, because a filing states the fiscal year end as
 /// of its filing date. An amendment does not count, because it can state the end of the year it
 /// amends.
-fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
+pub(super) fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
     let mut filings: Vec<&Filing> = filings
         .iter()
         .copied()

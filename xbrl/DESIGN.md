@@ -794,6 +794,17 @@ year-to-date only. The result has confidence `Derived`.
 - The year must end 47 to 137 days after the nine-month end, so that the Q4 rounds to one quarter.
   If several nine-month values fit, the rule takes the latest end.
 - The rule derives nothing for a Q4 that the series already holds or that a conflict blocks.
+- The rule derives nothing from a short year, such as a first fiscal year from inception or a
+  transition period. Its Q4 is not FY − 9-month YTD. `derive_q4` takes the filings of the entity,
+  as `check_chronology` does, and treats a year as short in these cases:
+  - The year has an exact start and spans under 357 days, 51 weeks. A 52-53 week year spans 363 or
+    370 days from start to end. The day count decides alone when the start is known.
+  - The year has no exact start, and a `10-KT` of the entity has the year end as its period of
+    report.
+  - The year has no exact start, and it ends within 12 months after the entity changed its fiscal
+    year end. The span is the one the gap check uses for `GapReason::FiscalYearChange`.
+- Notes gives no exact start, and the guard reads no `durp`, because the as-is layer does not keep
+  it. So a short first fiscal year in Notes with no `10-KT` and no change of `fye` still gets a Q4.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
@@ -1062,7 +1073,7 @@ The measurement also counted four cases that the signals do not catch. Each has 
 
 | Case | Count | Decision |
 | ---- | ----- | -------- |
-| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derives a wrong fourth quarter from them. A guard is a bug fix of that rule |
+| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule now skips a short year ("Period identities" in "Three Layers"). In Notes it catches only the years with a `10-KT` or a change of `fye` |
 | Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | Detection sources for the guard above |
 | Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
 | Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | A design decision: whether a known length splits the conflict |
