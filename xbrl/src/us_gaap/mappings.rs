@@ -3,10 +3,12 @@
 //! Canonical name constants and concept definition arrays mapping
 //! XBRL taxonomy concept names to canonical financial elements.
 //!
-//! A later concept of a list can be wider or narrower than the standard concept, for example
-//! `Cash` for cash and equivalents. A comment at the list names each such concept, what it adds
-//! or leaves out, and when a filer reports it. Tier 2 gives such a value the `Synonym`
-//! confidence.
+//! A list never holds a concept that is wider than its standard concept, such as
+//! `ReceivablesNetCurrent` for accounts receivable. It never holds a part of the total either, such
+//! as `FiniteLivedIntangibleAssetsNet`. A comment at the list names each such concept that is left
+//! out and why. A list can hold a narrower concept only if a filer reports it when the rest of the
+//! standard concept is zero, such as `Cash` when the filer holds no cash equivalents. A comment at
+//! the list says so.
 //!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
 //! canonical element, as `xbrl/DESIGN.md`, "`us_gaap`", describes.
@@ -219,17 +221,19 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::ShortTermInvestments,
+        // `MarketableSecuritiesCurrent` is narrower than the standard concept: it holds no time
+        // deposits. A filer whose only short-term investments are marketable securities reports
+        // only this concept, so for that filer the two are the same amount.
         &["ShortTermInvestments", "MarketableSecuritiesCurrent"],
         SHORT_TERM_INVESTMENTS_RULE,
         false,
     ),
     ConceptDefinition::new(
         CanonicalElement::AccountsReceivable,
-        // `ReceivablesNetCurrent` is wider than the standard concept: it also holds receivables
-        // that are not from customers, such as notes and receivables from related parties. A
-        // filer that shows one line for all receivables reports only this concept. The value is
-        // then that line, not the trade receivables alone.
-        &["AccountsReceivableNetCurrent", "ReceivablesNetCurrent"],
+        // `ReceivablesNetCurrent` is not in the list. It is wider than the standard concept: it
+        // also holds receivables that are not from customers, such as notes and receivables from
+        // related parties. A filer that shows one line for all receivables gets no value.
+        &["AccountsReceivableNetCurrent"],
         ACCOUNTS_RECEIVABLE_RULE,
         false,
     ),
@@ -241,13 +245,10 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::PropertyPlantEquipment,
-        // The second concept is wider than the standard concept: it also holds the
-        // right-of-use assets of finance leases. A filer that shows both in one line reports
-        // only the second concept. The value is then that line.
-        &[
-            "PropertyPlantAndEquipmentNet",
-            "PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization",
-        ],
+        // `PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization`
+        // is not in the list. It is wider than the standard concept: it also holds the right-of-use
+        // assets of finance leases. A filer that shows both in one line gets no value.
+        &["PropertyPlantAndEquipmentNet"],
         PROPERTY_PLANT_EQUIPMENT_RULE,
         false,
     ),
@@ -284,14 +285,11 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ConceptDefinition::new(
         CanonicalElement::LongTermDebt,
         // The parent is `NonCurrentLiabilities`, so the list holds the noncurrent part only.
-        // `LongTermDebt` includes the current maturities, so it is not in the list. The second
-        // concept is wider than the standard concept: it also holds finance lease obligations. A
-        // filer that shows both in one line reports only the second concept. The value is then
-        // that line.
-        &[
-            "LongTermDebtNoncurrent",
-            "LongTermDebtAndCapitalLeaseObligations",
-        ],
+        // Two concepts are not in the list, because they are wider than the standard concept.
+        // `LongTermDebt` also holds the current maturities. `LongTermDebtAndCapitalLeaseObligations`
+        // also holds finance lease obligations. A filer that shows debt and finance leases in one
+        // line gets no value.
+        &["LongTermDebtNoncurrent"],
         LONG_TERM_DEBT_RULE,
         false,
     ),

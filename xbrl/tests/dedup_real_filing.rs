@@ -102,12 +102,9 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
         (CanonicalElement::FinancingCashFlow, 2),
         (CanonicalElement::CurrentAssets, 2),
         (CanonicalElement::CashAndEquivalents, 2),
-        (CanonicalElement::AccountsReceivable, 2),
-        (CanonicalElement::PropertyPlantEquipment, 2),
         (CanonicalElement::Goodwill, 2),
         (CanonicalElement::CurrentLiabilities, 2),
         (CanonicalElement::NonCurrentLiabilities, 2),
-        (CanonicalElement::LongTermDebt, 2),
         (CanonicalElement::RetainedEarnings, 2),
         (CanonicalElement::OperatingIncome, 2),
     ])
@@ -347,7 +344,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_59_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -358,7 +355,7 @@ fn should_give_59_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_59_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 

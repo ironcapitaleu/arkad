@@ -613,6 +613,94 @@ mod tests {
     }
 
     #[test]
+    fn should_return_balance_sheet_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            ConceptAliases {
+                element: CanonicalElement::CurrentAssets,
+                rule: rule("us-gaap/alias/current-assets@1"),
+                concepts: vec![concept("us-gaap", "AssetsCurrent")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::NonCurrentAssets,
+                rule: rule("us-gaap/alias/non-current-assets@1"),
+                concepts: vec![concept("us-gaap", "AssetsNoncurrent")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::CashAndEquivalents,
+                rule: rule("us-gaap/alias/cash-and-equivalents@1"),
+                concepts: vec![
+                    concept("us-gaap", "CashAndCashEquivalentsAtCarryingValue"),
+                    concept("us-gaap", "Cash"),
+                ],
+            },
+            ConceptAliases {
+                element: CanonicalElement::ShortTermInvestments,
+                rule: rule("us-gaap/alias/short-term-investments@1"),
+                concepts: vec![
+                    concept("us-gaap", "ShortTermInvestments"),
+                    concept("us-gaap", "MarketableSecuritiesCurrent"),
+                ],
+            },
+            ConceptAliases {
+                element: CanonicalElement::AccountsReceivable,
+                rule: rule("us-gaap/alias/accounts-receivable@1"),
+                concepts: vec![concept("us-gaap", "AccountsReceivableNetCurrent")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::Inventory,
+                rule: rule("us-gaap/alias/inventory@1"),
+                concepts: vec![concept("us-gaap", "InventoryNet")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::PropertyPlantEquipment,
+                rule: rule("us-gaap/alias/property-plant-equipment@1"),
+                concepts: vec![concept("us-gaap", "PropertyPlantAndEquipmentNet")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::Goodwill,
+                rule: rule("us-gaap/alias/goodwill@1"),
+                concepts: vec![concept("us-gaap", "Goodwill")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::IntangibleAssets,
+                rule: rule("us-gaap/alias/intangible-assets@1"),
+                concepts: vec![concept("us-gaap", "IntangibleAssetsNetExcludingGoodwill")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::CurrentLiabilities,
+                rule: rule("us-gaap/alias/current-liabilities@1"),
+                concepts: vec![concept("us-gaap", "LiabilitiesCurrent")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::NonCurrentLiabilities,
+                rule: rule("us-gaap/alias/non-current-liabilities@1"),
+                concepts: vec![concept("us-gaap", "LiabilitiesNoncurrent")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::LongTermDebt,
+                rule: rule("us-gaap/alias/long-term-debt@1"),
+                concepts: vec![concept("us-gaap", "LongTermDebtNoncurrent")],
+            },
+            ConceptAliases {
+                element: CanonicalElement::RetainedEarnings,
+                rule: rule("us-gaap/alias/retained-earnings@1"),
+                concepts: vec![concept("us-gaap", "RetainedEarningsAccumulatedDeficit")],
+            },
+        ];
+
+        let result: Vec<ConceptAliases> = us_gaap
+            .aliases()
+            .iter()
+            .skip(mappings::REQUIRED_CONCEPTS.len())
+            .cloned()
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_revenue_rule_id_when_registry_with_us_gaap_resolves_revenues() {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
