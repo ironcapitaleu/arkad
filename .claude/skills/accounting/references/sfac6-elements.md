@@ -56,7 +56,7 @@ Decreases in equity (net assets) from peripheral or incidental transactions of a
 2. **Comprehensive Income = Revenue - Expenses + Gains - Losses**
 3. **ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners**
 
-SFAC 6 defines no net income and no cash flow. The `accounting` skill lists the US GAAP identities
+SFAC 6 defines no net income and no cash flow. The `accounting` skill lists the identities
 for them.
 
 ## Classification Rules
