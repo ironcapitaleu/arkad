@@ -275,7 +275,7 @@ impl Calendar {
             expected.push(Expected {
                 end: year_end,
                 fiscal_period: fiscal_period(0),
-                quarters: year_quarters(&filings, previous, year_end),
+                quarters: year_length(&filings, previous, year_end),
             });
             previous = Some(year_end);
         }
@@ -338,7 +338,7 @@ pub(super) fn is_form(form: &Form, forms: &[&str]) -> bool {
 /// transition period, so its length runs from the previous fiscal year end, rounded as
 /// [`Duration::from_dates`] rounds, and limited to 4 quarters. Every other fiscal year, and a
 /// `10-KT` with no previous fiscal year end, is 4 quarters.
-fn year_quarters(filings: &[&Filing], previous: Option<NaiveDate>, year_end: NaiveDate) -> u16 {
+fn year_length(filings: &[&Filing], previous: Option<NaiveDate>, year_end: NaiveDate) -> u16 {
     let is_transition = filings.iter().any(|filing| {
         filing.period_of_report == Some(year_end) && is_form(&filing.form, &TRANSITION_ANNUAL_FORMS)
     });
