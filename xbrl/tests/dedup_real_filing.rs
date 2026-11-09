@@ -91,6 +91,7 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElement, usize> 
 /// The count of standardized facts per standard concept in the fixture filing, for both sources.
 ///
 /// Equity has 27 facts: 3 without dimensions, and 24 with a member of the equity components axis.
+/// Interest expense has 1 fact without dimensions, because a conflict blocks the 2026 quarter.
 /// Every other concept has 2 facts without dimensions.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
     BTreeMap::from([
@@ -108,6 +109,9 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
         (CanonicalElement::NonCurrentLiabilities, 2),
         (CanonicalElement::RetainedEarnings, 2),
         (CanonicalElement::OperatingIncome, 2),
+        (CanonicalElement::InterestExpense, 1),
+        (CanonicalElement::EarningsPerShareBasic, 2),
+        (CanonicalElement::EarningsPerShareDiluted, 2),
     ])
 }
 
@@ -350,7 +354,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -361,7 +365,7 @@ fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
@@ -373,11 +377,11 @@ fn should_give_53_standardized_facts_in_14_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_resolve_revenue_net_income_equity_and_cash_by_their_part_rules_when_the_dedup_rules_run_on_the_notes_facts()
- {
+fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // For these four concepts, the filer reports a part and no other part.
+    // For revenue, net income, equity, cash, and interest expense, the filer reports a part and no
+    // other part.
     let expected_result = BTreeSet::from([
         (CanonicalElement::Assets, rule("us-gaap/alias/assets@1")),
         (CanonicalElement::Equity, rule("us-gaap/part/equity@1")),
@@ -422,6 +426,18 @@ fn should_resolve_revenue_net_income_equity_and_cash_by_their_part_rules_when_th
         (
             CanonicalElement::OperatingIncome,
             rule("us-gaap/alias/operating-income@1"),
+        ),
+        (
+            CanonicalElement::InterestExpense,
+            rule("us-gaap/part/interest-expense@1"),
+        ),
+        (
+            CanonicalElement::EarningsPerShareBasic,
+            rule("us-gaap/alias/earnings-per-share-basic@1"),
+        ),
+        (
+            CanonicalElement::EarningsPerShareDiluted,
+            rule("us-gaap/alias/earnings-per-share-diluted@1"),
         ),
     ]);
 

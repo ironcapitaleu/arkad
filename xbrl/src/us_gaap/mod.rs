@@ -496,93 +496,115 @@ mod tests {
             .collect()
     }
 
+    // The test writes out every alias list in one place, so a list that goes missing fails it. A
+    // split by statement would need a filter, and a list outside every filter would pass.
+    #[allow(clippy::too_many_lines)]
     #[test]
     fn should_return_rule_id_of_each_alias_list_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
-            (CanonicalElement::Revenue, rule("us-gaap/alias/revenue@1")),
+            (CanonicalElement::Revenue, "us-gaap/alias/revenue@1"),
             (
                 CanonicalElement::OperatingIncome,
-                rule("us-gaap/alias/operating-income@1"),
+                "us-gaap/alias/operating-income@1",
             ),
-            (
-                CanonicalElement::NetIncome,
-                rule("us-gaap/alias/net-income@1"),
-            ),
-            (CanonicalElement::Assets, rule("us-gaap/alias/assets@1")),
-            (
-                CanonicalElement::Liabilities,
-                rule("us-gaap/alias/liabilities@1"),
-            ),
-            (CanonicalElement::Equity, rule("us-gaap/alias/equity@1")),
+            (CanonicalElement::NetIncome, "us-gaap/alias/net-income@1"),
+            (CanonicalElement::Assets, "us-gaap/alias/assets@1"),
+            (CanonicalElement::Liabilities, "us-gaap/alias/liabilities@1"),
+            (CanonicalElement::Equity, "us-gaap/alias/equity@1"),
             (
                 CanonicalElement::OperatingCashFlow,
-                rule("us-gaap/alias/operating-cash-flow@1"),
+                "us-gaap/alias/operating-cash-flow@1",
             ),
             (
                 CanonicalElement::InvestingCashFlow,
-                rule("us-gaap/alias/investing-cash-flow@1"),
+                "us-gaap/alias/investing-cash-flow@1",
             ),
             (
                 CanonicalElement::FinancingCashFlow,
-                rule("us-gaap/alias/financing-cash-flow@1"),
+                "us-gaap/alias/financing-cash-flow@1",
             ),
             (
                 CanonicalElement::CurrentAssets,
-                rule("us-gaap/alias/current-assets@1"),
+                "us-gaap/alias/current-assets@1",
             ),
             (
                 CanonicalElement::NonCurrentAssets,
-                rule("us-gaap/alias/non-current-assets@1"),
+                "us-gaap/alias/non-current-assets@1",
             ),
             (
                 CanonicalElement::CashAndEquivalents,
-                rule("us-gaap/alias/cash-and-equivalents@1"),
+                "us-gaap/alias/cash-and-equivalents@1",
             ),
             (
                 CanonicalElement::ShortTermInvestments,
-                rule("us-gaap/alias/short-term-investments@1"),
+                "us-gaap/alias/short-term-investments@1",
             ),
             (
                 CanonicalElement::AccountsReceivable,
-                rule("us-gaap/alias/accounts-receivable@1"),
+                "us-gaap/alias/accounts-receivable@1",
             ),
-            (
-                CanonicalElement::Inventory,
-                rule("us-gaap/alias/inventory@1"),
-            ),
+            (CanonicalElement::Inventory, "us-gaap/alias/inventory@1"),
             (
                 CanonicalElement::PropertyPlantEquipment,
-                rule("us-gaap/alias/property-plant-equipment@1"),
+                "us-gaap/alias/property-plant-equipment@1",
             ),
-            (CanonicalElement::Goodwill, rule("us-gaap/alias/goodwill@1")),
+            (CanonicalElement::Goodwill, "us-gaap/alias/goodwill@1"),
             (
                 CanonicalElement::IntangibleAssets,
-                rule("us-gaap/alias/intangible-assets@1"),
+                "us-gaap/alias/intangible-assets@1",
             ),
             (
                 CanonicalElement::CurrentLiabilities,
-                rule("us-gaap/alias/current-liabilities@1"),
+                "us-gaap/alias/current-liabilities@1",
             ),
             (
                 CanonicalElement::NonCurrentLiabilities,
-                rule("us-gaap/alias/non-current-liabilities@1"),
+                "us-gaap/alias/non-current-liabilities@1",
             ),
             (
                 CanonicalElement::LongTermDebt,
-                rule("us-gaap/alias/long-term-debt@1"),
+                "us-gaap/alias/long-term-debt@1",
             ),
             (
                 CanonicalElement::RetainedEarnings,
-                rule("us-gaap/alias/retained-earnings@1"),
+                "us-gaap/alias/retained-earnings@1",
+            ),
+            (
+                CanonicalElement::CostOfRevenue,
+                "us-gaap/alias/cost-of-revenue@1",
+            ),
+            (
+                CanonicalElement::GrossProfit,
+                "us-gaap/alias/gross-profit@1",
+            ),
+            (
+                CanonicalElement::SellingGeneralAdmin,
+                "us-gaap/alias/selling-general-admin@1",
+            ),
+            (
+                CanonicalElement::ResearchDevelopment,
+                "us-gaap/alias/research-development@1",
+            ),
+            (
+                CanonicalElement::InterestExpense,
+                "us-gaap/alias/interest-expense@1",
+            ),
+            (
+                CanonicalElement::EarningsPerShareBasic,
+                "us-gaap/alias/earnings-per-share-basic@1",
+            ),
+            (
+                CanonicalElement::EarningsPerShareDiluted,
+                "us-gaap/alias/earnings-per-share-diluted@1",
             ),
         ];
 
-        let result: Vec<(CanonicalElement, RuleId)> = us_gaap
+        let result: Vec<(CanonicalElement, &str)> = us_gaap
             .aliases()
             .iter()
-            .map(|aliases| (aliases.element, aliases.rule.clone()))
+            .map(|aliases| (aliases.element, aliases.rule.as_str()))
             .collect();
 
         assert_eq!(result, expected_result);
@@ -592,8 +614,11 @@ mod tests {
     fn should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created() {
         let us_gaap = UsGaap::new();
 
-        // `xbrl/DESIGN.md`, "Release in Use Today", names these two as not in the 2026 release.
+        // `xbrl/DESIGN.md`, "Release in Use Today", names these as not in the 2026 release. The
+        // EPS concept is in two lists.
         let expected_result = vec![
+            concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
+            concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
             concept("us-gaap", "IncomeLossFromOperations"),
             concept("us-gaap", "SalesRevenueNet"),
         ];
@@ -676,6 +701,10 @@ mod tests {
             CanonicalElement::CashAndEquivalents,
             CanonicalElement::ShortTermInvestments,
             CanonicalElement::IntangibleAssets,
+            CanonicalElement::CostOfRevenue,
+            CanonicalElement::SellingGeneralAdmin,
+            CanonicalElement::ResearchDevelopment,
+            CanonicalElement::InterestExpense,
         ];
 
         let result: Vec<CanonicalElement> = us_gaap
@@ -870,8 +899,183 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    /// The balance sheet concepts of [`mappings::OPTIONAL_CONCEPTS`].
+    const BALANCE_SHEET: [CanonicalElement; 13] = [
+        CanonicalElement::CurrentAssets,
+        CanonicalElement::NonCurrentAssets,
+        CanonicalElement::CashAndEquivalents,
+        CanonicalElement::ShortTermInvestments,
+        CanonicalElement::AccountsReceivable,
+        CanonicalElement::Inventory,
+        CanonicalElement::PropertyPlantEquipment,
+        CanonicalElement::Goodwill,
+        CanonicalElement::IntangibleAssets,
+        CanonicalElement::CurrentLiabilities,
+        CanonicalElement::NonCurrentLiabilities,
+        CanonicalElement::LongTermDebt,
+        CanonicalElement::RetainedEarnings,
+    ];
+
+    /// The income statement concepts of [`mappings::OPTIONAL_CONCEPTS`].
+    const INCOME_STATEMENT: [CanonicalElement; 7] = [
+        CanonicalElement::CostOfRevenue,
+        CanonicalElement::GrossProfit,
+        CanonicalElement::SellingGeneralAdmin,
+        CanonicalElement::ResearchDevelopment,
+        CanonicalElement::InterestExpense,
+        CanonicalElement::EarningsPerShareBasic,
+        CanonicalElement::EarningsPerShareDiluted,
+    ];
+
     #[test]
-    fn should_return_optional_concepts_in_priority_order_when_created() {
+    fn should_return_income_statement_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (
+                CanonicalElement::CostOfRevenue,
+                rule("us-gaap/alias/cost-of-revenue@1"),
+                vec![concept("us-gaap", "CostOfRevenue")],
+            ),
+            (
+                CanonicalElement::GrossProfit,
+                rule("us-gaap/alias/gross-profit@1"),
+                vec![concept("us-gaap", "GrossProfit")],
+            ),
+            (
+                CanonicalElement::SellingGeneralAdmin,
+                rule("us-gaap/alias/selling-general-admin@1"),
+                vec![concept("us-gaap", "SellingGeneralAndAdministrativeExpense")],
+            ),
+            (
+                CanonicalElement::ResearchDevelopment,
+                rule("us-gaap/alias/research-development@1"),
+                vec![concept("us-gaap", "ResearchAndDevelopmentExpense")],
+            ),
+            (
+                CanonicalElement::InterestExpense,
+                rule("us-gaap/alias/interest-expense@1"),
+                vec![concept("us-gaap", "InterestExpense")],
+            ),
+            (
+                CanonicalElement::EarningsPerShareBasic,
+                rule("us-gaap/alias/earnings-per-share-basic@1"),
+                vec![
+                    concept("us-gaap", "EarningsPerShareBasic"),
+                    concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
+                ],
+            ),
+            (
+                CanonicalElement::EarningsPerShareDiluted,
+                rule("us-gaap/alias/earnings-per-share-diluted@1"),
+                vec![
+                    concept("us-gaap", "EarningsPerShareDiluted"),
+                    concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
+                ],
+            ),
+        ];
+
+        let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| INCOME_STATEMENT.contains(&aliases.element))
+            .map(|aliases| {
+                (
+                    aliases.element,
+                    aliases.rule.clone(),
+                    aliases.concepts.clone(),
+                )
+            })
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_parts_of_income_statement_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (
+                CanonicalElement::CostOfRevenue,
+                PartAliases {
+                    rule: rule("us-gaap/part/cost-of-revenue@1"),
+                    parts: vec![concept("us-gaap", "CostOfGoodsAndServicesSold")],
+                    other_parts: vec![
+                        concept("us-gaap", "AmortizationOfMortgageServicingRightsMSRs"),
+                        concept("us-gaap", "AmortizationOfValueOfBusinessAcquiredVOBA"),
+                        concept(
+                            "us-gaap",
+                            "DeferredPolicyAcquisitionCostAmortizationExpense",
+                        ),
+                        concept("us-gaap", "DeferredSalesInducementsAmortizationExpense"),
+                        concept("us-gaap", "FinancingInterestExpense"),
+                        concept("us-gaap", "InterestCreditedToPolicyholdersAccountBalances"),
+                        concept("us-gaap", "MerchantMarineOperatingDifferentialSubsidy"),
+                        concept("us-gaap", "OtherCostOfOperatingRevenue"),
+                        concept("us-gaap", "PolicyholderBenefitsAndClaimsIncurredNet"),
+                        concept("us-gaap", "PolicyholderDividends"),
+                        concept(
+                            "us-gaap",
+                            "PresentValueOfFutureInsuranceProfitsAmortizationExpense1",
+                        ),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::SellingGeneralAdmin,
+                PartAliases {
+                    rule: rule("us-gaap/part/selling-general-admin@1"),
+                    parts: vec![concept("us-gaap", "GeneralAndAdministrativeExpense")],
+                    other_parts: vec![
+                        concept("us-gaap", "OtherSellingGeneralAndAdministrativeExpense"),
+                        concept("us-gaap", "SellingAndMarketingExpense"),
+                        concept("us-gaap", "SellingExpense"),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::ResearchDevelopment,
+                PartAliases {
+                    rule: rule("us-gaap/part/research-development@1"),
+                    parts: vec![concept(
+                        "us-gaap",
+                        "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
+                    )],
+                    other_parts: vec![
+                        concept(
+                            "us-gaap",
+                            "ResearchAndDevelopmentAssetAcquiredOtherThanThroughBusinessCombinationWrittenOff",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "ResearchAndDevelopmentExpenseSoftwareExcludingAcquiredInProcessCost",
+                        ),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::InterestExpense,
+                PartAliases {
+                    rule: rule("us-gaap/part/interest-expense@1"),
+                    parts: vec![concept("us-gaap", "InterestExpenseNonoperating")],
+                    other_parts: vec![concept("us-gaap", "InterestExpenseOperating")],
+                },
+            ),
+        ];
+
+        let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| INCOME_STATEMENT.contains(&aliases.element))
+            .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_balance_sheet_concepts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
@@ -945,7 +1149,7 @@ mod tests {
         let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
             .aliases()
             .iter()
-            .skip(mappings::REQUIRED_CONCEPTS.len())
+            .filter(|aliases| BALANCE_SHEET.contains(&aliases.element))
             .map(|aliases| {
                 (
                     aliases.element,
@@ -959,7 +1163,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_parts_of_optional_concepts_in_priority_order_when_created() {
+    fn should_return_parts_of_balance_sheet_concepts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
@@ -1032,7 +1236,7 @@ mod tests {
         let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
             .aliases()
             .iter()
-            .skip(mappings::REQUIRED_CONCEPTS.len())
+            .filter(|aliases| BALANCE_SHEET.contains(&aliases.element))
             .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
 

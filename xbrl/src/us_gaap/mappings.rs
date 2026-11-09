@@ -250,6 +250,20 @@ pub const NON_CURRENT_LIABILITIES_RULE: &str = "us-gaap/alias/non-current-liabil
 pub const LONG_TERM_DEBT_RULE: &str = "us-gaap/alias/long-term-debt@1";
 /// The ID of the alias rule of [`CanonicalElement::RetainedEarnings`].
 pub const RETAINED_EARNINGS_RULE: &str = "us-gaap/alias/retained-earnings@1";
+/// The ID of the alias rule of [`CanonicalElement::CostOfRevenue`].
+pub const COST_OF_REVENUE_RULE: &str = "us-gaap/alias/cost-of-revenue@1";
+/// The ID of the alias rule of [`CanonicalElement::GrossProfit`].
+pub const GROSS_PROFIT_RULE: &str = "us-gaap/alias/gross-profit@1";
+/// The ID of the alias rule of [`CanonicalElement::SellingGeneralAdmin`].
+pub const SELLING_GENERAL_ADMIN_RULE: &str = "us-gaap/alias/selling-general-admin@1";
+/// The ID of the alias rule of [`CanonicalElement::ResearchDevelopment`].
+pub const RESEARCH_DEVELOPMENT_RULE: &str = "us-gaap/alias/research-development@1";
+/// The ID of the alias rule of [`CanonicalElement::InterestExpense`].
+pub const INTEREST_EXPENSE_RULE: &str = "us-gaap/alias/interest-expense@1";
+/// The ID of the alias rule of [`CanonicalElement::EarningsPerShareBasic`].
+pub const EARNINGS_PER_SHARE_BASIC_RULE: &str = "us-gaap/alias/earnings-per-share-basic@1";
+/// The ID of the alias rule of [`CanonicalElement::EarningsPerShareDiluted`].
+pub const EARNINGS_PER_SHARE_DILUTED_RULE: &str = "us-gaap/alias/earnings-per-share-diluted@1";
 
 /// Optional concept definitions that enrich financial statements when available.
 /// Their absence does not cause validation failure.
@@ -355,6 +369,58 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         RETAINED_EARNINGS_RULE,
         false,
     ),
+    // Income Statement detail
+    ConceptDefinition::new(
+        CanonicalElement::CostOfRevenue,
+        // `CostOfGoodsAndServicesSold` is a part. `PART_CONCEPTS` holds it.
+        &["CostOfRevenue"],
+        COST_OF_REVENUE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::GrossProfit,
+        &["GrossProfit"],
+        GROSS_PROFIT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::SellingGeneralAdmin,
+        // `GeneralAndAdministrativeExpense` is a part. `PART_CONCEPTS` holds it.
+        &["SellingGeneralAndAdministrativeExpense"],
+        SELLING_GENERAL_ADMIN_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::ResearchDevelopment,
+        // `ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost` is a part.
+        // `PART_CONCEPTS` holds it.
+        &["ResearchAndDevelopmentExpense"],
+        RESEARCH_DEVELOPMENT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::InterestExpense,
+        // `InterestExpenseNonoperating` is a part. `PART_CONCEPTS` holds it.
+        &["InterestExpense"],
+        INTEREST_EXPENSE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::EarningsPerShareBasic,
+        // `EarningsPerShareBasicAndDiluted` is one value for both, so it equals the basic value.
+        // The 2026 schema no longer holds it, but older filings report it.
+        &["EarningsPerShareBasic", "EarningsPerShareBasicAndDiluted"],
+        EARNINGS_PER_SHARE_BASIC_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::EarningsPerShareDiluted,
+        // `EarningsPerShareBasicAndDiluted` is one value for both, so it equals the diluted value.
+        // The 2026 schema no longer holds it, but older filings report it.
+        &["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"],
+        EARNINGS_PER_SHARE_DILUTED_RULE,
+        false,
+    ),
 ];
 
 /// The ID of the part rule of [`CanonicalElement::Revenue`].
@@ -369,6 +435,14 @@ pub const CASH_AND_EQUIVALENTS_PART_RULE: &str = "us-gaap/part/cash-and-equivale
 pub const SHORT_TERM_INVESTMENTS_PART_RULE: &str = "us-gaap/part/short-term-investments@1";
 /// The ID of the part rule of [`CanonicalElement::IntangibleAssets`].
 pub const INTANGIBLE_ASSETS_PART_RULE: &str = "us-gaap/part/intangible-assets@1";
+/// The ID of the part rule of [`CanonicalElement::CostOfRevenue`].
+pub const COST_OF_REVENUE_PART_RULE: &str = "us-gaap/part/cost-of-revenue@1";
+/// The ID of the part rule of [`CanonicalElement::SellingGeneralAdmin`].
+pub const SELLING_GENERAL_ADMIN_PART_RULE: &str = "us-gaap/part/selling-general-admin@1";
+/// The ID of the part rule of [`CanonicalElement::ResearchDevelopment`].
+pub const RESEARCH_DEVELOPMENT_PART_RULE: &str = "us-gaap/part/research-development@1";
+/// The ID of the part rule of [`CanonicalElement::InterestExpense`].
+pub const INTEREST_EXPENSE_PART_RULE: &str = "us-gaap/part/interest-expense@1";
 
 /// The parts of the standard concepts. Each element has an alias list in [`REQUIRED_CONCEPTS`] or
 /// [`OPTIONAL_CONCEPTS`].
@@ -391,7 +465,7 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         // `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`, and
         // `SubleaseIncome`. In two roles, `NoninterestIncome` is the parent of a part. Of the
         // concepts below `NoninterestIncome`, `NetInvestmentIncome`, and
-        // `InterestIncomeExpenseAfterProvisionForLoanLoss`, only the sibling of the part counts.
+        // `InterestIncomeExpenseAfterProvisionForLoanLoss`, only the sibling of both parts counts.
         // The rest holds interest expense and gains that most filers report outside revenue.
         &[
             "ContractuallySpecifiedServicingFeesLateFeesAndAncillaryFeesEarnedInExchangeForServicingFinancialAssets",
@@ -458,5 +532,60 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &[],
         &["IndefiniteLivedIntangibleAssetsExcludingGoodwill"],
         INTANGIBLE_ASSETS_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::CostOfRevenue,
+        &["CostOfGoodsAndServicesSold"],
+        // The cost lines below `CostOfRevenue` of insurers, lenders, and servicers. Left out:
+        // `ProvisionForLoanLeaseAndOtherLosses`, because banks report it outside cost of revenue.
+        &[
+            "AmortizationOfMortgageServicingRightsMSRs",
+            "AmortizationOfValueOfBusinessAcquiredVOBA",
+            "DeferredPolicyAcquisitionCostAmortizationExpense",
+            "DeferredSalesInducementsAmortizationExpense",
+            "FinancingInterestExpense",
+            "InterestCreditedToPolicyholdersAccountBalances",
+            "MerchantMarineOperatingDifferentialSubsidy",
+            "OtherCostOfOperatingRevenue",
+            "PolicyholderBenefitsAndClaimsIncurredNet",
+            "PolicyholderDividends",
+            "PresentValueOfFutureInsuranceProfitsAmortizationExpense1",
+        ],
+        &[],
+        COST_OF_REVENUE_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::SellingGeneralAdmin,
+        &["GeneralAndAdministrativeExpense"],
+        // A filer with no selling expense reports only `GeneralAndAdministrativeExpense`. The
+        // concepts below `SellingAndMarketingExpense` do not count, because filers disclose
+        // advertising and warranty expense in the notes whatever line holds it. `SellingExpense`
+        // is the one concept below it that filers report as a line of the statement.
+        &[
+            "OtherSellingGeneralAndAdministrativeExpense",
+            "SellingAndMarketingExpense",
+            "SellingExpense",
+        ],
+        &[],
+        SELLING_GENERAL_ADMIN_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::ResearchDevelopment,
+        &["ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"],
+        &[
+            "ResearchAndDevelopmentAssetAcquiredOtherThanThroughBusinessCombinationWrittenOff",
+            "ResearchAndDevelopmentExpenseSoftwareExcludingAcquiredInProcessCost",
+        ],
+        &[],
+        RESEARCH_DEVELOPMENT_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::InterestExpense,
+        &["InterestExpenseNonoperating"],
+        // A commercial filer reports its interest expense as `InterestExpenseNonoperating`. A bank
+        // reports `InterestExpenseOperating`, and it gets a value only from `InterestExpense`.
+        &["InterestExpenseOperating"],
+        &[],
+        INTEREST_EXPENSE_PART_RULE,
     ),
 ];
