@@ -401,8 +401,9 @@ Duration values. One closed step: `ComprehensiveIncome` = `NetIncome` + `OtherCo
 | ------- | ----- | ---- | ------ | ----- | ------ | ------ |
 | `ComprehensiveIncome` | top | | | | | |
 | `OtherComprehensiveIncome` | `comprehensive-income` | step | `ComprehensiveIncome` | `NetIncome` | +1 | yes |
- A filer can present it in one statement with the income statement or in a second
-statement. The layout shows it as its own statement.
+
+A filer can present it in one statement with the income statement or in a second statement. The
+layout shows it as its own statement.
 
 #### Cash Flow Statement
 
