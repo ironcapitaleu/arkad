@@ -17,7 +17,7 @@ pub enum CanonicalElement {
     Assets,
     /// Total liabilities.
     Liabilities,
-    /// Stockholders' equity.
+    /// Stockholders' equity, including the portion of the noncontrolling interest.
     Equity,
     /// Total revenue.
     Revenue,
@@ -27,7 +27,7 @@ pub enum CanonicalElement {
     Gains,
     /// Losses (non-operating).
     Losses,
-    /// Net income (loss).
+    /// Net income (loss), including the portion of the noncontrolling interest.
     NetIncome,
     /// Other comprehensive income (unrealized gains/losses, FX, pensions).
     OtherComprehensiveIncome,
