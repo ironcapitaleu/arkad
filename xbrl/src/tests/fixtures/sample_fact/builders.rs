@@ -166,6 +166,7 @@ pub fn revenue_aliases() -> ConceptAliases {
             concept("SalesRevenueNet"),
             concept("RevenueFromContractWithCustomerExcludingAssessedTax"),
         ],
+        parts: None,
     }
 }
 

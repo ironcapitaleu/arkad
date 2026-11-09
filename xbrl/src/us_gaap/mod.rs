@@ -296,6 +296,7 @@ fn concept_aliases(definition: &mappings::ConceptDefinition) -> ConceptAliases {
             .iter()
             .map(|name| concept(US_GAAP_FAMILY, name))
             .collect(),
+        parts: None,
     }
 }
 
@@ -507,6 +508,7 @@ mod tests {
                     "RevenueFromContractWithCustomerIncludingAssessedTax",
                 ),
             ],
+            parts: None,
         });
 
         let result = us_gaap
@@ -531,6 +533,7 @@ mod tests {
                 ),
                 concept("us-gaap", "StockholdersEquity"),
             ],
+            parts: None,
         });
 
         let result = us_gaap
