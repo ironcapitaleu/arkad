@@ -23,8 +23,12 @@ const INSTANT_PERIOD_TYPE: &str = "PeriodType::Instant";
 const DURATION_PERIOD_TYPE: &str = "PeriodType::Duration";
 
 /// One concept with its label, ready to render.
+///
+/// The order of the fields sorts the lines by family, then by name.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ElementLine {
+    /// The namespace family, for example `srt`.
+    pub family: String,
     /// The local name.
     pub name: String,
     /// The standard label.
@@ -42,13 +46,14 @@ pub struct ElementLine {
 pub struct Tables {
     /// The release ID, for example `us-gaap/2026`.
     pub release_id: String,
-    /// The folder of the vendored files, relative to the `xbrl` crate.
-    pub release_folder: String,
-    /// The SHA-256 of the `MANIFEST`, as 64 lowercase hex digits.
+    /// The vendored folders, relative to the `xbrl` crate, in the order of the checksum.
+    pub folders: Vec<String>,
+    /// The SHA-256 of the `MANIFEST` files of `folders`, joined in that order, as 64 lowercase hex
+    /// digits.
     pub checksum: String,
     /// The calculation arcs, sorted by role, parent, and child, without repeats.
     pub arcs: Vec<CalculationArc>,
-    /// The elements, sorted by name.
+    /// The elements, sorted by family and name.
     pub elements: Vec<ElementLine>,
 }
 
@@ -66,7 +71,7 @@ pub fn render(tables: &Tables) -> String {
 fn write_header(source: &mut String, tables: &Tables) {
     let Tables {
         release_id,
-        release_folder,
+        folders,
         checksum,
         ..
     } = tables;
@@ -76,16 +81,25 @@ fn write_header(source: &mut String, tables: &Tables) {
 //!
 //! Provides the calculation arcs and the element reference data of the release `{release_id}`.
 //!
-//! The generator writes this file from `{release_folder}/`. Do not edit it. After a change to the
-//! vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
-
+//! The generator writes this file from the vendored folders below. Do not edit it. After a change
+//! to the vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
+//!"
+    )
+    .expect("Given a String, a write should never fail");
+    for folder in folders {
+        writeln!(source, "//! - `{folder}/`").expect("Given a String, a write should never fail");
+    }
+    writeln!(
+        source,
+        "
 use super::table::{{CalculationRow, ElementRow}};
 use crate::core::taxonomy::reference::{{Balance, PeriodType}};
 
 /// The ID of the release that the tables come from.
 pub const RELEASE_ID: &str = \"{release_id}\";
 
-/// The SHA-256 of the `MANIFEST` of the vendored files, as 64 lowercase hex digits.
+/// The SHA-256 of the `MANIFEST` files of the vendored folders, joined in the order of the list
+/// above, as 64 lowercase hex digits.
 pub const RELEASE_CHECKSUM: &str = \"{checksum}\";
 "
     )
@@ -123,7 +137,7 @@ pub static CALCULATION_ARCS: &[CalculationRow] = &[
 /// Writes the table of elements.
 fn write_elements(source: &mut String, elements: &[ElementLine]) {
     source.push_str(
-        "/// The concepts of the element schema of the release, sorted by name.
+        "/// The concepts of the element schemas of the vendored folders, sorted by family and name.
 pub static ELEMENTS: &[ElementRow] = &[
 ",
     );
@@ -139,8 +153,8 @@ pub static ELEMENTS: &[ElementRow] = &[
         };
         writeln!(
             source,
-            "    ElementRow::new({:?}, {:?}, {:?}, {balance}, {period_type}),",
-            element.name, element.label, element.data_type
+            "    ElementRow::new({:?}, {:?}, {:?}, {:?}, {balance}, {period_type}),",
+            element.family, element.name, element.label, element.data_type
         )
         .expect("Given a String, a write should never fail");
     }
@@ -155,10 +169,13 @@ mod tests {
     use crate::us_gaap::generator::linkbase::ConceptRef;
 
     #[test]
-    fn should_write_rust_literals_for_one_arc_and_one_element() {
+    fn should_write_rust_literals_for_two_folders_one_arc_and_one_element() {
         let tables = Tables {
             release_id: "us-gaap/2026".to_string(),
-            release_folder: "taxonomy/us-gaap/2026".to_string(),
+            folders: vec![
+                "taxonomy/us-gaap/2026".to_string(),
+                "taxonomy/srt/2026".to_string(),
+            ],
             checksum: "ab".to_string(),
             arcs: vec![CalculationArc {
                 role: "http://fasb.org/us-gaap/role/statement/A".to_string(),
@@ -173,6 +190,7 @@ mod tests {
                 weight: "1.0".to_string(),
             }],
             elements: vec![ElementLine {
+                family: "us-gaap".to_string(),
                 name: "Assets".to_string(),
                 label: "Assets \"total\"".to_string(),
                 data_type: "xbrli:monetaryItemType".to_string(),
@@ -185,8 +203,11 @@ mod tests {
 //!
 //! Provides the calculation arcs and the element reference data of the release `us-gaap/2026`.
 //!
-//! The generator writes this file from `taxonomy/us-gaap/2026/`. Do not edit it. After a change to the
-//! vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
+//! The generator writes this file from the vendored folders below. Do not edit it. After a change
+//! to the vendored files, run `cargo run -p xbrl --features generator --bin generate_us_gaap`.
+//!
+//! - `taxonomy/us-gaap/2026/`
+//! - `taxonomy/srt/2026/`
 
 use super::table::{CalculationRow, ElementRow};
 use crate::core::taxonomy::reference::{Balance, PeriodType};
@@ -194,7 +215,8 @@ use crate::core::taxonomy::reference::{Balance, PeriodType};
 /// The ID of the release that the tables come from.
 pub const RELEASE_ID: &str = "us-gaap/2026";
 
-/// The SHA-256 of the `MANIFEST` of the vendored files, as 64 lowercase hex digits.
+/// The SHA-256 of the `MANIFEST` files of the vendored folders, joined in the order of the list
+/// above, as 64 lowercase hex digits.
 pub const RELEASE_CHECKSUM: &str = "ab";
 
 /// The summation arcs of the statement calculation linkbases (`stm/`) of the release, sorted by
@@ -203,9 +225,9 @@ pub static CALCULATION_ARCS: &[CalculationRow] = &[
     CalculationRow::new("http://fasb.org/us-gaap/role/statement/A", "us-gaap", "Assets", "us-gaap", "AssetsCurrent", "1.0"),
 ];
 
-/// The concepts of the element schema of the release, sorted by name.
+/// The concepts of the element schemas of the vendored folders, sorted by family and name.
 pub static ELEMENTS: &[ElementRow] = &[
-    ElementRow::new("Assets", "Assets \"total\"", "xbrli:monetaryItemType", Some(Balance::Debit), PeriodType::Instant),
+    ElementRow::new("us-gaap", "Assets", "Assets \"total\"", "xbrli:monetaryItemType", Some(Balance::Debit), PeriodType::Instant),
 ];
 "#;
 

@@ -1,13 +1,13 @@
 //! # US GAAP Manifest Integration Tests
 //!
-//! Recomputes the `MANIFEST` of each vendored US GAAP release from the files on disk and compares
-//! it with the `MANIFEST` in the repository. A changed, added, or removed file fails the test. A
-//! second test recomputes the SHA-256 of the `MANIFEST` of the release in use and compares it with
-//! the release checksum of the generated tables.
+//! Recomputes the `MANIFEST` of each vendored release of `us-gaap`, `srt`, and `dei` from the files
+//! on disk and compares it with the `MANIFEST` in the repository. A changed, added, or removed file
+//! fails the test. A second test recomputes the release checksum from the `MANIFEST` files of the
+//! releases in use and compares it with the release checksum of the generated tables.
 //!
 //! ## External Dependencies
 //!
-//! None. The files live in `taxonomy/us-gaap/<year>/`.
+//! None. The files live in `taxonomy/<family>/<release>/`.
 
 use std::fmt::Write;
 use std::fs;
@@ -17,8 +17,12 @@ use pretty_assertions::assert_eq;
 use sha2::{Digest, Sha256};
 use xbrl::us_gaap::taxonomy::RELEASE_CHECKSUM;
 
-const US_GAAP_FOLDER: &str = "taxonomy/us-gaap";
-const RELEASE_IN_USE_FOLDER: &str = "taxonomy/us-gaap/2026";
+const FAMILY_FOLDERS: &[&str] = &["taxonomy/us-gaap", "taxonomy/srt", "taxonomy/dei"];
+const RELEASE_IN_USE_FOLDERS: &[&str] = &[
+    "taxonomy/us-gaap/2026",
+    "taxonomy/srt/2026",
+    "taxonomy/dei/2026",
+];
 const MANIFEST_FILE_NAME: &str = "MANIFEST";
 
 /// Returns the path of every file below `folder`, relative to `root`, except the `MANIFEST`.
@@ -68,10 +72,10 @@ fn manifest_of(root: &Path) -> String {
     manifest
 }
 
-/// Returns each release folder below `us_gaap`, sorted. Files beside the folders are skipped.
-fn release_folders(us_gaap: &Path) -> Vec<PathBuf> {
-    let mut folders: Vec<PathBuf> = fs::read_dir(us_gaap)
-        .expect("Given the vendored US GAAP folder, it should be readable")
+/// Returns each release folder below `family`, sorted. Files beside the folders are skipped.
+fn release_folders(family: &Path) -> Vec<PathBuf> {
+    let mut folders: Vec<PathBuf> = fs::read_dir(family)
+        .expect("Given a vendored family folder, it should be readable")
         .map(|entry| {
             entry
                 .expect("Given a readable folder, each entry should be readable")
@@ -84,8 +88,12 @@ fn release_folders(us_gaap: &Path) -> Vec<PathBuf> {
 }
 
 #[test]
-fn should_match_manifest_for_every_vendored_us_gaap_release() {
-    let releases = release_folders(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(US_GAAP_FOLDER));
+fn should_match_manifest_for_every_vendored_release_of_us_gaap_srt_and_dei() {
+    let xbrl_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let releases: Vec<PathBuf> = FAMILY_FOLDERS
+        .iter()
+        .flat_map(|family| release_folders(&xbrl_crate.join(family)))
+        .collect();
 
     let expected_result: Vec<(PathBuf, String)> = releases
         .iter()
@@ -105,17 +113,19 @@ fn should_match_manifest_for_every_vendored_us_gaap_release() {
 }
 
 #[test]
-fn should_match_release_checksum_for_sha256_of_manifest() {
-    let manifest = fs::read(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join(RELEASE_IN_USE_FOLDER)
-            .join(MANIFEST_FILE_NAME),
-    )
-    .expect("Given the vendored release, its MANIFEST should be readable");
+fn should_match_release_checksum_for_sha256_of_joined_manifests() {
+    let xbrl_crate = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mut manifests = Vec::new();
+    for folder in RELEASE_IN_USE_FOLDERS {
+        manifests.extend(
+            fs::read(xbrl_crate.join(folder).join(MANIFEST_FILE_NAME))
+                .expect("Given a vendored release in use, its MANIFEST should be readable"),
+        );
+    }
 
     let expected_result = RELEASE_CHECKSUM;
 
-    let result = hex_digest(&manifest);
+    let result = hex_digest(&manifests);
 
     assert_eq!(result, expected_result);
 }

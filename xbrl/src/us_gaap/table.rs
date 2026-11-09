@@ -6,9 +6,11 @@
 
 use crate::core::taxonomy::reference::{Balance, PeriodType};
 
-/// One concept of the element schema, with its standard label.
+/// One concept of an element schema, with its standard label.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ElementRow {
+    /// The namespace family, for example `us-gaap`, `srt`, or `dei`.
+    pub family: &'static str,
     /// The local name, for example `Assets`.
     pub name: &'static str,
     /// The standard label, for example `Assets`.
@@ -25,6 +27,7 @@ impl ElementRow {
     /// Creates an [`ElementRow`].
     #[must_use]
     pub const fn new(
+        family: &'static str,
         name: &'static str,
         label: &'static str,
         data_type: &'static str,
@@ -32,6 +35,7 @@ impl ElementRow {
         period_type: PeriodType,
     ) -> Self {
         Self {
+            family,
             name,
             label,
             data_type,
