@@ -378,13 +378,23 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
     PartDefinition::new(
         CanonicalElement::NetIncome,
         &["NetIncomeLoss"],
-        &["NetIncomeLossAttributableToNoncontrollingInterest"],
+        // `ProfitLoss` is the total. As an other part it blocks the part if the filing reports the
+        // total only with a member, such as the noncontrolling interest.
+        &[
+            "NetIncomeLossAttributableToNoncontrollingInterest",
+            "ProfitLoss",
+        ],
         NET_INCOME_PART_RULE,
     ),
     PartDefinition::new(
         CanonicalElement::Equity,
         &["StockholdersEquity"],
-        &["MinorityInterest"],
+        // The total blocks the part if the filing reports it only with a member, such as the
+        // noncontrolling interest on the equity components axis.
+        &[
+            "MinorityInterest",
+            "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+        ],
         EQUITY_PART_RULE,
     ),
     PartDefinition::new(

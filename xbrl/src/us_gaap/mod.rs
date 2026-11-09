@@ -654,10 +654,13 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/net-income@1"),
                 parts: vec![concept("us-gaap", "NetIncomeLoss")],
-                other_parts: vec![concept(
-                    "us-gaap",
-                    "NetIncomeLossAttributableToNoncontrollingInterest",
-                )],
+                other_parts: vec![
+                    concept(
+                        "us-gaap",
+                        "NetIncomeLossAttributableToNoncontrollingInterest",
+                    ),
+                    concept("us-gaap", "ProfitLoss"),
+                ],
             }),
         });
 
@@ -683,7 +686,13 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/equity@1"),
                 parts: vec![concept("us-gaap", "StockholdersEquity")],
-                other_parts: vec![concept("us-gaap", "MinorityInterest")],
+                other_parts: vec![
+                    concept("us-gaap", "MinorityInterest"),
+                    concept(
+                        "us-gaap",
+                        "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+                    ),
+                ],
             }),
         });
 
