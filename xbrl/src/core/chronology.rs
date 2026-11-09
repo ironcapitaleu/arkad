@@ -50,9 +50,6 @@ const QUARTER_LENGTH: u16 = 1;
 /// The length of a fiscal year, in quarters.
 const YEAR_LENGTH: u16 = 4;
 
-/// The length of an instant, in quarters.
-const INSTANT_LENGTH: u16 = 0;
-
 /// The fiscal periods by the number of quarters they end before the fiscal year end.
 const FISCAL_PERIODS: [&str; 4] = ["FY", "Q3", "Q2", "Q1"];
 
@@ -202,7 +199,7 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
             quarters: if ends.has_duration {
                 expected.quarters
             } else {
-                INSTANT_LENGTH
+                Period::Instant { end: expected.end }.quarters()
             },
             reason: calendar.reason(expected.end, &ends.blocked),
         })
