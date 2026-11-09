@@ -63,6 +63,9 @@ pub enum Finding {
         period_end: NaiveDate,
         /// The expected fiscal period, for example `Q2`, if it is known.
         fiscal_period: Option<FiscalPeriod>,
+        /// The length of the expected period in quarters. A `Q4` gap and a fiscal year gap share
+        /// `period_end`, so the length tells them apart.
+        quarters: u16,
         /// Why the value is missing, if the reason is known.
         reason: Option<GapReason>,
     },

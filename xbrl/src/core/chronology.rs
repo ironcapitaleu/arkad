@@ -18,7 +18,7 @@ use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
 use super::form::Form;
 use super::invalid_value::{InvalidValue, InvalidValueReason};
-use super::period::days_of_quarters;
+use super::period::{Duration, days_of_quarters};
 use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
 
@@ -35,11 +35,20 @@ const DOMESTIC_ANNUAL_FORMS: [&str; 2] = ["10-K", "10-KT"];
 /// The forms of an annual report. A `10-KT` reports a transition period.
 pub(super) const ANNUAL_FORMS: [&str; 4] = ["10-K", "10-KT", "20-F", "40-F"];
 
+/// The form of an annual report that reports a transition period.
+const TRANSITION_ANNUAL_FORMS: [&str; 1] = ["10-KT"];
+
 /// The months between two expected periods of a filer that reports every quarter.
 const QUARTER_MONTHS: u32 = 3;
 
 /// The months of a fiscal year.
 const YEAR_MONTHS: u32 = 12;
+
+/// The length in quarters of a quarter.
+const QUARTER_QUARTERS: u16 = 1;
+
+/// The length in quarters of a fiscal year.
+const YEAR_QUARTERS: u16 = 4;
 
 /// The fiscal periods by the number of quarters they end before the fiscal year end.
 const FISCAL_PERIODS: [&str; 4] = ["FY", "Q3", "Q2", "Q1"];
@@ -182,6 +191,7 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
             dimensions: timeline.dimensions.clone(),
             period_end: expected.end,
             fiscal_period: expected.fiscal_period.clone(),
+            quarters: expected.quarters,
             reason: calendar.reason(expected.end, &ends.blocked),
         })
         .collect()
@@ -214,11 +224,12 @@ fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
     (left - right).num_days().abs() <= TOLERANCE_DAYS
 }
 
-/// One expected period: its end and its fiscal period, if it is known.
+/// One expected period: its end, its fiscal period, if it is known, and its length in quarters.
 #[derive(Debug, Clone)]
 struct Expected {
     end: NaiveDate,
     fiscal_period: Option<FiscalPeriod>,
+    quarters: u16,
 }
 
 /// The expected periods of one entity, sorted by end, and the spans in which it changed its
@@ -255,6 +266,7 @@ impl Calendar {
             expected.push(Expected {
                 end: year_end,
                 fiscal_period: fiscal_period(0),
+                quarters: year_quarters(&filings, previous, year_end),
             });
             previous = Some(year_end);
         }
@@ -280,6 +292,7 @@ impl Calendar {
                 None => expected.push(Expected {
                     end: report,
                     fiscal_period: filing.fiscal_period.clone(),
+                    quarters: QUARTER_QUARTERS,
                 }),
             }
         }
@@ -312,10 +325,27 @@ pub(super) fn is_form(form: &Form, forms: &[&str]) -> bool {
     forms.contains(&base)
 }
 
-/// Returns the step in months for the span that ends at the fiscal year end `year_end`: 3 if the
+/// Returns the length in quarters of the fiscal year that ends at `year_end`. A `10-KT` reports a
+/// transition period, so its length runs from the previous fiscal year end, rounded as
+/// [`Duration::from_dates`] rounds, and limited to 1 to 4 quarters. Every other fiscal year, and a
+/// `10-KT` with no previous fiscal year end, is 4 quarters.
+fn year_quarters(filings: &[&Filing], previous: Option<NaiveDate>, year_end: NaiveDate) -> u16 {
+    let is_transition = filings.iter().any(|filing| {
+        filing.period_of_report == Some(year_end) && is_form(&filing.form, &TRANSITION_ANNUAL_FORMS)
+    });
+    match previous {
+        Some(previous) if is_transition => Duration::from_dates(previous, year_end)
+            .map_or(YEAR_QUARTERS, |duration| {
+                duration.quarters().clamp(QUARTER_QUARTERS, YEAR_QUARTERS)
+            }),
+        _ => YEAR_QUARTERS,
+    }
+}
+
+/// Returns the step in quarters for the span that ends at the fiscal year end `year_end`: 1 if the
 /// annual report for that end is a `10-K` or `10-KT` and the entity filed a quarterly report
-/// before that end, otherwise 12.
-fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: NaiveDate) -> u32 {
+/// before that end, otherwise 4.
+fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: NaiveDate) -> u16 {
     let is_quarterly = quarterly
         .iter()
         .filter_map(|filing| filing.period_of_report)
@@ -323,13 +353,13 @@ fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: NaiveDate) 
     step(is_domestic_at(filings, year_end), is_quarterly)
 }
 
-/// Returns the step in months: 3 if the year closes with a `10-K` or `10-KT` and the entity files
-/// quarterly reports, otherwise 12.
-const fn step(is_domestic: bool, is_quarterly: bool) -> u32 {
+/// Returns the step in quarters: 1 if the year closes with a `10-K` or `10-KT` and the entity
+/// files quarterly reports, otherwise 4. Each expected period is one step long.
+const fn step(is_domestic: bool, is_quarterly: bool) -> u16 {
     if is_domestic && is_quarterly {
-        QUARTER_MONTHS
+        QUARTER_QUARTERS
     } else {
-        YEAR_MONTHS
+        YEAR_QUARTERS
     }
 }
 
@@ -340,31 +370,33 @@ fn is_domestic_at(filings: &[&Filing], year_end: NaiveDate) -> bool {
     })
 }
 
-/// Returns the expected periods before `year_end`, every `step` months back, that lie more than
+/// Returns the expected periods before `year_end`, every `step` quarters back, that lie more than
 /// 7 days after `previous`.
-fn steps_back(previous: NaiveDate, year_end: NaiveDate, step: u32) -> Vec<Expected> {
+fn steps_back(previous: NaiveDate, year_end: NaiveDate, step: u16) -> Vec<Expected> {
     (1..)
-        .map(|count| step * count)
+        .map(|count| u32::from(step) * QUARTER_MONTHS * count)
         .map_while(|months| {
             let end = year_end.checked_sub_months(Months::new(months))?;
             ((end - previous).num_days() > TOLERANCE_DAYS).then(|| Expected {
                 end,
                 fiscal_period: fiscal_period(months),
+                quarters: step,
             })
         })
         .collect()
 }
 
-/// Returns the expected periods after the last fiscal year end `last`, every `step` months, up
+/// Returns the expected periods after the last fiscal year end `last`, every `step` quarters, up
 /// to 7 days after the latest period of report.
-fn steps_forward(last: NaiveDate, latest: NaiveDate, step: u32) -> Vec<Expected> {
+fn steps_forward(last: NaiveDate, latest: NaiveDate, step: u16) -> Vec<Expected> {
     (1..)
-        .map(|count| step * count)
+        .map(|count| u32::from(step) * QUARTER_MONTHS * count)
         .map_while(|months| {
             let end = last.checked_add_months(Months::new(months))?;
             ((end - latest).num_days() <= TOLERANCE_DAYS).then(|| Expected {
                 end,
                 fiscal_period: fiscal_period((YEAR_MONTHS - months % YEAR_MONTHS) % YEAR_MONTHS),
+                quarters: step,
             })
         })
         .collect()
@@ -474,7 +506,7 @@ mod tests {
 
     use super::*;
     use crate::core::finding::PeriodSignal;
-    use crate::core::period::{Duration, Period};
+    use crate::core::period::Period;
     use crate::core::standardized::StandardizedFact;
     use crate::tests::fixtures::sample_fact::{date, fact, filing, source, standardized};
 
@@ -485,7 +517,12 @@ mod tests {
         )
     }
 
-    fn gap(end: NaiveDate, fiscal_period: &str, reason: Option<GapReason>) -> Finding {
+    fn gap(
+        end: NaiveDate,
+        fiscal_period: &str,
+        quarters: u16,
+        reason: Option<GapReason>,
+    ) -> Finding {
         let template = value(end, 1);
         Finding::Gap {
             entity: template.entity,
@@ -496,6 +533,7 @@ mod tests {
             fiscal_period: Some(FiscalPeriod::new(fiscal_period).expect(
                 "Given a hardcoded period without whitespace, the creation should always succeed",
             )),
+            quarters,
             reason,
         }
     }
@@ -552,7 +590,7 @@ mod tests {
         ];
         let filings = quarterly_filings();
 
-        let expected_result = vec![gap(date(2024, 3, 30), "Q2", None)];
+        let expected_result = vec![gap(date(2024, 3, 30), "Q2", 1, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -591,7 +629,7 @@ mod tests {
             filing("10-K", date(2024, 9, 28), "0930"),
         ];
 
-        let expected_result = vec![gap(date(2023, 9, 28), "FY", None)];
+        let expected_result = vec![gap(date(2023, 9, 28), "FY", 4, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -610,6 +648,7 @@ mod tests {
         let expected_result = vec![gap(
             date(2023, 6, 30),
             "FY",
+            2,
             Some(GapReason::FiscalYearChange),
         )];
 
@@ -625,8 +664,8 @@ mod tests {
         let filings = quarterly_filings();
 
         let expected_result = vec![
-            gap(date(2023, 12, 30), "Q1", None),
-            gap(date(2024, 3, 30), "Q2", Some(GapReason::Conflict)),
+            gap(date(2023, 12, 30), "Q1", 1, None),
+            gap(date(2024, 3, 30), "Q2", 1, Some(GapReason::Conflict)),
         ];
 
         let result = check_chronology(series(facts, blocked), &filings, Vec::new()).findings;
@@ -658,7 +697,7 @@ mod tests {
         let blocked = vec![value(date(2023, 6, 30), 1).series_key()];
         let filings = fiscal_year_change_filings();
 
-        let expected_result = vec![gap(date(2023, 6, 30), "FY", Some(GapReason::Conflict))];
+        let expected_result = vec![gap(date(2023, 6, 30), "FY", 2, Some(GapReason::Conflict))];
 
         let result = check_chronology(series(facts, blocked), &filings, Vec::new()).findings;
 
@@ -823,7 +862,7 @@ mod tests {
         let mut filings = quarterly_filings();
         filings.push(filing("10-Q", date(2025, 3, 29), "0930"));
 
-        let expected_result = vec![gap(date(2024, 12, 28), "Q1", None)];
+        let expected_result = vec![gap(date(2024, 12, 28), "Q1", 1, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -844,7 +883,7 @@ mod tests {
             filing("10-Q", date(2023, 9, 30), "0630"),
         ];
 
-        let expected_result = vec![gap(date(2023, 3, 31), "Q1", None)];
+        let expected_result = vec![gap(date(2023, 3, 31), "Q1", 1, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -961,9 +1000,9 @@ mod tests {
         ];
 
         let expected_result = vec![
-            gap(date(2023, 3, 31), "Q1", None),
-            gap(date(2023, 6, 30), "Q2", None),
-            gap(date(2023, 9, 30), "Q3", None),
+            gap(date(2023, 3, 31), "Q1", 1, None),
+            gap(date(2023, 6, 30), "Q2", 1, None),
+            gap(date(2023, 9, 30), "Q3", 1, None),
         ];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
@@ -1005,6 +1044,57 @@ mod tests {
         ];
 
         let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_gap_the_length_of_the_transition_period_when_10_kt_closes_it() {
+        let facts = vec![value(date(2022, 12, 31), 4), value(date(2023, 9, 30), 1)];
+        let filings = vec![
+            filing("10-K", date(2022, 12, 31), "0630"),
+            filing("10-KT", date(2023, 6, 30), "0630"),
+            filing("10-Q", date(2023, 9, 30), "0630"),
+        ];
+
+        let expected_result = vec![gap(date(2023, 6, 30), "FY", 2, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_transition_period_4_quarters_when_10_kt_has_no_previous_year_end() {
+        let facts = vec![value(date(2023, 3, 31), 1), value(date(2023, 9, 30), 1)];
+        let filings = vec![
+            filing("10-Q", date(2023, 3, 31), "0630"),
+            filing("10-KT", date(2023, 6, 30), "0630"),
+            filing("10-Q", date(2023, 9, 30), "0630"),
+        ];
+
+        let expected_result = vec![gap(date(2023, 6, 30), "FY", 4, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_limit_transition_period_to_4_quarters_when_previous_year_end_lies_further_back() {
+        let facts = vec![value(date(2021, 12, 31), 4), value(date(2024, 6, 30), 4)];
+        let filings = vec![
+            filing("10-K", date(2021, 12, 31), "0630"),
+            filing("10-KT", date(2023, 6, 30), "0630"),
+            filing("10-K", date(2024, 6, 30), "0630"),
+        ];
+
+        let expected_result = vec![
+            gap(date(2022, 6, 30), "FY", 4, None),
+            gap(date(2023, 6, 30), "FY", 4, None),
+        ];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 

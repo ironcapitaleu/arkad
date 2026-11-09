@@ -1003,6 +1003,13 @@ It never fails.
   report of a quarterly report replaces an expected end within 7 days of it, or adds one. The fiscal
   period that the report names replaces the computed one. So a filing that never came still leaves
   an expected period.
+- **Length.** `Finding::Gap` names the length of the expected period in `quarters`. A `Q4` gap
+  and a fiscal year gap share `period_end`, so the length is part of the key of a gap. A step of 3
+  months gives 1 quarter, a step of 12 months 4 quarters. A quarterly report gives 1 quarter. A
+  fiscal year end gives 4 quarters, except at a `10-KT`. A `10-KT` reports a transition period,
+  which is shorter than a year. Its length runs from the previous fiscal year end, rounded as
+  `Duration::from_dates` rounds, and is limited to 1 to 4 quarters. A `10-KT` with no previous
+  fiscal year end gives 4 quarters.
 - **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
   concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
   "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
