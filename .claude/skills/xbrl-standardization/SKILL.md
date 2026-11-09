@@ -159,9 +159,9 @@ FASB releases a new US GAAP taxonomy annually (typically Q1). Update when:
    LC_ALL=C sort | xargs sha256sum > MANIFEST` inside the folder.
 5. Find the `srt` and `dei` releases that the new release imports: search its files for
    `xbrl.fasb.org/srt/` and `xbrl.sec.gov/dei/`. Vendor their schema and label linkbase into
-   `xbrl/taxonomy/srt/{year}/` and `xbrl/taxonomy/dei/{year}/` with a `MANIFEST` each, and update
-   `ELEMENT_SCHEMAS` and `CHECKSUM_FOLDERS` in `xbrl/src/us_gaap/generator/mod.rs` and
-   `RELEASE_IN_USE_FOLDERS` in `xbrl/tests/us_gaap_manifest.rs`.
+   `xbrl/taxonomy/srt/{year}/` and `xbrl/taxonomy/dei/{year}/`, with a `MANIFEST` each. In
+   `xbrl/src/us_gaap/generator/mod.rs`, update `ELEMENT_SCHEMAS` and `CHECKSUM_FOLDERS`. In
+   `xbrl/tests/us_gaap_manifest.rs`, update `RELEASE_IN_USE_FOLDERS`.
 6. Update `references/calculation-linkbase.md` header: set `taxonomy-year` to the new year
 7. Verify no existing concept mappings broke (concept names may have changed between versions)
 8. Prompt user to remove old taxonomy directory if no longer needed
