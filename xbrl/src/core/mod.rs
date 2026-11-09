@@ -13,6 +13,7 @@
 //! - [`chronology`]: The gap check over time.
 //! - [`concept`]: Concept names, namespace families, and namespaces.
 //! - [`confidence`]: How a standardized value was resolved.
+//! - [`currency_codes`]: The tables of currency codes.
 //! - [`dedup`]: The dedup rules of the standardized layer.
 //! - [`elements`]: The standard concept set.
 //! - [`entity_name`]: The name of a company.
@@ -38,6 +39,7 @@ pub mod candidate;
 pub mod chronology;
 pub mod concept;
 pub mod confidence;
+pub mod currency_codes;
 pub mod dedup;
 pub mod elements;
 pub mod entity_name;
