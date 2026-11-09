@@ -930,7 +930,7 @@ mod tests {
                 entity: suspicious.entity.clone(),
                 key: suspicious.inputs[0].clone(),
                 standard_concept: CanonicalElement::Revenue,
-                signal: PeriodSignal::StartBeforeEarliestYear,
+                signals: vec![PeriodSignal::StartBeforeEarliestYear],
                 confirmed_by: None,
             },
             conflict(),

@@ -269,7 +269,7 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. The signal for `SuspiciousPeriod`, for example `EndFarFromReport` |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
 | `step` | `utf8` | `filing` or `series` |

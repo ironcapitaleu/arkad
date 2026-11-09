@@ -1,7 +1,8 @@
 //! # Suspicious Period
 //!
 //! Provides [`suspicious_periods`], the period check: it flags the standardized values whose period
-//! no filer means, and names another filing that reports the same value for a plausible period.
+//! is most likely a typo of the filer, and names another filing that reports the same value for a
+//! plausible period.
 
 use std::cmp::Ordering;
 
@@ -21,8 +22,11 @@ const EARLIEST_YEAR: i32 = 1900;
 /// 100 years. Ends 10 to 100 years ahead are real, such as debt terms or carbon price assumptions.
 const MONTHS_FROM_REPORT: u32 = 1200;
 
-/// Checks the period of each value in `series` and returns one [`Finding::SuspiciousPeriod`] per
-/// signal a value hits. The check reports and never fails. A flagged value keeps its period.
+/// Checks the period of each value in `series`, and returns one [`Finding::SuspiciousPeriod`] per
+/// value that hits a signal.
+///
+/// The finding names every signal the value hits. The check reports and never fails. A flagged
+/// value keeps its period.
 ///
 /// - [`PeriodSignal::StartBeforeEarliestYear`]: the period starts before 1900. For an instant,
 ///   the date counts. If the source gives no exact start, the start is the end less the length
@@ -48,14 +52,13 @@ pub fn suspicious_periods(series: &Series, filings: &[Filing]) -> Vec<Finding> {
         if signals.is_empty() {
             continue;
         }
-        let confirmed_by = confirmation(fact, &key.filing, series, filings);
-        findings.extend(signals.into_iter().map(|signal| Finding::SuspiciousPeriod {
+        findings.push(Finding::SuspiciousPeriod {
             entity: fact.entity.clone(),
             key: key.clone(),
             standard_concept: fact.concept,
-            signal,
-            confirmed_by: confirmed_by.clone(),
-        }));
+            signals,
+            confirmed_by: confirmation(fact, &key.filing, series, filings),
+        });
     }
     findings
 }
@@ -174,14 +177,14 @@ mod tests {
 
     fn finding(
         fact: &StandardizedFact,
-        signal: PeriodSignal,
+        signals: &[PeriodSignal],
         confirmed_by: Option<&Filing>,
     ) -> Finding {
         Finding::SuspiciousPeriod {
             entity: fact.entity.clone(),
             key: fact.inputs[0].clone(),
             standard_concept: CanonicalElement::Revenue,
-            signal,
+            signals: signals.to_vec(),
             confirmed_by: confirmed_by.map(|filing| filing.id.clone()),
         }
     }
@@ -195,7 +198,7 @@ mod tests {
 
         let expected_result = vec![finding(
             &flagged,
-            PeriodSignal::StartBeforeEarliestYear,
+            &[PeriodSignal::StartBeforeEarliestYear],
             None,
         )];
 
@@ -205,15 +208,19 @@ mod tests {
     }
 
     #[test]
-    fn should_flag_start_before_earliest_year_when_instant_lies_before_1900() {
+    fn should_flag_both_signals_in_one_finding_when_instant_lies_before_1900() {
         let report = sample_filing("10-K", date(2025, 12, 31), "1231");
         let flagged = instant_in(&report, date(205, 12, 31), "21500000");
         let facts = series(vec![flagged.clone()]);
 
-        let expected_result = vec![
-            finding(&flagged, PeriodSignal::StartBeforeEarliestYear, None),
-            finding(&flagged, PeriodSignal::EndFarFromReport, None),
-        ];
+        let expected_result = vec![finding(
+            &flagged,
+            &[
+                PeriodSignal::StartBeforeEarliestYear,
+                PeriodSignal::EndFarFromReport,
+            ],
+            None,
+        )];
 
         let result = suspicious_periods(&facts, &[report]);
 
@@ -226,7 +233,7 @@ mod tests {
         let flagged = value_in(&report, date(2923, 6, 30), 3603, "50000");
         let facts = series(vec![flagged.clone()]);
 
-        let expected_result = vec![finding(&flagged, PeriodSignal::EndFarFromReport, None)];
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
 
         let result = suspicious_periods(&facts, &[report]);
 
@@ -270,7 +277,7 @@ mod tests {
 
         let expected_result = vec![finding(
             &flagged,
-            PeriodSignal::EndFarFromReport,
+            &[PeriodSignal::EndFarFromReport],
             Some(&original),
         )];
 
@@ -289,7 +296,7 @@ mod tests {
 
         let expected_result = vec![finding(
             &flagged,
-            PeriodSignal::EndFarFromReport,
+            &[PeriodSignal::EndFarFromReport],
             Some(&next),
         )];
 
@@ -314,7 +321,7 @@ mod tests {
 
         let expected_result = vec![finding(
             &flagged,
-            PeriodSignal::EndFarFromReport,
+            &[PeriodSignal::EndFarFromReport],
             Some(&amendment),
         )];
 
@@ -331,7 +338,7 @@ mod tests {
         let flagged = value_in(&report, date(2923, 6, 30), 3603, "50000");
         let facts = series(vec![quarter, flagged.clone()]);
 
-        let expected_result = vec![finding(&flagged, PeriodSignal::EndFarFromReport, None)];
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
 
         let result = suspicious_periods(&facts, &[original, report]);
 
@@ -345,7 +352,7 @@ mod tests {
         let flagged = value_in(&report, date(2924, 6, 30), 3603, "50000");
         let facts = series(vec![quarter, flagged.clone()]);
 
-        let expected_result = vec![finding(&flagged, PeriodSignal::EndFarFromReport, None)];
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
 
         let result = suspicious_periods(&facts, &[report]);
 
@@ -360,9 +367,53 @@ mod tests {
         let flagged = value_in(&report, date(2923, 6, 30), 3603, "50000");
         let facts = series(vec![quarter, flagged.clone()]);
 
-        let expected_result = vec![finding(&flagged, PeriodSignal::EndFarFromReport, None)];
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
 
         let result = suspicious_periods(&facts, &[original, report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_no_filing_when_the_only_other_value_also_hits_a_signal() {
+        let first = sample_filing("10-Q", date(2024, 6, 30), "1231");
+        let second = sample_filing("10-Q", date(2025, 6, 30), "1231");
+        let other_typo = value_in(&first, date(2924, 6, 30), 3603, "50000");
+        let flagged = value_in(&second, date(2923, 6, 30), 3599, "50000");
+        let facts = series(vec![other_typo.clone(), flagged.clone()]);
+
+        let expected_result = vec![
+            finding(&other_typo, &[PeriodSignal::EndFarFromReport], None),
+            finding(&flagged, &[PeriodSignal::EndFarFromReport], None),
+        ];
+
+        let result = suspicious_periods(&facts, &[first, second]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_flag_nothing_when_end_lies_exactly_100_years_after_the_report() {
+        let report = sample_filing("10-Q", date(2024, 6, 30), "1231");
+        let term = value_in(&report, date(2124, 6, 30), 4, "50000");
+        let facts = series(vec![term]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = suspicious_periods(&facts, &[report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_flag_end_far_from_report_when_end_lies_100_years_and_one_day_after_the_report() {
+        let report = sample_filing("10-Q", date(2024, 6, 30), "1231");
+        let flagged = value_in(&report, date(2124, 7, 1), 4, "50000");
+        let facts = series(vec![flagged.clone()]);
+
+        let expected_result = vec![finding(&flagged, &[PeriodSignal::EndFarFromReport], None)];
+
+        let result = suspicious_periods(&facts, &[report]);
 
         assert_eq!(result, expected_result);
     }

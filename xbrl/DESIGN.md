@@ -980,12 +980,13 @@ Finding::SuspiciousPeriod {
     entity:            EntityId
     key:               FactKey            // the first input: filing, as-is concept, period end, quarters
     standard_concept:  CanonicalElement
-    signal:            PeriodSignal       // StartBeforeEarliestYear or EndFarFromReport
+    signals:           Vec<PeriodSignal>  // StartBeforeEarliestYear, EndFarFromReport, or both
     confirmed_by:      Option<FilingId>   // the newest other filing with the same value, or None
 }
 ```
 
-**Signals.** A value gets one finding per signal it hits.
+**Signals.** A value that hits a signal gets one finding. The finding names every signal it hits,
+so an instant before 1900 names both.
 
 | Signal | Rule |
 | ------ | ---- |
@@ -1009,7 +1010,7 @@ the rule above on the as-is rows of every concept, not only standard concepts.
 | Signal candidate | Rows | Filings | Entities | Confirmed |
 | ---------------- | ---- | ------- | -------- | --------- |
 | Start or instant before 1900 | 22 | 18 | 11 | 4 |
-| End more than 100 years after the period of report | 28 | 10 | 7 | 21 (11 by a later filing, 18 by an earlier one) |
+| End more than 100 years after the period of report | 28 | 10 | 7 | 21 (11 by a later filing, 18 by an earlier one, 8 by both) |
 | End 10 to 100 years after the period of report | 365 | 203 | 61 | 15 |
 | End 10 to 100 years before the period of report | 42,681 | 10,977 | 2,316 | 2,157 |
 | Start before the first filing of the entity | 1,411,980 | 13,838 | 2,949 | not counted |
@@ -1021,7 +1022,7 @@ the rule above on the as-is rows of every concept, not only standard concepts.
   belongs here: its end is 3024-07-31, and its start of 2022 is plausible. Ends 10 to 100 years
   ahead are mostly real, such as debt terms, carbon prices, and health cost trend rates. Their 15
   confirmations are equal values by chance, such as a gas price of 3.0. So the limit is 100 years.
-  An end more than 100 years back also lies before 1900 in this window.
+  No end in this window lies more than 100 years back and after 1899.
 - **Start before the first filing.** The check leaves this signal out. 1,068,973 of the rows
   belong to 1,184 new registrants whose first filing is from 2023 or later, such as the fixture
   filer FedEx Freight with 493 rows. With 3 years for comparatives, 13,797 rows stay, and only

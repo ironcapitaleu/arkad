@@ -2,8 +2,9 @@
 //!
 //! Runs the period check on the revenue series of one real filing, the 10-Q `0001628280-26-068246`
 //! of FEDEX FREIGHT HOLDING COMPANY, INC. The filer is a new registrant: its first filing dates
-//! from 2025-08-29, and this 10-Q reports comparatives of 2025. A comparative is a plausible
-//! period, so the check must not flag it.
+//! from 2025-08-29, and this 10-Q reports revenue for June 2025 as a comparative. The test shows
+//! that the signals of the check leave such a comparative alone. The check has no signal for a
+//! start before the first filing, so the test does not cover that signal.
 //!
 //! The fake plug-in holds the revenue alias list of the fixtures until the US GAAP plug-in has
 //! its own lists.
@@ -37,20 +38,20 @@ fn revenue_series() -> Series {
 }
 
 #[test]
-fn should_flag_no_comparative_when_a_new_registrant_reports_the_year_before_its_first_filing() {
+fn should_flag_no_period_when_a_new_registrant_reports_a_comparative_of_the_year_before() {
     let series = revenue_series();
     let filings = vec![parse_notes_fixture().filing];
-
-    // The conflicts block the quarters, so revenue of June 2025 is the one comparative of 2025.
-    // It gets no finding.
-    let expected_result: (usize, Vec<Finding>) = (1, Vec::new());
-
-    let comparatives = series
+    series
         .facts
         .iter()
-        .filter(|fact| fact.period.end().year() == COMPARATIVE_YEAR)
-        .count();
-    let result = (comparatives, suspicious_periods(&series, &filings));
+        .find(|fact| fact.period.end().year() == COMPARATIVE_YEAR)
+        .expect(
+            "Given the fixture filing, the revenue series should hold the June 2025 comparative",
+        );
+
+    let expected_result: Vec<Finding> = Vec::new();
+
+    let result = suspicious_periods(&series, &filings);
 
     assert_eq!(result, expected_result);
 }

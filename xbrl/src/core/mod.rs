@@ -31,7 +31,7 @@
 //! - [`release`]: The taxonomy release of a plug-in.
 //! - [`rule`]: The ID of a rule.
 //! - [`standardized`]: One value of one standard concept.
-//! - [`suspicious_period`]: The check for periods that no filer means.
+//! - [`suspicious_period`]: The check for periods that are most likely typos of the filer.
 //! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
 

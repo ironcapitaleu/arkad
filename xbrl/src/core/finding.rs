@@ -89,8 +89,8 @@ pub enum Finding {
         key: FactKey,
         /// The standard concept of the value.
         standard_concept: CanonicalElement,
-        /// The signal the period hits.
-        signal: PeriodSignal,
+        /// The signals the period hits, in the order of [`PeriodSignal`]. Never empty.
+        signals: Vec<PeriodSignal>,
         /// The newest other filing that reports the same value for a plausible period, or `None`.
         confirmed_by: Option<FilingId>,
     },
