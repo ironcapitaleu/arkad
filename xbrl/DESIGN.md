@@ -1010,10 +1010,15 @@ input names the typo.
 | `StartBeforeEarliestYear` | The period starts before 1900. For an instant, the date counts. Without an exact start, the start is the end less the length of 91.3125 days per quarter |
 | `EndFarFromReport` | The end lies more than 100 years before or after the period of report of the filing of the value |
 
-**Confirmation.** Another value confirms a flagged value if it has the same entity, concept,
-unit, dimensions, and value, hits no signal, ends on the same month and day in a year at most 3
-from the year of the period of report of the flagged filing, and comes from another filing. The
-limit of 3 years keeps a common value, such as 0, of another year from confirming by chance.
+**Confirmation.** Another value confirms a flagged value if it meets each condition:
+
+- It has the same entity, concept, unit, dimensions, and value.
+- It hits no signal.
+- It ends on the same month and day, in a year at most 3 from the year of the period of report of
+  the flagged filing.
+- It comes from another filing.
+
+The limit of 3 years keeps a common value, such as 0, of another year from confirming by chance.
 Every confirmation in the measurement ends within 2 years. A typo in a comparative has its
 original in an earlier filing. A typo in a new value has its comparative in a later filing. So
 both directions count. If several filings confirm, the finding names the newest, in the order of
