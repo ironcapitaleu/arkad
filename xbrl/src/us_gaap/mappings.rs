@@ -208,7 +208,7 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ConceptDefinition::new(
         CanonicalElement::CashAndEquivalents,
         // `Cash` is not in the list. It is one part of the total, next to the cash equivalents,
-        // so a filer that reports both parts without the total would get the part as the total.
+        // so a filer that reports both parts without the total gets the part as the total.
         &["CashAndCashEquivalentsAtCarryingValue"],
         CASH_AND_EQUIVALENTS_RULE,
         false,
@@ -254,8 +254,8 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ConceptDefinition::new(
         CanonicalElement::IntangibleAssets,
         // `FiniteLivedIntangibleAssetsNet` is not in the list. It is one part of the total, so a
-        // filer that reports it next to `IndefiniteLivedIntangibleAssetsExcludingGoodwill` would
-        // get the part as the total.
+        // filer that reports it next to `IndefiniteLivedIntangibleAssetsExcludingGoodwill`, without
+        // the total, gets the part as the total.
         &["IntangibleAssetsNetExcludingGoodwill"],
         INTANGIBLE_ASSETS_RULE,
         false,

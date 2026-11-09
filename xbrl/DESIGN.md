@@ -536,15 +536,19 @@ ticket decides where the removed elements live.
   lists from the definitions, so the `xbrl` crate holds each list once. Each definition names its rule ID as a
   const next to the list. The rule name is the kebab case of the standard concept, at version 1,
   for example `us-gaap/alias/operating-cash-flow@1`.
-- An alias list holds only concepts that equal the whole standard concept, such as the names of
-  one total across releases. It holds no concept that is wider than its standard concept, and no
+- An alias list of an optional concept holds only concepts that equal the whole standard concept,
+  such as the names of one total across releases. It holds no concept that is wider than its standard concept, and no
   part of the total. Such a concept gives the standard concept a different meaning per filer, and
   the `Synonym` confidence does not show it.
   - Wider: `ReceivablesNetCurrent` also holds receivables that are not from customers, so it is not
     an alias of `AccountsReceivable`.
   - Part: `Cash` is one part of `CashAndCashEquivalentsAtCarryingValue`. A filer that reports
-    `Cash` and its cash equivalents without the total would get the part as the total.
+    `Cash` and its cash equivalents without the total gets the part as the total.
   - A comment at each list in `mappings.rs` names the concepts it leaves out and why.
+  - The required lists of `Revenue` and `Equity` are older than this rule and still hold a part
+    of the total. `RevenueFromContractWithCustomerExcludingAssessedTax` is a part of `Revenues`.
+    `StockholdersEquity` is a part of the equity with the noncontrolling interest. A later change
+    decides these two lists.
 
 ### What `ifrs` Needs on Top
 
