@@ -1549,6 +1549,14 @@ The model stays the same — just more nodes in the graph. Each sub-element gets
 
 **Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The legal entity axis is a dimension, so a fact of a coregistrant gives no candidate either. The as-is layer keeps every fact with its dimensions.
 
+**Coregistrants** — A coregistrant is a second registrant that files the same report as the main filer. A holding company and its subsidiaries often file one combined report, for example a utility group with an operating company that has its own registered debt. Each registrant has its own CIK. The filing has one accession number, and EDGAR lists it under the CIK of each registrant.
+
+- The facts of the main filer carry no legal entity member.
+- The facts of a coregistrant carry a member of `dei:LegalEntityAxis` that names the coregistrant. The cover page gives the name and CIK of each coregistrant with the same member.
+- The Notes data set names the coregistrant in the `coreg` column of `num.tsv`. An empty `coreg` means the main filer.
+- Both parsers write the coregistrant into `dimensions` as the pair on the `LegalEntity` axis.
+- So a fact of a coregistrant has dimensions. Tiers 1 and 2 give it no candidate, and the standardized layer holds only the values of the main filer. The as-is layer keeps the facts of each coregistrant.
+
 **Overlapping concept names** — First alias in the priority list wins. Already how `ConceptDefinition` works.
 
 **Crate boundary** — `xbrl::adapter::edgar` takes `&str` or `&serde_json::Value`. The `sec` crate owns HTTP.
