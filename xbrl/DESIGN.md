@@ -287,7 +287,7 @@ pub trait Taxonomy: Send + Sync {
 
 pub struct TaxonomyRelease {
     id: TaxonomyReleaseId,   // "us-gaap/2026"
-    checksum: Sha256,        // SHA-256 of the MANIFEST of the vendored files
+    checksum: Sha256,        // SHA-256 of the MANIFEST files of the vendored folders
 }
 ```
 
@@ -372,7 +372,7 @@ has no plug-in at all.
 
 ### Taxonomy Data in Code
 
-A generator reads the vendored FASB files and writes Rust tables into `us_gaap/taxonomy.rs`. The
+A generator reads the vendored FASB and SEC files and writes Rust tables into `us_gaap/taxonomy.rs`. The
 generated file is checked in. A developer runs the generator once per new release, with
 `cargo run -p xbrl --features generator --bin generate_us_gaap`.
 
@@ -382,8 +382,11 @@ generated file is checked in. A developer runs the generator once per new releas
   compiles the module without the feature, so the doc check of CI covers it.
 - `xbrl` lists itself as a dev-dependency with the `generator` feature, so every test build,
   CI included, runs the tests of the generator.
-- A concept is a top-level `xs:element` with a `substitutionGroup`. The 2026 schema has 17,182
-  declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
+- A concept is a top-level `xs:element` with a `substitutionGroup`. The `us-gaap` 2026 schema has
+  17,182 declarations and 17,179 concepts. The other 3 are domain helpers of typed dimensions.
+  The `srt` 2026 schema has 620 concepts, and the `dei` 2026 schema has 207.
+- The SEC puts the `dei` label linkbase into the `xs:appinfo` of a schema file. So the generator
+  reads every `link:linkbase` of a file, at the root or nested.
 - The data type of a concept is the text of the schema, for example `xbrli:monetaryItemType`.
 - The generator resolves each arc of a linkbase through the labels of the locators and resources
   of its link. It never guesses a concept from the text of a label.
@@ -393,7 +396,8 @@ generated file is checked in. A developer runs the generator once per new releas
   2 in the statement of other comprehensive income, and 2 in the first alternative income
   statement. A sum over all its arcs counts revenue more than once, so a sum takes the arcs of
   one role.
-- `ELEMENTS` holds one row per concept: name, standard label, data type, balance, and period type.
+- `ELEMENTS` holds one row per concept of the `us-gaap`, `srt`, and `dei` schemas: family, name,
+  standard label, data type, balance, and period type. The rows are sorted by family and name.
 - `CALCULATION_ARCS` holds the summation arcs of the statement groups in `stm/`, sorted by role,
   parent, and child. Each row names its role. Within one role, an arc appears once. The
   calculation linkbases of the disclosure groups are not vendored.
@@ -408,9 +412,10 @@ generated file is checked in. A developer runs the generator once per new releas
 
 - A new release is a reviewable diff of arcs and labels.
 - The build does not parse XML.
-- The checksum is the SHA-256 of `taxonomy/us-gaap/<year>/MANIFEST`: one line per vendored file,
-  sorted by path, with the SHA-256 of the file. A test recomputes it and compares it with the value
-  in the generated code.
+- The checksum is the SHA-256 of the `MANIFEST` files of `taxonomy/us-gaap/<year>/`,
+  `taxonomy/srt/<year>/`, and `taxonomy/dei/<year>/`, joined in that order. A `MANIFEST` has one
+  line per vendored file, sorted by path, with the SHA-256 of the file. A test recomputes the
+  checksum and compares it with the value in the generated code.
 
 Alternatives: a `build.rs` that parses the XML at build time (slower builds, build logic is hard
 to test), or `include_bytes!` and a parse on first use (14 MB of labels parsed at each start, a bad
@@ -437,9 +442,18 @@ file fails at run time).
     in `tests/us_gaap_manifest.rs` recomputes the `MANIFEST` of every release folder.
 - The files keep the CRLF line ends of the FASB. `.gitattributes` marks the folder `-text`, so Git
   never changes a byte.
+- The US GAAP 2026 release imports the `srt` 2026 and the `dei` 2026 releases. Each lives in
+  its own folder, with a `MANIFEST`, and keeps the bytes of its publisher:
+  - `xbrl/taxonomy/srt/2026/elts/`: `srt-2026.xsd` and `srt-lab-2026.xml`, from the FASB zip
+    `https://xbrl.fasb.org/srt/2026/srt-2026.zip`, with its folder names.
+  - `xbrl/taxonomy/dei/2026/`: `dei-2026.xsd` and its label linkbase `dei-2026_lab.xsd`, from
+    `https://xbrl.sec.gov/dei/2026/`. The SEC publishes no zip for `dei`.
+- The release ID `us-gaap/2026` names the US GAAP release. It also stands for the `srt` and `dei`
+  releases that the US GAAP release imports, so they get no release ID of their own. The
+  checksum covers the files of all three folders. So a changed `srt` or `dei` file changes the
+  checksum, and the release ID stays the same.
 - Missing for the reference data: the elements that the FASB removed before 2026 (see "Releases
-  Over Time"), and the `dei` and `srt` taxonomies. So the `srt` concepts of the calculation arcs
-  have no element row.
+  Over Time").
 
 ### Releases Over Time
 
@@ -448,7 +462,8 @@ A taxonomy changes in two ways, and the design handles each one separately:
 - **Renamed or retired concepts.** The as-is fact keeps the concept and the `taxonomy_version` of
   its filing. The alias lists of a plug-in map the old and the new names to one standard concept,
   so an alias list spans releases. Our own concept set does not change with a release.
-- **A new release each year.** It gets its own folder, `xbrl/taxonomy/us-gaap/<year>/`. The
+- **A new release each year.** It gets its own folder, `xbrl/taxonomy/us-gaap/<year>/`, and the
+  `srt` and `dei` releases that it imports get theirs. The
   generator rebuilds the tables, the PR shows the changed arcs and labels, and the release ID and
   checksum change. A new release changes the release ID on each fact, not the rule version. A rule
   version goes up only when we change the rule itself. The standardized layer is built again from
@@ -510,9 +525,9 @@ ticket decides where the removed elements live.
   (`http://xbrl.sec.gov/<family>/{release}`), and XBRL US (`http://xbrl.us/<family>/{release}`),
   which published the `us-gaap` and `dei` releases of 2009 and 2010.
 - `UsGaap::new` builds the release, the calculation tree, and the element reference data from the
-  generated tables. `element()` finds a `us-gaap` concept by a binary search on the sorted
-  elements. It returns `None` for `srt` and `dei`, whose schemas are not vendored, and for an
-  element that a release before 2026 removed.
+  generated tables. `element()` finds a concept of `us-gaap`, `srt`, or `dei` by a binary search
+  on the elements, which are sorted by family and name. It returns `None` for an element that a
+  release before 2026 removed.
 - The calculation tree holds the arcs of every role. Each arc names its role.
 - `aliases()` returns one alias list per definition of `mappings.rs`. `UsGaap::new` builds the
   lists from the definitions, so the `xbrl` crate holds each list once. Each definition names its rule ID as a

@@ -6,7 +6,7 @@ description: >
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.0
+version: 0.3.1
 ---
 
 # XBRL Standardization
@@ -119,6 +119,13 @@ to the repository root). They are byte for byte the files of the FASB release zi
     the release, and the concept that replaces each one
 - `MANIFEST`: the SHA-256 of each vendored file, sorted by path
 
+The `srt` and `dei` releases that US GAAP 2026 imports live beside it, each with a `MANIFEST`:
+
+- `xbrl/taxonomy/srt/2026/elts/`: `srt-2026.xsd` and `srt-lab-2026.xml`, from the FASB zip
+  `https://xbrl.fasb.org/srt/2026/srt-2026.zip`
+- `xbrl/taxonomy/dei/2026/`: `dei-2026.xsd` and `dei-2026_lab.xsd`, from
+  `https://xbrl.sec.gov/dei/2026/`. The label linkbase sits in the `xs:appinfo` of a schema file
+
 See `references/linkbase-anatomy.md` for how to read these XML files, and `xbrl/DESIGN.md`,
 "Release in Use Today", for what the release holds.
 
@@ -150,9 +157,13 @@ FASB releases a new US GAAP taxonomy annually (typically Q1). Update when:
    `xbrl/taxonomy/us-gaap/{new_year}/`. Never change a vendored file.
 4. Write the `MANIFEST` in that folder. Run `find . -type f ! -name MANIFEST | sed 's|^\./||' |
    LC_ALL=C sort | xargs sha256sum > MANIFEST` inside the folder.
-5. Update `references/calculation-linkbase.md` header: set `taxonomy-year` to the new year
-6. Verify no existing concept mappings broke (concept names may have changed between versions)
-7. Prompt user to remove old taxonomy directory if no longer needed
+5. Find the `srt` and `dei` releases that the new release imports: search its files for
+   `xbrl.fasb.org/srt/` and `xbrl.sec.gov/dei/`. Vendor their schema and label linkbase into
+   `xbrl/taxonomy/srt/{year}/` and `xbrl/taxonomy/dei/{year}/` with a `MANIFEST` each, and update
+   `ELEMENT_SCHEMAS` and `CHECKSUM_FOLDERS` in `xbrl/src/us_gaap/generator/mod.rs`.
+6. Update `references/calculation-linkbase.md` header: set `taxonomy-year` to the new year
+7. Verify no existing concept mappings broke (concept names may have changed between versions)
+8. Prompt user to remove old taxonomy directory if no longer needed
 
 ### What does NOT need updating
 
