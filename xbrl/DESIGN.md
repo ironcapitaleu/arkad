@@ -556,7 +556,10 @@ ticket decides where the removed elements live.
     report outside revenue.
   - For `InterestExpense`, the 2026 calculation tree has no arc to its parts. Its label, "Interest
     Expense, Operating and Nonoperating", names the two parts, `InterestExpenseNonoperating` and
-    `InterestExpenseOperating`.
+    `InterestExpenseOperating`. The bank lines below `InterestExpenseOperating` also count, and
+    `InterestExpenseDeposits` counts with each concept below it. `InterestExpenseBorrowings` does
+    not count. Commercial filers report its children in the debt note, as parts of
+    `InterestExpenseNonoperating`.
   - A concept can sit in two alias lists, as `EarningsPerShareBasicAndDiluted` does. A conflict
     finding then names the first of the two standard concepts, in the order of `aliases()`.
   - The part rule runs only if no concept of the alias list resolves. The first part that the

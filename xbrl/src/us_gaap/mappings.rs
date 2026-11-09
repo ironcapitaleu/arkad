@@ -588,10 +588,11 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         // "Interest Expense, Operating and Nonoperating", names the two parts. A commercial filer
         // reports its interest expense as `InterestExpenseNonoperating`. A bank reports
         // `InterestExpenseOperating`, or the concepts below it, and it gets a value only from
-        // `InterestExpense`. The bank lines below `InterestExpenseOperating` count, and the
-        // deposits with each concept below them. `InterestExpenseBorrowings` does not count:
-        // below it sit the interest on long-term debt and on commercial paper, which commercial
-        // filers report in the debt note as a part of `InterestExpenseNonoperating`.
+        // `InterestExpense`. The bank lines below `InterestExpenseOperating` count.
+        // `InterestExpenseDeposits` counts with each concept below it.
+        // `InterestExpenseBorrowings` does not count. Commercial filers report its children, the
+        // interest on long-term debt and on short-term borrowings, in the debt note as parts of
+        // `InterestExpenseNonoperating`.
         &[
             "InterestExpenseOperating",
             "InterestExpenseBeneficialInterestsIssuedByConsolidatedVariableInterestEntities",

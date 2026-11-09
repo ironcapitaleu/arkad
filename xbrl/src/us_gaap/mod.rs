@@ -1424,8 +1424,10 @@ mod tests {
         let registry = Registry::new(vec![&us_gaap])
             .expect("Given one plug-in with distinct families, the registry should always start");
         let filing = source("0000320193-15-000123", date(2015, 11, 1));
-        let eps = fact(&filing, "EarningsPerShareBasicAndDiluted", "125000000");
-        let mut other_eps = fact(&filing, "EarningsPerShareBasicAndDiluted", "130000000");
+        let mut eps = fact(&filing, "EarningsPerShareBasicAndDiluted", "1.25");
+        eps.decimals = Some(Decimals::Finite(2));
+        let mut other_eps = fact(&filing, "EarningsPerShareBasicAndDiluted", "1.30");
+        other_eps.decimals = Some(Decimals::Finite(2));
         other_eps.copy_rank = 1;
         let facts = vec![eps.clone(), other_eps];
 
@@ -1451,6 +1453,25 @@ mod tests {
         let facts = vec![
             fact(&filing, "GeneralAndAdministrativeExpense", "100000000"),
             fact(&filing, "SellingAndMarketingExpense", "80000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_selling_general_admin_when_the_filing_reports_g_and_a_next_to_a_marketing_line()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "GeneralAndAdministrativeExpense", "100000000"),
+            fact(&filing, "MarketingExpense", "80000000"),
         ];
 
         let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
