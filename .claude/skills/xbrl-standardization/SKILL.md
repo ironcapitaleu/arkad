@@ -20,8 +20,10 @@ accounting background, such as the SFAC 6 identities and the fiscal periods, is 
 
 ## SFAC 6 Checks
 
-The standard concepts rest on the SFAC 6 elements. Validation checks the identities of the
-`accounting` skill. If a check fails and every input is a Tier 1 value, the company filed
+The standard concepts rest on the SFAC 6 elements. Validation checks the identities in
+`xbrl/DESIGN.md`, "Layer 3". These still differ from the `accounting` skill: Layer 3 checks net
+income against Revenue − Expenses + Gains − Losses, and its cash flow check has no exchange rate
+term. The owner decides which text changes. If a check fails and every input is a Tier 1 value, the company filed
 inconsistent data. If a check fails with a Tier 3 or Tier 4 value, the derivation has a bug.
 
 ## Resolution Procedure
@@ -74,7 +76,8 @@ Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` a
 ## Dedup and Gap Check
 
 - `core/dedup/more-precise@1` picks one copy of a fact inside one filing. If the copies disagree,
-  it reports a `Conflict`, and the concept has no value.
+  it reports a `Conflict` and blocks the candidate of that filing. If the blocked candidate is the
+  newest, the standard concept has no value for that period.
 - `core/dedup/newest-filing@1` picks one value per standard concept and period across filings.
   The newest filing wins, amendments included. A restatement replaces the older value and sets
   `restated`.

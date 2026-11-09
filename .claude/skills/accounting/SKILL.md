@@ -17,7 +17,7 @@ This skill holds the accounting background that the code of this project relies 
 independent of XBRL and of any taxonomy. The `xbrl-standardization` skill holds the rules of the
 `xbrl` crate and builds on this one.
 
-## SFAC 6 Foundation
+## Identities
 
 SFAC 6 (Statement of Financial Accounting Concepts No. 6, 1985) defines ten elements of financial
 statements. Three identities follow from them:

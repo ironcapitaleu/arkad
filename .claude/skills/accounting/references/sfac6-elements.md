@@ -53,10 +53,11 @@ Decreases in equity (net assets) from peripheral or incidental transactions of a
 ## Key Relationships (Identities)
 
 1. **Assets = Liabilities + Equity** (Balance Sheet)
-2. **Net Income = Revenue - Expenses + Gains - Losses** (Income Statement)
-3. **Comprehensive Income = Net Income + Other Comprehensive Income**
-4. **ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners**
-5. **ΔCash ≈ Operating CF + Investing CF + Financing CF** (Cash Flow Statement)
+2. **Comprehensive Income = Revenue - Expenses + Gains - Losses**
+3. **ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners**
+
+SFAC 6 defines no net income and no cash flow. The `accounting` skill lists the US GAAP identities
+for them.
 
 ## Classification Rules
 
