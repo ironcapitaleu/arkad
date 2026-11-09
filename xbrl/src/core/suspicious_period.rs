@@ -22,8 +22,8 @@ const EARLIEST_YEAR: i32 = 1900;
 /// 100 years. Ends 10 to 100 years ahead are real, such as debt terms or carbon price assumptions.
 const MONTHS_FROM_REPORT: u32 = 1200;
 
-/// The years by which the year of the end of a confirming value can lie away from the year of the
-/// period of report of the flagged filing. A 10-K compares 3 years, and every confirmation in the
+/// The most years between the year in which a confirming value ends and the year of the period of
+/// report of the flagged filing. A 10-K compares 3 years, and every confirmation in the
 /// measurement ends within 2 years. The limit keeps a common value, such as 0, of another year
 /// from confirming by chance.
 const CONFIRMATION_YEARS: i32 = 3;
@@ -43,13 +43,18 @@ const CONFIRMATION_YEARS: i32 = 3;
 ///   period of report, gives no such signal.
 ///
 /// The value key of the finding is the first input of the value. Another value confirms the
-/// flagged value if it has the same concept, unit, dimensions, and value, hits no signal, ends on
-/// the same month and day in a year at most 3 from the year of the period of report of the flagged
-/// filing, and comes from another filing. If the flagged filing is missing from `filings` or has no period of
-/// report, no value confirms it. A typo in a comparative has its
-/// original in an earlier filing, and a typo in a new value has its comparative in a later one,
-/// so both count. If several filings confirm, the finding names the newest: the latest `filed`,
-/// then the latest `accepted`, then the highest filing ID.
+/// flagged value if it meets each condition:
+///
+/// - It has the same entity, concept, unit, dimensions, and value.
+/// - It hits no signal.
+/// - It ends on the same month and day as the flagged value, in a year at most 3 from the year of
+///   the period of report of the flagged filing.
+/// - It comes from another filing.
+///
+/// If the flagged filing is missing from `filings` or has no period of report, no value confirms
+/// it. A typo in a comparative has its original in an earlier filing, and a typo in a new value
+/// has its comparative in a later one, so both count. If several filings confirm, the finding
+/// names the newest: the latest `filed`, then the latest `accepted`, then the highest filing ID.
 #[must_use]
 pub fn suspicious_periods(series: &Series, filings: &[Filing]) -> Vec<Finding> {
     let mut findings = Vec::new();
