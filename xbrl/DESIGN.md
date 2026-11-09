@@ -801,9 +801,10 @@ year-to-date only. The result has confidence `Derived`.
     370 days from start to end. The day count decides alone when the start is known.
   - The year has no exact start, and a `10-KT` of the entity has the year end as its period of
     report.
-  - The year has no exact start, and it ends under 357 days after the last report under an old
-    fiscal year end. The gap check finds that report for `GapReason::FiscalYearChange`. A full
-    year after the change starts after that report too, but it ends 357 days or more after it.
+  - The year has no exact start, and it ends under 357 days after the previous annual report of
+    the entity (`10-K`, `10-KT`, `20-F`, or `40-F`). This catches a change of the fiscal year end
+    from the dates alone. The `fye` field of a filing can lag the change by several filings, so
+    the rule does not read it.
 - Notes gives no exact start, and the guard reads no `durp`, because the as-is layer does not keep
   it. So a short first fiscal year in Notes with no `10-KT` and no change of `fye` still gets a Q4.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.

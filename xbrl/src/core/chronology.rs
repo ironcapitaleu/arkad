@@ -33,7 +33,7 @@ const QUARTERLY_FORMS: [&str; 2] = ["10-Q", "10-QT"];
 const DOMESTIC_ANNUAL_FORMS: [&str; 2] = ["10-K", "10-KT"];
 
 /// The forms of an annual report. A `10-KT` reports a transition period.
-const ANNUAL_FORMS: [&str; 4] = ["10-K", "10-KT", "20-F", "40-F"];
+pub(super) const ANNUAL_FORMS: [&str; 4] = ["10-K", "10-KT", "20-F", "40-F"];
 
 /// The months between two expected periods of a filer that reports every quarter.
 const QUARTER_MONTHS: u32 = 3;
@@ -382,7 +382,7 @@ fn fiscal_period(months: u32) -> Option<FiscalPeriod> {
 /// The filings count in the order they were filed, because a filing states the fiscal year end as
 /// of its filing date. An amendment does not count, because it can state the end of the year it
 /// amends.
-pub(super) fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
+fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
     let mut filings: Vec<&Filing> = filings
         .iter()
         .copied()

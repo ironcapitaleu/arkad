@@ -9,7 +9,7 @@ use std::str::FromStr;
 use chrono::NaiveDate;
 
 use super::candidate::SeriesKey;
-use super::chronology::{changes, is_form};
+use super::chronology::{ANNUAL_FORMS, is_form};
 use super::confidence::Confidence;
 use super::dedup::Series;
 use super::filing::{EntityId, Filing};
@@ -54,7 +54,8 @@ const TRANSITION_REPORT_FORMS: [&str; 1] = ["10-KT"];
 /// The rule derives nothing from a short year, because its fourth quarter is not the year less
 /// nine months. If the year has an exact start, it is short if it spans under 357 days. Otherwise
 /// it is short if one of `filings` of the entity is a `10-KT` whose period of report is the year
-/// end, or if the year ends under 357 days after the last report under an old fiscal year end.
+/// end, or if the year ends under 357 days after the previous annual report of the entity. The
+/// second case catches a change of the fiscal year end, filed on a `10-K` or a `10-KT`.
 ///
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
 /// `restated` if an input has it. It carries the release of the fiscal year value.
@@ -99,9 +100,8 @@ struct ShortYearSignalsByEntity<'a> {
 struct ShortYearSignals {
     /// The periods of report of the transition reports.
     report_ends: BTreeSet<NaiveDate>,
-    /// The latest periods of report under an old fiscal year end, one per change of the fiscal
-    /// year end.
-    old_year_ends: Vec<NaiveDate>,
+    /// The periods of report of the annual reports, transition reports included.
+    annual_ends: BTreeSet<NaiveDate>,
 }
 
 impl<'a> ShortYearSignalsByEntity<'a> {
@@ -113,17 +113,9 @@ impl<'a> ShortYearSignalsByEntity<'a> {
         let by_entity = grouped
             .into_iter()
             .map(|(entity, filings)| {
-                let report_ends = filings
-                    .iter()
-                    .filter(|filing| is_form(&filing.form, &TRANSITION_REPORT_FORMS))
-                    .filter_map(|filing| filing.period_of_report)
-                    .collect();
                 let signals = ShortYearSignals {
-                    report_ends,
-                    old_year_ends: changes(&filings)
-                        .into_iter()
-                        .map(|(after, _)| after)
-                        .collect(),
+                    report_ends: report_ends(&filings, &TRANSITION_REPORT_FORMS),
+                    annual_ends: report_ends(&filings, &ANNUAL_FORMS),
                 };
                 (entity, signals)
             })
@@ -132,8 +124,8 @@ impl<'a> ShortYearSignalsByEntity<'a> {
     }
 
     /// Returns `true` if `year` is a short year. The day count decides if the exact start is known.
-    /// Otherwise a year that ends under 357 days after the last report under an old fiscal year
-    /// end is short, because it starts after that report.
+    /// Otherwise a year that ends under 357 days after the previous annual report is short,
+    /// because it starts after that report.
     fn is_short_year(&self, year: &StandardizedFact) -> bool {
         let Period::Duration(period) = year.period else {
             return false;
@@ -145,11 +137,22 @@ impl<'a> ShortYearSignalsByEntity<'a> {
         self.by_entity.get(&year.entity).is_some_and(|signals| {
             signals.report_ends.contains(&end)
                 || signals
-                    .old_year_ends
-                    .iter()
-                    .any(|&old_year_end| old_year_end < end && is_short_span(old_year_end, end))
+                    .annual_ends
+                    .range(..end)
+                    .next_back()
+                    .is_some_and(|&previous| is_short_span(previous, end))
         })
     }
+}
+
+/// Returns the periods of report of the filings whose form, without the amendment suffix, is one
+/// of `forms`.
+fn report_ends(filings: &[&Filing], forms: &[&str]) -> BTreeSet<NaiveDate> {
+    filings
+        .iter()
+        .filter(|filing| is_form(&filing.form, forms))
+        .filter_map(|filing| filing.period_of_report)
+        .collect()
 }
 
 /// Returns `true` if the span from `start` to `end` lasts under 357 days.
@@ -400,6 +403,36 @@ mod tests {
             filing("10-K", date(2022, 12, 31), "1231"),
             filing("10-KT", date(2023, 6, 30), "1231"),
             filing("10-Q", date(2023, 9, 30), "0630"),
+        ];
+
+        let expected_result = vec![BigDecimal::from(100_000_000_i64)];
+
+        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
+            .into_iter()
+            .map(|fact| fact.value)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_the_fourth_quarter_when_the_fiscal_year_end_changes_two_filings_after_the_transition_report()
+     {
+        let facts = series(vec![
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 30), 4)),
+                "400000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 3, 31), 3)),
+                "300000000",
+            ),
+        ]);
+        let filings = vec![
+            filing("10-K", date(2022, 12, 31), "1231"),
+            filing("10-KT", date(2023, 6, 30), "1231"),
+            filing("10-Q", date(2023, 9, 30), "1231"),
+            filing("10-Q", date(2023, 12, 31), "0630"),
         ];
 
         let expected_result = vec![BigDecimal::from(100_000_000_i64)];
