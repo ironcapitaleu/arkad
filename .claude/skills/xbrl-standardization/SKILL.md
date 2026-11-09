@@ -1,29 +1,30 @@
 ---
-name: xbrl-accounting
+name: xbrl-standardization
 description: >
-  Use when working on the xbrl crate, concept resolution, normalization,
-  SFAC 6 invariants, US GAAP taxonomy concepts, calculation linkbase,
-  or expanding alias/concept coverage.
-version: 0.2.0
+  Use when work on the xbrl crate turns filed facts into standardized facts: mapping US GAAP
+  concepts to standard concepts, alias lists, resolution tiers and confidence levels, SFAC 6
+  checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
+  adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
+  "why is this value Derived". Not for parsers, I/O, or error types.
+version: 0.3.0
 ---
 
-# XBRL Accounting Domain Knowledge
+# XBRL Standardization
 
 ## Purpose
 
-This skill provides accounting domain knowledge for the xbrl crate's financial concept normalization. It ensures correct application of SFAC 6 identities, guides the resolution procedure, and prevents hallucination on accounting standards.
+This skill holds the rules by which the `xbrl` crate turns as-is facts into `StandardizedFact`
+values. It covers resolution, the confidence levels, and the taxonomy data the rules read. The
+accounting background, such as the SFAC 6 identities and the fiscal periods, is in the
+`accounting` skill.
 
-## SFAC 6 Foundation
+## SFAC 6 Checks
 
-The crate's canonical model is built on SFAC 6 (Statement of Financial Accounting Concepts No. 6, 1985). Five invariants must always hold:
-
-1. **Balance Sheet Identity:** Assets = Liabilities + Equity
-2. **Income Statement Identity:** Net Income = Revenue - Expenses + Gains - Losses
-3. **Comprehensive Income:** Comprehensive Income = Net Income + OCI
-4. **Changes in Equity:** ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners
-5. **Cash Flow Reconciliation:** Operating CF + Investing CF + Financing CF ≈ ΔCash
-
-These are the validation checks the system enforces. Violation of identity #1 is always a bug in the system, never valid company data.
+The standard concepts rest on the SFAC 6 elements. Validation checks the identities in
+`xbrl/DESIGN.md`, "Layer 3". These still differ from the `accounting` skill: Layer 3 checks net
+income against Revenue − Expenses + Gains − Losses, and its cash flow check has no exchange rate
+term. The owner decides which text changes. If a check fails and every input is a Tier 1 value, the company filed
+inconsistent data. If a check fails with a Tier 3 or Tier 4 value, the derivation has a bug.
 
 ## Resolution Procedure
 
@@ -44,7 +45,7 @@ of its own tier and its inputs.
 ## Adding New Concepts — Checklist
 
 1. Identify the US GAAP concept name(s) from SEC filings or FASB taxonomy
-2. Determine which CanonicalElement it maps to (consult SFAC 6 element definitions)
+2. Determine which CanonicalElement it maps to (see the SFAC 6 elements in the `accounting` skill)
 3. Research historical name variants (taxonomy versions change concept names over time)
 4. Add to `REQUIRED_CONCEPTS` or `OPTIONAL_CONCEPTS` in `xbrl/src/us_gaap/mappings.rs`
 5. Order aliases by priority (most common/current first)
@@ -72,17 +73,28 @@ When a company does not report a parent concept, sum its children along the calc
 Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` and
 `LiabilitiesNoncurrent`. Compute: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
 
+## Dedup and Gap Check
+
+- `core/dedup/more-precise@1` picks one copy of a fact inside one filing. If the copies disagree,
+  it reports a `Conflict`. The conflict blocks the candidate of that filing only if tiers 1 and 2
+  would pick the conflicting concept. If the blocked candidate is the newest, the standard concept
+  has no value for that period.
+- `core/dedup/newest-filing@1` picks one value per standard concept and period across filings.
+  The newest filing wins, amendments included. A restatement replaces the older value and sets
+  `restated`.
+- `core::chronology::check_chronology` checks each series over time. It reports `Gap`, `Overlap`,
+  and `Restatement` findings and never fails.
+- The rules are in `xbrl/DESIGN.md`, "4) Dedup and Chronology". The fiscal periods and forms they
+  read are in the `accounting` skill.
+
 ## Critical Invariants
 
 - Never map two different financial concepts to the same CanonicalElement for the same period
-- Preserve sign conventions: expenses are positive values that reduce net income
 - Maintain traceability: every StandardizedFact must record its `rule` and its `inputs`
-- Balance sheet items are Instant (point-in-time); income/cash flow items are Duration
-- Amendment filings supersede originals (same accession = latest wins)
 
 ## Authoritative Sources
 
-- **SFAC 6 definitions:** See `references/sfac6-elements.md`
+- **Accounting background:** the `accounting` skill
 - **Calculation linkbase:** See `references/calculation-linkbase.md`
 - **Current canonical elements:** See `references/canonical-elements.md`
 - **Resolution tiers:** See `references/resolution-tiers.md`
@@ -144,6 +156,5 @@ FASB releases a new US GAAP taxonomy annually (typically Q1). Update when:
 
 ### What does NOT need updating
 
-- `references/sfac6-elements.md` — SFAC 6 is permanent (1985, never changes)
 - `references/linkbase-anatomy.md` — XBRL spec is stable; file format does not change between taxonomy years
 - `references/resolution-tiers.md` — only update if the crate's resolution architecture changes
