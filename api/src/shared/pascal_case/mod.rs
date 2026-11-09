@@ -78,6 +78,29 @@ mod tests {
     }
 
     #[test]
+    fn should_keep_a_single_word_when_converting_assets_to_snake_case() {
+        let name = PascalCase::new("Assets")
+            .expect("Given the hardcoded PascalCase name 'Assets', the check should always pass");
+
+        let expected_result = "assets";
+
+        let result = name.to_snake_case();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_accept_a_digit_when_name_holds_one() {
+        let name = "Q1Revenue";
+
+        let expected_result = Ok("q1_revenue".to_owned());
+
+        let result = PascalCase::new(name).map(|name| name.to_snake_case());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_with_invalid_pascal_case_when_name_starts_lowercase() {
         let name = "netIncome";
 

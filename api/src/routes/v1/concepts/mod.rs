@@ -5,11 +5,13 @@
 use axum::Json;
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
+use serde_json::json;
 use utoipa::ToSchema;
 use xbrl::core::elements::CanonicalElement;
 use xbrl::us_gaap::mappings::{OPTIONAL_CONCEPTS, REQUIRED_CONCEPTS};
 
 use crate::error::{ApiError, Problem};
+use crate::logging::ApiEvent;
 use crate::shared::pascal_case::{InvalidPascalCase, PascalCase};
 
 /// One canonical concept that `xbrl` maps from US-GAAP.
@@ -79,10 +81,12 @@ impl ConceptList {
 /// # Errors
 ///
 /// Returns [`ApiError::InternalError`] if the name of a mapped element is not in `PascalCase`.
+/// The handler logs the rejected name, because the problem body carries no internal detail.
 #[utoipa::path(
     get,
     path = "/concepts",
     tag = "concepts",
+    description = "Lists every concept that `xbrl` maps from US-GAAP, the required concepts first.",
     responses(
         (status = 200, description = "Every concept that `xbrl` maps from US-GAAP", body = ConceptList),
         (status = 500, description = "The server failed to build the list", body = Problem, content_type = "application/problem+json"),
@@ -91,7 +95,14 @@ impl ConceptList {
 // axum requires an async handler. This one has nothing to await.
 #[allow(clippy::unused_async)]
 pub async fn list_concepts() -> Result<Json<ConceptList>, ApiError> {
-    Ok(Json(ConceptList::new(Utc::now())?))
+    let list = ConceptList::new(Utc::now()).inspect_err(|error| {
+        tracing::error!(
+            event = %ApiEvent::RequestFailed,
+            message = %format!("[FailedConceptList] Failed to build the concept list, Caused by: {error}"),
+            context = %json!({ "path": "/v1/concepts", "name": error.name }),
+        );
+    })?;
+    Ok(Json(list))
 }
 
 #[cfg(test)]

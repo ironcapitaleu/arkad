@@ -39,6 +39,8 @@ pub enum ApiEvent {
     Failed,
     /// The API stopped after a shutdown signal.
     Stopped,
+    /// The server failed to answer a request, and the client got a `500`.
+    RequestFailed,
 }
 
 impl Display for ApiEvent {
@@ -48,6 +50,7 @@ impl Display for ApiEvent {
             Self::StartupFailed => write!(f, "api_startup_failed"),
             Self::Failed => write!(f, "api_failed"),
             Self::Stopped => write!(f, "api_stopped"),
+            Self::RequestFailed => write!(f, "api_request_failed"),
         }
     }
 }
@@ -227,6 +230,17 @@ mod tests {
         let event = ApiEvent::Stopped;
 
         let expected_result = "api_stopped";
+
+        let result = event.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_snake_case_name_for_request_failed_event() {
+        let event = ApiEvent::RequestFailed;
+
+        let expected_result = "api_request_failed";
 
         let result = event.to_string();
 
