@@ -613,7 +613,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_balance_sheet_concepts_in_priority_order_when_created() {
+    fn should_return_optional_concepts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
@@ -630,18 +630,12 @@ mod tests {
             ConceptAliases {
                 element: CanonicalElement::CashAndEquivalents,
                 rule: rule("us-gaap/alias/cash-and-equivalents@1"),
-                concepts: vec![
-                    concept("us-gaap", "CashAndCashEquivalentsAtCarryingValue"),
-                    concept("us-gaap", "Cash"),
-                ],
+                concepts: vec![concept("us-gaap", "CashAndCashEquivalentsAtCarryingValue")],
             },
             ConceptAliases {
                 element: CanonicalElement::ShortTermInvestments,
                 rule: rule("us-gaap/alias/short-term-investments@1"),
-                concepts: vec![
-                    concept("us-gaap", "ShortTermInvestments"),
-                    concept("us-gaap", "MarketableSecuritiesCurrent"),
-                ],
+                concepts: vec![concept("us-gaap", "ShortTermInvestments")],
             },
             ConceptAliases {
                 element: CanonicalElement::AccountsReceivable,
