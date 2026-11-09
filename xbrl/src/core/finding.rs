@@ -46,7 +46,8 @@ pub enum Finding {
         key: FactKey,
         /// The ranks that disagree with rank 0, in ascending order.
         ranks: Vec<u16>,
-        /// The standard concept of the as-is concept, if a plug-in maps it.
+        /// The standard concept of the as-is concept, if a plug-in maps it. If two alias lists of
+        /// the plug-in name the concept, this holds the first one, in the order of `aliases()`.
         standard_concept: Option<CanonicalElement>,
     },
     /// The series has no value for an expected period between its first and its last value.

@@ -384,6 +384,7 @@ mod tests {
     use crate::core::dedup::more_precise;
     use crate::core::elements::CanonicalElement;
     use crate::core::fact::{AsIsFact, Decimals, TaxonomyVersion};
+    use crate::core::finding::Finding;
     use crate::core::taxonomy::reference::{Balance, PeriodType};
     use crate::core::taxonomy::registry::Registry;
     use crate::tests::fixtures::sample_fact::{date, fact, source};
@@ -992,6 +993,51 @@ mod tests {
     }
 
     #[test]
+    fn should_return_parts_of_interest_expense_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(PartAliases {
+            rule: rule("us-gaap/part/interest-expense@1"),
+            parts: vec![concept("us-gaap", "InterestExpenseNonoperating")],
+            other_parts: vec![
+                concept("us-gaap", "InterestExpenseOperating"),
+                concept(
+                    "us-gaap",
+                    "InterestExpenseBeneficialInterestsIssuedByConsolidatedVariableInterestEntities",
+                ),
+                concept("us-gaap", "InterestExpenseTradingLiabilities"),
+                concept("us-gaap", "InterestExpenseTrustPreferredSecurities"),
+                concept("us-gaap", "InterestExpenseDeposits"),
+                concept("us-gaap", "InterestExpenseDemandDepositAccounts"),
+                concept("us-gaap", "InterestExpenseDomesticDeposits"),
+                concept("us-gaap", "InterestExpenseForeignDeposits"),
+                concept("us-gaap", "InterestExpenseMoneyMarketDeposits"),
+                concept(
+                    "us-gaap",
+                    "InterestExpenseNOWAccountsMoneyMarketAccountsAndSavingsDeposits",
+                ),
+                concept(
+                    "us-gaap",
+                    "InterestExpenseNegotiableOrderOfWithdrawalNOWDeposits",
+                ),
+                concept("us-gaap", "InterestExpenseOtherDomesticDeposits"),
+                concept("us-gaap", "InterestExpenseSavingsDeposits"),
+                concept("us-gaap", "InterestExpenseTimeDeposits"),
+                concept("us-gaap", "InterestExpenseTimeDeposits100000OrMore"),
+                concept("us-gaap", "InterestExpenseTimeDepositsLessThan100000"),
+            ],
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::InterestExpense)
+            .and_then(|aliases| aliases.parts.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_parts_of_income_statement_concepts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
@@ -1028,6 +1074,7 @@ mod tests {
                     rule: rule("us-gaap/part/selling-general-admin@1"),
                     parts: vec![concept("us-gaap", "GeneralAndAdministrativeExpense")],
                     other_parts: vec![
+                        concept("us-gaap", "MarketingExpense"),
                         concept("us-gaap", "OtherSellingGeneralAndAdministrativeExpense"),
                         concept("us-gaap", "SellingAndMarketingExpense"),
                         concept("us-gaap", "SellingExpense"),
@@ -1054,20 +1101,15 @@ mod tests {
                     ],
                 },
             ),
-            (
-                CanonicalElement::InterestExpense,
-                PartAliases {
-                    rule: rule("us-gaap/part/interest-expense@1"),
-                    parts: vec![concept("us-gaap", "InterestExpenseNonoperating")],
-                    other_parts: vec![concept("us-gaap", "InterestExpenseOperating")],
-                },
-            ),
         ];
 
         let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
             .aliases()
             .iter()
-            .filter(|aliases| INCOME_STATEMENT.contains(&aliases.element))
+            .filter(|aliases| {
+                INCOME_STATEMENT.contains(&aliases.element)
+                    && aliases.element != CanonicalElement::InterestExpense
+            })
             .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
 
@@ -1340,6 +1382,93 @@ mod tests {
         let facts = vec![
             fact(&filing, "StockholdersEquity", "56950000000"),
             fact(&filing, "MinorityInterest", "1000000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_both_eps_concepts_when_the_filing_reports_only_eps_basic_and_diluted() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-15-000123", date(2015, 11, 1));
+        let facts = vec![fact(&filing, "EarningsPerShareBasicAndDiluted", "1.25")];
+
+        let expected_result = vec![
+            (
+                CanonicalElement::EarningsPerShareBasic,
+                rule("us-gaap/alias/earnings-per-share-basic@1"),
+                Some(Confidence::Synonym),
+            ),
+            (
+                CanonicalElement::EarningsPerShareDiluted,
+                rule("us-gaap/alias/earnings-per-share-diluted@1"),
+                Some(Confidence::Synonym),
+            ),
+        ];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_first_eps_concept_in_the_conflict_when_eps_basic_and_diluted_has_a_conflict()
+    {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-15-000123", date(2015, 11, 1));
+        let eps = fact(&filing, "EarningsPerShareBasicAndDiluted", "125000000");
+        let mut other_eps = fact(&filing, "EarningsPerShareBasicAndDiluted", "130000000");
+        other_eps.copy_rank = 1;
+        let facts = vec![eps.clone(), other_eps];
+
+        let expected_result = vec![Finding::Conflict {
+            entity: eps.context.entity.clone(),
+            key: eps.key(),
+            ranks: vec![1],
+            standard_concept: Some(CanonicalElement::EarningsPerShareBasic),
+        }];
+
+        let result = resolve_aliases(&more_precise(&facts), &registry).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_selling_general_admin_when_the_filing_reports_g_and_a_next_to_selling_and_marketing()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "GeneralAndAdministrativeExpense", "100000000"),
+            fact(&filing, "SellingAndMarketingExpense", "80000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_interest_expense_when_a_bank_concept_below_the_operating_part_is_reported() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "InterestExpenseNonoperating", "40000000"),
+            fact(&filing, "InterestExpenseDeposits", "300000000"),
         ];
 
         let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();

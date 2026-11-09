@@ -424,12 +424,12 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 88 tags are picked by hand from filings. 85 of them
+- `us_gaap/mappings.rs` names no release. Its 93 tags are picked by hand from filings. 90 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated), `IncomeLossFromOperations`, and
   `EarningsPerShareBasicAndDiluted` are not.
   The unit test
   `should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created`
-  checks that the other 85, and each concept below a root of `other_part_trees`, are in the 2026
+  checks that the other 90, and each concept below a root of `other_part_trees`, are in the 2026
   schema. An alias list bridges renames across releases,
   so it does not come from one release.
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
@@ -554,6 +554,11 @@ ticket decides where the removed elements live.
     `RevenueNotFromContractWithCustomerExcludingInterestIncome` counts. It is the sibling of both
     parts below `NoninterestIncome`. The rest holds interest expense and gains that most filers
     report outside revenue.
+  - For `InterestExpense`, the 2026 calculation tree has no arc to its parts. Its label, "Interest
+    Expense, Operating and Nonoperating", names the two parts, `InterestExpenseNonoperating` and
+    `InterestExpenseOperating`.
+  - A concept can sit in two alias lists, as `EarningsPerShareBasicAndDiluted` does. A conflict
+    finding then names the first of the two standard concepts, in the order of `aliases()`.
   - The part rule runs only if no concept of the alias list resolves. The first part that the
     filing reports wins, with confidence `Synonym`.
   - An other part in the same period and unit blocks the part, in any dimension. Then the
@@ -1586,5 +1591,5 @@ This touches the `sec` crate's public API and downstream consumers.
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for Level 2
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 88 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 93 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element
