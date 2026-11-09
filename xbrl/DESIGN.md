@@ -561,7 +561,7 @@ ticket decides where the removed elements live.
     not count. Commercial filers report its children in the debt note, as parts of
     `InterestExpenseNonoperating`.
   - For `DepreciationAmortization`, the concepts below `AdjustmentForAmortization` that amortize
-    an operating asset also count. The accretion of investment discounts, the amortization of
+    an operating asset also count, and `Depletion` counts with each concept below it. The accretion of investment discounts, the amortization of
     financing costs, deferred hedge gains, and loan origination fees do not count. Filers report
     them outside D&A as their own add-back.
   - A concept can sit in two alias lists, as `EarningsPerShareBasicAndDiluted` does. A conflict

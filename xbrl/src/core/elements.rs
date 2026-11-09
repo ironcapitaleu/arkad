@@ -93,7 +93,7 @@ pub enum CanonicalElement {
     /// Capital expenditures: the payments for every productive asset, intangible assets and
     /// software included (`PaymentsToAcquireProductiveAssets`).
     CapitalExpenditures,
-    /// Dividends paid: every dividend payment, including to preferred stock and to the
+    /// Dividends paid: every dividend payment, including to preferred stockholders and to the
     /// noncontrolling interest, and capital distributions (`PaymentsOfDividends`).
     DividendsPaid,
     /// Share repurchases: the payments for the repurchase of every class of equity

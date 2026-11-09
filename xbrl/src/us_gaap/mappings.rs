@@ -665,8 +665,8 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         CanonicalElement::DepreciationAmortization,
         &["Depreciation"],
         // `AdjustmentForAmortization` counts, and so does each concept below it that amortizes an
-        // operating asset, because filers report those in a note. Left out, because filers report
-        // them outside D&A as their own add-back:
+        // operating asset, because filers report those in its place. Left out, because filers
+        // report them outside D&A as their own add-back:
         // `AccretionAmortizationOfDiscountsAndPremiumsInvestments`,
         // `AmortizationOfDeferredHedgeGains`, `AmortizationOfDeferredLoanOriginationFeesNet`, and
         // `AmortizationOfFinancingCostsAndDiscounts`.
@@ -690,10 +690,9 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "FinanceLeaseRightOfUseAssetAmortization",
             "OtherAmortizationOfDeferredCharges",
             "PresentValueOfFutureInsuranceProfitsAmortizationExpense1",
-            "Depletion",
             "OtherDepreciationAndAmortization",
         ],
-        &[],
+        &["Depletion"],
         DEPRECIATION_AMORTIZATION_PART_RULE,
     ),
     PartDefinition::new(

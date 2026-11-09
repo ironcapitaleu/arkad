@@ -1045,8 +1045,10 @@ mod tests {
                     "us-gaap",
                     "PresentValueOfFutureInsuranceProfitsAmortizationExpense1",
                 ),
-                concept("us-gaap", "Depletion"),
                 concept("us-gaap", "OtherDepreciationAndAmortization"),
+                concept("us-gaap", "Depletion"),
+                concept("us-gaap", "CostDepletion"),
+                concept("us-gaap", "DepletionOfOilAndGasProperties"),
             ],
         });
 
@@ -1699,6 +1701,52 @@ mod tests {
         ];
 
         let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_depreciation_amortization_when_the_filing_reports_depreciation_next_to_oil_and_gas_depletion()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "Depreciation", "100000000"),
+            fact(&filing, "DepletionOfOilAndGasProperties", "400000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_depreciation_amortization_part_rule_id_when_the_filing_reports_depreciation_next_to_financing_cost_amortization()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "Depreciation", "100000000"),
+            fact(
+                &filing,
+                "AmortizationOfFinancingCostsAndDiscounts",
+                "5000000",
+            ),
+        ];
+
+        let expected_result = vec![(
+            CanonicalElement::DepreciationAmortization,
+            rule("us-gaap/part/depreciation-amortization@1"),
+            Some(Confidence::Synonym),
+        )];
 
         let result = resolve(&facts, &registry);
 
