@@ -20,8 +20,8 @@ use super::standardized::StandardizedFact;
 /// The ID of the rule that derives the fourth quarter from the fiscal year.
 pub const Q4_FROM_FY: &str = "core/period/q4-from-fy@1";
 
-/// The length in quarters of a fiscal year.
-const YEAR_QUARTERS: u16 = 4;
+/// The length of a fiscal year, in quarters.
+const YEAR_LENGTH: u16 = 4;
 
 /// The length in quarters of the year to date at the end of the third quarter.
 const NINE_MONTHS_QUARTERS: u16 = 3;
@@ -71,7 +71,7 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
     series
         .facts
         .iter()
-        .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_QUARTERS)
+        .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_LENGTH)
         .filter(|year| !short_year_signals.is_short_year(year))
         .filter_map(|year| {
             let mut key = year.series_key();

@@ -44,14 +44,14 @@ const QUARTER_MONTHS: u32 = 3;
 /// The months of a fiscal year.
 const YEAR_MONTHS: u32 = 12;
 
-/// One quarter, as a length.
-const QUARTER_QUARTERS: u16 = 1;
+/// The length of a quarter, in quarters.
+const QUARTER_LENGTH: u16 = 1;
 
-/// The length in quarters of a fiscal year.
-const YEAR_QUARTERS: u16 = 4;
+/// The length of a fiscal year, in quarters.
+const YEAR_LENGTH: u16 = 4;
 
-/// The length in quarters of an instant.
-const INSTANT_QUARTERS: u16 = 0;
+/// The length of an instant, in quarters.
+const INSTANT_LENGTH: u16 = 0;
 
 /// The fiscal periods by the number of quarters they end before the fiscal year end.
 const FISCAL_PERIODS: [&str; 4] = ["FY", "Q3", "Q2", "Q1"];
@@ -84,8 +84,8 @@ pub struct Chronology {
 ///   that ends within 7 days of it. A value of any length fills it. A blocked value gives the
 ///   reason [`GapReason::Conflict`]. Otherwise a gap in the 12 months after the last report
 ///   period under an old fiscal year end gives the reason [`GapReason::FiscalYearChange`]. A gap
-///   names the length of its expected period in quarters, or 0 if every value of the timeline is
-///   an instant.
+///   names the length of its expected period in quarters, or 0 if no value of the timeline is a
+///   duration.
 /// - An **overlap** is a pair of values of the same length whose ends lie closer than that length,
 ///   less 7 days.
 /// - A **restatement** is a value with `restated`.
@@ -153,11 +153,12 @@ impl Timeline {
 }
 
 /// The period ends of one timeline: of the values, with their length in quarters, and of the
-/// blocked keys. `has_duration` is `true` if a value of the timeline is a duration.
+/// blocked keys.
 #[derive(Debug, Default)]
 struct Ends {
     reported: BTreeSet<(NaiveDate, u16)>,
     blocked: BTreeSet<NaiveDate>,
+    /// Whether a value of the timeline is a duration.
     has_duration: bool,
 }
 
@@ -201,7 +202,7 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
             quarters: if ends.has_duration {
                 expected.quarters
             } else {
-                INSTANT_QUARTERS
+                INSTANT_LENGTH
             },
             reason: calendar.reason(expected.end, &ends.blocked),
         })
@@ -303,7 +304,7 @@ impl Calendar {
                 None => expected.push(Expected {
                     end: report,
                     fiscal_period: filing.fiscal_period.clone(),
-                    quarters: QUARTER_QUARTERS,
+                    quarters: QUARTER_LENGTH,
                 }),
             }
         }
@@ -346,10 +347,8 @@ fn year_quarters(filings: &[&Filing], previous: Option<NaiveDate>, year_end: Nai
     });
     match previous {
         Some(previous) if is_transition => Duration::from_dates(previous, year_end)
-            .map_or(YEAR_QUARTERS, |duration| {
-                duration.quarters().min(YEAR_QUARTERS)
-            }),
-        _ => YEAR_QUARTERS,
+            .map_or(YEAR_LENGTH, |duration| duration.quarters().min(YEAR_LENGTH)),
+        _ => YEAR_LENGTH,
     }
 }
 
@@ -368,9 +367,9 @@ fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: NaiveDate) 
 /// files quarterly reports, otherwise 4. Each expected period is one step long.
 const fn step(is_domestic: bool, is_quarterly: bool) -> u16 {
     if is_domestic && is_quarterly {
-        QUARTER_QUARTERS
+        QUARTER_LENGTH
     } else {
-        YEAR_QUARTERS
+        YEAR_LENGTH
     }
 }
 
