@@ -20,6 +20,9 @@ const LINK_NAMESPACE: &str = "http://www.xbrl.org/2003/linkbase";
 /// The namespace of the `XLink` attributes.
 const XLINK_NAMESPACE: &str = "http://www.w3.org/1999/xlink";
 
+/// The local name of a linkbase.
+const LINKBASE_TAG: &str = "linkbase";
+
 /// The local name of a locator.
 const LOCATOR_TAG: &str = "loc";
 
@@ -208,14 +211,18 @@ fn parse<'input>(path: &Path, text: &'input str) -> Result<Document<'input>, Gen
     })
 }
 
-/// Returns the extended links of a linkbase: the children of its root with `xlink:type`
-/// `extended`. The role references beside them are skipped.
+/// Returns the extended links of a document: the children of each `link:linkbase` with
+/// `xlink:type` `extended`. The role references beside them are skipped.
+///
+/// The linkbase can be the root, as in the FASB files, or sit in the `xs:appinfo` of a schema, as
+/// in the `dei` label linkbase of the SEC.
 fn extended_links<'a, 'input>(
     document: &'a Document<'input>,
 ) -> impl Iterator<Item = Node<'a, 'input>> {
     document
-        .root_element()
-        .children()
+        .descendants()
+        .filter(|node| node.has_tag_name((LINK_NAMESPACE, LINKBASE_TAG)))
+        .flat_map(|linkbase| linkbase.children())
         .filter(|node| node.attribute((XLINK_NAMESPACE, TYPE_ATTRIBUTE)) == Some(EXTENDED_TYPE))
 }
 
@@ -362,6 +369,31 @@ mod tests {
 
         let result = standard_labels(Path::new(PATH), &text)
             .expect("Given a label link with one standard label, the read should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_standard_label_when_linkbase_sits_in_appinfo_of_a_schema() {
+        let text = "<xs:schema xmlns:xs='http://www.w3.org/2001/XMLSchema' \
+             xmlns:link='http://www.xbrl.org/2003/linkbase' \
+             xmlns:xlink='http://www.w3.org/1999/xlink'>\
+             <xs:annotation><xs:appinfo><link:linkbase>\
+             <link:labelLink xlink:type='extended'>\
+             <link:loc xlink:href='dei-2026.xsd#dei_TradingSymbol' xlink:label='TradingSymbol' />\
+             <link:label xlink:label='lab_T' xlink:role='http://www.xbrl.org/2003/role/label'>Trading Symbol</link:label>\
+             <link:labelArc xlink:from='TradingSymbol' xlink:to='lab_T' />\
+             </link:labelLink>\
+             </link:linkbase></xs:appinfo></xs:annotation></xs:schema>";
+
+        let expected_result = HashMap::from([(
+            concept("dei", "TradingSymbol"),
+            "Trading Symbol".to_string(),
+        )]);
+
+        let result = standard_labels(Path::new(PATH), text).expect(
+            "Given a schema with one embedded standard label, the read should always succeed",
+        );
 
         assert_eq!(result, expected_result);
     }
