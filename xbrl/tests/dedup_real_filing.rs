@@ -112,6 +112,9 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
         (CanonicalElement::InterestExpense, 1),
         (CanonicalElement::EarningsPerShareBasic, 2),
         (CanonicalElement::EarningsPerShareDiluted, 2),
+        (CanonicalElement::DepreciationAmortization, 2),
+        (CanonicalElement::CapitalExpenditures, 2),
+        (CanonicalElement::ShareBasedCompensation, 2),
     ])
 }
 
@@ -354,7 +357,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_64_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -365,7 +368,7 @@ fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_58_standardized_facts_in_17_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_64_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
@@ -438,6 +441,18 @@ fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_
         (
             CanonicalElement::EarningsPerShareDiluted,
             rule("us-gaap/alias/earnings-per-share-diluted@1"),
+        ),
+        (
+            CanonicalElement::DepreciationAmortization,
+            rule("us-gaap/alias/depreciation-amortization@1"),
+        ),
+        (
+            CanonicalElement::CapitalExpenditures,
+            rule("us-gaap/alias/capital-expenditures@1"),
+        ),
+        (
+            CanonicalElement::ShareBasedCompensation,
+            rule("us-gaap/alias/share-based-compensation@1"),
         ),
     ]);
 
