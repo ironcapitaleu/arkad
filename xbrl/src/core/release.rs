@@ -137,7 +137,7 @@ impl fmt::Display for Sha256 {
     }
 }
 
-/// A taxonomy release: its ID and the SHA-256 of the `MANIFEST` of its vendored files.
+/// A taxonomy release: its ID and the SHA-256 of the `MANIFEST` files of its vendored folders.
 ///
 /// A standardized fact carries the release of the plug-in that resolved it, so the fact proves its
 /// release without a join.
@@ -145,7 +145,7 @@ impl fmt::Display for Sha256 {
 pub struct TaxonomyRelease {
     /// The ID, for example `us-gaap/2026`.
     pub id: TaxonomyReleaseId,
-    /// The SHA-256 of the `MANIFEST` of the vendored files.
+    /// The SHA-256 of the `MANIFEST` files of the vendored folders.
     pub checksum: Sha256,
 }
 

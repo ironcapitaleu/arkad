@@ -38,7 +38,7 @@ pub mod table;
 #[rustfmt::skip]
 pub mod taxonomy;
 
-/// The family of the concepts of the element schema.
+/// The family of the US GAAP concepts.
 const US_GAAP_FAMILY: &str = "us-gaap";
 
 /// One family that the plug-in declares.
@@ -149,9 +149,9 @@ const FAMILIES: &[FamilySpec] = &[
 ///
 /// [`Taxonomy::aliases`] returns one alias list per definition of
 /// [`mappings::REQUIRED_CONCEPTS`] and [`mappings::OPTIONAL_CONCEPTS`], in that order.
-/// [`Taxonomy::elements`] holds the elements of the 2026 schema, including the ones the schema
-/// marks as deprecated. It holds no element that an earlier release removed, such as
-/// `SalesRevenueNet`.
+/// [`Taxonomy::elements`] holds the elements of the `us-gaap`, `srt`, and `dei` 2026 schemas,
+/// including the ones a schema marks as deprecated. It holds no element that an earlier release
+/// removed, such as `SalesRevenueNet`.
 ///
 /// # Examples
 ///
@@ -238,13 +238,18 @@ impl Taxonomy for UsGaap {
         &self.calculation_tree
     }
 
-    /// Finds the element by a binary search, because the generator sorts the elements by name.
+    /// Finds the element by a binary search, because the generator sorts the elements by family
+    /// and name.
     fn element(&self, concept: &ConceptName) -> Option<&ElementReference> {
-        if concept.family().as_str() != US_GAAP_FAMILY {
-            return None;
-        }
+        let key = (concept.family().as_str(), concept.local_name());
         self.elements
-            .binary_search_by(|element| element.concept.local_name().cmp(concept.local_name()))
+            .binary_search_by(|element| {
+                (
+                    element.concept.family().as_str(),
+                    element.concept.local_name(),
+                )
+                    .cmp(&key)
+            })
             .ok()
             .map(|index| &self.elements[index])
     }
@@ -308,7 +313,7 @@ fn calculation_arc(row: &table::CalculationRow) -> CalculationArc {
 /// Returns the element reference of one row of the tables.
 fn element_reference(row: &table::ElementRow, release: &TaxonomyReleaseId) -> ElementReference {
     ElementReference {
-        concept: concept(US_GAAP_FAMILY, row.name),
+        concept: concept(row.family, row.name),
         release: release.clone(),
         label: row.label.to_string(),
         data_type: row.data_type.to_string(),
@@ -344,13 +349,13 @@ mod tests {
     }
 
     #[test]
-    fn should_return_release_with_checksum_of_manifest_when_created() {
+    fn should_return_release_with_checksum_of_joined_manifests_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = TaxonomyRelease {
             id: release_id(),
             checksum: Sha256::from_str(
-                "e9b4878ac485e7591bd24fb9e5ca156fe81273afd293f9e592d147af555f7f35",
+                "a92083bfe2d99f604c258a3a192602c4e8c8292d08f51cd3d34db30b80353b3c",
             )
             .expect("Given 64 hardcoded hex digits, the parse should always succeed"),
         };
@@ -668,7 +673,47 @@ mod tests {
     }
 
     #[test]
-    fn should_return_no_reference_data_when_family_is_not_us_gaap() {
+    fn should_return_reference_data_when_concept_is_srt() {
+        let us_gaap = UsGaap::new();
+        let net_in_force = concept("srt", "LifeInsuranceInForceNet");
+
+        let expected_result = Some(ElementReference {
+            concept: concept("srt", "LifeInsuranceInForceNet"),
+            release: release_id(),
+            label: "SEC Schedule, 12-17, Insurance Companies, Reinsurance, Life Insurance in \
+                    Force, Net"
+                .to_string(),
+            data_type: "xbrli:monetaryItemType".to_string(),
+            balance: Some(Balance::Credit),
+            period_type: PeriodType::Instant,
+        });
+
+        let result = us_gaap.element(&net_in_force).cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_reference_data_when_concept_is_dei() {
+        let us_gaap = UsGaap::new();
+        let trading_symbol = concept("dei", "TradingSymbol");
+
+        let expected_result = Some(ElementReference {
+            concept: concept("dei", "TradingSymbol"),
+            release: release_id(),
+            label: "Trading Symbol".to_string(),
+            data_type: "dei:tradingSymbolItemType".to_string(),
+            balance: None,
+            period_type: PeriodType::Duration,
+        });
+
+        let result = us_gaap.element(&trading_symbol).cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_reference_data_when_name_exists_only_in_another_family() {
         let us_gaap = UsGaap::new();
         let srt_concept = concept("srt", "Assets");
 
@@ -680,10 +725,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_every_concept_of_schema_when_listing_elements() {
+    fn should_return_every_concept_of_the_three_schemas_when_listing_elements() {
         let us_gaap = UsGaap::new();
 
-        let expected_result = 17_179;
+        let expected_result = 18_006;
 
         let result = us_gaap.elements().len();
 
@@ -718,7 +763,7 @@ mod tests {
     fn should_find_every_listed_element_when_looking_up_its_concept() {
         let us_gaap = UsGaap::new();
 
-        // The list has 17,179 elements, too many to write out, so the test compares it with a
+        // The list has 18,006 elements, too many to write out, so the test compares it with a
         // lookup of each concept.
         let expected_result: Vec<Option<&ElementReference>> =
             us_gaap.elements().iter().map(Some).collect();
@@ -727,6 +772,23 @@ mod tests {
             .elements()
             .iter()
             .map(|element| us_gaap.element(&element.concept))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_find_reference_data_for_every_concept_of_calculation_tree() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result: Vec<&ConceptName> = Vec::new();
+
+        let result: Vec<&ConceptName> = us_gaap
+            .calculation_tree()
+            .arcs
+            .iter()
+            .flat_map(|arc| [&arc.parent, &arc.child])
+            .filter(|concept| us_gaap.element(concept).is_none())
             .collect();
 
         assert_eq!(result, expected_result);
