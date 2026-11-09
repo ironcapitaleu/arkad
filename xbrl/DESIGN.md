@@ -424,9 +424,11 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 14 tags are picked by hand from filings. 12 of them
+- `us_gaap/mappings.rs` names no release. Its 27 tags are picked by hand from filings. 25 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
-  An alias list bridges renames across releases, so it does not come from one release.
+  The unit test `should_find_reference_data_for_every_alias_except_the_removed_ones_when_created`
+  checks that the other 25 are in the 2026 schema. An alias list bridges renames across releases,
+  so it does not come from one release.
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
   Code").
 - The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB
@@ -534,6 +536,20 @@ ticket decides where the removed elements live.
   lists from the definitions, so the `xbrl` crate holds each list once. Each definition names its rule ID as a
   const next to the list. The rule name is the kebab case of the standard concept, at version 1,
   for example `us-gaap/alias/operating-cash-flow@1`.
+- An alias list of an optional concept holds only concepts that equal the whole standard concept,
+  such as the names of one total across releases. It holds no concept that is wider than its standard concept, and no
+  part of the total. Such a concept gives the standard concept a different meaning per filer, and
+  the `Synonym` confidence does not show it.
+  - Wider: `ReceivablesNetCurrent` also holds receivables that are not from customers, so it is not
+    an alias of `AccountsReceivable`.
+  - Part: `Cash` is one part of `CashAndCashEquivalentsAtCarryingValue`. As an alias, it gives
+    the part as the total to a filer that reports `Cash` and its cash equivalents without the
+    total. Such a filer now gets no value.
+  - A comment at each list in `mappings.rs` names the concepts it leaves out and why.
+  - The required lists of `Revenue` and `Equity` are older than this rule and still hold a part
+    of the total. `RevenueFromContractWithCustomerExcludingAssessedTax` is a part of `Revenues`.
+    `StockholdersEquity` is a part of the equity with the noncontrolling interest. A later change
+    decides these two lists.
 
 ### What `ifrs` Needs on Top
 
@@ -1541,5 +1557,5 @@ This touches the `sec` crate's public API and downstream consumers.
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for Level 2
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 2 of its 14 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 2 of its 27 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element
