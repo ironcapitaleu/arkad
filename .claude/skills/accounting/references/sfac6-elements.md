@@ -6,8 +6,11 @@ superseded-by: FASB Concepts Statement No. 8, Chapter 4, Elements of Financial S
 ---
 
 > **Superseded.** FASB Concepts Statement No. 8, Chapter 4 (December 2021) replaced SFAC 6. It
-> keeps the ten elements and rewords their definitions. The text below is the SFAC 6 text of 1985.
-> Replace it with the text of Chapter 4 once the official text is at hand.
+> keeps the ten elements. It changes the definitions of assets and liabilities: for example, it
+> drops "probable" and "past transactions or events". The text below is the SFAC 6 text of 1985.
+> Do not use its definitions of assets and liabilities to decide whether an item is one. Replace
+> the text with the text of Chapter 4 once the official text is at hand, and rename the file and
+> its links.
 
 # SFAC 6 — Elements of Financial Statements
 

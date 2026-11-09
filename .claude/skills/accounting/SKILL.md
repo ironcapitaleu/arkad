@@ -28,8 +28,10 @@ between the statements, periods, and reporting calendars. It covers US GAAP and 
 
 The ten US GAAP elements are assets, liabilities, equity, investments by owners, distributions to
 owners, comprehensive income, revenue, expenses, gains, and losses. SFAC 6 (1985) defined them.
-Concepts Statement 8, Chapter 4 (December 2021) replaced SFAC 6. It keeps the ten elements and
-rewords their definitions. `references/sfac6-elements.md` still quotes the SFAC 6 text. The five IFRS elements are assets, liabilities, equity, income,
+Concepts Statement 8, Chapter 4 (December 2021) replaced SFAC 6. It keeps the ten elements. It
+changes the definitions of assets and liabilities: for example, it drops "probable" and "past
+transactions or events". `references/sfac6-elements.md` still quotes the SFAC 6 text. Do not use
+its definitions of assets and liabilities to decide whether an item is one. The five IFRS elements are assets, liabilities, equity, income,
 and expenses. IFRS income includes gains, and IFRS expenses include losses.
 
 ## Identities
@@ -145,13 +147,17 @@ Statement 8, Chapter 4. Each reference file names its `source`, `last-verified`,
 `update-frequency` in its header.
 
 1. When the skill loads, read the header of each reference file the task uses.
-2. If `last-verified` is more than 12 months old, or the header has `superseded-by`, check the
-   source before you rely on the file:
+2. If `last-verified` is more than 12 months old, check the source before you rely on the file:
    - US GAAP: the FASB Concepts Statements and the Accounting Standards Updates.
    - IFRS: the issued standards of the IFRS Foundation and their effective dates.
-3. If the source still holds, set `last-verified` to today.
+
+   If the header has `superseded-by`, the replacement is known. Tell the user the file is
+   superseded, and do not check again.
+3. If the source still holds, set `last-verified` to today in a PR of its own, not in the PR of
+   the task. If you cannot reach the source, tell the user the file is stale, and go on.
 4. If a newer document replaced the source, tell the user. Propose to:
-   - add `superseded-by` to the header and update the file from the new document,
+   - add `superseded-by` to the header, update the file from the new document, and rename the
+     file and its links,
    - update every statement of this skill that names the old document,
    - search the repository for the old name, for example `git grep -n "SFAC 6"`, and list the
      hits for a follow-up ticket.
