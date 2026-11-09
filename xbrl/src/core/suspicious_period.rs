@@ -45,10 +45,10 @@ const CONFIRMATION_YEARS: i32 = 3;
 /// The value key of the finding is the first input of the value. Another value confirms the
 /// flagged value if it meets each condition:
 ///
-/// - It has the same concept, unit, dimensions, and value.
+/// - It has the same entity, concept, unit, dimensions, and value.
 /// - It hits no signal.
-/// - It ends on the same month and day, in a year at most 3 from the year of the period of report
-///   of the flagged filing.
+/// - It ends on the same month and day as the flagged value, in a year at most 3 from the year of
+///   the period of report of the flagged filing.
 /// - It comes from another filing.
 ///
 /// If the flagged filing is missing from `filings` or has no period of report, no value confirms

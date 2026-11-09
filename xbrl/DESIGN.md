@@ -1014,8 +1014,8 @@ input names the typo.
 
 - It has the same entity, concept, unit, dimensions, and value.
 - It hits no signal.
-- It ends on the same month and day, in a year at most 3 from the year of the period of report of
-  the flagged filing.
+- It ends on the same month and day as the flagged value, in a year at most 3 from the year of the
+  period of report of the flagged filing.
 - It comes from another filing.
 
 The limit of 3 years keeps a common value, such as 0, of another year from confirming by chance.
