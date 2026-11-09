@@ -327,7 +327,7 @@ mod tests {
     use crate::core::confidence::Confidence;
     use crate::core::dedup::more_precise;
     use crate::core::elements::CanonicalElement;
-    use crate::core::fact::{AsIsFact, TaxonomyVersion};
+    use crate::core::fact::{AsIsFact, Decimals, TaxonomyVersion};
     use crate::core::taxonomy::reference::{Balance, PeriodType};
     use crate::core::taxonomy::registry::Registry;
     use crate::tests::fixtures::sample_fact::{date, fact, source};
@@ -574,6 +574,37 @@ mod tests {
         )];
 
         let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_exact_equity_with_noncontrolling_interest_when_registry_with_us_gaap_resolves_both_equity_tags()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "StockholdersEquity", "56950000000"),
+            fact(
+                &filing,
+                "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+                "57950000000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(57_950_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Exact,
+        }];
+
+        let result: Vec<CandidateValue> = resolve_aliases(&more_precise(&facts), &registry)
+            .candidates
+            .into_iter()
+            .map(|candidate| candidate.value)
+            .collect();
 
         assert_eq!(result, expected_result);
     }
