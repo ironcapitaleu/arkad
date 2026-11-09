@@ -251,7 +251,7 @@ equity, income, and expenses in the same terms. So US GAAP and IFRS both map int
 the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` both map to
 `Revenue`.
 
-- The MVP freezes the 13 Level-1 roots. Level 2 grows by the checklist of the `xbrl-accounting`
+- The MVP freezes the 13 Level-1 roots. Level 2 grows by the checklist of the `xbrl-standardization`
   skill.
 - A taxonomy concept with no faithful match stays an as-is fact. It never maps to the nearest
   element.

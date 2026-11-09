@@ -1,12 +1,20 @@
 ---
 source: FASB Statement of Financial Accounting Concepts No. 6 (1985)
-last-verified: 2026-06-14
-update-frequency: never
+last-verified: 2026-11-09
+update-frequency: annually
+superseded-by: FASB Concepts Statement No. 8, Chapter 4, Elements of Financial Statements (December 2021)
 ---
+
+> **Superseded.** FASB Concepts Statement No. 8, Chapter 4 (December 2021) replaced SFAC 6. It
+> keeps the ten elements. It changes the definitions of assets and liabilities: for example, it
+> drops "probable" and "past transactions or events". The text below is the SFAC 6 text of 1985.
+> Do not use its definitions of assets and liabilities to decide whether an item is one. Replace
+> the text with the text of Chapter 4 once the official text is at hand, and rename the file and
+> its links.
 
 # SFAC 6 — Elements of Financial Statements
 
-Source: FASB Statement of Financial Accounting Concepts No. 6, "Elements of Financial Statements" (December 1985). Unchanged since publication.
+Source: FASB Statement of Financial Accounting Concepts No. 6, "Elements of Financial Statements" (December 1985).
 
 ## The Ten Elements
 
@@ -53,13 +61,13 @@ Decreases in equity (net assets) from peripheral or incidental transactions of a
 ## Key Relationships (Identities)
 
 1. **Assets = Liabilities + Equity** (Balance Sheet)
-2. **Net Income = Revenue - Expenses + Gains - Losses** (Income Statement)
-3. **Comprehensive Income = Net Income + Other Comprehensive Income**
-4. **ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners**
-5. **ΔCash ≈ Operating CF + Investing CF + Financing CF** (Cash Flow Statement)
+2. **Comprehensive Income = Revenue - Expenses + Gains - Losses**
+3. **ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners**
+
+SFAC 6 defines no net income and no cash flow. The `accounting` skill lists the identities
+for them.
 
 ## Classification Rules
 
 - **Balance Sheet items** (Assets, Liabilities, Equity): measured at a point in time (Instant)
 - **Flow items** (Revenue, Expenses, Gains, Losses, Comprehensive Income): measured over a period (Duration)
-- **Cash Flow items**: measured over a period (Duration), classified by activity type
