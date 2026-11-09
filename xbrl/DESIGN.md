@@ -273,8 +273,8 @@ lines that no standard concept holds, so the children do not cover the parent.
 
 A child of a closed group can count as **zero if absent**. Most filers have no temporary equity, no
 noncontrolling interest, and no exchange rate effect, and they report no zero for it. If such a
-child has no value for the period, the group uses zero. `ExchangeRateEffect` has one limit: with no
-value, it counts as zero for the check but blocks the derivation (see "Derivation From a Closed
+child has no value for the period, the group uses zero. `ExchangeRateEffect` is an exception: with
+no value, it counts as zero for the check, but the group derives nothing (see "Derivation From a Closed
 Group").
 
 #### "Other" Lines
@@ -291,6 +291,9 @@ other = parent − start − Σ(weight × child)
   ancestor with a value. For example, a bank reports no `CurrentAssets`, so `CashAndEquivalents`
   counts against `Assets`. In the cascade, a step whose start has no value starts from the previous
   subtotal. The items of the skipped step join it.
+- If the start of a step has no value and the step has no previous subtotal, the step starts from
+  zero. Its other line then holds the start as well. An example is `operating-cash-flow` with no
+  `NetIncome`.
 - A closed group gets no other line. Its members must add up, and the check of "Checks the Tree
   Gives" tests it.
 - If a member of a closed group has no value and is not zero if absent, the group gets no check.
@@ -392,9 +395,13 @@ The other line of each open step has a name in the layout:
 
 #### Comprehensive Income
 
-Duration values. One closed step, `comprehensive-income`: `ComprehensiveIncome` = `NetIncome` +
-`OtherComprehensiveIncome`. `NetIncome` is the start, and `OtherComprehensiveIncome` is the item
-with weight `+1`. A filer can present it in one statement with the income statement or in a second
+Duration values. One closed step: `ComprehensiveIncome` = `NetIncome` + `OtherComprehensiveIncome`.
+
+| Concept | Group | Kind | Parent | Start | Weight | Closed |
+| ------- | ----- | ---- | ------ | ----- | ------ | ------ |
+| `ComprehensiveIncome` | top | | | | | |
+| `OtherComprehensiveIncome` | `comprehensive-income` | step | `ComprehensiveIncome` | `NetIncome` | +1 | yes |
+ A filer can present it in one statement with the income statement or in a second
 statement. The layout shows it as its own statement.
 
 #### Cash Flow Statement
@@ -657,7 +664,8 @@ parse.
 - The derived values of `core/roll-up/<group>@1` are rows of `standardized_facts`, with
   confidence `Derived` and the rule ID in `rule`.
 - `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. `concepts` holds the
-  parent of the group first, then its members in the order of the tables of "Roll-Up Tree". `reason` holds the name
+  parent of the group first, then the start of a step, then the other members in the order of the
+  tables of "Roll-Up Tree". `reason` holds the name
   of the group, such as `liabilities`.
 
 #### Worked Example
@@ -713,7 +721,8 @@ filing reports its cash flow lines only for this period:
 In this fixture, dedup blocks net income and D&A. Each has a three-month and a four-month copy that
 disagree (see "Dedup Rules"). The cash flow lines have only the four-month copy, so they pass dedup,
 and the series stores them under `quarters` 1. The example takes every line from the four-month
-copy to show the arithmetic only.
+copy to show the arithmetic only. In the series, net income and D&A have no value for this period,
+so the other operating cash flow is 390 − 16 = 374.
 
 #### Open Points
 

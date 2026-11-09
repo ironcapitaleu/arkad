@@ -271,7 +271,7 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | ------ | ---------- | ------- |
 | `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, or `NegativeOther` |
 | `entity_scheme`, `entity_id` | `utf8` | |
-| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree" |
+| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree" |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch` and `NegativeOther`, the name of the group of the roll-up tree, for example `liabilities` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
