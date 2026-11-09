@@ -1020,23 +1020,62 @@ mod tests {
     }
 
     #[test]
+    fn should_return_parts_of_depreciation_amortization_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(PartAliases {
+            rule: rule("us-gaap/part/depreciation-amortization@1"),
+            parts: vec![concept("us-gaap", "Depreciation")],
+            other_parts: vec![
+                concept("us-gaap", "AdjustmentForAmortization"),
+                concept(
+                    "us-gaap",
+                    "AmortizationAndDepreciationOfDecontaminatingAndDecommissioningAssets",
+                ),
+                concept("us-gaap", "AmortizationOfAcquisitionCosts"),
+                concept("us-gaap", "AmortizationOfAdvanceRoyalty"),
+                concept("us-gaap", "AmortizationOfDeferredPropertyTaxes"),
+                concept("us-gaap", "AmortizationOfDeferredSalesCommissions"),
+                concept("us-gaap", "AmortizationOfIntangibleAssets"),
+                concept("us-gaap", "AmortizationOfMortgageServicingRightsMSRs"),
+                concept("us-gaap", "AmortizationOfNuclearFuelLease"),
+                concept("us-gaap", "AmortizationOfPowerContractsEmissionCredits"),
+                concept("us-gaap", "AmortizationOfRateDeferral"),
+                concept("us-gaap", "AmortizationOfRegulatoryAsset"),
+                concept("us-gaap", "AmortizationOfValueOfBusinessAcquiredVOBA"),
+                concept("us-gaap", "CostOfGoodsAndServicesSoldAmortization"),
+                concept(
+                    "us-gaap",
+                    "DeferredPolicyAcquisitionCostAmortizationExpense",
+                ),
+                concept("us-gaap", "DeferredSalesInducementsAmortizationExpense"),
+                concept("us-gaap", "FinanceLeaseRightOfUseAssetAmortization"),
+                concept("us-gaap", "OtherAmortizationOfDeferredCharges"),
+                concept(
+                    "us-gaap",
+                    "PresentValueOfFutureInsuranceProfitsAmortizationExpense1",
+                ),
+                concept("us-gaap", "OtherDepreciationAndAmortization"),
+                concept("us-gaap", "Depletion"),
+                concept("us-gaap", "CostDepletion"),
+                concept("us-gaap", "DepletionOfOilAndGasProperties"),
+            ],
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::DepreciationAmortization)
+            .and_then(|aliases| aliases.parts.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_parts_of_cash_flow_concepts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
-            (
-                CanonicalElement::DepreciationAmortization,
-                PartAliases {
-                    rule: rule("us-gaap/part/depreciation-amortization@1"),
-                    parts: vec![concept("us-gaap", "Depreciation")],
-                    other_parts: vec![
-                        concept("us-gaap", "AdjustmentForAmortization"),
-                        concept("us-gaap", "AmortizationOfIntangibleAssets"),
-                        concept("us-gaap", "Depletion"),
-                        concept("us-gaap", "OtherDepreciationAndAmortization"),
-                    ],
-                },
-            ),
             (
                 CanonicalElement::CapitalExpenditures,
                 PartAliases {
@@ -1097,7 +1136,10 @@ mod tests {
         let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
             .aliases()
             .iter()
-            .filter(|aliases| CASH_FLOW.contains(&aliases.element))
+            .filter(|aliases| {
+                CASH_FLOW.contains(&aliases.element)
+                    && aliases.element != CanonicalElement::DepreciationAmortization
+            })
             .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
 
@@ -2170,6 +2212,75 @@ mod tests {
         let facts = vec![
             fact(&filing, "InterestExpenseNonoperating", "40000000"),
             fact(&filing, "InterestExpenseDeposits", "300000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_depreciation_amortization_when_the_filing_reports_depreciation_next_to_oil_and_gas_depletion()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "Depreciation", "100000000"),
+            fact(&filing, "DepletionOfOilAndGasProperties", "400000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_depreciation_amortization_part_rule_id_when_the_filing_reports_depreciation_next_to_financing_cost_amortization()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "Depreciation", "100000000"),
+            fact(
+                &filing,
+                "AmortizationOfFinancingCostsAndDiscounts",
+                "5000000",
+            ),
+        ];
+
+        let expected_result = vec![(
+            CanonicalElement::DepreciationAmortization,
+            rule("us-gaap/part/depreciation-amortization@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_depreciation_amortization_when_the_filing_reports_depreciation_next_to_lease_amortization()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "Depreciation", "100000000"),
+            fact(
+                &filing,
+                "FinanceLeaseRightOfUseAssetAmortization",
+                "20000000",
+            ),
         ];
 
         let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
