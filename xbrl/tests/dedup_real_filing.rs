@@ -11,7 +11,7 @@
 //! `DESIGN.md`, "Value Key"). The four months hold June plus the quarter, so no pair agrees, and
 //! all 99 keys are conflicts.
 //!
-//! The tests resolve the facts with [`UsGaap`] and its alias lists. They check revenue only.
+//! The tests that resolve use [`UsGaap`] and its alias lists, and check revenue only.
 //!
 //! ## External Dependencies
 //!

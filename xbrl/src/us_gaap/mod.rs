@@ -520,11 +520,11 @@ mod tests {
             element: CanonicalElement::Equity,
             rule: rule("us-gaap/alias/equity@1"),
             concepts: vec![
-                concept("us-gaap", "StockholdersEquity"),
                 concept(
                     "us-gaap",
                     "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
                 ),
+                concept("us-gaap", "StockholdersEquity"),
             ],
         });
 

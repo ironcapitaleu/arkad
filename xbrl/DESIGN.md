@@ -515,7 +515,7 @@ ticket decides where the removed elements live.
   element that a release before 2026 removed.
 - The calculation tree holds the arcs of every role. Each arc names its role.
 - `aliases()` returns one alias list per definition of `mappings.rs`. `UsGaap::new` builds the
-  lists from the definitions, so each list exists once. Each definition names its rule ID as a
+  lists from the definitions, so the `xbrl` crate holds each list once. Each definition names its rule ID as a
   const next to the list. The rule name is the kebab case of the standard concept, at version 1,
   for example `us-gaap/alias/operating-cash-flow@1`.
 

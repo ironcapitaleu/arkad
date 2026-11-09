@@ -4,7 +4,7 @@
 //! XBRL taxonomy concept names to canonical financial elements.
 //!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
-//! canonical element, as `xbrl/DESIGN.md`, "Rule IDs", describes.
+//! canonical element, as `xbrl/DESIGN.md`, "`us_gaap`", describes.
 //!
 //! ## Two-Tier Validation
 //! - **Required**: Structural backbone concepts every public company reports.
@@ -126,9 +126,12 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::Equity,
+        // The total with the noncontrolling interest comes first, because it is the equity of
+        // `Assets = Liabilities + Equity`. A filer without a noncontrolling interest reports only
+        // `StockholdersEquity`.
         &[
-            "StockholdersEquity",
             "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+            "StockholdersEquity",
         ],
         EQUITY_RULE,
         true,
