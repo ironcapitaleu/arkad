@@ -291,6 +291,10 @@ other = parent − start − Σ(weight × child)
   subtotal. The items of the skipped step join it.
 - A closed group gets no other line. Its members must add up, and the check of "Checks the Tree
   Gives" tests it.
+- If a member of a closed group has no value and is not zero if absent, the group gets no check.
+  If the children of a transparent member count in a closed group, the group becomes open for that
+  period and gets an other line. For example, a bank reports no `CurrentAssets` and no
+  `NonCurrentAssets`. Then `assets` shows the children of both and an other line.
 - **Silver does not store other lines.** The statement output type computes them at read time from
   the standardized facts and the table. An other line is a pure function of stored values and a
   fixed table. A stored copy goes stale whenever a child or the table changes, and it has no as-is
@@ -376,7 +380,8 @@ The other line of each open step has a name in the layout:
   interest expense. Many filers use it for a total that includes interest. The other line of
   `pretax-income` holds the same amount without that doubt.
 - A single-step filer reports `CostsAndExpenses` and no gross profit. Then `GrossProfit` has no
-  value, `operating-income` starts from `Revenue`, and the cost of revenue counts in the step.
+  value, because `gross-profit` never derives its parent. `operating-income` starts from `Revenue`,
+  and the cost of revenue counts in the step.
 - Known limit: some filers tag their total costs, cost of revenue included, as
   `OperatingExpenses`. If such a filer also reports `CostOfRevenue`, the cascade counts the cost of
   revenue twice. The other line of
@@ -476,6 +481,20 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
 - Every member must have the same unit. The confidence is `Derived`, or the weakest confidence of
   an input.
 - Open groups give no derivation. Their other line is unknown.
+- `gross-profit` never derives its parent. A single-step filer chooses not to present gross
+  profit, and its cost of revenue can leave out depreciation. The group can still derive
+  `Revenue` or `CostOfRevenue`.
+- `ExchangeRateEffect` counts as zero for the check of `net-change-in-cash`, but not to derive a
+  value. Filings before 2018 report the exchange rate effect under
+  `EffectOfExchangeRateOnCashAndCashEquivalents`. That concept leaves out restricted cash, so it is
+  no alias. If it counted as zero, the rule would derive a wrong `NetChangeInCash` for every
+  multinational before 2018.
+- In each pass, the rule visits the groups in the order of the group table. The first group that
+  gives a value wins. Every other group that holds the member is still checked, so a disagreement
+  is a `RollUpMismatch` finding.
+- The series key (`period_end`, `quarters`) does not tell a three-month value from a four-month
+  value in Notes. So the rule can combine the two, as the cash flow of "Worked Example" shows. The
+  dedup conflict of such a key blocks both values, so the rule gets no input from it.
 
 This rule fills common gaps. In CY2025, 5,564 filers reported `Liabilities`, and 6,090 reported
 `LiabilitiesAndStockholdersEquity`. Only 781 reported `AssetsNoncurrent`, against 4,908 for
@@ -669,14 +688,15 @@ The derived `Liabilities` of 7,468 equals `LiabilitiesCurrent` + `LiabilitiesNon
 group `liabilities` holds. `LongTermDebt` has no value: the filing reports `LongTermDebt`, which
 also holds the current maturities, and that concept is not in the list.
 
-Cash flow statement, quarter to 2026-09-30, the copy of rank 0:
+Cash flow statement, the four-month copy that ends on 2026-09-30 (`qtrs` 1, `durp` −0.326). The
+filing reports its cash flow lines only for this period:
 
 | Line | Value | Source |
 | ---- | ----- | ------ |
-| Net income | 147 | `NetIncomeLoss`, part rule |
-| Depreciation and amortization | 114 | `DepreciationDepletionAndAmortization` |
+| Net income | 230 | `NetIncomeLoss`, part rule |
+| Depreciation and amortization | 152 | `DepreciationDepletionAndAmortization` |
 | Share-based compensation | 16 | `ShareBasedCompensation` |
-| Other operating cash flow | 113 | other line |
+| Other operating cash flow | −8 | other line |
 | Operating cash flow | 390 | `NetCashProvidedByUsedInOperatingActivities` |
 | Capital expenditures | −151 | `PaymentsToAcquireProductiveAssets`, weight −1 |
 | Other investing cash flow | 13 | other line: proceeds from the sale of equipment |
@@ -685,8 +705,10 @@ Cash flow statement, quarter to 2026-09-30, the copy of rank 0:
 | Exchange rate effect | −1 | |
 | Net change in cash | 137 | 390 − 138 − 114 − 1. The closed group holds |
 
-In this fixture, dedup blocks the quarter values, because a four-month copy conflicts with each
-one (see "Dedup Rules"). The example uses the copy of rank 0 to show the arithmetic only.
+In this fixture, dedup blocks these values, because a four-month copy and a three-month copy share
+each value key (see "Dedup Rules"). Net income and D&A have both copies. The cash flow lines have
+only the four-month copy. The example takes every line from the four-month copy to show the
+arithmetic only.
 
 #### Open Points
 
@@ -1895,7 +1917,9 @@ Exact invariant violations produce `InconsistentIdentity` (hard error). Non-exac
 The series step does not fail on a broken identity. It records each failed check of the roll-up tree
 as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
 validates one statement, such as a publish gate. `NetIncomeIdentity` goes away with `Expenses`,
-`Gains`, and `Losses`.
+`Gains`, and `Losses`. The checks of the series step use the tolerance of "Checks the Tree Gives",
+for every group and identity. `is_exact()` applies only to a caller that validates one statement
+with values the core computed.
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1959,7 +1983,7 @@ pub struct StatementLine {
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. The table
   gives each concept one statement, so `build` rejects a fact of another kind at run time.
 - Typed structs per statement were the alternative. They catch a wrong period type at compile
-  time, but a map from `CanonicalElement` to a fact still accepts a concept of another statement.
+  time. But a map from `CanonicalElement` to a fact still accepts a concept of another statement.
   The table already holds the statement of each concept, so a typed struct adds no check.
 - Side groups need no layout. A reader takes their values from the standardized facts.
 - Silver stores no statement. The gold load builds statements with this type.
