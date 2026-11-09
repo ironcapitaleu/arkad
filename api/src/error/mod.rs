@@ -14,6 +14,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
 
+use crate::shared::pascal_case::InvalidPascalCase;
+
 pub mod problem;
 
 pub use problem::Problem;
@@ -25,6 +27,10 @@ pub enum ApiError {
     /// No route matches the path of the request.
     #[error("[NotFound] No route matches the path")]
     NotFound,
+
+    /// The server failed to answer the request. The body carries no internal detail.
+    #[error("[InternalError] The server failed to answer the request")]
+    InternalError,
 }
 
 impl ApiError {
@@ -33,6 +39,7 @@ impl ApiError {
     pub const fn status(self) -> StatusCode {
         match self {
             Self::NotFound => StatusCode::NOT_FOUND,
+            Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
@@ -41,6 +48,7 @@ impl ApiError {
     pub const fn code(self) -> &'static str {
         match self {
             Self::NotFound => "not_found",
+            Self::InternalError => "internal_error",
         }
     }
 
@@ -49,6 +57,7 @@ impl ApiError {
     pub const fn title(self) -> &'static str {
         match self {
             Self::NotFound => "Not found",
+            Self::InternalError => "Internal error",
         }
     }
 
@@ -57,6 +66,7 @@ impl ApiError {
     pub const fn detail(self) -> &'static str {
         match self {
             Self::NotFound => "The path does not exist.",
+            Self::InternalError => "The server failed to answer the request.",
         }
     }
 }
@@ -71,6 +81,14 @@ impl IntoResponse for ApiError {
         let mut response = self.status().into_response();
         response.extensions_mut().insert(self);
         response
+    }
+}
+
+impl From<InvalidPascalCase> for ApiError {
+    /// Converts an [`InvalidPascalCase`] into [`ApiError::InternalError`], because the name comes
+    /// from the server and not from the client.
+    fn from(_: InvalidPascalCase) -> Self {
+        Self::InternalError
     }
 }
 
@@ -124,6 +142,17 @@ mod tests {
         let expected_result = "[NotFound] No route matches the path";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_become_internal_error_when_converting_invalid_pascal_case() {
+        let error = InvalidPascalCase::new("netIncome");
+
+        let expected_result = ApiError::InternalError;
+
+        let result = ApiError::from(error);
 
         assert_eq!(result, expected_result);
     }

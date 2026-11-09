@@ -16,6 +16,7 @@
           "concepts"
         ],
         "summary": "Answers `GET /v1/concepts` with every concept that `xbrl` maps from US-GAAP.",
+        "description": "# Errors\n\nReturns [`ApiError::InternalError`] if the name of a mapped element is not in `PascalCase`.",
         "operationId": "list_concepts",
         "responses": {
           "200": {
@@ -24,6 +25,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ConceptList"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server failed to build the list",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
