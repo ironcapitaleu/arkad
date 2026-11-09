@@ -201,8 +201,9 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::NonCurrentAssets,
-        // Most filers report no noncurrent total. Tier 4 then sums the children of
-        // `AssetsNoncurrent` along the calculation tree.
+        // Most filers report no noncurrent total. Tier 4, which is not built yet, sums the
+        // children of `AssetsNoncurrent` along the calculation tree only if the filing reports
+        // every child. So most filings give no value for this concept.
         &["AssetsNoncurrent"],
         NON_CURRENT_ASSETS_RULE,
         false,
@@ -258,13 +259,10 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::IntangibleAssets,
-        // `FiniteLivedIntangibleAssetsNet` is narrower than the standard concept: it holds no
-        // indefinite-lived intangible assets. A filer with only finite-lived intangible assets
-        // reports only this concept, so for that filer the two are the same amount.
-        &[
-            "IntangibleAssetsNetExcludingGoodwill",
-            "FiniteLivedIntangibleAssetsNet",
-        ],
+        // `FiniteLivedIntangibleAssetsNet` is not in the list. It is one part of the total, so a
+        // filer that reports it next to `IndefiniteLivedIntangibleAssetsExcludingGoodwill` would
+        // get the part as the total.
+        &["IntangibleAssetsNetExcludingGoodwill"],
         INTANGIBLE_ASSETS_RULE,
         false,
     ),
@@ -276,8 +274,9 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         CanonicalElement::NonCurrentLiabilities,
-        // Most filers report no noncurrent total. Tier 4 then sums the children of
-        // `LiabilitiesNoncurrent` along the calculation tree.
+        // Most filers report no noncurrent total. Tier 4, which is not built yet, sums the
+        // children of `LiabilitiesNoncurrent` along the calculation tree only if the filing
+        // reports every child. So most filings give no value for this concept.
         &["LiabilitiesNoncurrent"],
         NON_CURRENT_LIABILITIES_RULE,
         false,

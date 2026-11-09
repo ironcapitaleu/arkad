@@ -541,7 +541,7 @@ mod tests {
     fn should_find_reference_data_for_every_alias_except_the_removed_ones_when_created() {
         let us_gaap = UsGaap::new();
 
-        // `xbrl/DESIGN.md`, "Release in Use Today", names these two as removed before 2026.
+        // `xbrl/DESIGN.md`, "Release in Use Today", names these two as not in the 2026 release.
         let expected_result = vec![
             concept("us-gaap", "IncomeLossFromOperations"),
             concept("us-gaap", "SalesRevenueNet"),

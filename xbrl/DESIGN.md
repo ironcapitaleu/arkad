@@ -424,10 +424,11 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 33 tags are picked by hand from filings. 31 of them
+- `us_gaap/mappings.rs` names no release. Its 32 tags are picked by hand from filings. 30 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated) and `IncomeLossFromOperations` are not.
-  A unit test checks this. An alias list bridges renames across releases, so it does not come from
-  one release.
+  The unit test `should_find_reference_data_for_every_alias_except_the_removed_ones_when_created`
+  checks that the other 30 are in the 2026 schema. An alias list bridges renames across releases,
+  so it does not come from one release.
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
   Code").
 - The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB
@@ -1528,5 +1529,5 @@ This touches the `sec` crate's public API and downstream consumers.
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for Level 2
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 2 of its 14 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 2 of its 32 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element
