@@ -16,7 +16,7 @@
           "concepts"
         ],
         "summary": "Answers `GET /v1/concepts` with every concept that `xbrl` maps from US-GAAP.",
-        "description": "# Errors\n\nReturns [`ApiError::InternalError`] if the name of a mapped element is not in `PascalCase`.",
+        "description": "Lists every concept that `xbrl` maps from US-GAAP, the required concepts first.",
         "operationId": "list_concepts",
         "responses": {
           "200": {
