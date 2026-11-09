@@ -11,8 +11,7 @@
 //! `DESIGN.md`, "Value Key"). The four months hold June plus the quarter, so no pair agrees, and
 //! all 99 keys are conflicts.
 //!
-//! The fake plug-in holds the revenue alias list of the fixtures until the US GAAP plug-in has
-//! its own lists.
+//! The tests resolve the facts with [`UsGaap`] and its alias lists. They check revenue only.
 //!
 //! ## External Dependencies
 //!
@@ -34,21 +33,19 @@ use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::finding::Finding;
 use xbrl::core::taxonomy::registry::Registry;
 use xbrl::core::unit::Unit;
-use xbrl::tests::fixtures::data::fixture_taxonomy_with_aliases;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
-use xbrl::tests::fixtures::sample_fact::{date, revenue_aliases};
+use xbrl::tests::fixtures::sample_fact::date;
+use xbrl::us_gaap::UsGaap;
 
-/// The as-is concept of revenue in the fixture filing, the third concept of the revenue alias list.
+/// The as-is concept of revenue in the fixture filing, the second concept of the revenue alias list.
 const REVENUE_CONCEPT: &str = "RevenueFromContractWithCustomerExcludingAssessedTax";
 
-/// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts` with the fixture plug-in and the
-/// revenue alias list.
+/// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts` with [`UsGaap`].
 fn candidates_of(facts: &[AsIsFact]) -> FilingCandidates {
-    let plugin = fixture_taxonomy_with_aliases(vec![revenue_aliases()]);
-    let registry = Registry::new(vec![&plugin]).expect(
-        "Given one plug-in with four distinct families, the creation should always succeed",
-    );
+    let plugin = UsGaap::new();
+    let registry = Registry::new(vec![&plugin])
+        .expect("Given one plug-in with distinct families, the creation should always succeed");
     resolve_aliases(&more_precise(facts), &registry)
 }
 
@@ -234,7 +231,7 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     // Only the month of June has no conflict. June lasts 30 days, so its length rounds to 0
-    // quarters. Its concept is the third of the alias list, so its confidence is a synonym.
+    // quarters. Its concept is the second of the alias list, so its confidence is a synonym.
     let expected_result = vec![
         (
             date(2025, 6, 30),
@@ -250,9 +247,13 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
         ),
     ];
 
-    let Series { facts: revenue, .. } = newest_filing(&candidates_of(&facts).candidates);
-    let result: Vec<(NaiveDate, u16, BigDecimal, Confidence)> = revenue
+    let Series {
+        facts: standardized,
+        ..
+    } = newest_filing(&candidates_of(&facts).candidates);
+    let result: Vec<(NaiveDate, u16, BigDecimal, Confidence)> = standardized
         .into_iter()
+        .filter(|fact| fact.concept == CanonicalElement::Revenue)
         .map(|fact| {
             (
                 fact.period.end(),
@@ -298,7 +299,11 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
         ),
     ];
 
-    let result = newest_filing(&candidates_of(&facts).candidates).blocked;
+    let result: Vec<SeriesKey> = newest_filing(&candidates_of(&facts).candidates)
+        .blocked
+        .into_iter()
+        .filter(|key| key.concept == CanonicalElement::Revenue)
+        .collect();
 
     assert_eq!(result, expected_result);
 }

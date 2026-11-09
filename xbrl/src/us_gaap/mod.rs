@@ -21,6 +21,7 @@ use bigdecimal::BigDecimal;
 
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
+use crate::core::rule::RuleId;
 use crate::core::taxonomy::Taxonomy;
 use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{
@@ -143,12 +144,14 @@ const FAMILIES: &[FamilySpec] = &[
 
 /// The plug-in for US GAAP filings.
 ///
-/// It holds the release, the family declarations, the calculation tree, and the element
-/// reference data of the generated tables.
+/// It holds the release, the family declarations, the alias lists of [`mappings`], the
+/// calculation tree, and the element reference data of the generated tables.
 ///
-/// [`Taxonomy::aliases`] returns no alias list yet. [`Taxonomy::elements`] holds the elements of
-/// the 2026 schema, including the ones the schema marks as deprecated. It holds no element that an
-/// earlier release removed, such as `SalesRevenueNet`.
+/// [`Taxonomy::aliases`] returns one alias list per definition of
+/// [`mappings::REQUIRED_CONCEPTS`] and [`mappings::OPTIONAL_CONCEPTS`], in that order.
+/// [`Taxonomy::elements`] holds the elements of the 2026 schema, including the ones the schema
+/// marks as deprecated. It holds no element that an earlier release removed, such as
+/// `SalesRevenueNet`.
 ///
 /// # Examples
 ///
@@ -168,17 +171,19 @@ const FAMILIES: &[FamilySpec] = &[
 pub struct UsGaap {
     release: TaxonomyRelease,
     families: Vec<FamilyDeclaration>,
+    aliases: Vec<ConceptAliases>,
     calculation_tree: CalculationTree,
     elements: Vec<ElementReference>,
 }
 
 impl UsGaap {
-    /// Creates a [`UsGaap`] from the generated tables.
+    /// Creates a [`UsGaap`] from the generated tables and the definitions of [`mappings`].
     ///
     /// # Panics
     ///
-    /// Panics if a value of the generated tables or of the family declarations breaks the rule of
-    /// its type. The unit tests build the plug-in, so a bad table fails them.
+    /// Panics if a value of the generated tables, of the family declarations, or of the
+    /// definitions breaks the rule of its type. The unit tests build the plug-in, so a bad value
+    /// fails them.
     #[must_use]
     pub fn new() -> Self {
         let release_id = TaxonomyReleaseId::new(taxonomy::RELEASE_ID)
@@ -191,6 +196,11 @@ impl UsGaap {
                 checksum,
             },
             families: FAMILIES.iter().map(declaration).collect(),
+            aliases: mappings::REQUIRED_CONCEPTS
+                .iter()
+                .chain(mappings::OPTIONAL_CONCEPTS)
+                .map(concept_aliases)
+                .collect(),
             calculation_tree: CalculationTree {
                 arcs: taxonomy::CALCULATION_ARCS
                     .iter()
@@ -221,7 +231,7 @@ impl Taxonomy for UsGaap {
     }
 
     fn aliases(&self) -> &[ConceptAliases] {
-        &[]
+        &self.aliases
     }
 
     fn calculation_tree(&self) -> &CalculationTree {
@@ -270,6 +280,20 @@ fn declaration(spec: &FamilySpec) -> FamilyDeclaration {
         .expect("Given a declaration of the plug-in, the creation should always succeed")
 }
 
+/// Returns the alias list of one definition of [`mappings`].
+fn concept_aliases(definition: &mappings::ConceptDefinition) -> ConceptAliases {
+    ConceptAliases {
+        element: definition.canonical_element(),
+        rule: RuleId::from_str(definition.alias_rule())
+            .expect("Given a rule ID of the definitions, the parse should always succeed"),
+        concepts: definition
+            .xbrl_keys()
+            .iter()
+            .map(|name| concept(US_GAAP_FAMILY, name))
+            .collect(),
+    }
+}
+
 /// Returns the calculation arc of one row of the tables.
 fn calculation_arc(row: &table::CalculationRow) -> CalculationArc {
     CalculationArc {
@@ -298,9 +322,15 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::fact::TaxonomyVersion;
+    use crate::core::alias::resolve_aliases;
+    use crate::core::candidate::CandidateValue;
+    use crate::core::confidence::Confidence;
+    use crate::core::dedup::more_precise;
+    use crate::core::elements::CanonicalElement;
+    use crate::core::fact::{AsIsFact, TaxonomyVersion};
     use crate::core::taxonomy::reference::{Balance, PeriodType};
     use crate::core::taxonomy::registry::Registry;
+    use crate::tests::fixtures::sample_fact::{date, fact, source};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -380,6 +410,170 @@ mod tests {
         ));
 
         let result = registry.split_notes_version(notes_version);
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn rule(text: &str) -> RuleId {
+        RuleId::from_str(text).expect(
+            "Given a hardcoded rule ID in the documented form, the parse should always succeed",
+        )
+    }
+
+    /// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts`, and returns the standard
+    /// concept, the rule ID, and the confidence of each candidate. A blocked candidate has no
+    /// confidence.
+    fn resolve(
+        facts: &[AsIsFact],
+        registry: &Registry<'_>,
+    ) -> Vec<(CanonicalElement, RuleId, Option<Confidence>)> {
+        resolve_aliases(&more_precise(facts), registry)
+            .candidates
+            .into_iter()
+            .map(|candidate| {
+                let confidence = match candidate.value {
+                    CandidateValue::Reported { confidence, .. } => Some(confidence),
+                    CandidateValue::Blocked => None,
+                };
+                (candidate.concept, candidate.rule, confidence)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn should_return_rule_id_of_each_alias_list_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (CanonicalElement::Revenue, rule("us-gaap/alias/revenue@1")),
+            (
+                CanonicalElement::OperatingIncome,
+                rule("us-gaap/alias/operating-income@1"),
+            ),
+            (
+                CanonicalElement::NetIncome,
+                rule("us-gaap/alias/net-income@1"),
+            ),
+            (CanonicalElement::Assets, rule("us-gaap/alias/assets@1")),
+            (
+                CanonicalElement::Liabilities,
+                rule("us-gaap/alias/liabilities@1"),
+            ),
+            (CanonicalElement::Equity, rule("us-gaap/alias/equity@1")),
+            (
+                CanonicalElement::OperatingCashFlow,
+                rule("us-gaap/alias/operating-cash-flow@1"),
+            ),
+            (
+                CanonicalElement::InvestingCashFlow,
+                rule("us-gaap/alias/investing-cash-flow@1"),
+            ),
+            (
+                CanonicalElement::FinancingCashFlow,
+                rule("us-gaap/alias/financing-cash-flow@1"),
+            ),
+        ];
+
+        let result: Vec<(CanonicalElement, RuleId)> = us_gaap
+            .aliases()
+            .iter()
+            .map(|aliases| (aliases.element, aliases.rule.clone()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_revenue_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(&ConceptAliases {
+            element: CanonicalElement::Revenue,
+            rule: rule("us-gaap/alias/revenue@1"),
+            concepts: vec![
+                concept("us-gaap", "Revenues"),
+                concept(
+                    "us-gaap",
+                    "RevenueFromContractWithCustomerExcludingAssessedTax",
+                ),
+                concept("us-gaap", "SalesRevenueNet"),
+                concept(
+                    "us-gaap",
+                    "RevenueFromContractWithCustomerIncludingAssessedTax",
+                ),
+            ],
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::Revenue);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_equity_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = Some(&ConceptAliases {
+            element: CanonicalElement::Equity,
+            rule: rule("us-gaap/alias/equity@1"),
+            concepts: vec![
+                concept("us-gaap", "StockholdersEquity"),
+                concept(
+                    "us-gaap",
+                    "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest",
+                ),
+            ],
+        });
+
+        let result = us_gaap
+            .aliases()
+            .iter()
+            .find(|aliases| aliases.element == CanonicalElement::Equity);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_revenue_rule_id_when_registry_with_us_gaap_resolves_revenues() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(&filing, "Revenues", "391035000000")];
+
+        let expected_result = vec![(
+            CanonicalElement::Revenue,
+            rule("us-gaap/alias/revenue@1"),
+            Some(Confidence::Exact),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_revenue_rule_id_when_registry_with_us_gaap_resolves_later_alias() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "391035000000",
+        )];
+
+        let expected_result = vec![(
+            CanonicalElement::Revenue,
+            rule("us-gaap/alias/revenue@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
 
         assert_eq!(result, expected_result);
     }
