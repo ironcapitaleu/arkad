@@ -18,7 +18,7 @@ use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
 use super::form::Form;
 use super::invalid_value::{InvalidValue, InvalidValueReason};
-use super::period::{Duration, days_of_quarters};
+use super::period::{Duration, Period, days_of_quarters};
 use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
 
@@ -82,9 +82,10 @@ pub struct Chronology {
 ///
 /// - A **gap** is an expected period between the first and the last filled period, with no value
 ///   that ends within 7 days of it. A value of any length fills it. A blocked value gives the
-///   reason [`GapReason::Conflict`]. A gap names the length of its expected period in quarters, or
-///   0 if every value of the timeline is an instant. Otherwise a gap in the 12 months after the last report
-///   period under an old fiscal year end gives the reason [`GapReason::FiscalYearChange`].
+///   reason [`GapReason::Conflict`]. Otherwise a gap in the 12 months after the last report
+///   period under an old fiscal year end gives the reason [`GapReason::FiscalYearChange`]. A gap
+///   names the length of its expected period in quarters, or 0 if every value of the timeline is
+///   an instant.
 /// - An **overlap** is a pair of values of the same length whose ends lie closer than that length,
 ///   less 7 days.
 /// - A **restatement** is a value with `restated`.
@@ -152,11 +153,12 @@ impl Timeline {
 }
 
 /// The period ends of one timeline: of the values, with their length in quarters, and of the
-/// blocked keys.
+/// blocked keys. `has_duration` is `true` if a value of the timeline is a duration.
 #[derive(Debug, Default)]
 struct Ends {
     reported: BTreeSet<(NaiveDate, u16)>,
     blocked: BTreeSet<NaiveDate>,
+    has_duration: bool,
 }
 
 fn timelines(series: &Series) -> BTreeMap<Timeline, Ends> {
@@ -165,6 +167,7 @@ fn timelines(series: &Series) -> BTreeMap<Timeline, Ends> {
         let key = fact.series_key();
         let ends = timelines.entry(Timeline::of(&key)).or_default();
         ends.reported.insert((key.period_end, key.quarters));
+        ends.has_duration |= matches!(fact.period, Period::Duration(_));
     }
     for key in &series.blocked {
         let ends = timelines.entry(Timeline::of(key)).or_default();
@@ -185,10 +188,6 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
     ) else {
         return Vec::new();
     };
-    let is_instant = ends
-        .reported
-        .iter()
-        .all(|&(_, quarters)| quarters == INSTANT_QUARTERS);
     calendar.expected[first..last]
         .iter()
         .filter(|expected| !filled(expected))
@@ -199,10 +198,10 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
             dimensions: timeline.dimensions.clone(),
             period_end: expected.end,
             fiscal_period: expected.fiscal_period.clone(),
-            quarters: if is_instant {
-                INSTANT_QUARTERS
-            } else {
+            quarters: if ends.has_duration {
                 expected.quarters
+            } else {
+                INSTANT_QUARTERS
             },
             reason: calendar.reason(expected.end, &ends.blocked),
         })
@@ -339,7 +338,7 @@ pub(super) fn is_form(form: &Form, forms: &[&str]) -> bool {
 
 /// Returns the length in quarters of the fiscal year that ends at `year_end`. A `10-KT` reports a
 /// transition period, so its length runs from the previous fiscal year end, rounded as
-/// [`Duration::from_dates`] rounds, and limited to 1 to 4 quarters. Every other fiscal year, and a
+/// [`Duration::from_dates`] rounds, and limited to 4 quarters. Every other fiscal year, and a
 /// `10-KT` with no previous fiscal year end, is 4 quarters.
 fn year_quarters(filings: &[&Filing], previous: Option<NaiveDate>, year_end: NaiveDate) -> u16 {
     let is_transition = filings.iter().any(|filing| {
@@ -348,7 +347,7 @@ fn year_quarters(filings: &[&Filing], previous: Option<NaiveDate>, year_end: Nai
     match previous {
         Some(previous) if is_transition => Duration::from_dates(previous, year_end)
             .map_or(YEAR_QUARTERS, |duration| {
-                duration.quarters().clamp(QUARTER_QUARTERS, YEAR_QUARTERS)
+                duration.quarters().min(YEAR_QUARTERS)
             }),
         _ => YEAR_QUARTERS,
     }
@@ -518,7 +517,6 @@ mod tests {
 
     use super::*;
     use crate::core::finding::PeriodSignal;
-    use crate::core::period::Period;
     use crate::core::standardized::StandardizedFact;
     use crate::tests::fixtures::sample_fact::{date, fact, filing, source, standardized};
 
@@ -1114,7 +1112,7 @@ mod tests {
     }
 
     #[test]
-    fn should_limit_transition_period_to_1_quarter_when_10_kt_ends_a_month_after_the_year_end() {
+    fn should_give_transition_period_0_quarters_when_10_kt_ends_a_month_after_the_year_end() {
         let facts = vec![value(date(2022, 12, 31), 4), value(date(2023, 4, 30), 1)];
         let filings = vec![
             filing("10-K", date(2022, 12, 31), "0131"),
@@ -1122,7 +1120,7 @@ mod tests {
             filing("10-Q", date(2023, 4, 30), "0131"),
         ];
 
-        let expected_result = vec![gap(date(2023, 1, 31), "FY", 1, None)];
+        let expected_result = vec![gap(date(2023, 1, 31), "FY", 0, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -1148,6 +1146,18 @@ mod tests {
         let filings = quarterly_filings();
 
         let expected_result = vec![gap(date(2024, 3, 30), "Q2", 0, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_gap_the_expected_length_when_every_duration_of_the_timeline_rounds_to_0() {
+        let facts = vec![value(date(2023, 12, 30), 0), value(date(2024, 6, 29), 0)];
+        let filings = quarterly_filings();
+
+        let expected_result = vec![gap(date(2024, 3, 30), "Q2", 1, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 

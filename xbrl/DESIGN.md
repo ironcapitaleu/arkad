@@ -1005,13 +1005,17 @@ It never fails.
   an expected period.
 - **Length.** `Finding::Gap` names the length of the expected period in `quarters`, as in the
   value key. A Q4 value and a fiscal year value share `period_end`, so the length is part of the
-  key. A step of 3 months gives 1 quarter, a step of 12 months 4 quarters. A quarterly report gives
-  1 quarter, a `10-QT` included. A fiscal year end gives 4 quarters, except at a `10-KT`. A `10-KT`
-  reports a transition period, which is shorter than a year. Its length runs from the previous
-  fiscal year end, rounded as `Duration::from_dates` rounds, and is limited to 1 to 4 quarters. So
-  a `10-KT` more than a year after the previous fiscal year end gives 4 quarters, because a fiscal
-  year report between them is missing. A `10-KT` with no previous fiscal year end gives 4 quarters.
-  If every value of the timeline is an instant, as on a balance sheet, the gap has 0 quarters.
+  key.
+  - A step of 3 months gives 1 quarter, a step of 12 months 4 quarters.
+  - A quarterly report gives 1 quarter, a `10-QT` included.
+  - A fiscal year end gives 4 quarters, except at a `10-KT`.
+  - A `10-KT` reports a transition period, which is shorter than a year. Its length runs from the
+    previous fiscal year end, rounded as `Duration::from_dates` rounds, and is limited to 4
+    quarters. So a `10-KT` within 45 days of the previous fiscal year end gives 0 quarters, as its
+    value key does. A `10-KT` more than a year after the previous fiscal year end gives 4
+    quarters, because a fiscal year report between them is missing. A `10-KT` with no previous
+    fiscal year end gives 4 quarters.
+  - If no value of the timeline is a duration, as on a balance sheet, the gap has 0 quarters.
 - **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
   concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
   "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
