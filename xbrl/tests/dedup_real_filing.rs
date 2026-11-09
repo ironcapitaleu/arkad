@@ -11,12 +11,14 @@
 //! `DESIGN.md`, "Value Key"). The four months hold June plus the quarter, so no pair agrees, and
 //! all 99 keys are conflicts.
 //!
-//! The tests that resolve use [`UsGaap`] and its alias lists, and check revenue only.
+//! The tests that resolve use [`UsGaap`] and its alias lists. They check revenue, and the count of
+//! standardized facts per standard concept.
 //!
 //! ## External Dependencies
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
+use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
@@ -73,6 +75,38 @@ fn revenue_ranks(facts: &[AsIsFact]) -> Vec<(u16, String, FactValue)> {
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Runs the dedup rules on `facts`, and returns the count of standardized facts per standard
+/// concept.
+fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElement, usize> {
+    let mut counts = BTreeMap::new();
+    for fact in newest_filing(&candidates_of(facts).candidates).facts {
+        *counts.entry(fact.concept).or_insert(0) += 1;
+    }
+    counts
+}
+
+/// The count of standardized facts per standard concept in the fixture filing, for both sources.
+///
+/// Equity has 27 facts: 3 without dimensions, and 24 with a member of the equity components axis.
+/// Every other concept has 2 facts without dimensions.
+fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
+    BTreeMap::from([
+        (CanonicalElement::Assets, 2),
+        (CanonicalElement::Equity, 27),
+        (CanonicalElement::Revenue, 2),
+        (CanonicalElement::NetIncome, 2),
+        (CanonicalElement::OperatingCashFlow, 2),
+        (CanonicalElement::InvestingCashFlow, 2),
+        (CanonicalElement::FinancingCashFlow, 2),
+        (CanonicalElement::CurrentAssets, 2),
+        (CanonicalElement::Goodwill, 2),
+        (CanonicalElement::CurrentLiabilities, 2),
+        (CanonicalElement::NonCurrentLiabilities, 2),
+        (CanonicalElement::RetainedEarnings, 2),
+        (CanonicalElement::OperatingIncome, 2),
+    ])
 }
 
 fn number(text: &str) -> BigDecimal {
@@ -304,6 +338,29 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
         .into_iter()
         .filter(|key| key.concept == CanonicalElement::Revenue)
         .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_51_standardized_facts_in_13_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+    let facts = parse_notes_fixture().facts;
+
+    let expected_result = expected_standardized_counts();
+
+    let result = standardized_counts(&facts);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_51_standardized_facts_in_13_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+{
+    let facts = parse_instance_fixture().facts;
+
+    let expected_result = expected_standardized_counts();
+
+    let result = standardized_counts(&facts);
 
     assert_eq!(result, expected_result);
 }

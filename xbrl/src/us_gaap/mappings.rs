@@ -3,6 +3,8 @@
 //! Canonical name constants and concept definition arrays mapping
 //! XBRL taxonomy concept names to canonical financial elements.
 //!
+//! Which concepts a list can hold: `xbrl/DESIGN.md`, "`us_gaap`".
+//!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
 //! canonical element, as `xbrl/DESIGN.md`, "`us_gaap`", describes.
 //!
@@ -157,6 +159,138 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ),
 ];
 
+/// The ID of the alias rule of [`CanonicalElement::CurrentAssets`].
+pub const CURRENT_ASSETS_RULE: &str = "us-gaap/alias/current-assets@1";
+/// The ID of the alias rule of [`CanonicalElement::NonCurrentAssets`].
+pub const NON_CURRENT_ASSETS_RULE: &str = "us-gaap/alias/non-current-assets@1";
+/// The ID of the alias rule of [`CanonicalElement::CashAndEquivalents`].
+pub const CASH_AND_EQUIVALENTS_RULE: &str = "us-gaap/alias/cash-and-equivalents@1";
+/// The ID of the alias rule of [`CanonicalElement::ShortTermInvestments`].
+pub const SHORT_TERM_INVESTMENTS_RULE: &str = "us-gaap/alias/short-term-investments@1";
+/// The ID of the alias rule of [`CanonicalElement::AccountsReceivable`].
+pub const ACCOUNTS_RECEIVABLE_RULE: &str = "us-gaap/alias/accounts-receivable@1";
+/// The ID of the alias rule of [`CanonicalElement::Inventory`].
+pub const INVENTORY_RULE: &str = "us-gaap/alias/inventory@1";
+/// The ID of the alias rule of [`CanonicalElement::PropertyPlantEquipment`].
+pub const PROPERTY_PLANT_EQUIPMENT_RULE: &str = "us-gaap/alias/property-plant-equipment@1";
+/// The ID of the alias rule of [`CanonicalElement::Goodwill`].
+pub const GOODWILL_RULE: &str = "us-gaap/alias/goodwill@1";
+/// The ID of the alias rule of [`CanonicalElement::IntangibleAssets`].
+pub const INTANGIBLE_ASSETS_RULE: &str = "us-gaap/alias/intangible-assets@1";
+/// The ID of the alias rule of [`CanonicalElement::CurrentLiabilities`].
+pub const CURRENT_LIABILITIES_RULE: &str = "us-gaap/alias/current-liabilities@1";
+/// The ID of the alias rule of [`CanonicalElement::NonCurrentLiabilities`].
+pub const NON_CURRENT_LIABILITIES_RULE: &str = "us-gaap/alias/non-current-liabilities@1";
+/// The ID of the alias rule of [`CanonicalElement::LongTermDebt`].
+pub const LONG_TERM_DEBT_RULE: &str = "us-gaap/alias/long-term-debt@1";
+/// The ID of the alias rule of [`CanonicalElement::RetainedEarnings`].
+pub const RETAINED_EARNINGS_RULE: &str = "us-gaap/alias/retained-earnings@1";
+
 /// Optional concept definitions that enrich financial statements when available.
 /// Their absence does not cause validation failure.
-pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[];
+pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
+    // Balance Sheet detail
+    ConceptDefinition::new(
+        CanonicalElement::CurrentAssets,
+        &["AssetsCurrent"],
+        CURRENT_ASSETS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::NonCurrentAssets,
+        // Most filers report no noncurrent total. Tier 4, which is not built yet, sums the
+        // children of `AssetsNoncurrent` along the calculation tree only if the filing reports
+        // every child. So most filings give no value for this concept.
+        &["AssetsNoncurrent"],
+        NON_CURRENT_ASSETS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::CashAndEquivalents,
+        // `Cash` is not in the list. It is one part of the total, next to the cash equivalents.
+        // As an alias, it gives the part as the total to a filer that reports both parts
+        // without the total.
+        &["CashAndCashEquivalentsAtCarryingValue"],
+        CASH_AND_EQUIVALENTS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::ShortTermInvestments,
+        // `MarketableSecuritiesCurrent` is not in the list. It is one part of the total, next to
+        // debt securities, equity securities, and other short-term investments.
+        &["ShortTermInvestments"],
+        SHORT_TERM_INVESTMENTS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::AccountsReceivable,
+        // `ReceivablesNetCurrent` is not in the list. It is wider than the standard concept: it
+        // also holds receivables that are not from customers, such as notes and receivables from
+        // related parties. A filer that shows one line for all receivables gets no value.
+        &["AccountsReceivableNetCurrent"],
+        ACCOUNTS_RECEIVABLE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::Inventory,
+        &["InventoryNet"],
+        INVENTORY_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::PropertyPlantEquipment,
+        // `PropertyPlantAndEquipmentAndFinanceLeaseRightOfUseAssetAfterAccumulatedDepreciationAndAmortization`
+        // is not in the list. It is wider than the standard concept: it also holds the right-of-use
+        // assets of finance leases. A filer that shows both in one line gets no value.
+        &["PropertyPlantAndEquipmentNet"],
+        PROPERTY_PLANT_EQUIPMENT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::Goodwill,
+        &["Goodwill"],
+        GOODWILL_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::IntangibleAssets,
+        // `FiniteLivedIntangibleAssetsNet` is not in the list. It is one part of the total. As an
+        // alias, it gives the part as the total to a filer that reports it next to
+        // `IndefiniteLivedIntangibleAssetsExcludingGoodwill` without the total.
+        &["IntangibleAssetsNetExcludingGoodwill"],
+        INTANGIBLE_ASSETS_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::CurrentLiabilities,
+        &["LiabilitiesCurrent"],
+        CURRENT_LIABILITIES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::NonCurrentLiabilities,
+        // Most filers report no noncurrent total. Tier 4, which is not built yet, sums the
+        // children of `LiabilitiesNoncurrent` along the calculation tree only if the filing
+        // reports every child. So most filings give no value for this concept.
+        &["LiabilitiesNoncurrent"],
+        NON_CURRENT_LIABILITIES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::LongTermDebt,
+        // The parent is `NonCurrentLiabilities`, so the list holds the noncurrent part only.
+        // Two concepts are not in the list, because they are wider than the standard concept.
+        // `LongTermDebt` also holds the current maturities. `LongTermDebtAndCapitalLeaseObligations`
+        // also holds finance lease obligations. A filer that shows debt and finance leases in one
+        // line gets no value.
+        &["LongTermDebtNoncurrent"],
+        LONG_TERM_DEBT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::RetainedEarnings,
+        &["RetainedEarningsAccumulatedDeficit"],
+        RETAINED_EARNINGS_RULE,
+        false,
+    ),
+];
