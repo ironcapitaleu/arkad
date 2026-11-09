@@ -20,10 +20,9 @@ accounting background, such as the SFAC 6 identities and the fiscal periods, is 
 
 ## SFAC 6 Checks
 
-The standard concept set is built on the SFAC 6 elements. Validation checks the five SFAC 6
-identities of the `accounting` skill. A check that fails with Tier 1 values only means the company
-filed inconsistent data. A check that fails with Tier 3 or Tier 4 values means the derivation has
-a bug.
+The standard concepts rest on the SFAC 6 elements. Validation checks the identities of the
+`accounting` skill. If a check fails and every input is a Tier 1 value, the company filed
+inconsistent data. If a check fails with a Tier 3 or Tier 4 value, the derivation has a bug.
 
 ## Resolution Procedure
 
@@ -74,8 +73,11 @@ Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` a
 
 ## Dedup and Gap Check
 
-- `core/dedup/more-precise@1` and `core/dedup/newest-filing@1` pick one value per period. A
-  newer filing wins, so a restatement replaces the older value and sets `restated`.
+- `core/dedup/more-precise@1` picks one copy of a fact inside one filing. If the copies disagree,
+  it reports a `Conflict`, and the concept has no value.
+- `core/dedup/newest-filing@1` picks one value per standard concept and period across filings.
+  The newest filing wins, amendments included. A restatement replaces the older value and sets
+  `restated`.
 - `core::chronology::check_chronology` checks each series over time. It reports `Gap`, `Overlap`,
   and `Restatement` findings and never fails.
 - The rules are in `xbrl/DESIGN.md`, "4) Dedup and Chronology". The fiscal periods and forms they
@@ -85,7 +87,6 @@ Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` a
 
 - Never map two different financial concepts to the same CanonicalElement for the same period
 - Maintain traceability: every StandardizedFact must record its `rule` and its `inputs`
-- A later filing wins over an earlier one, amendments included: `core/dedup/newest-filing@1`
 
 ## Authoritative Sources
 

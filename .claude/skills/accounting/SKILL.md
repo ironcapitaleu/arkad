@@ -2,7 +2,7 @@
 name: accounting
 description: >
   Use when a task needs accounting knowledge that does not depend on XBRL: the elements of
-  financial statements and the SFAC 6 identities, instants and durations, sign conventions,
+  financial statements, the SFAC 6 and US GAAP identities, instants and durations, sign conventions,
   fiscal years and fiscal periods, 52-53 week years, transition periods, the SEC report forms,
   restatements and repeated comparatives, and which values add over periods. Also use when the
   user asks "does this balance", "is this a restatement", "what is Q4", or "which period is this".
@@ -20,14 +20,18 @@ independent of XBRL and of any taxonomy. The `xbrl-standardization` skill holds 
 ## SFAC 6 Foundation
 
 SFAC 6 (Statement of Financial Accounting Concepts No. 6, 1985) defines ten elements of financial
-statements. Five identities must hold:
+statements. Three identities follow from them:
 
 1. **Balance sheet:** Assets = Liabilities + Equity
-2. **Income statement:** Net Income = Revenue − Expenses + Gains − Losses
-3. **Comprehensive income:** Comprehensive Income = Net Income + Other Comprehensive Income
-4. **Changes in equity:** ΔEquity = Comprehensive Income + Investments by Owners − Distributions
+2. **Comprehensive income:** Comprehensive Income = Revenue − Expenses + Gains − Losses
+3. **Changes in equity:** ΔEquity = Comprehensive Income + Investments by Owners − Distributions
    to Owners
-5. **Cash flow:** Operating CF + Investing CF + Financing CF ≈ ΔCash
+
+SFAC 6 defines no net income and no cash flow. US GAAP adds two identities:
+
+4. **Net income (ASC 220):** Comprehensive Income = Net Income + Other Comprehensive Income
+5. **Cash flow (ASC 230):** Operating CF + Investing CF + Financing CF + Effect of exchange rates
+   = Δ(Cash, cash equivalents, and restricted cash)
 
 The definitions of the ten elements are in `references/sfac6-elements.md`.
 
@@ -36,7 +40,11 @@ The definitions of the ten elements are in `references/sfac6-elements.md`.
 - A balance sheet value covers an instant: the balance on one date.
 - An income statement or cash flow value covers a duration: the flow over a period.
 - A value per share and a share count do not add over periods. A ratio does not add either.
-- Expenses are positive values that reduce net income. Keep the sign the filer reports.
+
+## Sign Conventions
+
+- Expenses and losses are positive values that reduce income.
+- Keep the sign the filer reports. A negative value can be correct, for example a net loss.
 
 ## Fiscal Years and Fiscal Periods
 
@@ -76,12 +84,12 @@ agree or differ:
 - **Restatement:** the copies differ beyond that precision. The later value corrects the earlier
   one.
 
-In both cases, the value of the latest report is the one to use.
+The latest report holds the current value. A read as of an earlier date uses the latest report
+filed by that date.
 
 ## Critical Invariants
 
-- A balance sheet that does not balance with values as filed is an error in the filing. With
-  derived values, it is an error in the derivation.
+- A balance sheet that does not balance with values as filed is an error in the filing.
 - Never add per-share values, share counts, or ratios over periods.
 - Never compare an instant with a duration.
 
