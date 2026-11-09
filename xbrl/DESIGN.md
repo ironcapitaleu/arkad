@@ -472,7 +472,8 @@ A taxonomy changes in two ways, and the design handles each one separately:
   `srt` and `dei` releases that it imports get theirs. The
   generator rebuilds the tables, the PR shows the changed arcs and labels, and the release ID and
   checksum change. A new release changes the release ID on each fact, not the rule version. A rule
-  version goes up only when we change the rule itself. The standardized layer is built again from
+  version goes up only when we change the rule itself, and only after the MVP (see "Rule IDs").
+  The standardized layer is built again from
   the as-is layer, with no new download and no new parse.
 
 Which release resolves an old filing (decided by the owner on 2026-11-07):
@@ -788,6 +789,9 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
+
+Until the MVP ships, every rule stays at version 1, even when it changes. No standardized fact is
+stored before then, so no stored value can point to an older form of a rule.
 
 ### Three Layers
 
