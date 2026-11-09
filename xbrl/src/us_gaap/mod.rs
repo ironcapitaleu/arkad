@@ -600,6 +600,26 @@ mod tests {
                 CanonicalElement::EarningsPerShareDiluted,
                 "us-gaap/alias/earnings-per-share-diluted@1",
             ),
+            (
+                CanonicalElement::DepreciationAmortization,
+                "us-gaap/alias/depreciation-amortization@1",
+            ),
+            (
+                CanonicalElement::CapitalExpenditures,
+                "us-gaap/alias/capital-expenditures@1",
+            ),
+            (
+                CanonicalElement::DividendsPaid,
+                "us-gaap/alias/dividends-paid@1",
+            ),
+            (
+                CanonicalElement::ShareRepurchases,
+                "us-gaap/alias/share-repurchases@1",
+            ),
+            (
+                CanonicalElement::ShareBasedCompensation,
+                "us-gaap/alias/share-based-compensation@1",
+            ),
         ];
 
         let result: Vec<(CanonicalElement, &str)> = us_gaap
@@ -706,6 +726,10 @@ mod tests {
             CanonicalElement::SellingGeneralAdmin,
             CanonicalElement::ResearchDevelopment,
             CanonicalElement::InterestExpense,
+            CanonicalElement::DepreciationAmortization,
+            CanonicalElement::CapitalExpenditures,
+            CanonicalElement::DividendsPaid,
+            CanonicalElement::ShareRepurchases,
         ];
 
         let result: Vec<CanonicalElement> = us_gaap
@@ -927,6 +951,148 @@ mod tests {
         CanonicalElement::EarningsPerShareBasic,
         CanonicalElement::EarningsPerShareDiluted,
     ];
+
+    /// The cash flow concepts of [`mappings::OPTIONAL_CONCEPTS`].
+    const CASH_FLOW: [CanonicalElement; 5] = [
+        CanonicalElement::DepreciationAmortization,
+        CanonicalElement::CapitalExpenditures,
+        CanonicalElement::DividendsPaid,
+        CanonicalElement::ShareRepurchases,
+        CanonicalElement::ShareBasedCompensation,
+    ];
+
+    #[test]
+    fn should_return_cash_flow_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (
+                CanonicalElement::DepreciationAmortization,
+                rule("us-gaap/alias/depreciation-amortization@1"),
+                vec![concept("us-gaap", "DepreciationDepletionAndAmortization")],
+            ),
+            (
+                CanonicalElement::CapitalExpenditures,
+                rule("us-gaap/alias/capital-expenditures@1"),
+                vec![concept("us-gaap", "PaymentsToAcquireProductiveAssets")],
+            ),
+            (
+                CanonicalElement::DividendsPaid,
+                rule("us-gaap/alias/dividends-paid@1"),
+                vec![concept("us-gaap", "PaymentsOfDividends")],
+            ),
+            (
+                CanonicalElement::ShareRepurchases,
+                rule("us-gaap/alias/share-repurchases@1"),
+                vec![concept("us-gaap", "PaymentsForRepurchaseOfEquity")],
+            ),
+            (
+                CanonicalElement::ShareBasedCompensation,
+                rule("us-gaap/alias/share-based-compensation@1"),
+                vec![concept("us-gaap", "ShareBasedCompensation")],
+            ),
+        ];
+
+        let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| CASH_FLOW.contains(&aliases.element))
+            .map(|aliases| {
+                (
+                    aliases.element,
+                    aliases.rule.clone(),
+                    aliases.concepts.clone(),
+                )
+            })
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_parts_of_cash_flow_concepts_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (
+                CanonicalElement::DepreciationAmortization,
+                PartAliases {
+                    rule: rule("us-gaap/part/depreciation-amortization@1"),
+                    parts: vec![concept("us-gaap", "Depreciation")],
+                    other_parts: vec![
+                        concept("us-gaap", "AdjustmentForAmortization"),
+                        concept("us-gaap", "AmortizationOfIntangibleAssets"),
+                        concept("us-gaap", "Depletion"),
+                        concept("us-gaap", "OtherDepreciationAndAmortization"),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::CapitalExpenditures,
+                PartAliases {
+                    rule: rule("us-gaap/part/capital-expenditures@1"),
+                    parts: vec![concept(
+                        "us-gaap",
+                        "PaymentsToAcquirePropertyPlantAndEquipment",
+                    )],
+                    other_parts: vec![
+                        concept("us-gaap", "PaymentForAcquisitionCryptoAsset"),
+                        concept("us-gaap", "PaymentsForDelayedTaxExemptExchange"),
+                        concept("us-gaap", "PaymentsForSoftware"),
+                        concept("us-gaap", "PaymentsToAcquireEquipmentOnLease"),
+                        concept("us-gaap", "PaymentsToAcquireIntangibleAssets"),
+                        concept("us-gaap", "PaymentsToAcquireMineralRights"),
+                        concept("us-gaap", "PaymentsToAcquireOtherProductiveAssets"),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::DividendsPaid,
+                PartAliases {
+                    rule: rule("us-gaap/part/dividends-paid@1"),
+                    parts: vec![concept("us-gaap", "PaymentsOfDividendsCommonStock")],
+                    other_parts: vec![
+                        concept("us-gaap", "PaymentsOfCapitalDistribution"),
+                        concept("us-gaap", "PaymentsOfDividendsMinorityInterest"),
+                        concept(
+                            "us-gaap",
+                            "PaymentsOfDividendsPreferredStockAndPreferenceStock",
+                        ),
+                    ],
+                },
+            ),
+            (
+                CanonicalElement::ShareRepurchases,
+                PartAliases {
+                    rule: rule("us-gaap/part/share-repurchases@1"),
+                    parts: vec![concept("us-gaap", "PaymentsForRepurchaseOfCommonStock")],
+                    other_parts: vec![
+                        concept(
+                            "us-gaap",
+                            "PaymentsForRepurchaseOfConvertiblePreferredStock",
+                        ),
+                        concept("us-gaap", "PaymentsForRepurchaseOfInitialPublicOffering"),
+                        concept("us-gaap", "PaymentsForRepurchaseOfOtherEquity"),
+                        concept(
+                            "us-gaap",
+                            "PaymentsForRepurchaseOfPreferredStockAndPreferenceStock",
+                        ),
+                        concept("us-gaap", "PaymentsForRepurchaseOfPrivatePlacement"),
+                        concept("us-gaap", "PaymentsForRepurchaseOfWarrants"),
+                    ],
+                },
+            ),
+        ];
+
+        let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| CASH_FLOW.contains(&aliases.element))
+            .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_return_income_statement_concepts_in_priority_order_when_created() {

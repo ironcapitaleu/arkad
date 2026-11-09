@@ -264,6 +264,16 @@ pub const INTEREST_EXPENSE_RULE: &str = "us-gaap/alias/interest-expense@1";
 pub const EARNINGS_PER_SHARE_BASIC_RULE: &str = "us-gaap/alias/earnings-per-share-basic@1";
 /// The ID of the alias rule of [`CanonicalElement::EarningsPerShareDiluted`].
 pub const EARNINGS_PER_SHARE_DILUTED_RULE: &str = "us-gaap/alias/earnings-per-share-diluted@1";
+/// The ID of the alias rule of [`CanonicalElement::DepreciationAmortization`].
+pub const DEPRECIATION_AMORTIZATION_RULE: &str = "us-gaap/alias/depreciation-amortization@1";
+/// The ID of the alias rule of [`CanonicalElement::CapitalExpenditures`].
+pub const CAPITAL_EXPENDITURES_RULE: &str = "us-gaap/alias/capital-expenditures@1";
+/// The ID of the alias rule of [`CanonicalElement::DividendsPaid`].
+pub const DIVIDENDS_PAID_RULE: &str = "us-gaap/alias/dividends-paid@1";
+/// The ID of the alias rule of [`CanonicalElement::ShareRepurchases`].
+pub const SHARE_REPURCHASES_RULE: &str = "us-gaap/alias/share-repurchases@1";
+/// The ID of the alias rule of [`CanonicalElement::ShareBasedCompensation`].
+pub const SHARE_BASED_COMPENSATION_RULE: &str = "us-gaap/alias/share-based-compensation@1";
 
 /// Optional concept definitions that enrich financial statements when available.
 /// Their absence does not cause validation failure.
@@ -421,6 +431,47 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         EARNINGS_PER_SHARE_DILUTED_RULE,
         false,
     ),
+    // Cash Flow detail
+    ConceptDefinition::new(
+        CanonicalElement::DepreciationAmortization,
+        // The add-back of the cash flow statement. `DepreciationAndAmortization` of the income
+        // statement is not in the list, because it can leave out the part in cost of revenue.
+        // `DepreciationAmortizationAndAccretionNet` is wider: it also holds accretion.
+        // `Depreciation` is a part. `PART_CONCEPTS` holds it.
+        &["DepreciationDepletionAndAmortization"],
+        DEPRECIATION_AMORTIZATION_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::CapitalExpenditures,
+        // The payments for every productive asset, intangible assets and software included.
+        // `PaymentsToAcquirePropertyPlantAndEquipment` is a part. `PART_CONCEPTS` holds it.
+        &["PaymentsToAcquireProductiveAssets"],
+        CAPITAL_EXPENDITURES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::DividendsPaid,
+        // `PaymentsOfDividendsCommonStock` is a part. `PART_CONCEPTS` holds it.
+        &["PaymentsOfDividends"],
+        DIVIDENDS_PAID_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::ShareRepurchases,
+        // `PaymentsForRepurchaseOfCommonStock` is a part. `PART_CONCEPTS` holds it.
+        &["PaymentsForRepurchaseOfEquity"],
+        SHARE_REPURCHASES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CanonicalElement::ShareBasedCompensation,
+        // The add-back of the cash flow statement. `AllocatedShareBasedCompensationExpense` is
+        // not in the list, because it differs when a filer capitalizes part of the cost.
+        &["ShareBasedCompensation"],
+        SHARE_BASED_COMPENSATION_RULE,
+        false,
+    ),
 ];
 
 /// The ID of the part rule of [`CanonicalElement::Revenue`].
@@ -443,6 +494,14 @@ pub const SELLING_GENERAL_ADMIN_PART_RULE: &str = "us-gaap/part/selling-general-
 pub const RESEARCH_DEVELOPMENT_PART_RULE: &str = "us-gaap/part/research-development@1";
 /// The ID of the part rule of [`CanonicalElement::InterestExpense`].
 pub const INTEREST_EXPENSE_PART_RULE: &str = "us-gaap/part/interest-expense@1";
+/// The ID of the part rule of [`CanonicalElement::DepreciationAmortization`].
+pub const DEPRECIATION_AMORTIZATION_PART_RULE: &str = "us-gaap/part/depreciation-amortization@1";
+/// The ID of the part rule of [`CanonicalElement::CapitalExpenditures`].
+pub const CAPITAL_EXPENDITURES_PART_RULE: &str = "us-gaap/part/capital-expenditures@1";
+/// The ID of the part rule of [`CanonicalElement::DividendsPaid`].
+pub const DIVIDENDS_PAID_PART_RULE: &str = "us-gaap/part/dividends-paid@1";
+/// The ID of the part rule of [`CanonicalElement::ShareRepurchases`].
+pub const SHARE_REPURCHASES_PART_RULE: &str = "us-gaap/part/share-repurchases@1";
 
 /// The parts of the standard concepts. Each element has an alias list in [`REQUIRED_CONCEPTS`] or
 /// [`OPTIONAL_CONCEPTS`].
@@ -601,5 +660,64 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         &["InterestExpenseDeposits"],
         INTEREST_EXPENSE_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::DepreciationAmortization,
+        &["Depreciation"],
+        // `AmortizationOfIntangibleAssets` sits below `AdjustmentForAmortization`. Filers report
+        // it in the intangible assets note, so it counts on its own. The rest of the concepts
+        // below `AdjustmentForAmortization` do not count, because they hold the accretion of
+        // investments, which filers report outside this line.
+        &[
+            "AdjustmentForAmortization",
+            "AmortizationOfIntangibleAssets",
+            "Depletion",
+            "OtherDepreciationAndAmortization",
+        ],
+        &[],
+        DEPRECIATION_AMORTIZATION_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::CapitalExpenditures,
+        &["PaymentsToAcquirePropertyPlantAndEquipment"],
+        &[
+            "PaymentForAcquisitionCryptoAsset",
+            "PaymentsForDelayedTaxExemptExchange",
+            "PaymentsForSoftware",
+            "PaymentsToAcquireEquipmentOnLease",
+            "PaymentsToAcquireIntangibleAssets",
+            "PaymentsToAcquireMineralRights",
+            "PaymentsToAcquireOtherProductiveAssets",
+        ],
+        &[],
+        CAPITAL_EXPENDITURES_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::DividendsPaid,
+        &["PaymentsOfDividendsCommonStock"],
+        // `PaymentsOfDividendsCommonStock` sits below `PaymentsOfOrdinaryDividends`, next to the
+        // dividends of preferred stock and of the noncontrolling interest. The capital
+        // distributions sit one level up.
+        &[
+            "PaymentsOfCapitalDistribution",
+            "PaymentsOfDividendsMinorityInterest",
+            "PaymentsOfDividendsPreferredStockAndPreferenceStock",
+        ],
+        &[],
+        DIVIDENDS_PAID_PART_RULE,
+    ),
+    PartDefinition::new(
+        CanonicalElement::ShareRepurchases,
+        &["PaymentsForRepurchaseOfCommonStock"],
+        &[
+            "PaymentsForRepurchaseOfConvertiblePreferredStock",
+            "PaymentsForRepurchaseOfInitialPublicOffering",
+            "PaymentsForRepurchaseOfOtherEquity",
+            "PaymentsForRepurchaseOfPreferredStockAndPreferenceStock",
+            "PaymentsForRepurchaseOfPrivatePlacement",
+            "PaymentsForRepurchaseOfWarrants",
+        ],
+        &[],
+        SHARE_REPURCHASES_PART_RULE,
     ),
 ];
