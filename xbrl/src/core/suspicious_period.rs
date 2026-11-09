@@ -494,7 +494,7 @@ mod tests {
         };
         let year = value_in_period(&report, span(date(2923, 1, 1), date(2923, 12, 31)), "100");
         let nine_months = value_in_period(&report, span(date(2923, 1, 1), date(2923, 9, 30)), "70");
-        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]))
+        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]), &[])
             .pop()
             .expect("Given a year and 9 months of one currency series, derive_q4 should always derive a Q4");
         let facts = series(vec![year.clone(), nine_months.clone(), fourth_quarter]);
