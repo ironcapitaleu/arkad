@@ -696,17 +696,35 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
     PartDefinition::new(
         CanonicalElement::DepreciationAmortization,
         &["Depreciation"],
-        // `AmortizationOfIntangibleAssets` sits below `AdjustmentForAmortization`. Filers report
-        // it in the intangible assets note, so it counts on its own. The rest of the concepts
-        // below `AdjustmentForAmortization` do not count, because they hold the accretion of
-        // investments, which filers report outside this line.
+        // `AdjustmentForAmortization` counts, and so does each concept below it that amortizes an
+        // operating asset, because filers report those in its place. Left out, because filers
+        // report them outside D&A as their own add-back:
+        // `AccretionAmortizationOfDiscountsAndPremiumsInvestments`,
+        // `AmortizationOfDeferredHedgeGains`, `AmortizationOfDeferredLoanOriginationFeesNet`, and
+        // `AmortizationOfFinancingCostsAndDiscounts`.
         &[
             "AdjustmentForAmortization",
+            "AmortizationAndDepreciationOfDecontaminatingAndDecommissioningAssets",
+            "AmortizationOfAcquisitionCosts",
+            "AmortizationOfAdvanceRoyalty",
+            "AmortizationOfDeferredPropertyTaxes",
+            "AmortizationOfDeferredSalesCommissions",
             "AmortizationOfIntangibleAssets",
-            "Depletion",
+            "AmortizationOfMortgageServicingRightsMSRs",
+            "AmortizationOfNuclearFuelLease",
+            "AmortizationOfPowerContractsEmissionCredits",
+            "AmortizationOfRateDeferral",
+            "AmortizationOfRegulatoryAsset",
+            "AmortizationOfValueOfBusinessAcquiredVOBA",
+            "CostOfGoodsAndServicesSoldAmortization",
+            "DeferredPolicyAcquisitionCostAmortizationExpense",
+            "DeferredSalesInducementsAmortizationExpense",
+            "FinanceLeaseRightOfUseAssetAmortization",
+            "OtherAmortizationOfDeferredCharges",
+            "PresentValueOfFutureInsuranceProfitsAmortizationExpense1",
             "OtherDepreciationAndAmortization",
         ],
-        &[],
+        &["Depletion"],
         DEPRECIATION_AMORTIZATION_PART_RULE,
     ),
     PartDefinition::new(
