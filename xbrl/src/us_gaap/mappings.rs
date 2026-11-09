@@ -757,8 +757,6 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &["OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent"],
         // The part of the parent is the total minus the share of the noncontrolling interest.
         // The total blocks the part if the filing reports it only with a member.
-        // The share of the noncontrolling interest counts with each concept below it, because
-        // filers often report its components instead.
         &["OtherComprehensiveIncomeLossNetOfTax"],
         &["OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToNoncontrollingInterest"],
         OTHER_COMPREHENSIVE_INCOME_PART_RULE,
@@ -768,9 +766,7 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &["ComprehensiveIncomeNetOfTax"],
         // `ComprehensiveIncomeNetOfTax` is the total minus the share of the noncontrolling
         // interest. The total blocks the part if the filing reports it only with a member.
-        // The share of the noncontrolling interest counts with each concept below it, such as
-        // `NetIncomeLossAttributableToNoncontrollingInterest`, which filers report on the income
-        // statement.
+        // `NetIncomeLossAttributableToNoncontrollingInterest` sits below the share, so it blocks.
         &["ComprehensiveIncomeNetOfTaxIncludingPortionAttributableToNoncontrollingInterest"],
         &["ComprehensiveIncomeNetOfTaxAttributableToNoncontrollingInterest"],
         COMPREHENSIVE_INCOME_PART_RULE,

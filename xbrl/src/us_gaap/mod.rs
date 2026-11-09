@@ -1532,6 +1532,33 @@ mod tests {
     }
 
     #[test]
+    fn should_give_no_other_comprehensive_income_when_the_filing_reports_the_parent_part_next_to_a_noncontrolling_component()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
+                "-30000000",
+            ),
+            fact(
+                &filing,
+                "OtherComprehensiveIncomeForeignCurrencyTransactionAndTranslationAdjustmentNetOfTaxPortionAttributableToNoncontrollingInterest",
+                "-2000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_no_other_comprehensive_income_when_the_filing_reports_the_parent_part_next_to_the_noncontrolling_share()
      {
         let us_gaap = UsGaap::new();
