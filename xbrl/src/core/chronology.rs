@@ -44,11 +44,14 @@ const QUARTER_MONTHS: u32 = 3;
 /// The months of a fiscal year.
 const YEAR_MONTHS: u32 = 12;
 
-/// The length in quarters of a quarter.
+/// One quarter, as a length.
 const QUARTER_QUARTERS: u16 = 1;
 
 /// The length in quarters of a fiscal year.
 const YEAR_QUARTERS: u16 = 4;
+
+/// The length in quarters of an instant.
+const INSTANT_QUARTERS: u16 = 0;
 
 /// The fiscal periods by the number of quarters they end before the fiscal year end.
 const FISCAL_PERIODS: [&str; 4] = ["FY", "Q3", "Q2", "Q1"];
@@ -79,7 +82,8 @@ pub struct Chronology {
 ///
 /// - A **gap** is an expected period between the first and the last filled period, with no value
 ///   that ends within 7 days of it. A value of any length fills it. A blocked value gives the
-///   reason [`GapReason::Conflict`]. Otherwise a gap in the 12 months after the last report
+///   reason [`GapReason::Conflict`]. A gap names the length of its expected period in quarters, or
+///   0 if every value of the timeline is an instant. Otherwise a gap in the 12 months after the last report
 ///   period under an old fiscal year end gives the reason [`GapReason::FiscalYearChange`].
 /// - An **overlap** is a pair of values of the same length whose ends lie closer than that length,
 ///   less 7 days.
@@ -181,6 +185,10 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
     ) else {
         return Vec::new();
     };
+    let is_instant = ends
+        .reported
+        .iter()
+        .all(|&(_, quarters)| quarters == INSTANT_QUARTERS);
     calendar.expected[first..last]
         .iter()
         .filter(|expected| !filled(expected))
@@ -191,7 +199,11 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
             dimensions: timeline.dimensions.clone(),
             period_end: expected.end,
             fiscal_period: expected.fiscal_period.clone(),
-            quarters: expected.quarters,
+            quarters: if is_instant {
+                INSTANT_QUARTERS
+            } else {
+                expected.quarters
+            },
             reason: calendar.reason(expected.end, &ends.blocked),
         })
         .collect()
@@ -1095,6 +1107,47 @@ mod tests {
             gap(date(2022, 6, 30), "FY", 4, None),
             gap(date(2023, 6, 30), "FY", 4, None),
         ];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_limit_transition_period_to_1_quarter_when_10_kt_ends_a_month_after_the_year_end() {
+        let facts = vec![value(date(2022, 12, 31), 4), value(date(2023, 4, 30), 1)];
+        let filings = vec![
+            filing("10-K", date(2022, 12, 31), "0131"),
+            filing("10-KT", date(2023, 1, 31), "0131"),
+            filing("10-Q", date(2023, 4, 30), "0131"),
+        ];
+
+        let expected_result = vec![gap(date(2023, 1, 31), "FY", 1, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_gap_0_quarters_when_every_value_of_the_timeline_is_an_instant() {
+        let facts = vec![
+            standardized(
+                Period::Instant {
+                    end: date(2023, 12, 30),
+                },
+                "1",
+            ),
+            standardized(
+                Period::Instant {
+                    end: date(2024, 6, 29),
+                },
+                "1",
+            ),
+        ];
+        let filings = quarterly_filings();
+
+        let expected_result = vec![gap(date(2024, 3, 30), "Q2", 0, None)];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
