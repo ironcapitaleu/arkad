@@ -23,12 +23,13 @@ between the statements, periods, and reporting calendars. It covers US GAAP and 
 | --- | --- | --- |
 | Standard setter | FASB | IASB |
 | Standards | Accounting Standards Codification (ASC) | IFRS and IAS standards |
-| Elements | SFAC 6: ten elements | Conceptual Framework (2018): five elements |
+| Elements | Concepts Statement 8, Chapter 4 (2021): ten elements. It replaced SFAC 6 | Conceptual Framework (2018): five elements |
 | Used by | US domestic SEC filers | EU listed groups, most other countries, and foreign issuers at the SEC |
 
-The ten SFAC 6 elements are assets, liabilities, equity, investments by owners, distributions to
-owners, comprehensive income, revenue, expenses, gains, and losses. Their definitions are in
-`references/sfac6-elements.md`. The five IFRS elements are assets, liabilities, equity, income,
+The ten US GAAP elements are assets, liabilities, equity, investments by owners, distributions to
+owners, comprehensive income, revenue, expenses, gains, and losses. SFAC 6 (1985) defined them.
+Concepts Statement 8, Chapter 4 (December 2021) replaced SFAC 6. It keeps the ten elements and
+rewords their definitions. `references/sfac6-elements.md` still quotes the SFAC 6 text. The five IFRS elements are assets, liabilities, equity, income,
 and expenses. IFRS income includes gains, and IFRS expenses include losses.
 
 ## Identities
@@ -131,10 +132,33 @@ published by that date.
 
 ## Authoritative Sources
 
-- **SFAC 6 definitions:** `references/sfac6-elements.md`
+- **SFAC 6 definitions (superseded):** `references/sfac6-elements.md`
+- **FASB Concepts Statements:** `https://www.fasb.org/standards/concepts-statements`
 - **US GAAP:** FASB Accounting Standards Codification, `https://asc.fasb.org`
 - **IFRS:** IFRS Foundation, `https://www.ifrs.org/issued-standards/`
 - **SEC forms:** `https://www.sec.gov/forms`
+
+## Staleness Check
+
+Standards change. A standard setter can replace a document, as FASB replaced SFAC 6 with Concepts
+Statement 8, Chapter 4. Each reference file names its `source`, `last-verified`, and
+`update-frequency` in its header.
+
+1. When the skill loads, read the header of each reference file the task uses.
+2. If `last-verified` is more than 12 months old, or the header has `superseded-by`, check the
+   source before you rely on the file:
+   - US GAAP: the FASB Concepts Statements and the Accounting Standards Updates.
+   - IFRS: the issued standards of the IFRS Foundation and their effective dates.
+3. If the source still holds, set `last-verified` to today.
+4. If a newer document replaced the source, tell the user. Propose to:
+   - add `superseded-by` to the header and update the file from the new document,
+   - update every statement of this skill that names the old document,
+   - search the repository for the old name, for example `git grep -n "SFAC 6"`, and list the
+     hits for a follow-up ticket.
+5. Store the text of a standard as the standard writes it. Never rewrite it from memory.
+
+Check the "US GAAP and IFRS Differences" table in the same way. A new standard, such as IFRS 18,
+can change a row.
 
 ## Self-Improvement
 

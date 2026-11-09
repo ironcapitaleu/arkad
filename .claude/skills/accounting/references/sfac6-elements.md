@@ -1,12 +1,17 @@
 ---
 source: FASB Statement of Financial Accounting Concepts No. 6 (1985)
 last-verified: 2026-11-09
-update-frequency: never
+update-frequency: annually
+superseded-by: FASB Concepts Statement No. 8, Chapter 4, Elements of Financial Statements (December 2021)
 ---
+
+> **Superseded.** FASB Concepts Statement No. 8, Chapter 4 (December 2021) replaced SFAC 6. It
+> keeps the ten elements and rewords their definitions. The text below is the SFAC 6 text of 1985.
+> Replace it with the text of Chapter 4 once the official text is at hand.
 
 # SFAC 6 — Elements of Financial Statements
 
-Source: FASB Statement of Financial Accounting Concepts No. 6, "Elements of Financial Statements" (December 1985). Unchanged since publication.
+Source: FASB Statement of Financial Accounting Concepts No. 6, "Elements of Financial Statements" (December 1985).
 
 ## The Ten Elements
 
