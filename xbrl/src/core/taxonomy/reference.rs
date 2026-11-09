@@ -31,7 +31,7 @@ pub struct ConceptAliases {
 
 /// The parts of a standard concept that stand for the whole if a filing reports no other part.
 ///
-/// A part is a taxonomy concept that holds a part of the standard concept, for example
+/// A part is a taxonomy concept whose value is one share of the standard concept, for example
 /// `StockholdersEquity` for the equity with the noncontrolling interest. If a filing reports the
 /// part and none of [`PartAliases::other_parts`] in one period, the part equals the whole. An other
 /// part counts in any dimension of the period, and only with a value other than zero.

@@ -38,10 +38,9 @@ pub struct FilingCandidates {
 ///
 /// If no concept of the list resolves, the first part of [`ConceptAliases::parts`] that the filing
 /// reports wins, with the part rule and confidence [`Confidence::Synonym`]. A part wins only if the
-/// filing reports none of the other parts with a value other than zero, or with a conflict, in the
-/// period. The check covers every dimension of the period, so an other part with a member, such as
-/// the noncontrolling interest on the equity components axis, also stops the part. An other part
-/// of zero stops nothing, because then the part equals the whole.
+/// filing reports none of the other parts in the period. A value of zero does not count, a
+/// conflict does. The check covers every dimension of the period, so an other part with a member,
+/// such as the noncontrolling interest on the equity components axis, also stops the part.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
 /// lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict gives a

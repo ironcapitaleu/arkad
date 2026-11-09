@@ -547,20 +547,24 @@ ticket decides where the removed elements live.
   other parts are the siblings of the part below the total in the 2026 calculation tree.
   - The part rule runs only if no concept of the alias list resolves. The first part that the
     filing reports wins, with confidence `Synonym`.
-  - The part wins only if the filing reports none of the other parts in the same period, with the
-    same unit and dimensions. Then the filing shows no second piece, so the part equals the whole.
-    Otherwise the standard concept gets no value from tiers 1 and 2.
+  - An other part in the same period and unit blocks the part, in any dimension. Then the
+    standard concept gets no value from tiers 1 and 2. A value of zero does not block, because
+    then the part equals the whole.
   - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
     `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
     equivalents.
+  - For `Equity` and `NetIncome`, the total is also an other part. A filer can tag the total only
+    with a member, such as the noncontrolling interest. Then the parent part is not the whole.
   - The other parts leave out a sibling that filers also report outside the total, such as
-    `GainsLossesOnSalesOfAssets` below `Revenues`. Its fact does not show a second piece of the
-    total, so it would block the part with no cause.
+    `GainsLossesOnSalesOfAssets` below `Revenues`. Its fact does not show a second part of the
+    total, so it blocks the part with no cause.
   - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
-    pieces, so the filing reports no other piece, and the check would pass with the wrong value.
+    parts. So the filing reports no other part, and the check passes with the wrong value.
 - `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the
   `Equity` of `Assets = Liabilities + Equity`. `NetIncomeLoss`, the part of the parent, stands for
   it only if the filing reports no `NetIncomeLossAttributableToNoncontrollingInterest`.
+- The alias lists of `Revenue` and `Equity` hold only totals. The customer-contract revenue
+  concepts and `StockholdersEquity` are parts.
 
 ### What `ifrs` Needs on Top
 
@@ -947,8 +951,8 @@ Rules the code fixes where the table above leaves a choice:
   registry routes its family to the plug-in of the alias list. If two plug-ins map one standard
   concept, the plug-in of the first family in name order wins.
 - If no concept of an alias list resolves, the first part of its `PartAliases` that the filing
-  reports wins, with `Synonym`. It wins only if the filing reports none of `other_parts` in the
-  same period and unit, in any dimension, with a value other than zero or with a conflict.
+  reports wins, with `Synonym`. An other part in the same period and unit blocks it, in any
+  dimension. A value of zero does not block. A conflict does.
 
 Other cases:
 
