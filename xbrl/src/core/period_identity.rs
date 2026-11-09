@@ -54,7 +54,7 @@ const TRANSITION_REPORT_FORMS: [&str; 1] = ["10-KT"];
 /// The rule derives nothing from a short year, because its fourth quarter is not the year less
 /// nine months. If the year has an exact start, it is short if it spans under 357 days. Otherwise
 /// it is short if one of `filings` of the entity is a `10-KT` whose period of report is the year
-/// end, or if the year ends within 12 months after the entity changed its fiscal year end.
+/// end, or if the year ends under 357 days after the last report under an old fiscal year end.
 ///
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
 /// `restated` if an input has it. It carries the release of the fiscal year value.
@@ -66,12 +66,12 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
         .map(StandardizedFact::series_key)
         .chain(series.blocked.iter().cloned())
         .collect();
-    let transitions = Transitions::of(filings);
+    let short_year_signals = ShortYearSignalsByEntity::of(filings);
     series
         .facts
         .iter()
         .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_QUARTERS)
-        .filter(|year| !transitions.is_short_year(year))
+        .filter(|year| !short_year_signals.is_short_year(year))
         .filter_map(|year| {
             let mut key = year.series_key();
             key.quarters = QUARTER;
@@ -90,20 +90,21 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
 
 /// The signals of a short year in the filings of each entity.
 #[derive(Debug)]
-struct Transitions<'a> {
-    by_entity: BTreeMap<&'a EntityId, Transition>,
+struct ShortYearSignalsByEntity<'a> {
+    by_entity: BTreeMap<&'a EntityId, ShortYearSignals>,
 }
 
 /// The signals of a short year in the filings of one entity.
 #[derive(Debug)]
-struct Transition {
+struct ShortYearSignals {
     /// The periods of report of the transition reports.
     report_ends: BTreeSet<NaiveDate>,
-    /// The spans in which the entity changed its fiscal year end, as the gap check computes them.
-    changes: Vec<(NaiveDate, NaiveDate)>,
+    /// The latest periods of report under an old fiscal year end, one per change of the fiscal
+    /// year end.
+    old_year_ends: Vec<NaiveDate>,
 }
 
-impl<'a> Transitions<'a> {
+impl<'a> ShortYearSignalsByEntity<'a> {
     fn of(filings: &'a [Filing]) -> Self {
         let mut grouped: BTreeMap<&EntityId, Vec<&Filing>> = BTreeMap::new();
         for filing in filings {
@@ -117,33 +118,43 @@ impl<'a> Transitions<'a> {
                     .filter(|filing| is_form(&filing.form, &TRANSITION_REPORT_FORMS))
                     .filter_map(|filing| filing.period_of_report)
                     .collect();
-                let transition = Transition {
+                let signals = ShortYearSignals {
                     report_ends,
-                    changes: changes(&filings),
+                    old_year_ends: changes(&filings)
+                        .into_iter()
+                        .map(|(after, _)| after)
+                        .collect(),
                 };
-                (entity, transition)
+                (entity, signals)
             })
             .collect();
         Self { by_entity }
     }
 
     /// Returns `true` if `year` is a short year. The day count decides if the exact start is known.
+    /// Otherwise a year that ends under 357 days after the last report under an old fiscal year
+    /// end is short, because it starts after that report.
     fn is_short_year(&self, year: &StandardizedFact) -> bool {
         let Period::Duration(period) = year.period else {
             return false;
         };
         if let Some(start) = period.start() {
-            return (period.end() - start).num_days() < SHORT_YEAR_DAYS;
+            return is_short_span(start, period.end());
         }
         let end = period.end();
-        self.by_entity.get(&year.entity).is_some_and(|transition| {
-            transition.report_ends.contains(&end)
-                || transition
-                    .changes
+        self.by_entity.get(&year.entity).is_some_and(|signals| {
+            signals.report_ends.contains(&end)
+                || signals
+                    .old_year_ends
                     .iter()
-                    .any(|(after, until)| *after < end && end <= *until)
+                    .any(|&old_year_end| old_year_end < end && is_short_span(old_year_end, end))
         })
     }
+}
+
+/// Returns `true` if the span from `start` to `end` lasts under 357 days.
+fn is_short_span(start: NaiveDate, end: NaiveDate) -> bool {
+    (end - start).num_days() < SHORT_YEAR_DAYS
 }
 
 /// Returns the fourth quarter between `nine_months` and `year`, or `None` if `nine_months` is not
@@ -307,7 +318,7 @@ mod tests {
     fn should_derive_nothing_when_a_transition_report_ends_with_the_year() {
         let facts = short_year_without_start();
         let filings = vec![
-            filing("10-K", date(2023, 1, 31), "0131"),
+            filing("10-K", date(2023, 1, 31), "1231"),
             filing("10-KT", date(2023, 12, 31), "1231"),
         ];
 
@@ -360,6 +371,35 @@ mod tests {
         let filings = vec![
             filing("10-K", date(2023, 1, 31), "0131"),
             filing("10-KT", date(2023, 12, 31), "1231"),
+        ];
+
+        let expected_result = vec![BigDecimal::from(100_000_000_i64)];
+
+        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
+            .into_iter()
+            .map(|fact| fact.value)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_the_fourth_quarter_when_a_full_year_ends_twelve_months_after_the_last_report_under_the_old_fiscal_year_end()
+     {
+        let facts = series(vec![
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 30), 4)),
+                "400000000",
+            ),
+            standardized(
+                Period::Duration(Duration::from_end_and_quarters(date(2024, 3, 31), 3)),
+                "300000000",
+            ),
+        ]);
+        let filings = vec![
+            filing("10-K", date(2022, 12, 31), "1231"),
+            filing("10-KT", date(2023, 6, 30), "1231"),
+            filing("10-Q", date(2023, 9, 30), "0630"),
         ];
 
         let expected_result = vec![BigDecimal::from(100_000_000_i64)];
