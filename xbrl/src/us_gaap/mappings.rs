@@ -82,7 +82,7 @@ pub struct PartDefinition {
     canonical_element: CanonicalElement,
     /// The parts, in priority order.
     parts: &'static [&'static str],
-    /// The other parts of the standard concept, which count as they are.
+    /// The other parts that count alone, without the concepts below them.
     other_parts: &'static [&'static str],
     /// The other parts that also count with each concept below them in the 2026 calculation tree.
     other_part_trees: &'static [&'static str],
@@ -121,7 +121,7 @@ impl PartDefinition {
         self.parts
     }
 
-    /// Returns the other parts of the standard concept, which count as they are.
+    /// Returns the other parts that count alone, without the concepts below them.
     #[must_use]
     pub const fn other_parts(&self) -> &'static [&'static str] {
         self.other_parts
@@ -389,9 +389,10 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
         // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
         // `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`, and
-        // `SubleaseIncome`. The concepts below `NoninterestIncome`, `NetInvestmentIncome`, and
-        // `InterestIncomeExpenseAfterProvisionForLoanLoss` do not count, because they hold
-        // interest expense and gains that most filers report outside revenue.
+        // `SubleaseIncome`. In two roles, `NoninterestIncome` is the parent of a part. Of the
+        // concepts below `NoninterestIncome`, `NetInvestmentIncome`, and
+        // `InterestIncomeExpenseAfterProvisionForLoanLoss`, only the sibling of the part counts.
+        // The rest holds interest expense and gains that most filers report outside revenue.
         &[
             "ContractuallySpecifiedServicingFeesLateFeesAndAncillaryFeesEarnedInExchangeForServicingFinancialAssets",
             "DirectFinancingLeaseInterestIncome",
@@ -404,6 +405,7 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "NetInvestmentIncome",
             "NoninterestIncome",
             "RevenueNotFromContractWithCustomer",
+            "RevenueNotFromContractWithCustomerExcludingInterestIncome",
             "RevenuesExcludingInterestAndDividends",
             "SaleOfTrustAssetsToPayExpenses",
             "SalesTypeLeaseInterestIncome",
