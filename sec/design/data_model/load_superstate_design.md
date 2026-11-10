@@ -119,6 +119,10 @@ stateDiagram-v2
 An optional third state, `ReconcilePersistence` (post-write SFAC-6 invariant + completeness check),
 is deferred — it only pays once there is something to reconcile against.
 
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Load reads silver, one silver unit per
+> Postgres transaction, with a ledger of loaded units. A failed load runs again from the ledger, so
+> no reconciliation job replays projections. `ReconcilePersistence` as a data check stays open.
+
 **Context (dependency injection).** Exactly like `ExtractCompanyFactsSuperStateContext<R> { sec_client: SecClient, execution_id: Uuid, repository: R }`,
 the Load context carries the injected concrete ports:
 
@@ -262,7 +266,8 @@ draw from the **same** pool: a transaction cannot span two pools. So a co-locate
 all three writes. Separate pools per tier ⇒ no cross-tier transaction ⇒ the weak contract by
 construction. (Mirror of Extract: the *shared* rate limiter is what guarantees the SEC rate ceiling
 across all clients — sharing buys correctness there too.) A single bounded pool also caps total DB
-connections across all the concurrently-running company pipelines.
+connections across all the concurrently-running company pipelines. The silver load of ADR 0001,
+Amendment 1, keeps this rule: one transaction per silver unit over the shared pool.
 
 ---
 

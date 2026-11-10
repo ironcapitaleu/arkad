@@ -198,7 +198,7 @@ flowchart LR
     classDef daily fill:#fff2cc,stroke:#bf9000
     classDef cut fill:#f8cecc,stroke:#b85450
 
-    Q["Notes quarters<br/>2009q1 … 2025q3"]:::notes --> M["Notes months<br/>2025_10 … last month"]:::notes
+    Q["Notes quarters<br/>HEAD request for each recent one"]:::notes --> M["Notes months<br/>up to last month"]:::notes
     M --> C["Cut-over date<br/>last day of the newest<br/>stored Notes month"]:::cut
     C --> K["backfill, part 2<br/>daily indexes from the<br/>cut-over date to yesterday"]:::daily
     K --> W["daily_filings, each day<br/>yesterday-3 to yesterday"]:::daily
@@ -206,9 +206,10 @@ flowchart LR
 
 ### Backfill, Part 1: Notes Files
 
-- The periods run from `2009q1` to `2025q3` as quarters, then from `2025_10` as months.
-- The run asks for every period up to last month. On 2026-10-31 this is 79 periods.
-- Early in a month the SEC has not yet published last month. The run then counts that period as
+- The run asks the SEC with a `HEAD` request whether each recent quarterly file exists. The list
+  holds the quarters, then the months that the SEC has not merged into a quarter yet.
+- The run asks for every period up to last month. On 2026-11-07 this is 80 periods.
+- Early in a month the SEC has not posted last month yet. The run then counts that period as
   unpublished, and stores everything before it.
 - The run skips each period whose stored file passes the size and SHA-256 check.
 
@@ -296,11 +297,13 @@ lets a check reconcile one company against its stored filings.
 
 #### Notes ZIP
 
-1. Key: a `NotesPeriod`, for example `2024q1` or `2025_10`. The period list comes from today.
+1. Key: a `NotesPeriod`, for example `2024q1` or `2025_10`. The period list comes from a `HEAD`
+   request for each recent quarter, cut at last month.
 2. Request: one GET for the whole file. At most 2 files download at once, set by
    `ARKAD_FILES_IN_FLIGHT`.
 3. Response: a ZIP with ten members: eight tables (`sub`, `tag`, `dim`, `num`, `txt`, `ren`, `pre`,
-   `cal`), a readme, and `notes-metadata.json`. The run checks the content length against the body.
+   `cal`), a readme, and a metadata member (`notes-metadata.json`, or `2009q1_notes-metadata.json`
+   in 2009q1). The run checks the content length against the body.
 4. Stored as `RawNotesArchive`, unchanged. The store state is `StoreSecResponse<NotesFile, R>`.
 5. Provenance: the metadata of the request, ingestion mode `backfill`, no input.
 
@@ -628,7 +631,7 @@ A full check has two parts:
 
 | Source | SEC list | Requests |
 | ------ | -------- | -------- |
-| Notes files | The SEC data-sets page, plus a header-only request per file for its size and last-modified date. This finds files the SEC replaced | About 80 |
+| Notes files | A `HEAD` request per expected file for its size and last-modified date. This finds files the SEC replaced | About 80 |
 | Daily indexes | The quarter listing `index.json` | 1 per quarter |
 | Filings after the cut-over | The full index `form.idx` against the stored accession numbers | 1 per quarter |
 | `submissions` | The CIKs of the stored filings against the stored `submissions` files | 0 |

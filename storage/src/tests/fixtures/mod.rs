@@ -4,6 +4,8 @@
 //!
 //! ## Modules
 //!
+//! - [`fake_list_repository`]: A fake that lists and reads its seeded entries, in byte order of
+//!   the key text.
 //! - [`fake_read_repository`]: A fake [`ReadRepository`](crate::ReadRepository) initialized
 //!   with key-to-record entries.
 //! - [`fake_read_write_repository`]: A fake that implements both
@@ -14,6 +16,7 @@
 //! - [`sample_document`]: A document type that exists only for tests, and fixed metadata of it.
 //! - [`ticker`]: A future that counts how often the task polls it while another future runs.
 
+pub mod fake_list_repository;
 pub mod fake_read_repository;
 pub mod fake_read_write_repository;
 pub mod fake_write_repository;

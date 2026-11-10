@@ -1,12 +1,14 @@
 //! # Parsing Errors
 //!
-//! Error types for failures during SEC JSON parsing.
+//! Error types for failures during the parse of SEC JSON, of Notes rows, and of instance documents.
 
 use thiserror::Error;
 
+use crate::core::filing::FilingId;
+use crate::core::invalid_value::InvalidValue;
+
 pub mod invalid_data_point;
 pub mod invalid_json;
-pub mod missing_namespace;
 pub mod missing_top_level_key;
 
 /// Specific parsing failure variants.
@@ -33,13 +35,6 @@ pub enum ParseErrorKind {
         key: String,
     },
 
-    /// A required taxonomy namespace is missing from the response.
-    #[error("[MissingNamespace] Required namespace '{namespace}' not found under 'facts'")]
-    MissingNamespace {
-        /// The name of the missing namespace.
-        namespace: String,
-    },
-
     /// A data point within a concept could not be parsed.
     #[error("[InvalidDataPoint] Invalid data point for concept '{concept}', Reason: '{reason}'")]
     InvalidDataPoint {
@@ -47,5 +42,55 @@ pub enum ParseErrorKind {
         concept: String,
         /// Description of what went wrong.
         reason: String,
+    },
+
+    /// A key or a value of a data point breaks a rule of its core type, for example an end before
+    /// the start.
+    #[error(
+        "[InvalidDataPointValue] Invalid value in a data point of concept '{concept}', Caused by: {source}"
+    )]
+    InvalidDataPointValue {
+        /// The concept name the data point belongs to.
+        concept: String,
+        /// The rule the value breaks.
+        #[source]
+        source: InvalidValue,
+    },
+
+    /// The `sub` row of a Notes filing breaks a rule of a core type, so the filing has no
+    /// [`Filing`](crate::core::filing::Filing).
+    #[error(
+        "[InvalidSubmissionRow] Invalid sub row of the Notes filing '{adsh}', Caused by: {source}"
+    )]
+    InvalidSubmissionRow {
+        /// The accession number of the filing.
+        adsh: String,
+        /// The rule the row breaks.
+        #[source]
+        source: InvalidValue,
+    },
+
+    /// The text of an instance document is not well-formed XML.
+    #[error(
+        "[InvalidXml] Failed to parse the instance document of the filing '{filing}', Reason: '{reason}'"
+    )]
+    InvalidXml {
+        /// The filing.
+        filing: FilingId,
+        /// The error of the XML parser.
+        reason: String,
+    },
+
+    /// A cover fact of an instance document is missing or breaks a rule of a core type, so the
+    /// filing has no [`Filing`](crate::core::filing::Filing).
+    #[error(
+        "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing '{filing}', Caused by: {source}"
+    )]
+    InvalidInstanceFiling {
+        /// The filing.
+        filing: FilingId,
+        /// The rule the cover facts break.
+        #[source]
+        source: InvalidValue,
     },
 }

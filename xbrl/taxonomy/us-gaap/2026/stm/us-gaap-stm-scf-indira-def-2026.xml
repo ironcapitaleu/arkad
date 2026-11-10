@@ -1,0 +1,69 @@
+<?xml version='1.0' encoding='UTF-8'?>
+
+<!--
+(c) 2010-2026 Financial Accounting Foundation; (c) 2007-2010 XBRL US, Inc.  All Rights Reserved.
+Notice: Authorized Uses are Set Forth at https://xbrl.fasb.org/terms/TaxonomiesTermsConditions.html
+  -->
+<link:linkbase xmlns:link='http://www.xbrl.org/2003/linkbase' xmlns:xbrldt='http://xbrl.org/2005/xbrldt' xmlns:xlink='http://www.w3.org/1999/xlink' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xsi:schemaLocation='http://www.xbrl.org/2003/linkbase http://www.xbrl.org/2003/xbrl-linkbase-2003-12-31.xsd'>
+  <link:roleRef roleURI='http://fasb.org/us-gaap/role/statement/StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:href='../elts/us-roles-2026.xsd#StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:type='simple' />
+  <link:arcroleRef arcroleURI='http://xbrl.org/int/dim/arcrole/all' xlink:href='http://www.xbrl.org/2005/xbrldt-2005.xsd#all' xlink:type='simple' />
+  <link:arcroleRef arcroleURI='http://xbrl.org/int/dim/arcrole/hypercube-dimension' xlink:href='http://www.xbrl.org/2005/xbrldt-2005.xsd#hypercube-dimension' xlink:type='simple' />
+  <link:arcroleRef arcroleURI='http://xbrl.org/int/dim/arcrole/dimension-domain' xlink:href='http://www.xbrl.org/2005/xbrldt-2005.xsd#dimension-domain' xlink:type='simple' />
+  <link:arcroleRef arcroleURI='http://xbrl.org/int/dim/arcrole/dimension-default' xlink:href='http://www.xbrl.org/2005/xbrldt-2005.xsd#dimension-default' xlink:type='simple' />
+  <link:arcroleRef arcroleURI='http://xbrl.org/int/dim/arcrole/domain-member' xlink:href='http://www.xbrl.org/2005/xbrldt-2005.xsd#domain-member' xlink:type='simple' />
+  <link:definitionLink xlink:role='http://fasb.org/us-gaap/role/statement/StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:type='extended'>
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidByIndividualJurisdictionTable' xlink:label='loc_IncomeTaxPaidByIndividualJurisdictionTable' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidByIndividualJurisdictionLineItems' xlink:label='loc_IncomeTaxPaidByIndividualJurisdictionLineItems' xlink:type='locator' />
+    <link:definitionArc order='1.0' xbrldt:closed='true' xbrldt:contextElement='segment' xlink:arcrole='http://xbrl.org/int/dim/arcrole/all' xlink:from='loc_IncomeTaxPaidByIndividualJurisdictionLineItems' xlink:to='loc_IncomeTaxPaidByIndividualJurisdictionTable' xlink:type='arc' />
+  </link:definitionLink>
+  <link:definitionLink xlink:role='http://fasb.org/us-gaap/role/statement/StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:type='extended'>
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidByIndividualJurisdictionTable' xlink:label='loc_IncomeTaxPaidByIndividualJurisdictionTable' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxAuthorityAxis' xlink:label='loc_IncomeTaxAuthorityAxis' xlink:type='locator' />
+    <link:definitionArc order='1.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/hypercube-dimension' xlink:from='loc_IncomeTaxPaidByIndividualJurisdictionTable' xlink:to='loc_IncomeTaxAuthorityAxis' xlink:type='arc' />
+  </link:definitionLink>
+  <link:definitionLink xlink:role='http://fasb.org/us-gaap/role/statement/StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:type='extended'>
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxAuthorityAxis' xlink:label='loc_IncomeTaxAuthorityAxis' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxAuthorityDomain' xlink:label='loc_IncomeTaxAuthorityDomain' xlink:type='locator' />
+    <link:definitionArc order='1.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/dimension-domain' xlink:from='loc_IncomeTaxAuthorityAxis' xlink:to='loc_IncomeTaxAuthorityDomain' xlink:type='arc' />
+  </link:definitionLink>
+  <link:definitionLink xlink:role='http://fasb.org/us-gaap/role/statement/StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:type='extended'>
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxAuthorityAxis' xlink:label='loc_IncomeTaxAuthorityAxis' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxAuthorityDomain' xlink:label='loc_IncomeTaxAuthorityDomain' xlink:type='locator' />
+    <link:definitionArc order='1.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/dimension-default' xlink:from='loc_IncomeTaxAuthorityAxis' xlink:to='loc_IncomeTaxAuthorityDomain' xlink:type='arc' />
+  </link:definitionLink>
+  <link:definitionLink xlink:role='http://fasb.org/us-gaap/role/statement/StatementOfCashFlowsIndirectAdditionalElementsIncomeTaxPaidByIndividualJurisdictionTable' xlink:type='extended'>
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidByIndividualJurisdictionLineItems' xlink:label='loc_IncomeTaxPaidByIndividualJurisdictionLineItems' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxesPaidNetAbstract' xlink:label='loc_IncomeTaxesPaidNetAbstract' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidFederalAfterRefundReceivedAbstract' xlink:label='loc_IncomeTaxPaidFederalAfterRefundReceivedAbstract' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidFederalBeforeRefundReceived' xlink:label='loc_IncomeTaxPaidFederalBeforeRefundReceived' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_ProceedsFromIncomeTaxRefundFederal' xlink:label='loc_ProceedsFromIncomeTaxRefundFederal' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidFederalAfterRefundReceived' xlink:label='loc_IncomeTaxPaidFederalAfterRefundReceived' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidStateAndLocalAfterRefundReceivedAbstract' xlink:label='loc_IncomeTaxPaidStateAndLocalAfterRefundReceivedAbstract' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidStateAndLocalBeforeRefundReceived' xlink:label='loc_IncomeTaxPaidStateAndLocalBeforeRefundReceived' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_ProceedsFromIncomeTaxRefundStateAndLocal' xlink:label='loc_ProceedsFromIncomeTaxRefundStateAndLocal' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidStateAndLocalAfterRefundReceived' xlink:label='loc_IncomeTaxPaidStateAndLocalAfterRefundReceived' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidAfterRefundReceivedStateAndLocalJurisdictionsExtensibleEnumeration' xlink:label='loc_IncomeTaxPaidAfterRefundReceivedStateAndLocalJurisdictionsExtensibleEnumeration' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidForeignAfterRefundReceivedAbstract' xlink:label='loc_IncomeTaxPaidForeignAfterRefundReceivedAbstract' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidForeignBeforeRefundReceived' xlink:label='loc_IncomeTaxPaidForeignBeforeRefundReceived' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_ProceedsFromIncomeTaxRefundForeign' xlink:label='loc_ProceedsFromIncomeTaxRefundForeign' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidForeignAfterRefundReceived' xlink:label='loc_IncomeTaxPaidForeignAfterRefundReceived' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxPaidAfterRefundReceivedForeignJurisdictionExtensibleEnumeration' xlink:label='loc_IncomeTaxPaidAfterRefundReceivedForeignJurisdictionExtensibleEnumeration' xlink:type='locator' />
+    <link:loc xlink:href='../elts/us-gaap-2026.xsd#us-gaap_IncomeTaxesPaidNet' xlink:label='loc_IncomeTaxesPaidNet' xlink:type='locator' />
+    <link:definitionArc order='1.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidByIndividualJurisdictionLineItems' xlink:to='loc_IncomeTaxesPaidNetAbstract' xlink:type='arc' />
+    <link:definitionArc order='2.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxesPaidNetAbstract' xlink:to='loc_IncomeTaxPaidFederalAfterRefundReceivedAbstract' xlink:type='arc' />
+    <link:definitionArc order='3.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidFederalAfterRefundReceivedAbstract' xlink:to='loc_IncomeTaxPaidFederalBeforeRefundReceived' xlink:type='arc' />
+    <link:definitionArc order='4.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidFederalAfterRefundReceivedAbstract' xlink:to='loc_ProceedsFromIncomeTaxRefundFederal' xlink:type='arc' />
+    <link:definitionArc order='5.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidFederalAfterRefundReceivedAbstract' xlink:to='loc_IncomeTaxPaidFederalAfterRefundReceived' xlink:type='arc' />
+    <link:definitionArc order='6.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxesPaidNetAbstract' xlink:to='loc_IncomeTaxPaidStateAndLocalAfterRefundReceivedAbstract' xlink:type='arc' />
+    <link:definitionArc order='7.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidStateAndLocalAfterRefundReceivedAbstract' xlink:to='loc_IncomeTaxPaidStateAndLocalBeforeRefundReceived' xlink:type='arc' />
+    <link:definitionArc order='8.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidStateAndLocalAfterRefundReceivedAbstract' xlink:to='loc_ProceedsFromIncomeTaxRefundStateAndLocal' xlink:type='arc' />
+    <link:definitionArc order='9.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidStateAndLocalAfterRefundReceivedAbstract' xlink:to='loc_IncomeTaxPaidStateAndLocalAfterRefundReceived' xlink:type='arc' />
+    <link:definitionArc order='10.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidStateAndLocalAfterRefundReceived' xlink:to='loc_IncomeTaxPaidAfterRefundReceivedStateAndLocalJurisdictionsExtensibleEnumeration' xlink:type='arc' />
+    <link:definitionArc order='11.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxesPaidNetAbstract' xlink:to='loc_IncomeTaxPaidForeignAfterRefundReceivedAbstract' xlink:type='arc' />
+    <link:definitionArc order='12.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidForeignAfterRefundReceivedAbstract' xlink:to='loc_IncomeTaxPaidForeignBeforeRefundReceived' xlink:type='arc' />
+    <link:definitionArc order='13.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidForeignAfterRefundReceivedAbstract' xlink:to='loc_ProceedsFromIncomeTaxRefundForeign' xlink:type='arc' />
+    <link:definitionArc order='14.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidForeignAfterRefundReceivedAbstract' xlink:to='loc_IncomeTaxPaidForeignAfterRefundReceived' xlink:type='arc' />
+    <link:definitionArc order='15.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxPaidForeignAfterRefundReceived' xlink:to='loc_IncomeTaxPaidAfterRefundReceivedForeignJurisdictionExtensibleEnumeration' xlink:type='arc' />
+    <link:definitionArc order='16.0' xlink:arcrole='http://xbrl.org/int/dim/arcrole/domain-member' xlink:from='loc_IncomeTaxesPaidNetAbstract' xlink:to='loc_IncomeTaxesPaidNet' xlink:type='arc' />
+  </link:definitionLink>
+</link:linkbase>

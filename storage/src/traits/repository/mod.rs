@@ -1,15 +1,20 @@
 //! # Repository
 //!
-//! Provides the traits through which code reads and writes records.
+//! Provides the traits through which code reads and writes records, and lists documents.
 //!
 //! [`ReadRepository`] gives a caller [`get`](ReadRepository::get) and nothing else.
 //! [`WriteRepository`] gives it [`persist`](WriteRepository::persist) and nothing else. A caller
 //! depends on the trait for the access it needs, so a read-only caller has no write method in
 //! scope.
+//! [`ListRepository`] gives it [`list_keys`](ListRepository::list_keys) and
+//! [`list`](ListRepository::list), and no read by key.
 //!
 //! ## Modules
 //!
+//! - [`list_repository`]: [`ListRepository`] — lists the documents a store holds.
 //! - [`read_repository`]: [`ReadRepository`] — reads a record by key.
+//! - [`read_list_repository`]: [`ReadListRepository`] — names a store that reads and lists with
+//!   one key type.
 //! - [`read_write_repository`]: [`ReadWriteRepository`] — names a store that reads and writes.
 //! - [`write_repository`]: [`WriteRepository`] — persists a record.
 //!
@@ -25,10 +30,14 @@
 //! }
 //! ```
 
+pub mod list_repository;
+pub mod read_list_repository;
 pub mod read_repository;
 pub mod read_write_repository;
 pub mod write_repository;
 
+pub use list_repository::ListRepository;
+pub use read_list_repository::ReadListRepository;
 pub use read_repository::ReadRepository;
 pub use read_write_repository::ReadWriteRepository;
 pub use write_repository::WriteRepository;

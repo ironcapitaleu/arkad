@@ -17,7 +17,7 @@ pub enum CanonicalElement {
     Assets,
     /// Total liabilities.
     Liabilities,
-    /// Stockholders' equity.
+    /// Stockholders' equity, including the portion of the noncontrolling interest.
     Equity,
     /// Total revenue.
     Revenue,
@@ -27,11 +27,13 @@ pub enum CanonicalElement {
     Gains,
     /// Losses (non-operating).
     Losses,
-    /// Net income (loss).
+    /// Net income (loss), including the portion of the noncontrolling interest.
     NetIncome,
-    /// Other comprehensive income (unrealized gains/losses, FX, pensions).
+    /// Other comprehensive income (unrealized gains/losses, FX, pensions), including the portion
+    /// of the noncontrolling interest.
     OtherComprehensiveIncome,
-    /// Comprehensive income (net income + OCI).
+    /// Comprehensive income (net income + OCI), including the portion of the noncontrolling
+    /// interest.
     ComprehensiveIncome,
     /// Net cash from operating activities.
     OperatingCashFlow,
@@ -87,13 +89,17 @@ pub enum CanonicalElement {
     EarningsPerShareDiluted,
 
     // --- Level 2: Cash Flow sub-elements ---
-    /// Depreciation and amortization.
+    /// Depreciation, depletion, and amortization: the add-back of the cash flow statement
+    /// (`DepreciationDepletionAndAmortization`).
     DepreciationAmortization,
-    /// Capital expenditures.
+    /// Capital expenditures: the payments for every productive asset, intangible assets and
+    /// software included (`PaymentsToAcquireProductiveAssets`).
     CapitalExpenditures,
-    /// Dividends paid.
+    /// Dividends paid: every dividend payment, including to preferred stockholders and to the
+    /// noncontrolling interest, and capital distributions (`PaymentsOfDividends`).
     DividendsPaid,
-    /// Share repurchases (buybacks).
+    /// Share repurchases: the payments for the repurchase of every class of equity
+    /// (`PaymentsForRepurchaseOfEquity`).
     ShareRepurchases,
     /// Share-based compensation expense.
     ShareBasedCompensation,

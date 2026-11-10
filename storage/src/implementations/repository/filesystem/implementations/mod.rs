@@ -9,6 +9,9 @@
 //!   markers for its missing steps.
 //! - [`constants`]: The constants that fix the file layout, such as
 //!   [`METADATA_SUFFIX`](constants::METADATA_SUFFIX).
+//! - `key_walk`: The sorted walk over the directories under a
+//!   [`KeyPrefix`](crate::implementations::repository::filesystem::KeyPrefix).
+//! - `list_repository`: Implements [`ListRepository`](crate::ListRepository).
 //! - `read_repository`: Implements [`ReadRepository`](crate::ReadRepository).
 //! - `write_repository`: Implements [`WriteRepository`](crate::WriteRepository).
 //!
@@ -16,5 +19,7 @@
 
 pub mod builder;
 pub mod constants;
+mod key_walk;
+mod list_repository;
 mod read_repository;
 mod write_repository;
