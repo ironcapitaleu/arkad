@@ -3,6 +3,7 @@
 //! Provides the [`list_companies`] handler of `GET /v1/companies` and the [`get_company`]
 //! handler of `GET /v1/companies/{company_id}`.
 
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 
@@ -60,12 +61,12 @@ pub struct CompanyIdentifier {
     /// The identifier.
     #[schema(example = "0001652044")]
     pub value: String,
-    /// The first day the identifier was valid, as `YYYY-MM-DD`.
-    #[schema(format = Date, example = "2015-10-02")]
-    pub valid_from: String,
+    /// The first day the identifier was valid.
+    #[schema(value_type = String, format = Date, example = "2015-10-02")]
+    pub valid_from: NaiveDate,
     /// The last day the identifier was valid, or `null` if it is current.
-    #[schema(required = true, format = Date, example = json!(null))]
-    pub valid_to: Option<String>,
+    #[schema(required = true, value_type = Option<String>, format = Date, example = json!(null))]
+    pub valid_to: Option<NaiveDate>,
     /// `false` for an LEI that no one checked against GLEIF.
     pub verified: bool,
 }

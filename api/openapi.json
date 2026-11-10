@@ -171,11 +171,12 @@
           {
             "name": "fiscal_period",
             "in": "query",
-            "description": "One fiscal period. Default: all.",
+            "description": "One fiscal period: `fy`, `q1`, `q2`, `q3`, or `q4`. Default: all.",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/FiscalPeriod"
-            }
+              "type": "string"
+            },
+            "example": "fy"
           },
           {
             "name": "fiscal_year_from",
@@ -184,7 +185,8 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "minimum": 0
             },
             "example": 2020
           },
@@ -195,7 +197,8 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "minimum": 0
             },
             "example": 2024
           },
@@ -520,7 +523,7 @@
           "valid_from": {
             "type": "string",
             "format": "date",
-            "description": "The first day the identifier was valid, as `YYYY-MM-DD`.",
+            "description": "The first day the identifier was valid.",
             "example": "2015-10-02"
           },
           "valid_to": {
@@ -633,16 +636,6 @@
           }
         }
       },
-      "Confidence": {
-        "type": "string",
-        "description": "The resolution tier that produced a fact. A later tier is less certain.",
-        "enum": [
-          "exact",
-          "synonym",
-          "derived",
-          "computed"
-        ]
-      },
       "Fact": {
         "type": "object",
         "description": "One value of one concept for one period.",
@@ -663,21 +656,23 @@
             "example": "revenue"
           },
           "fiscal_period": {
-            "$ref": "#/components/schemas/FiscalPeriod",
-            "description": "The fiscal period of the value."
+            "type": "string",
+            "description": "The fiscal period of the value: `fy`, `q1`, `q2`, `q3`, or `q4`.",
+            "example": "fy"
           },
           "fiscal_year": {
             "type": "integer",
             "format": "int32",
             "description": "The fiscal year of the value.",
-            "example": 2024
+            "example": 2024,
+            "minimum": 0
           },
           "lineage": {
             "$ref": "#/components/schemas/Lineage",
             "description": "How the value maps to its concept. Present only with `include=lineage`."
           },
           "period": {
-            "$ref": "#/components/schemas/FactPeriod",
+            "$ref": "#/components/schemas/Period",
             "description": "The period that the value covers."
           },
           "segment": {
@@ -733,7 +728,8 @@
             ],
             "format": "int32",
             "description": "The first fiscal year that the plan allows if the plan cut the result, or `null`.",
-            "example": 2021
+            "example": 2021,
+            "minimum": 0
           },
           "next_cursor": {
             "type": [
@@ -743,62 +739,6 @@
             "description": "The cursor of the next page, or `null` on the last page."
           }
         }
-      },
-      "FactPeriod": {
-        "oneOf": [
-          {
-            "type": "object",
-            "description": "A range of days, for example a fiscal year of an income statement.",
-            "required": [
-              "start",
-              "end",
-              "kind"
-            ],
-            "properties": {
-              "end": {
-                "type": "string",
-                "format": "date",
-                "description": "The last day, as `YYYY-MM-DD`.",
-                "example": "2024-09-28"
-              },
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "duration"
-                ]
-              },
-              "start": {
-                "type": "string",
-                "format": "date",
-                "description": "The first day, as `YYYY-MM-DD`.",
-                "example": "2023-10-01"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "description": "One day, for example a balance sheet date.",
-            "required": [
-              "end",
-              "kind"
-            ],
-            "properties": {
-              "end": {
-                "type": "string",
-                "format": "date",
-                "description": "The day, as `YYYY-MM-DD`.",
-                "example": "2024-09-28"
-              },
-              "kind": {
-                "type": "string",
-                "enum": [
-                  "instant"
-                ]
-              }
-            }
-          }
-        ],
-        "description": "The period that a fact covers."
       },
       "FactSource": {
         "type": "object",
@@ -818,7 +758,7 @@
           "filed_at": {
             "type": "string",
             "format": "date",
-            "description": "The filing date, as `YYYY-MM-DD`.",
+            "description": "The filing date.",
             "example": "2024-11-01"
           },
           "form": {
@@ -854,18 +794,20 @@
           "filed_at": {
             "type": "string",
             "format": "date",
-            "description": "The filing date, as `YYYY-MM-DD`.",
+            "description": "The filing date.",
             "example": "2024-11-01"
           },
           "fiscal_period": {
-            "$ref": "#/components/schemas/FiscalPeriod",
-            "description": "The fiscal period that the filing reports on."
+            "type": "string",
+            "description": "The fiscal period that the filing reports on: `fy`, `q1`, `q2`, `q3`, or `q4`.",
+            "example": "fy"
           },
           "fiscal_year": {
             "type": "integer",
             "format": "int32",
             "description": "The fiscal year that the filing reports on.",
-            "example": 2024
+            "example": 2024,
+            "minimum": 0
           },
           "form": {
             "type": "string",
@@ -875,7 +817,7 @@
           "period_end": {
             "type": "string",
             "format": "date",
-            "description": "The last day of the period that the filing reports on, as `YYYY-MM-DD`.",
+            "description": "The last day of the period that the filing reports on.",
             "example": "2024-09-28"
           },
           "url": {
@@ -915,7 +857,8 @@
             ],
             "format": "int32",
             "description": "The first fiscal year that the plan allows if the plan cut the result, or `null`.",
-            "example": 2021
+            "example": 2021,
+            "minimum": 0
           },
           "next_cursor": {
             "type": [
@@ -925,17 +868,6 @@
             "description": "The cursor of the next page, or `null` on the last page."
           }
         }
-      },
-      "FiscalPeriod": {
-        "type": "string",
-        "description": "The fiscal period of a fact or a filing.",
-        "enum": [
-          "fy",
-          "q1",
-          "q2",
-          "q3",
-          "q4"
-        ]
       },
       "IdentifierScheme": {
         "type": "string",
@@ -955,8 +887,14 @@
         ],
         "properties": {
           "confidence": {
-            "$ref": "#/components/schemas/Confidence",
-            "description": "The resolution tier that produced the value."
+            "type": "string",
+            "description": "The resolution tier that produced the value. A later tier is less certain.",
+            "enum": [
+              "exact",
+              "synonym",
+              "derived",
+              "computed"
+            ]
           },
           "native_concept": {
             "type": "string",
@@ -974,6 +912,64 @@
             ]
           }
         }
+      },
+      "Period": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A range of days, for example a fiscal year of an income statement.",
+            "required": [
+              "end",
+              "kind"
+            ],
+            "properties": {
+              "end": {
+                "type": "string",
+                "format": "date",
+                "description": "The last day.",
+                "example": "2024-09-28"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "duration"
+                ]
+              },
+              "start": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date",
+                "description": "The first day, or `null` if the source gives only the number of quarters.",
+                "example": "2023-10-01"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "One day, for example a balance sheet date.",
+            "required": [
+              "end",
+              "kind"
+            ],
+            "properties": {
+              "end": {
+                "type": "string",
+                "format": "date",
+                "description": "The day.",
+                "example": "2024-09-28"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "instant"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The wire shape of a [`Period`]: `duration` with `start` and `end`, or `instant` with `end`."
       },
       "Problem": {
         "type": "object",

@@ -2,31 +2,49 @@
 //!
 //! Provides the [`list_facts`] handler of `GET /v1/companies/{company_id}/facts`.
 
+use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
+use xbrl::core::confidence::Confidence;
+use xbrl::core::elements::CanonicalElement;
+use xbrl::core::filing::FilingId;
+use xbrl::core::fiscal_period::FiscalPeriod;
+use xbrl::core::fiscal_year::FiscalYear;
+use xbrl::core::form::Form;
+use xbrl::core::period::Period;
+use xbrl::core::unit::Unit;
 
-use super::{CompanyPath, FiscalPeriod};
+use super::CompanyPath;
+use super::wire::{self, PeriodJson};
 use crate::error::{ApiError, Problem};
 
 /// One value of one concept for one period.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Fact {
     /// The concept, from `GET /v1/concepts`.
-    #[schema(example = "revenue")]
-    pub concept: String,
+    #[serde(serialize_with = "wire::concept")]
+    #[schema(value_type = String, example = "revenue")]
+    pub concept: CanonicalElement,
     /// The exact decimal value in whole units of `unit`, as a string.
-    #[schema(example = "391035000000")]
-    pub value: String,
+    #[serde(serialize_with = "wire::decimal")]
+    #[schema(value_type = String, example = "391035000000")]
+    pub value: BigDecimal,
     /// An ISO 4217 currency code, `shares`, `usd_per_share`, or `pure` for a ratio.
-    #[schema(example = "USD")]
-    pub unit: String,
+    #[serde(serialize_with = "wire::unit")]
+    #[schema(value_type = String, example = "USD")]
+    pub unit: Unit,
     /// The fiscal year of the value.
-    #[schema(example = 2024)]
-    pub fiscal_year: i32,
-    /// The fiscal period of the value.
+    #[schema(value_type = u16, example = 2024)]
+    pub fiscal_year: FiscalYear,
+    /// The fiscal period of the value: `fy`, `q1`, `q2`, `q3`, or `q4`.
+    #[serde(serialize_with = "wire::fiscal_period")]
+    #[schema(value_type = String, example = "fy")]
     pub fiscal_period: FiscalPeriod,
     /// The period that the value covers.
-    pub period: FactPeriod,
+    #[serde(serialize_with = "wire::period")]
+    #[schema(value_type = PeriodJson)]
+    pub period: Period,
     /// `null` for a consolidated total. With `include=segments`, the axis and the member.
     #[schema(required = true, value_type = Option<Object>)]
     pub segment: Option<serde_json::Value>,
@@ -38,39 +56,19 @@ pub struct Fact {
     pub lineage: Option<Lineage>,
 }
 
-/// The period that a fact covers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
-#[serde(tag = "kind", rename_all = "snake_case")]
-pub enum FactPeriod {
-    /// A range of days, for example a fiscal year of an income statement.
-    Duration {
-        /// The first day, as `YYYY-MM-DD`.
-        #[schema(format = Date, example = "2023-10-01")]
-        start: String,
-        /// The last day, as `YYYY-MM-DD`.
-        #[schema(format = Date, example = "2024-09-28")]
-        end: String,
-    },
-    /// One day, for example a balance sheet date.
-    Instant {
-        /// The day, as `YYYY-MM-DD`.
-        #[schema(format = Date, example = "2024-09-28")]
-        end: String,
-    },
-}
-
 /// The filing that a fact comes from.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct FactSource {
     /// The accession number of the filing.
-    #[schema(example = "0000320193-24-000123")]
-    pub accession_number: String,
+    #[serde(rename = "accession_number", serialize_with = "wire::filing_id")]
+    #[schema(value_type = String, example = "0000320193-24-000123")]
+    pub filing_id: FilingId,
     /// The form type of the filing.
-    #[schema(example = "10-K")]
-    pub form: String,
-    /// The filing date, as `YYYY-MM-DD`.
-    #[schema(format = Date, example = "2024-11-01")]
-    pub filed_at: String,
+    #[schema(value_type = String, example = "10-K")]
+    pub form: Form,
+    /// The filing date.
+    #[schema(value_type = String, format = Date, example = "2024-11-01")]
+    pub filed_at: NaiveDate,
     /// The folder of the filing on SEC EDGAR.
     #[schema(example = "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/")]
     pub url: String,
@@ -80,6 +78,8 @@ pub struct FactSource {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Lineage {
     /// The resolution tier that produced the value.
+    #[serde(serialize_with = "wire::confidence")]
+    #[schema(schema_with = wire::confidence_schema)]
     pub confidence: Confidence,
     /// The concept that the filing used.
     #[schema(example = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax")]
@@ -87,20 +87,6 @@ pub struct Lineage {
     /// The filed concepts that the value comes from, in order.
     #[schema(example = json!(["us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"]))]
     pub resolution_path: Vec<String>,
-}
-
-/// The resolution tier that produced a fact. A later tier is less certain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum Confidence {
-    /// The filing used the first concept of the alias list.
-    Exact,
-    /// The filing used a later concept of the alias list, or a part that it reports alone.
-    Synonym,
-    /// The value comes from other standardized values by an accounting or a period identity.
-    Derived,
-    /// The value is a sum along the calculation tree.
-    Computed,
 }
 
 /// The body of a `GET /v1/companies/{company_id}/facts` response.
@@ -115,8 +101,8 @@ pub struct FactList {
     #[schema(format = DateTime, example = "2026-10-30T06:00:00Z")]
     pub as_of: String,
     /// The first fiscal year that the plan allows if the plan cut the result, or `null`.
-    #[schema(required = true, example = 2021)]
-    pub history_limited_from: Option<i32>,
+    #[schema(required = true, value_type = Option<u16>, example = 2021)]
+    pub history_limited_from: Option<FiscalYear>,
 }
 
 /// The query parameters of `GET /v1/companies/{company_id}/facts`.
@@ -126,14 +112,16 @@ pub struct FactQuery {
     /// One or more concepts from `GET /v1/concepts`, separated by commas. At most 20.
     #[param(example = "revenue,net_income")]
     pub concept: String,
-    /// One fiscal period. Default: all.
+    /// One fiscal period: `fy`, `q1`, `q2`, `q3`, or `q4`. Default: all.
+    #[serde(default, deserialize_with = "wire::optional_fiscal_period")]
+    #[param(value_type = Option<String>, example = "fy")]
     pub fiscal_period: Option<FiscalPeriod>,
     /// The first fiscal year, inclusive.
     #[param(example = 2020)]
-    pub fiscal_year_from: Option<i32>,
+    pub fiscal_year_from: Option<u16>,
     /// The last fiscal year, inclusive.
     #[param(example = 2024)]
-    pub fiscal_year_to: Option<i32>,
+    pub fiscal_year_to: Option<u16>,
     /// `segments`, `lineage`, or both, separated by commas.
     #[param(example = "segments,lineage")]
     pub include: Option<String>,
@@ -165,8 +153,9 @@ pub async fn list_facts() -> ApiError {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use pretty_assertions::assert_eq;
-    use serde_json::json;
 
     use super::*;
 
@@ -183,36 +172,28 @@ mod tests {
     }
 
     #[test]
-    fn should_serialize_only_the_end_when_the_period_is_an_instant() {
-        let period = FactPeriod::Instant {
-            end: "2024-09-28".to_owned(),
-        };
-
-        let expected_result = json!({ "kind": "instant", "end": "2024-09-28" });
-
-        let result = serde_json::to_value(period).expect(
-            "Given an enum whose fields are all strings, serializing it should always succeed",
-        );
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_omit_the_lineage_key_when_the_fact_has_no_lineage() {
         let fact = Fact {
-            concept: "revenue".to_owned(),
-            value: "391035000000".to_owned(),
-            unit: "USD".to_owned(),
-            fiscal_year: 2024,
-            fiscal_period: FiscalPeriod::Fy,
-            period: FactPeriod::Instant {
-                end: "2024-09-28".to_owned(),
+            concept: CanonicalElement::Revenue,
+            value: BigDecimal::from_str("391035000000")
+                .expect("Given a hardcoded integer text, parsing it should always succeed"),
+            unit: Unit::from_str("USD")
+                .expect("Given the hardcoded unit 'USD', parsing it should always succeed"),
+            fiscal_year: FiscalYear::new(2024),
+            fiscal_period: FiscalPeriod::new("FY")
+                .expect("Given the hardcoded period 'FY', the creation should always succeed"),
+            period: Period::Instant {
+                end: NaiveDate::from_ymd_opt(2024, 9, 28)
+                    .expect("Given a valid hardcoded date, building it should always succeed"),
             },
             segment: None,
             source: FactSource {
-                accession_number: "0000320193-24-000123".to_owned(),
-                form: "10-K".to_owned(),
-                filed_at: "2024-11-01".to_owned(),
+                filing_id: FilingId::new("sec", "0000320193-24-000123")
+                    .expect("Given a hardcoded source and ID, the creation should always succeed"),
+                form: Form::new("10-K")
+                    .expect("Given the hardcoded form '10-K', the creation should always succeed"),
+                filed_at: NaiveDate::from_ymd_opt(2024, 11, 1)
+                    .expect("Given a valid hardcoded date, building it should always succeed"),
                 url: "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
                     .to_owned(),
             },
@@ -222,7 +203,7 @@ mod tests {
         let expected_result = false;
 
         let result = serde_json::to_value(fact)
-            .expect("Given a struct of strings, numbers, and enums, serializing it should always succeed")
+            .expect("Given a fact with a mapped concept, serializing it should always succeed")
             .as_object()
             .expect("Given a struct, serde should always serialize it as a JSON object")
             .contains_key("lineage");
