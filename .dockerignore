@@ -9,3 +9,5 @@ docs
 # The build stage takes Rust from its `rust:` tag, which CI checks against this file. Without
 # the file, rustup does not install `clippy` and `rustfmt`, which the build does not use.
 rust-toolchain.toml
+# The build reads none of the vendored taxonomy files.
+xbrl/taxonomy

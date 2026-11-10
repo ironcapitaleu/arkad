@@ -49,7 +49,7 @@ impl InvalidNotesPeriod {
     /// use sec::shared::notes_period::{InvalidNotesPeriodReason, NotesPeriodError};
     ///
     /// let notes_period_error =
-    ///     NotesPeriodError::new(InvalidNotesPeriodReason::UnpublishedQuarter, "2025q4");
+    ///     NotesPeriodError::new(InvalidNotesPeriodReason::InvalidNotesPeriodFormat, "2025q5");
     /// let state_error = InvalidNotesPeriod::new("Validate Notes Period", notes_period_error.clone());
     ///
     /// let expected_result = notes_period_error;

@@ -1,0 +1,6 @@
+# Vendored taxonomy files must keep their exact bytes, so their SHA-256 matches the MANIFEST.
+xbrl/taxonomy/** -text
+# GitHub collapses the generated US GAAP tables in diffs. The generator test guards their content.
+xbrl/src/us_gaap/taxonomy.rs linguist-generated=true
+# GitHub collapses the generated ISO 4217 tables in diffs. Tests in `core::unit` guard their order and form.
+xbrl/src/core/currency_codes/iso_4217.rs linguist-generated=true

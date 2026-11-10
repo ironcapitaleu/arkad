@@ -221,13 +221,13 @@ mod tests {
     }
 
     fn sample_notes_requested_url() -> Url {
-        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+        "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip"
             .parse()
             .expect("A hardcoded valid URL string should always parse")
     }
 
     fn sample_notes_final_url() -> Url {
-        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/redirected/2024q1_notes.zip"
+        "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/redirected/2024q1_notes.zip"
             .parse()
             .expect("A hardcoded valid URL string should always parse")
     }

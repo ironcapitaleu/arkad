@@ -294,7 +294,7 @@ impl<S: RawFileSource> RawDocument<S> {
     /// use storage::implementations::repository::filesystem::{Document, DocumentKey, IngestionMode};
     /// use uuid::Uuid;
     ///
-    /// let url: Url = "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+    /// let url: Url = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip"
     ///     .parse()
     ///     .expect("A hardcoded valid URL string should always parse");
     /// let headers = Headers::new(HashMap::from([(
@@ -808,7 +808,7 @@ mod tests {
     }
 
     fn sample_notes_url() -> Url {
-        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+        "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip"
             .parse()
             .expect("A hardcoded valid URL string should always parse")
     }

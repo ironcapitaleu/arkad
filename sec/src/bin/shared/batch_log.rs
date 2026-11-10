@@ -30,6 +30,9 @@ pub enum BatchEvent {
     Complete,
     DefaultUserAgent,
     Failed,
+    /// A request that asks whether a Notes file exists failed with a transient SEC failure and
+    /// runs again.
+    NotesProbeRetried,
     StartupFailed,
     /// One facade call of a run with two calls ended with no failure.
     StepComplete,
@@ -43,6 +46,7 @@ impl Display for BatchEvent {
             Self::Complete => write!(f, "batch_complete"),
             Self::DefaultUserAgent => write!(f, "batch_default_user_agent"),
             Self::Failed => write!(f, "batch_failed"),
+            Self::NotesProbeRetried => write!(f, "batch_notes_probe_retried"),
             Self::StartupFailed => write!(f, "batch_startup_failed"),
             Self::StepComplete => write!(f, "batch_step_complete"),
             Self::StepFailed => write!(f, "batch_step_failed"),

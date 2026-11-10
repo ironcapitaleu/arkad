@@ -204,11 +204,14 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 ### Deferred to STA-139 (marked, not decided)
 
 1. **Read surface** (`scan` / `completeness` / `ownership_tree` / `query`) + the CQRS read/write split.
+   The listing of a repository reopens this item for the listing only, and replaces `scan`. See
+   [`repository_listing.md`](../../../storage/design/data_model/repository_listing.md).
 2. **`RawStore` genericity** (`type Item`?) — raw is the one regulator-specific tier.
 3. **`completeness` placement** — straddles graph structure and fact presence.
 4. **Retry / DLQ** — a `RetryingRepository` decorator (reads `is_retryable()`); reconciliation for
    post-raw projection gaps; a DLQ only for poison (non-retryable) records; all at the driver level,
-   never in the state machine.
+   never in the state machine. For the MVP, the silver load needs no reconciliation job that
+   replays projections. See the note at [Transaction ownership](#tx-ownership).
 
 ---
 
@@ -528,6 +531,12 @@ through `query` — that keeps tests backend-honest instead of silently dependin
 visibility that only Postgres provides.
 
 ### Transaction ownership — the facade holds the tx, never the tier stores {#tx-ownership}
+
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that `persist` writes the raw store only.
+> A load step per silver unit then writes the graph and fact tiers in one Postgres transaction. The
+> co-located rule below applies to that load step. The mixed-engine path and its §8 reconciliation
+> job have no use in the MVP. A failed load leaves no ledger row, so the next run loads the unit
+> again.
 
 The unit-of-work seam is `ingest`, but *where the transaction lives* differs by impl, and getting
 this wrong silently downgrades the strong contract to the weak one:

@@ -6,7 +6,7 @@
 //! ## Modules
 //!
 //! - [`body`]: The [`ResponseBody`] and [`FileBody`] traits and the [`JsonBody`], [`XmlBody`],
-//!   and [`ZipBody`] kinds.
+//!   [`ZipBody`], and [`ZipHeadBody`] kinds.
 //! - [`error`]: The [`InvalidSecResponse`] error raised during validation.
 
 use std::collections::HashMap;
@@ -30,7 +30,7 @@ use self::error::{ErrorReason, InvalidSecResponse};
 pub mod body;
 pub mod error;
 
-pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody};
+pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody, ZipHeadBody};
 
 /// A validated SEC API response with a body of kind `B`.
 ///
@@ -42,6 +42,8 @@ pub use body::{FileBody, JsonBody, ResponseBody, XmlBody, ZipBody};
 ///   `Content-Length` header.
 /// - [`XmlBody`]: status 200, an XML content type, and a body that matches the `Content-Length`
 ///   header.
+/// - [`ZipHeadBody`]: status 200 and a ZIP or octet-stream content type. The answer to a `HEAD`
+///   request has no body, so it has no length check.
 ///
 /// Built from a raw response via [`from_inner`](crate::shared::response::SecResponse::from_inner),
 /// or from parts via [`SecResponse::from_parts`]. Equality, ordering, and hashing use the URL,
@@ -485,7 +487,10 @@ mod tests {
             .expect("Given a valid status code and header names, building the response should always succeed");
         let inner = reqwest::Response::from(http_response);
 
-        let expected_result = serde_json::json!({ "price": 1.50 });
+        // `serde_json` keeps the text of a number (feature `arbitrary_precision`), so the
+        // expected value is parsed from text. `json!` would turn `1.50` into `1.5`.
+        let expected_result: serde_json::Value = serde_json::from_str(r#"{ "price": 1.50 }"#)
+            .expect("Given a hardcoded JSON object, the parse should always succeed");
 
         let response = SecResponse::<JsonBody>::from_inner(inner).await.expect(
             "Given status 200 and a valid JSON body, building the response should always succeed",
@@ -736,7 +741,7 @@ mod zip_tests {
     }
 
     fn sample_url() -> Url {
-        "https://www.sec.gov/files/dera/data/financial-statement-and-notes-data-sets/2024q1_notes.zip"
+        "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2024q1_notes.zip"
             .parse()
             .expect("Given a hardcoded valid URL, parsing should always succeed")
     }

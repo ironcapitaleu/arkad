@@ -322,9 +322,9 @@ as a dynamic fork per filing. The facade does not wait for STA-329.
 #### Room for the Bookmark and the Full Index
 
 `dates(ds)` takes the dates as input. Today `main` reads them from `ARKAD_FROM` and `ARKAD_TO`.
-STA-403, items 5 and 6, can give the dates from a bookmark in the store, or replace the dates with
-the full index minus the stored filings. Both change only the input of the source, not the shape
-of the facade.
+The listing design replaces the dates with the full index minus the stored filings (see
+[`repository_listing.md`](../../../storage/design/data_model/repository_listing.md), "Bookmark or
+Full Index"). This changes only the input of the source, not the shape of the facade.
 
 #### Diagram
 
@@ -365,7 +365,7 @@ let now = Utc::now();
 let backfill = Extraction::backfill();
 let past = backfill
     .notes() // `all()` adds the `submissions` step. The binary does not call it.
-    .periods(notes_periods(now.date_naive()))
+    .periods(notes_periods(&sec_client, now.date_naive()).await?)
     .sec_client(sec_client.clone())
     .repository(notes_repository)
     .in_flight(files_in_flight_from_env()?)
@@ -635,13 +635,29 @@ returns the `NotesArchiveRef` as a typed value. The caller never parses the JSON
 `NotesPeriod` is a domain type in `sec/src/lib/shared/`. It holds either a quarter (year and
 quarter) or a month (year and month).
 
-- Quarters run from 2009q1 to 2025q3. Months run from 2025_10 onward. Measured on the SEC page.
-- Construction rejects a quarter after 2025q3, a month before 2025_10, and a year before 2009.
-  The bounds move each time the SEC merges a quarter (assumption A4).
+- Construction rejects a year before 2009 and nothing else. A quarter or a month after the newest
+  file also parses. The type does not know which periods the SEC publishes.
+- About a year after a quarter ends, the SEC merges its three monthly files into one quarterly file
+  and removes the months (assumption A4). The merge came 367 to 458 days after the quarter end in
+  the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. On
+  2026-11-07 the SEC published
+  80 files: the quarters 2009q1 to 2025q3, and the months 2025_10 to 2026_10.
+- `published_periods(sec_client, through, retry_delays, on_retry)` in
+  `sec/src/lib/implementations/extraction/notes/` asks the SEC which form exists. A quarter up to `LAST_MERGED_QUARTER` (2025q3), or one that
+  ended 24 months or more before `through`, counts as merged. For every later quarter, it sends one
+  `HEAD` request for the quarterly file (`NotesFileProbe`), at most 8 per run. On 200, the list
+  holds the quarter. On 404, it holds the three months. A transient failure, such as 503, gets the
+  retries of the downloads (`retry_while` in `extraction/retry.rs`), and `on_retry` gets the
+  quarter and the error. Any other answer, 403 included, fails the run with `FailedNotesProbe`. A
+  403 can mean that the SEC refused the request, so `FailedSecRequest::is_not_found` counts only
+  404. The months of the quarter that has not ended follow, up to the month of `through`.
+- `notes_periods(sec_client, today, on_retry)` in `sec/src/bin/shared/notes_periods.rs` calls it
+  with the month before today and `DEFAULT_RETRY_DELAYS`. `backfill` logs each retry as
+  `batch_notes_probe_retried`, with the quarter. A monthly file that the store holds but whose quarter the SEC has merged is
+  not requested. Its quarter covers the same filings, so silver holds such a filing in both files.
+  A read takes the quarterly file, see [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 - `NotesPeriod::file_name()` returns the SEC file name. See [File Names](#file-names).
-- `NotesPeriod::all_through(date)` lists every period that ends in or before the month of
-  `date`, in increasing order. `backfill` calls it with today minus one month (STA-361).
-  Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
+- Early in a month, the SEC has not posted the file of the last month yet. If the last period gets
   403 or 404, the run counts it as unpublished, not as failed, and the next run asks for it again.
   Every other 403 or 404 stays a failure, so a run that the SEC refuses in full fails.
 - Before each download, `backfill` reads the stored file of the period. If the file passes
@@ -671,28 +687,37 @@ Both names return HTTP 200, so the pattern downloads an old version of the data 
 So `NotesPeriod::file_name()` reads a table of overrides in `constants.rs`. A unit test
 asserts all 79 names against the list measured on 2026-10-28.
 
+The request URL and the store key both use `NotesPeriod::file_name()`, so the keys of stored files
+stay the same.
+
 Risk: if the SEC adds a suffix to another file, the run downloads the old version without an
-error. A later improvement can compare the list with the SEC page.
+error, or fails if the name of the pattern returns 404. An operator then adds the name to the
+overrides. The run reads no page, so it cannot find a new name by itself.
 
 ### Request
 
-- `SecRequestType` gets a second variant next to `FetchAllCompanyFacts { cik }`:
-  `FetchNotesFile { period: NotesPeriod }`.
-- The builder gets the same typestate pattern. `notes_file()` returns `NotesFileBuilder<NoPeriod>`.
-  `.period(p)` returns `NotesFileBuilder<NotesPeriod>`. Only that type has `build()`.
+- `SecRequestType` gets two variants next to `FetchAllCompanyFacts { cik }`:
+  `FetchNotesFile { period: NotesPeriod }` and `ProbeNotesFile { period: NotesPeriod }`. The
+  probe has the URL of the Notes file and sends `HEAD`. See "Download".
+- The builder gets the same typestate pattern. `notes_file()` returns `NotesFileBuilder<NoPeriod>`,
+  and `notes_file_probe()` returns `NotesFileBuilder<NoPeriod, NotesFileProbe>`. `.period(p)` sets
+  the period. Only a builder with a period has `build()`.
 - The request carries its kind: `SecRequest<K: RequestKind = CompanyFacts>`. The kind names the
   input and builds the `SecRequestType`:
 
   ```rust
   pub trait RequestKind {
       type Input;
+      /// `GET` by default. `NotesFileProbe` sets `HEAD`.
+      const METHOD: Method = Method::GET;
       fn request_type(input: Self::Input) -> SecRequestType;
   }
   ```
 
-  - `CompanyFacts` has `Input = Cik`. `NotesFile` has `Input = NotesPeriod`.
+  - `CompanyFacts` has `Input = Cik`. `NotesFile` and `NotesFileProbe` have `Input = NotesPeriod`.
   - The builder sets the kind. `.all_company_facts().cik(c).build()` returns
-    `SecRequest<CompanyFacts>`, and `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`.
+    `SecRequest<CompanyFacts>`, `.notes_file().period(p).build()` returns `SecRequest<NotesFile>`,
+    and `.notes_file_probe().period(p).build()` returns `SecRequest<NotesFileProbe>`.
   - Generic code builds a request without the builder: `SecRequest::<K>::new(input)`, with
     `input: K::Input`. A wrong input does not compile.
   - The request knows nothing about responses. The client maps each request kind, an SEC
@@ -715,7 +740,9 @@ folder index reply. `SecResponse<ZipBody>` holds a Notes file or a daily index a
 The `RespondsWith` trait on the client side maps each SEC endpoint to its body kind, once for
 every client. `CompanyFacts`, `DailyIndexListing`, `Submissions`, and `FilingIndex` have
 `Body = JsonBody`.
-`NotesFile` and `DailyIndex` have `Body = ZipBody`. This
+`NotesFile` and `DailyIndex` have `Body = ZipBody`. `NotesFileProbe` sends a `HEAD` request
+to the URL of a Notes file and has `Body = ZipHeadBody`. `ZipHeadBody` checks the status and the
+content type like `ZipBody`, and skips the length check. This
 keeps `shared::request` independent of `shared::response`.
 
 The `SecClient` trait has one method for every endpoint. Its default body waits on the rate limiter,
@@ -855,6 +882,30 @@ UTF-8.
 2024-03-29. The most common forms are 8-K (16,272), 10-K (3,987), and 10-Q (1,044). The column
 `instance` names the XBRL instance file of each filing, for example `ae-20240221_htm.xml`.
 
+**Order of the rows.** Measured on 2026-11-08 by a streamed read of each table, with the CSVW
+dialect above. A table is sorted if each `adsh` forms one run of adjacent rows, in ascending order.
+
+| File | `num.tsv` rows, filings | `num.tsv` sorted | `txt.tsv` rows, filings | `txt.tsv` sorted | `sub.tsv` sorted |
+| ---- | ----------------------- | ---------------- | ----------------------- | ---------------- | ---------------- |
+| `2010q1_notes_1.zip` | 197,149, 495 | No: 191,466 runs | 16,265, 495 | Yes | No |
+| `2012q4_notes.zip` | 5,926,063, 8,116 | No: 5,901,119 runs | 506,044, 8,087 | No: 504,020 runs | No |
+| `2020q4_notes.zip` | 6,183,770, 6,295 | Yes | 818,459, 16,119 | No: 818,086 runs | Yes |
+| `2024q1_notes.zip` | 9,101,360, 7,573 | Yes | 1,443,193, 24,364 | Yes | No |
+| `2025q3_notes.zip` | 7,697,635, 7,441 | Yes | 1,216,238, 23,459 | Yes | No |
+| `2026_10_notes.zip` | 1,488,444, 1,496 | Yes | 271,414, 6,670 | Yes | No |
+
+- The order of the rows differs between files and between the tables of one file. A reader must
+  not rely on it. This check covers seven of 80 files: the six files above, which have rows, and
+  `2009q1`, which has none (see "Empty file").
+- If a table is sorted, one streamed pass can cut it at each change of `adsh`. On `num.tsv` of
+  `2025q3`, such a pass took 13.8 s in Python and peaked at 36 MB. An eager read of the same table
+  as text peaked at 2.87 GB.
+- `sub.tsv` holds one row per filing, 7.4 MB unzipped in 2024q1, so its order does not matter for
+  memory.
+
+**Empty file.** The metadata member of `2009q1_notes.zip` is named `2009q1_notes-metadata.json`,
+not `notes-metadata.json`. The file has no rows (see [`NotesPeriod`](#notesperiod)).
+
 **Publication.** The SEC page reads "January 2009 - September 2026". The page says that the SEC
 has updated the data sets monthly since November 2020. The file list still has quarterly files up
 to 2025q3 and monthly files from 2025_10. Filings after 5:30 PM Eastern on the last day of the month go
@@ -882,19 +933,22 @@ quarantines the row or the filing, and the file goes on.
    `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
    `application/zip`, and a byte count equal to `Content-Length` if the header is present.
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
-   the ZIP index parses, all eight tables and `notes-metadata.json` are present, every member uses
+   the ZIP index parses, all eight tables and exactly one metadata member are present (`notes-metadata.json`,
+   or `<period>_notes-metadata.json` as in 2009q1), every member uses
    deflate, every member name has no path separator, and the unzipped size stays under a limit.
    Proposed limit: 16 GB unzipped per file, and 50 times the zipped size per member. Measured
    maximum ratio in 2024q1: 12.8 (`cal.tsv`).
 3. **Table format**, in each read state: UTF-8, a quote-aware tab-separated reader, a header equal
-   to the columns in `notes-metadata.json`, the same field count in every row, and the CRC-32 of
+   to the columns in the metadata member, the same field count in every row, and the CRC-32 of
    the member.
 4. **Row content**, in the map state: types and references between tables. Round 3 (STA-332)
    designs this layer.
 
 ### Tests
 
-- Unit tests for `NotesPeriod`: the range limits, the parse of both forms, and all 79 file names.
+- Unit tests for `NotesPeriod`: the first year, the parse of both forms, and all 79 file names.
+- Unit tests for `published_periods` with a fake client: no merged quarter after 2025q3 gives the
+  80 periods of 2026-11-07, a merged `2025q4` replaces its months, and a 403 fails the run.
 - Unit tests for the builder: the URL of a quarterly file, a monthly file, and an override.
 - State tests with a fake `SecClient` that returns a small ZIP fixture, as the `companyfacts`
   states do today.
@@ -1504,8 +1558,10 @@ fail.
   at the rate limit when new, and under 1 minute when read again. So a window of 4 days fits in
   the task timeout. Every write is idempotent, so a second read writes no duplicate row.
 - A rerun of dates older than `yesterday-2` has no pending dates. A date without an index fails.
-- Later: STA-403 replaces the window with a bookmark, the last date that finished, read from the
-  store. A run then reads from the bookmark plus 1 through yesterday, and reads no date again.
+- Later: the full index of the quarter minus the stored filings replaces the window. A run then
+  needs no window and no pending dates. See
+  [`repository_listing.md`](../../../storage/design/data_model/repository_listing.md), "Bookmark or
+  Full Index".
 
 #### One Date
 
@@ -1639,7 +1695,7 @@ JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
 | `constants.rs` | The variable names |
 | `extraction/daily_filings/mod.rs` (library) | The builder, the loop over the dates and the three steps, and the defaults |
 | `extraction/daily_filings/summary.rs` (library) | The `DailyRunSummary` and the rules for pending and unextractable |
-| `extraction/retry.rs` (library) | The retry of a machine after a transient SEC failure, and `DEFAULT_RETRY_DELAYS` |
+| `extraction/retry.rs` (library) | The retry of a machine after a transient SEC failure, `retry_while` (the same loop for any error type, used by the Notes `HEAD` request), and `DEFAULT_RETRY_DELAYS` |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
 - The builder takes `retry_delays` and `yesterday`, and it is generic over the SEC client. So the
@@ -1699,10 +1755,10 @@ The backfill runs by hand, up to the last published Notes file. Decided by the l
 2026-10-28. After the backfill, the new-filing path catches each new filing. No step checks
 whether a company or a filing already exists. See [Idempotent Writes](#idempotent-writes).
 
-Since STA-361, the backfill computes its periods from today, so it can run on any date. It asks
-for every period up to last month. Early in a month, the SEC has not posted last month yet. The
-run then counts that period as unpublished and stores everything before it. So the newest stored
-Notes month depends on the day of the run, not on a fixed constant.
+The backfill asks the SEC which recent quarters it has merged, and lists every period up to last
+month, so it can run on any date. Early in a month, the SEC has not posted last month yet. The run
+then counts that period as unpublished and stores everything before it. So the newest stored Notes
+month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
@@ -1713,7 +1769,8 @@ Rules:
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).
 3. If the run missed a day older than the window, rerun that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
-   Which copy holds the value is open. See [Path Independence](#path-independence).
+   Silver keeps both copies, and a read takes the instance. See
+   [`silver_layer.md`](silver_layer.md#current-facts).
 5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
    month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
    rerun the backfill (rule 8). Then read the newest period in the run summary with the status
@@ -1741,7 +1798,7 @@ Assumptions:
 | A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
 | A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
-| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `NotesPeriod` fixes the last quarter at 2025q3 and the first month at 2025_10. After the merge of 2025q4, a run never asks for `2025q4`. The monthly files `2025_10` to `2025_12` then return 404 and fail a run that has not stored them. The bounds must move with each merge. If the SEC stops merging, the bounds stay correct. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
+| A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `backfill` sends a `HEAD` request for each quarterly file after 2025q3 that ended less than 24 months ago. After the merge of 2025q4, the request answers 200, so the run asks for `2025q4` and skips the stored months `2025_10` to `2025_12`. The merge came 367 to 458 days after the quarter end in the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. If the SEC stops merging, every request answers 404 and the run keeps the months for 24 months. After that, the run counts the quarter as merged, asks for a file that does not exist, and fails. A merge that takes more than 24 months fails the same way, which shows the case. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 
@@ -1776,16 +1833,16 @@ Rules:
   company data with older data.
 - **Filings** are keyed by accession number: `ON CONFLICT (accession_number) DO NOTHING`.
 - **Facts** hold the CIK and the accession number directly, not a surrogate id from a lookup. A
-  fact is keyed by its accession number and its value key (STA-331): `DO NOTHING`.
+  fact is keyed by its accession number and its value key. The gold write rule is open, see below.
 - **One transaction per filing.** The load writes the company, then the filing, then its facts.
 
 So the order of Notes files, the order of days, a rerun, and an overlap do not create a duplicate.
-Today, if the two sources differ for a fact, the first copy wins. See
+Silver keeps the copy of each source, and a read takes one source per filing. See
 [Path Independence](#path-independence).
 
-Open for STA-331: its draft keys the fact store by `company_id`. If `company_id` is a surrogate
-id, each write needs a lookup first, and this rule breaks. The id must come from the filing itself,
-for example the CIK.
+Each as-is fact carries the `EntityId` of its filing, the CIK for the SEC, so a write needs no
+lookup. A later gold design decides the write rule of the gold fact tier. With `DO NOTHING`, gold
+keeps old facts after a replay.
 
 ### Path Independence
 
@@ -1815,20 +1872,16 @@ Rules:
 3. **Same filing, same facts.** A test runs both parsers on filings that are in both sources. A
    difference in parser logic fails the test. A difference in the source data is a finding for
    rule 4, not a test failure.
-4. **Order never decides a value.** Today the fact write uses `DO NOTHING` (see
-   [Idempotent Writes](#idempotent-writes)), so the first copy wins. If the sources differ for a
-   fact, the store needs a rule that does not depend on arrival. The options are in the table
-   below.
+4. **Order never decides a value.** Silver keeps the rows of each source, and a read takes the
+   instance over Notes for a filing. This is option 3 in the table below. See [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 5. **Provenance on every fact.** The DoD of STA-331 lists these fields: the ingestion path
    (`ingestion_mode` in the raw metadata, `backfill` or `incremental`), the source document
    (Notes file or instance, with its key and SHA-256), the `execution_id`, the load time, and the
    parser version.
 6. **Transform replays from the raw store.** A change to a parser or a rule reruns transform. It
    does not need a new extract. Two limits apply today:
-   - A replay must replace the facts of the filing from the replayed source. With `DO NOTHING`,
-     the store keeps the old facts, so a parser fix never lands. STA-331 decides how a replay
-     writes. A delete and an insert of the filing and source in one transaction is one way. It
-     needs a delete on `FactStore`, which the STA-145 freeze does not have.
+   - A replay adds a new silver unit next to the old one, and a read takes the current unit. How
+     gold replaces the facts of a replayed filing is open for a later gold design.
    - The raw store keeps only the latest version of a Notes file (see [Raw Store](#raw-store)).
      A rerun keeps a stored file that passes its check, so a replay reads the bytes of the first
      run. If the store cannot verify the file, the run downloads the current SEC version and marks
@@ -1845,7 +1898,7 @@ The fact store design already has a rule for two sources (STA-145, see
 `hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
 into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
 (`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
-points to option 3, but does not decide this case. STA-331 decides.
+points to option 3, but does not decide this case. Silver takes option 3, see [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 
 | Option | Rule | Same result across the cases? | Pro | Con |
 | ------ | ---- | ----------------------------- | --- | --- |
@@ -1891,14 +1944,18 @@ These kinds are not losses, or the comparison cannot tell whether they are:
 - The text differs in a way the comparison did not explain: 11 facts.
 - The footnotes differ in how Notes joins them: 5 facts.
 
-Recommendation, for STA-331 to decide: option 2, instance over Notes, applied by an upsert with a
-fixed rank. Two conditions apply:
+Recommendation of the comparison: option 2, instance over Notes, applied by an upsert with a
+fixed rank. The recommendation had two conditions:
 
 - The rank works only on a unique key. STA-331 must first widen the value key, so that the 395
   cases above hold one fact per key.
 - Today `source_ref` names the filing, so both copies have the same grain, and the upsert keeps one
   row per fact. But option 2 picks the value at write time. The STA-145 freeze picks "which
   value wins" at read time. STA-331 must accept that change, or take option 3.
+
+Proposed in [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts": option 3 with the same preference, instance over Notes, applied by a
+read. Silver keeps every copy, so the Notes copy is not dropped at write time. The value key of
+`xbrl/DESIGN.md`, with `copy_rank`, meets the first condition. Option 3 answers the second.
 
 A filing that only Notes delivered keeps the Notes form of its lossy facts.
 
@@ -1958,12 +2015,13 @@ The metadata of each raw document records the ingestion mode of the run that cre
   rewrites it.
 - So the metadata names the run that created the document. `submissions` serves both modes. If
   `ingestion_mode` were part of the comparison, each run in the other mode would rewrite the file.
-- Transform copies the mode onto each fact (STA-331).
+- Transform copies the mode of the source document onto each as-is row (`silver_layer.md`,
+  "Provenance").
 
 ## Handover to Transform
 
 Each extract machine outputs a small reference, not the bytes. Transform reads the bytes from the
-raw store.
+raw store. It writes its output to the silver layer, see [`silver_layer.md`](silver_layer.md).
 
 ```rust
 /// Backfill: one stored Notes file.
@@ -2129,8 +2187,9 @@ Decided by the lead on 2026-10-28:
 A later SLA under one hour polls the latest-filings feed every 15 minutes and keeps the daily index
 to fill gaps. Detection outputs only a `Vec<FilingRef>`, so the filing machine does not change.
 
-Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser, and
-how the fact store treats amendments (STA-331).
+Still open from the findings: GLEIF access, detail depth, the `-xbrl.zip` and the inline parser.
 
-Still open from [Path Independence](#path-independence): the rule for a fact from two sources
-(STA-402 recommends option 2, STA-331 decides), and how a replay writes (STA-331).
+Proposed in the silver design: silver keeps an amendment next to its original
+([`silver_layer.md`](silver_layer.md#same-value-in-several-places)), and a read takes the instance
+over Notes for a filing ([`silver_layer.md`](silver_layer.md#current-facts), "Current Facts"). How gold writes a replay is open for a later gold
+design.
