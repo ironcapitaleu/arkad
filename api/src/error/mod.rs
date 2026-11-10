@@ -175,4 +175,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_not_implemented() {
+        let error = ApiError::NotImplemented;
+
+        let expected_result = "[NotImplemented] The server does not answer the route yet";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

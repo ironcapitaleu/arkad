@@ -202,7 +202,7 @@
           {
             "name": "include",
             "in": "query",
-            "description": "`segments`, `lineage`, or both, separated by commas. Full depth only.",
+            "description": "`segments`, `lineage`, or both, separated by commas.",
             "required": false,
             "schema": {
               "type": "string"
@@ -530,7 +530,7 @@
             ],
             "format": "date",
             "description": "The last day the identifier was valid, or `null` if it is current.",
-            "example": "2015-10-01"
+            "example": null
           },
           "value": {
             "type": "string",
@@ -673,15 +673,8 @@
             "example": 2024
           },
           "lineage": {
-            "oneOf": [
-              {
-                "$ref": "#/components/schemas/Lineage",
-                "description": "How the value maps to its concept. Present only with `include=lineage`."
-              },
-              {
-                "type": "null"
-              }
-            ]
+            "$ref": "#/components/schemas/Lineage",
+            "description": "How the value maps to its concept. Present only with `include=lineage`."
           },
           "period": {
             "$ref": "#/components/schemas/FactPeriod",

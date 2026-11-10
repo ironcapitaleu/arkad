@@ -34,6 +34,7 @@ pub struct Fact {
     pub source: FactSource,
     /// How the value maps to its concept. Present only with `include=lineage`.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schema(nullable = false)]
     pub lineage: Option<Lineage>,
 }
 
@@ -133,7 +134,7 @@ pub struct FactQuery {
     /// The last fiscal year, inclusive.
     #[param(example = 2024)]
     pub fiscal_year_to: Option<i32>,
-    /// `segments`, `lineage`, or both, separated by commas. Full depth only.
+    /// `segments`, `lineage`, or both, separated by commas.
     #[param(example = "segments,lineage")]
     pub include: Option<String>,
     /// The number of facts per page. Default: 100.
@@ -189,8 +190,42 @@ mod tests {
 
         let expected_result = json!({ "kind": "instant", "end": "2024-09-28" });
 
-        let result = serde_json::to_value(period)
-            .expect("Given an enum of strings, serializing it should always succeed");
+        let result = serde_json::to_value(period).expect(
+            "Given an enum whose fields are all strings, serializing it should always succeed",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_leave_out_the_lineage_key_when_the_fact_has_no_lineage() {
+        let fact = Fact {
+            concept: "revenue".to_owned(),
+            value: "391035000000".to_owned(),
+            unit: "USD".to_owned(),
+            fiscal_year: 2024,
+            fiscal_period: FiscalPeriod::Fy,
+            period: FactPeriod::Instant {
+                end: "2024-09-28".to_owned(),
+            },
+            segment: None,
+            source: FactSource {
+                accession_number: "0000320193-24-000123".to_owned(),
+                form: "10-K".to_owned(),
+                filed_at: "2024-11-01".to_owned(),
+                url: "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+                    .to_owned(),
+            },
+            lineage: None,
+        };
+
+        let expected_result = false;
+
+        let result = serde_json::to_value(fact)
+            .expect("Given a struct of strings, numbers, and enums, serializing it should always succeed")
+            .as_object()
+            .expect("Given a struct, serde should always serialize it as a JSON object")
+            .contains_key("lineage");
 
         assert_eq!(result, expected_result);
     }

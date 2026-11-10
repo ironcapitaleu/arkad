@@ -64,7 +64,7 @@ pub struct CompanyIdentifier {
     #[schema(format = Date, example = "2015-10-02")]
     pub valid_from: String,
     /// The last day the identifier was valid, or `null` if it is current.
-    #[schema(required = true, format = Date, example = "2015-10-01")]
+    #[schema(required = true, format = Date, example = json!(null))]
     pub valid_to: Option<String>,
     /// `false` for an LEI that no one checked against GLEIF.
     pub verified: bool,
