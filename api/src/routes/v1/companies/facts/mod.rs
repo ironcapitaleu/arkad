@@ -198,7 +198,7 @@ mod tests {
     }
 
     #[test]
-    fn should_leave_out_the_lineage_key_when_the_fact_has_no_lineage() {
+    fn should_omit_the_lineage_key_when_the_fact_has_no_lineage() {
         let fact = Fact {
             concept: "revenue".to_owned(),
             value: "391035000000".to_owned(),
