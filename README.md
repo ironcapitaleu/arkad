@@ -26,8 +26,12 @@ The persistence layer: backend-agnostic `ReadRepository` and `WriteRepository` t
 
 An axum binary for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks. Start it with `PORT=8080 cargo run -p api`.
 
+- `GET /v1/concepts` lists the concepts that `xbrl` maps from US-GAAP.
+- `GET /v1/openapi.json` serves the OpenAPI 3.1 spec of `/v1`. `utoipa` generates it from the handlers.
 - Every response carries an `X-Request-Id` header.
 - A path that no route matches answers `404` with an RFC 9457 problem body, sent as `application/problem+json`, with the code `not_found`.
+
+The repository holds the spec in `api/openapi.json`, and a test fails if the generated spec differs from it. If you change a route, write the file again and commit it: `UPDATE_OPENAPI=1 cargo test -p api --test openapi`.
 
 ## Design
 
