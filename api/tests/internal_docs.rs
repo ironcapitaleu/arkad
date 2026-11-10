@@ -1,0 +1,92 @@
+use api::config::InternalDocs;
+use axum::body::Body;
+use axum::http::{Request, StatusCode, header};
+use axum::response::Response;
+use http_body_util::BodyExt;
+use pretty_assertions::assert_eq;
+use tower::ServiceExt;
+
+async fn get(path: &str, internal_docs: InternalDocs) -> Response {
+    let request = Request::get(path)
+        .body(Body::empty())
+        .expect("Given a hardcoded method and path, building the request should always succeed");
+    api::router(internal_docs)
+        .oneshot(request)
+        .await
+        .expect("Given the router's infallible service, calling it should always succeed")
+}
+
+fn header_text<'a>(response: &'a Response, name: &header::HeaderName) -> Option<&'a str> {
+    response
+        .headers()
+        .get(name)
+        .and_then(|value| value.to_str().ok())
+}
+
+#[tokio::test]
+async fn should_answer_404_for_internal_docs_when_internal_docs_are_disabled() {
+    let path = "/internal/docs/";
+
+    let expected_result = StatusCode::NOT_FOUND;
+
+    let result = get(path, InternalDocs::Disabled).await.status();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_answer_problem_json_for_internal_docs_when_internal_docs_are_disabled() {
+    let path = "/internal/docs/";
+
+    let expected_result = Some("application/problem+json");
+
+    let response = get(path, InternalDocs::Disabled).await;
+    let result = header_text(&response, &header::CONTENT_TYPE);
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_answer_200_for_internal_docs_when_internal_docs_are_enabled() {
+    let path = "/internal/docs/";
+
+    let expected_result = StatusCode::OK;
+
+    let result = get(path, InternalDocs::Enabled).await.status();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_redirect_to_the_trailing_slash_when_internal_docs_are_enabled() {
+    let path = "/internal/docs";
+
+    let expected_result = Some("/internal/docs/");
+
+    let response = get(path, InternalDocs::Enabled).await;
+    let result = header_text(&response, &header::LOCATION);
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_point_swagger_ui_at_the_v1_spec_when_internal_docs_are_enabled() {
+    let path = "/internal/docs/swagger-initializer.js";
+
+    let expected_spec_url = "\"/v1/openapi.json\"";
+
+    let response = get(path, InternalDocs::Enabled).await;
+    let body = response
+        .into_body()
+        .collect()
+        .await
+        .expect("Given a fully buffered body, collecting it should always succeed")
+        .to_bytes();
+    let result = String::from_utf8_lossy(&body);
+
+    // `utoipa-swagger-ui` generates the script, so the test checks only the spec URL in it.
+    assert!(
+        result.contains(expected_spec_url),
+        "Expected {expected_spec_url} in the Swagger UI initializer, got: {result}"
+    );
+}

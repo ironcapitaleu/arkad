@@ -9,7 +9,10 @@ use axum::http::header::CONTENT_TYPE;
 use axum::response::IntoResponse;
 use utoipa::openapi::OpenApi;
 
-/// The spec as pretty-printed JSON text, which the router serves at `GET /v1/openapi.json`.
+/// The path of the spec, which the Swagger UI page loads.
+pub const OPENAPI_JSON_PATH: &str = "/v1/openapi.json";
+
+/// The spec as pretty-printed JSON text, which the router serves at [`OPENAPI_JSON_PATH`].
 ///
 /// The router adds it to every request as an extension. A clone shares the text and copies none
 /// of it.

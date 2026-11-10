@@ -5,7 +5,7 @@
 
 use std::process::ExitCode;
 
-use api::config::Config;
+use api::config::{Config, InternalDocs};
 use api::logging::{ApiEvent, init_logger};
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -47,10 +47,13 @@ async fn main() -> ExitCode {
     tracing::info!(
         event = %ApiEvent::Started,
         message = %"The API listens for requests",
-        context = %json!({ "address": address.to_string() }),
+        context = %json!({
+            "address": address.to_string(),
+            "internal_docs": config.internal_docs() == InternalDocs::Enabled,
+        }),
     );
 
-    if let Err(error) = axum::serve(listener, api::router())
+    if let Err(error) = axum::serve(listener, api::router(config.internal_docs()))
         .with_graceful_shutdown(shutdown_signal())
         .await
     {
