@@ -10,6 +10,351 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/v1/companies": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "List the covered companies, or find a company by one identifier",
+        "description": "A lookup that matches nothing answers `200` with an empty `data` list. The route answers `501` with the code `not_implemented` until its data store is live.",
+        "operationId": "list_companies",
+        "parameters": [
+          {
+            "name": "ticker",
+            "in": "query",
+            "description": "A current ticker. Case does not matter. Send at most one of `ticker`, `cik`, and `lei`.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "GOOGL"
+          },
+          {
+            "name": "cik",
+            "in": "query",
+            "description": "Any CIK that the company ever used, with or without leading zeros.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "1652044"
+          },
+          {
+            "name": "lei",
+            "in": "query",
+            "description": "Any LEI that the company ever had.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "5493006MHB84DD0ZWV18"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of companies per page. Default: 100.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` of the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The companies of one page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyList"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The route has no data yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/companies/{company_id}": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "Get one company with its identifiers",
+        "description": "The route answers `501` with the code `not_implemented` until its data store is live.",
+        "operationId": "get_company",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "description": "The ID that the platform gave the company. A client must treat it as opaque.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "cmp_01JB6Q2W5V8X3K9M7N4P2R1T0S"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The company",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompanyEnvelope"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The route has no data yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/companies/{company_id}/facts": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "List the facts of one company, filtered by concept and period",
+        "description": "For each concept, period, and segment, the response holds the value from the newest filing. The route answers `501` with the code `not_implemented` until its data store is live.",
+        "operationId": "list_facts",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "description": "The ID that the platform gave the company. A client must treat it as opaque.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "cmp_01JB6Q2W5V8X3K9M7N4P2R1T0S"
+          },
+          {
+            "name": "concept",
+            "in": "query",
+            "description": "One or more concepts from `GET /v1/concepts`, separated by commas. At most 20.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "revenue,net_income"
+          },
+          {
+            "name": "fiscal_period",
+            "in": "query",
+            "description": "One fiscal period: `fy`, `q1`, `q2`, `q3`, or `q4`. Default: all.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "fy"
+          },
+          {
+            "name": "fiscal_year_from",
+            "in": "query",
+            "description": "The first fiscal year, inclusive.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": 2020
+          },
+          {
+            "name": "fiscal_year_to",
+            "in": "query",
+            "description": "The last fiscal year, inclusive.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "example": 2024
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "description": "`segments`, `lineage`, or both, separated by commas.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "segments,lineage"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of facts per page. Default: 100.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` of the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The facts of one page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactList"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The route has no data yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/companies/{company_id}/filings": {
+      "get": {
+        "tags": [
+          "companies"
+        ],
+        "summary": "List the filings of one company, newest first",
+        "description": "The route answers `501` with the code `not_implemented` until its data store is live.",
+        "operationId": "list_filings",
+        "parameters": [
+          {
+            "name": "company_id",
+            "in": "path",
+            "description": "The ID that the platform gave the company. A client must treat it as opaque.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "cmp_01JB6Q2W5V8X3K9M7N4P2R1T0S"
+          },
+          {
+            "name": "form",
+            "in": "query",
+            "description": "One or more form types, separated by commas.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "10-K,10-Q"
+          },
+          {
+            "name": "filed_from",
+            "in": "query",
+            "description": "The first filing date, inclusive, as `YYYY-MM-DD`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2020-01-01"
+          },
+          {
+            "name": "filed_to",
+            "in": "query",
+            "description": "The last filing date, inclusive, as `YYYY-MM-DD`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "example": "2024-12-31"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "The number of filings per page. Default: 100.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 1000,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "The `next_cursor` of the previous page.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The filings of one page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilingList"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "The route has no data yet",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/concepts": {
       "get": {
         "tags": [
@@ -66,6 +411,180 @@
   },
   "components": {
     "schemas": {
+      "Company": {
+        "type": "object",
+        "description": "One company with its identifiers.",
+        "required": [
+          "company_id",
+          "name",
+          "status",
+          "tickers",
+          "cik",
+          "lei",
+          "sic",
+          "sector",
+          "fiscal_year_end",
+          "identifiers"
+        ],
+        "properties": {
+          "cik": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The current CIK, or `null`.",
+            "example": "0001652044"
+          },
+          "company_id": {
+            "type": "string",
+            "description": "The ID that the platform gave the company. It never changes.",
+            "example": "cmp_01JB6Q2W5V8X3K9M7N4P2R1T0S"
+          },
+          "fiscal_year_end": {
+            "type": "string",
+            "description": "The last day of the fiscal year, as `MM-DD`.",
+            "example": "12-31"
+          },
+          "identifiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompanyIdentifier"
+            },
+            "description": "Every known identifier of the company, with its date range."
+          },
+          "lei": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The current LEI, or `null`.",
+            "example": "5493006MHB84DD0ZWV18"
+          },
+          "name": {
+            "type": "string",
+            "description": "The name of the company.",
+            "example": "Alphabet Inc."
+          },
+          "sector": {
+            "type": "string",
+            "description": "The sector, from the SIC code.",
+            "example": "Information Technology"
+          },
+          "sic": {
+            "type": "string",
+            "description": "The SIC code of the industry.",
+            "example": "7370"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CompanyStatus",
+            "description": "Whether the company still files with the SEC."
+          },
+          "tickers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The current tickers of every share class.",
+            "example": [
+              "GOOGL",
+              "GOOG"
+            ]
+          }
+        }
+      },
+      "CompanyEnvelope": {
+        "type": "object",
+        "description": "The body of a `GET /v1/companies/{company_id}` response.",
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Company",
+            "description": "The company."
+          }
+        }
+      },
+      "CompanyIdentifier": {
+        "type": "object",
+        "description": "One identifier of a company, valid for a date range.",
+        "required": [
+          "scheme",
+          "value",
+          "valid_from",
+          "valid_to",
+          "verified"
+        ],
+        "properties": {
+          "scheme": {
+            "$ref": "#/components/schemas/IdentifierScheme",
+            "description": "The kind of identifier."
+          },
+          "valid_from": {
+            "type": "string",
+            "format": "date",
+            "description": "The first day the identifier was valid.",
+            "example": "2015-10-02"
+          },
+          "valid_to": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "The last day the identifier was valid, or `null` if it is current.",
+            "example": null
+          },
+          "value": {
+            "type": "string",
+            "description": "The identifier.",
+            "example": "0001652044"
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "`false` for an LEI that no one checked against GLEIF."
+          }
+        }
+      },
+      "CompanyList": {
+        "type": "object",
+        "description": "The body of a `GET /v1/companies` response.",
+        "required": [
+          "data",
+          "next_cursor",
+          "as_of"
+        ],
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time that fixes the data of every page, RFC 3339 in UTC.",
+            "example": "2026-10-30T06:00:00Z"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Company"
+            },
+            "description": "The companies of this page, sorted by `company_id`."
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cursor of the next page, or `null` on the last page."
+          }
+        }
+      },
+      "CompanyStatus": {
+        "type": "string",
+        "description": "Whether a company still files with the SEC.",
+        "enum": [
+          "active",
+          "inactive"
+        ]
+      },
       "Concept": {
         "type": "object",
         "description": "One canonical concept that `xbrl` maps from US-GAAP.",
@@ -116,6 +635,341 @@
             "description": "The cursor of the next page. Always `null`, because the list fits on one page."
           }
         }
+      },
+      "Fact": {
+        "type": "object",
+        "description": "One value of one concept for one period.",
+        "required": [
+          "concept",
+          "value",
+          "unit",
+          "fiscal_year",
+          "fiscal_period",
+          "period",
+          "segment",
+          "source"
+        ],
+        "properties": {
+          "concept": {
+            "type": "string",
+            "description": "The concept, from `GET /v1/concepts`.",
+            "example": "revenue"
+          },
+          "fiscal_period": {
+            "type": "string",
+            "description": "The fiscal period of the value: `fy`, `q1`, `q2`, `q3`, or `q4`.",
+            "example": "fy"
+          },
+          "fiscal_year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The fiscal year of the value.",
+            "example": 2024,
+            "minimum": 0
+          },
+          "lineage": {
+            "$ref": "#/components/schemas/Lineage",
+            "description": "How the value maps to its concept. Present only with `include=lineage`."
+          },
+          "period": {
+            "$ref": "#/components/schemas/Period",
+            "description": "The period that the value covers."
+          },
+          "segment": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "`null` for a consolidated total. With `include=segments`, the axis and the member."
+          },
+          "source": {
+            "$ref": "#/components/schemas/FactSource",
+            "description": "The filing that the value comes from."
+          },
+          "unit": {
+            "type": "string",
+            "description": "An ISO 4217 currency code, `shares`, `usd_per_share`, or `pure` for a ratio.",
+            "example": "USD"
+          },
+          "value": {
+            "type": "string",
+            "description": "The exact decimal value in whole units of `unit`, as a string.",
+            "example": "391035000000"
+          }
+        }
+      },
+      "FactList": {
+        "type": "object",
+        "description": "The body of a `GET /v1/companies/{company_id}/facts` response.",
+        "required": [
+          "data",
+          "next_cursor",
+          "as_of",
+          "history_limited_from"
+        ],
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time that fixes the data of every page, RFC 3339 in UTC.",
+            "example": "2026-10-30T06:00:00Z"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Fact"
+            },
+            "description": "The facts of this page, sorted by concept, period end, and segment."
+          },
+          "history_limited_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The first fiscal year that the plan allows if the plan cut the result, or `null`.",
+            "example": 2021,
+            "minimum": 0
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cursor of the next page, or `null` on the last page."
+          }
+        }
+      },
+      "FactSource": {
+        "type": "object",
+        "description": "The filing that a fact comes from.",
+        "required": [
+          "accession_number",
+          "form",
+          "filed_at",
+          "url"
+        ],
+        "properties": {
+          "accession_number": {
+            "type": "string",
+            "description": "The accession number of the filing.",
+            "example": "0000320193-24-000123"
+          },
+          "filed_at": {
+            "type": "string",
+            "format": "date",
+            "description": "The filing date.",
+            "example": "2024-11-01"
+          },
+          "form": {
+            "type": "string",
+            "description": "The form type of the filing.",
+            "example": "10-K"
+          },
+          "url": {
+            "type": "string",
+            "description": "The folder of the filing on SEC EDGAR.",
+            "example": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+          }
+        }
+      },
+      "Filing": {
+        "type": "object",
+        "description": "One filing of a company.",
+        "required": [
+          "accession_number",
+          "form",
+          "filed_at",
+          "period_end",
+          "fiscal_year",
+          "fiscal_period",
+          "url"
+        ],
+        "properties": {
+          "accession_number": {
+            "type": "string",
+            "description": "The accession number of the filing.",
+            "example": "0000320193-24-000123"
+          },
+          "filed_at": {
+            "type": "string",
+            "format": "date",
+            "description": "The filing date.",
+            "example": "2024-11-01"
+          },
+          "fiscal_period": {
+            "type": "string",
+            "description": "The fiscal period that the filing reports on: `fy`, `q1`, `q2`, `q3`, or `q4`.",
+            "example": "fy"
+          },
+          "fiscal_year": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The fiscal year that the filing reports on.",
+            "example": 2024,
+            "minimum": 0
+          },
+          "form": {
+            "type": "string",
+            "description": "The form type of the filing.",
+            "example": "10-K"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date",
+            "description": "The last day of the period that the filing reports on.",
+            "example": "2024-09-28"
+          },
+          "url": {
+            "type": "string",
+            "description": "The folder of the filing on SEC EDGAR.",
+            "example": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
+          }
+        }
+      },
+      "FilingList": {
+        "type": "object",
+        "description": "The body of a `GET /v1/companies/{company_id}/filings` response.",
+        "required": [
+          "data",
+          "next_cursor",
+          "as_of",
+          "history_limited_from"
+        ],
+        "properties": {
+          "as_of": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The time that fixes the data of every page, RFC 3339 in UTC.",
+            "example": "2026-10-30T06:00:00Z"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Filing"
+            },
+            "description": "The filings of this page, newest first."
+          },
+          "history_limited_from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "The first fiscal year that the plan allows if the plan cut the result, or `null`.",
+            "example": 2021,
+            "minimum": 0
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The cursor of the next page, or `null` on the last page."
+          }
+        }
+      },
+      "IdentifierScheme": {
+        "type": "string",
+        "description": "The kind of a company identifier.",
+        "enum": [
+          "cik",
+          "lei"
+        ]
+      },
+      "Lineage": {
+        "type": "object",
+        "description": "How a fact maps to its concept.",
+        "required": [
+          "confidence",
+          "native_concept",
+          "resolution_path"
+        ],
+        "properties": {
+          "confidence": {
+            "type": "string",
+            "description": "The resolution tier that produced the value. A later tier is less certain.",
+            "enum": [
+              "exact",
+              "synonym",
+              "derived",
+              "computed"
+            ]
+          },
+          "native_concept": {
+            "type": "string",
+            "description": "The concept that the filing used.",
+            "example": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+          },
+          "resolution_path": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The filed concepts that the value comes from, in order.",
+            "example": [
+              "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"
+            ]
+          }
+        }
+      },
+      "Period": {
+        "oneOf": [
+          {
+            "type": "object",
+            "description": "A range of days, for example a fiscal year of an income statement.",
+            "required": [
+              "end",
+              "kind"
+            ],
+            "properties": {
+              "end": {
+                "type": "string",
+                "format": "date",
+                "description": "The last day.",
+                "example": "2024-09-28"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "duration"
+                ]
+              },
+              "start": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date",
+                "description": "The first day, or `null` if the source gives only the number of quarters.",
+                "example": "2023-10-01"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "One day, for example a balance sheet date.",
+            "required": [
+              "end",
+              "kind"
+            ],
+            "properties": {
+              "end": {
+                "type": "string",
+                "format": "date",
+                "description": "The day.",
+                "example": "2024-09-28"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "instant"
+                ]
+              }
+            }
+          }
+        ],
+        "description": "The wire shape of a [`Period`]: `duration` with `start` and `end`, or `instant` with `end`."
       },
       "Problem": {
         "type": "object",

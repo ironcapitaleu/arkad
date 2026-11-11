@@ -27,6 +27,7 @@ The persistence layer: backend-agnostic `ReadRepository` and `WriteRepository` t
 An axum binary for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks. Start it with `PORT=8080 cargo run -p api`.
 
 - `GET /v1/concepts` lists the concepts that `xbrl` maps from US-GAAP.
+- `GET /v1/companies`, `GET /v1/companies/{company_id}`, `…/facts`, and `…/filings` are in the spec. Until the data store is live, each route answers `501` with the code `not_implemented`.
 - `GET /v1/openapi.json` serves the OpenAPI 3.1 spec of `/v1`. `utoipa` generates it from the handlers.
 - If `INTERNAL_DOCS_ENABLED=true`, the binary serves Swagger UI at `/internal/docs`. The page is off by default.
 - Every response carries an `X-Request-Id` header.

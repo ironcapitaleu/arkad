@@ -7,6 +7,8 @@
 //!
 //! ## Modules
 //!
+//! - [`companies`]: The routes under `/v1/companies`, which answer `501` until their data is
+//!   live.
 //! - [`concepts`]: `GET /v1/concepts`, the list of canonical concepts.
 //! - [`openapi`]: `GET /v1/openapi.json`, the spec.
 
@@ -16,6 +18,7 @@ use utoipa_axum::routes;
 
 use crate::error::Problem;
 
+pub mod companies;
 pub mod concepts;
 pub mod openapi;
 
@@ -31,6 +34,10 @@ pub struct V1Spec;
 /// Builds the router of every `/v1` route together with its spec.
 pub fn router() -> OpenApiRouter {
     let routes = OpenApiRouter::new()
+        .routes(routes!(companies::company::list_companies))
+        .routes(routes!(companies::company::get_company))
+        .routes(routes!(companies::facts::list_facts))
+        .routes(routes!(companies::filings::list_filings))
         .routes(routes!(concepts::list_concepts))
         .routes(routes!(openapi::openapi_json));
     OpenApiRouter::with_openapi(V1Spec::openapi()).nest(V1_PREFIX, routes)

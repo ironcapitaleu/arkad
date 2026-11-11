@@ -31,6 +31,10 @@ pub enum ApiError {
     /// The server failed to answer the request. The body carries no internal detail.
     #[error("[InternalError] The server failed to answer the request")]
     InternalError,
+
+    /// The route exists in the contract, but the server has no data to answer it yet.
+    #[error("[NotImplemented] The server does not answer the route yet")]
+    NotImplemented,
 }
 
 impl ApiError {
@@ -40,6 +44,7 @@ impl ApiError {
         match self {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,
         }
     }
 
@@ -49,6 +54,7 @@ impl ApiError {
         match self {
             Self::NotFound => "not_found",
             Self::InternalError => "internal_error",
+            Self::NotImplemented => "not_implemented",
         }
     }
 
@@ -58,6 +64,7 @@ impl ApiError {
         match self {
             Self::NotFound => "Not found",
             Self::InternalError => "Internal error",
+            Self::NotImplemented => "Not implemented",
         }
     }
 
@@ -67,6 +74,7 @@ impl ApiError {
         match self {
             Self::NotFound => "The path does not exist.",
             Self::InternalError => "The server failed to answer the request.",
+            Self::NotImplemented => "The server does not answer this route yet.",
         }
     }
 }
@@ -153,6 +161,28 @@ mod tests {
         let expected_result = ApiError::InternalError;
 
         let result = ApiError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_answer_501_when_not_implemented_becomes_a_response() {
+        let error = ApiError::NotImplemented;
+
+        let expected_result = StatusCode::NOT_IMPLEMENTED;
+
+        let result = error.into_response().status();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_for_not_implemented() {
+        let error = ApiError::NotImplemented;
+
+        let expected_result = "[NotImplemented] The server does not answer the route yet";
+
+        let result = error.to_string();
 
         assert_eq!(result, expected_result);
     }
