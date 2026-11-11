@@ -62,7 +62,14 @@ fn should_declare_openapi_3_1_for_generated_spec() {
 
 #[test]
 fn should_list_only_the_v1_paths_for_generated_spec() {
-    let expected_result = vec!["/v1/concepts", "/v1/openapi.json"];
+    let expected_result = vec![
+        "/v1/companies",
+        "/v1/companies/{company_id}",
+        "/v1/companies/{company_id}/facts",
+        "/v1/companies/{company_id}/filings",
+        "/v1/concepts",
+        "/v1/openapi.json",
+    ];
 
     let result: Vec<String> = api::openapi().paths.paths.into_keys().collect();
 

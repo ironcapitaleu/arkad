@@ -28,25 +28,38 @@ pub struct Concept {
 impl Concept {
     /// Builds the [`Concept`] of `element`.
     ///
-    /// The identifier is the serialized name of the variant in `snake_case`, so `NetIncome`
-    /// becomes `net_income`. The name is the `Display` text of the variant.
+    /// The name is the `Display` text of the variant.
     ///
     /// # Errors
     ///
     /// Returns an [`InvalidPascalCase`] if the serialized name of the variant is not in
     /// `PascalCase`.
     fn from_element(element: CanonicalElement) -> Result<Self, InvalidPascalCase> {
-        let variant = serde_json::to_value(element)
-            .ok()
-            .and_then(|value| value.as_str().map(str::to_owned))
-            .expect(
-                "Given a unit variant of an enum, serde should always serialize it as a string",
-            );
         Ok(Self {
-            concept: PascalCase::new(&variant)?.to_snake_case(),
+            concept: concept_id(element)?,
             name: element.to_string(),
         })
     }
+}
+
+/// Returns the concept ID of `element`: its serialized variant name in `snake_case`.
+///
+/// For example, `NetIncome` becomes `net_income`.
+///
+/// # Errors
+///
+/// Returns an [`InvalidPascalCase`] if the serialized name of the variant is not in `PascalCase`.
+///
+/// # Panics
+///
+/// Panics if serde does not serialize the unit variant as a string. A derived `Serialize` on a
+/// unit variant always writes a string.
+pub fn concept_id(element: CanonicalElement) -> Result<String, InvalidPascalCase> {
+    let variant = serde_json::to_value(element)
+        .ok()
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .expect("Given a unit variant of an enum, serde should always serialize it as a string");
+    Ok(PascalCase::new(&variant)?.to_snake_case())
 }
 
 /// The body of a `GET /v1/concepts` response.
