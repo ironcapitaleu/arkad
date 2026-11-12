@@ -135,4 +135,16 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_reject_the_value_when_the_query_holds_uppercase_q1() {
+        let text = json!("Q1");
+
+        let expected_result = true;
+
+        // `serde_json::Error` has no `PartialEq`, so the test compares the check.
+        let result = serde_json::from_value::<FiscalPeriod>(text).is_err();
+
+        assert_eq!(result, expected_result);
+    }
 }
