@@ -766,6 +766,10 @@ concrete `SecClient` sets `Response<B> = SecResponse<B>`. A Notes request gives 
 `SecResponse<B>` holds the URL, the headers, the content type, the status code, the body, and the
 SHA-256 of the body. `ZipBody` accepts only status 200 and the content types `application/octet-stream`
 and `application/zip`. If the `Content-Length` header is present, the byte count must match it.
+The client asks for gzip bodies. For a gzip body, `reqwest` removes `Content-Length`, because it
+states the gzip length. `hyper` then checks the gzip length on the wire, and the gzip decoder
+checks the CRC-32 and the length in the gzip trailer. The decoded bytes equal the file, so the
+stored size and SHA-256 do not depend on gzip.
 Each later file kind gets its own body kind, for example the XML files of the new-filing path.
 The daily index is the exception: it reuses `ZipBody`, because the SEC sends it as
 `application/octet-stream` and the store keeps it as raw bytes. Decided in STA-369.
@@ -931,7 +935,9 @@ quarantines the row or the filing, and the file goes on.
 
 1. **Transport**, in `SecResponse<ZipBody>`, which `ExecuteSecRequest<NotesFile, …>` gets from
    `SecClient::execute_sec_request`: HTTP 200, a content type of `application/octet-stream` or
-   `application/zip`, and a byte count equal to `Content-Length` if the header is present.
+   `application/zip`, and a byte count equal to `Content-Length` if the header is present. A gzip
+   body has no `Content-Length` after decoding. The gzip trailer checks it instead (see
+   [Download](#download)).
 2. **Container**, in the first transform state: the bytes start with the ZIP signature `PK\x03\x04`,
    the ZIP index parses, all eight tables and exactly one metadata member are present (`notes-metadata.json`,
    or `<period>_notes-metadata.json` as in 2009q1), every member uses
