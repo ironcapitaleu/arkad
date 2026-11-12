@@ -303,8 +303,8 @@ lets a check reconcile one company against its stored filings.
    `ARKAD_FILES_IN_FLIGHT`.
 3. Response: a ZIP with ten members: eight tables (`sub`, `tag`, `dim`, `num`, `txt`, `ren`, `pre`,
    `cal`), a readme, and a metadata member (`notes-metadata.json`, or `2009q1_notes-metadata.json`
-   in 2009q1). The run checks the content length against the body, or the gzip trailer for a gzip
-   body.
+   in 2009q1). The run checks the body against the content length, or against the gzip trailer
+   for a gzip body.
 4. Stored as `RawNotesArchive`, unchanged. The store state is `StoreSecResponse<NotesFile, R>`.
 5. Provenance: the metadata of the request, ingestion mode `backfill`, no input.
 

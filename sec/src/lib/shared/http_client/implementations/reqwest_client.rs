@@ -186,7 +186,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_decode_a_gzip_body_when_built_with_the_timeouts_of_new() {
+    async fn should_ask_for_gzip_when_built_with_the_timeouts_of_new() {
         let address = gzip_server("application/zip", SAMPLE_NOTES_ZIP).await;
         let builder = timed_builder(&TIMEOUTS).no_proxy();
         let user_agent = UserAgent::new("Sample Company contact@example.com")
