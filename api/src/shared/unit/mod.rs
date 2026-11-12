@@ -8,7 +8,7 @@ use xbrl::core::unit::{Measure, Unit as DomainUnit};
 
 use crate::traits::from_domain::FromDomain;
 
-/// The unit of a fact as one text: an ISO 4217 currency code, `shares`, `usd_per_share`, or
+/// The unit of a fact as a string: an ISO 4217 currency code, `shares`, `usd_per_share`, or
 /// `pure` for a ratio.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 #[schema(example = "USD")]

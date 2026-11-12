@@ -30,11 +30,7 @@ pub mod traits;
 
 pub use routes::INTERNAL_DOCS_PATH;
 
-/// Builds the router with every route of the API.
-///
-/// The router answers a path that no route matches with a `404` problem body. If
-/// `internal_docs` is [`InternalDocs::Enabled`], it serves the Swagger UI at
-/// [`INTERNAL_DOCS_PATH`].
+/// Builds the router of the crate. See [`routes::router`].
 pub fn router(internal_docs: InternalDocs) -> Router {
     routes::router(internal_docs)
 }

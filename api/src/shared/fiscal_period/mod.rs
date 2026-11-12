@@ -38,18 +38,20 @@ impl TryFrom<DomainFiscalPeriod> for FiscalPeriod {
 
     /// Converts an `xbrl` [`FiscalPeriod`](DomainFiscalPeriod) into a contract [`FiscalPeriod`].
     ///
+    /// The match ignores case, so `fy` and `FY` both convert.
+    ///
     /// # Errors
     ///
     /// Returns an [`UnsupportedFiscalPeriod`] if the period is not `FY` or `Q1` to `Q4`, for
     /// example the half year `H1`.
     fn try_from(period: DomainFiscalPeriod) -> Result<Self, Self::Error> {
-        match period.as_str() {
+        match period.as_str().to_ascii_uppercase().as_str() {
             "FY" => Ok(Self::Fy),
             "Q1" => Ok(Self::Q1),
             "Q2" => Ok(Self::Q2),
             "Q3" => Ok(Self::Q3),
             "Q4" => Ok(Self::Q4),
-            other => Err(UnsupportedFiscalPeriod::new(other)),
+            _ => Err(UnsupportedFiscalPeriod::new(period.as_str())),
         }
     }
 }
@@ -106,6 +108,30 @@ mod tests {
 
         let result = serde_json::to_value(period)
             .expect("Given a unit variant, serializing it should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_to_fy_when_the_domain_period_is_lowercase() {
+        let domain = domain_period("fy");
+
+        let expected_result = Ok(FiscalPeriod::Fy);
+
+        let result = FiscalPeriod::try_from(domain);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_q1_when_the_query_holds_lowercase_q1() {
+        let text = json!("q1");
+
+        let expected_result = FiscalPeriod::Q1;
+
+        let result: FiscalPeriod = serde_json::from_value(text).expect(
+            "Given a lowercase period that the contract names, reading it should always succeed",
+        );
 
         assert_eq!(result, expected_result);
     }

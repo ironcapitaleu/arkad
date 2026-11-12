@@ -111,4 +111,33 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_keep_the_end_when_the_domain_period_is_an_instant() {
+        let domain = DomainPeriod::Instant {
+            end: date(2024, 9, 28),
+        };
+
+        let expected_result = Ok(Period::Instant {
+            end: date(2024, 9, 28),
+        });
+
+        let result = Period::try_from(domain);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_have_no_start_when_the_domain_duration_holds_only_quarters() {
+        let domain = DomainPeriod::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4));
+
+        let expected_result = Ok(Period::Duration {
+            start: None,
+            end: date(2024, 9, 28),
+        });
+
+        let result = Period::try_from(domain);
+
+        assert_eq!(result, expected_result);
+    }
 }

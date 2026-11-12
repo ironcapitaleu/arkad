@@ -1040,7 +1040,7 @@
       },
       "Unit": {
         "type": "string",
-        "description": "The unit of a fact as one text: an ISO 4217 currency code, `shares`, `usd_per_share`, or\n`pure` for a ratio.",
+        "description": "The unit of a fact as a string: an ISO 4217 currency code, `shares`, `usd_per_share`, or\n`pure` for a ratio.",
         "example": "USD"
       }
     }

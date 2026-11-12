@@ -15,7 +15,7 @@
 //! - [`pascal_case`]: The [`PascalCase`](pascal_case::PascalCase) name and its conversion to
 //!   `snake_case`.
 //! - [`period`]: The period that a fact covers.
-//! - [`mod@unit`]: The unit of a fact as one text.
+//! - [`mod@unit`]: The unit of a fact as a string.
 
 pub mod accession_number;
 pub mod concept_id;

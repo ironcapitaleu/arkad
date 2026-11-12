@@ -140,6 +140,7 @@ mod tests {
 
     use bigdecimal::BigDecimal;
     use pretty_assertions::assert_eq;
+    use serde_json::json;
     use xbrl::core::elements::CanonicalElement;
     use xbrl::core::filing::FilingId;
     use xbrl::core::fiscal_period::FiscalPeriod as DomainFiscalPeriod;
@@ -160,8 +161,7 @@ mod tests {
         implements_auto_traits::<FactQuery>();
     }
 
-    #[test]
-    fn should_omit_the_lineage_key_when_the_fact_has_no_lineage() -> Result<(), ApiError> {
+    fn revenue_fact_without_lineage() -> Result<Fact, ApiError> {
         let concept = CanonicalElement::Revenue;
         let value = BigDecimal::from_str("391035000000")
             .expect("Given a hardcoded integer text, parsing it should always succeed");
@@ -194,6 +194,39 @@ mod tests {
             },
             lineage: None,
         };
+        Ok(fact)
+    }
+
+    #[test]
+    fn should_write_the_contract_json_for_a_fact_of_domain_values() -> Result<(), ApiError> {
+        let fact = revenue_fact_without_lineage()?;
+
+        let expected_result = json!({
+            "concept": "revenue",
+            "value": "391035000000",
+            "unit": "USD",
+            "fiscal_year": 2024,
+            "fiscal_period": "fy",
+            "period": { "kind": "instant", "end": "2024-09-28" },
+            "segment": null,
+            "source": {
+                "accession_number": "0000320193-24-000123",
+                "form": "10-K",
+                "filed_at": "2024-11-01",
+                "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/",
+            },
+        });
+
+        let result = serde_json::to_value(fact)
+            .expect("Given a fact of contract types, serializing it should always succeed");
+
+        assert_eq!(result, expected_result);
+        Ok(())
+    }
+
+    #[test]
+    fn should_omit_the_lineage_key_when_the_fact_has_no_lineage() -> Result<(), ApiError> {
+        let fact = revenue_fact_without_lineage()?;
 
         let expected_result = false;
 
