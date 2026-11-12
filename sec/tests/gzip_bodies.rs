@@ -55,7 +55,7 @@ async fn download(builder: ClientBuilder) -> Download {
 
 #[tokio::test]
 async fn should_keep_the_bytes_and_drop_the_content_length_when_the_client_asks_for_gzip() {
-    // `ReqwestClient::new` starts from this builder, so it asks for gzip too.
+    // `Client::builder` asks for gzip by default, as the builder of `ReqwestClient::new` does.
     let builder = Client::builder();
 
     // `reqwest` removes `Content-Length` only when it decodes a gzip body.

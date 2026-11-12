@@ -76,8 +76,10 @@ mod tests {
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,
     };
+    use crate::shared::response::traits::SecResponse as SecResponseTrait;
     use crate::shared::status_code::StatusCode;
     use crate::shared::url::Url;
+    use crate::tests::fixtures::sample_server::{closing_server, impatient_client};
 
     use super::ZipHeadBody;
 
@@ -133,6 +135,26 @@ mod tests {
         }));
 
         let result = head_from_parts(content_type, StatusCode::Ok).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_accept_the_answer_when_a_head_answer_states_a_gzip_encoding() {
+        // The answer states a gzip body of 463365283 bytes and, as a `HEAD` answer, sends no body.
+        let address = closing_server(
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/zip\r\nContent-Encoding: gzip\r\nContent-Length: 463365283\r\n\r\n",
+        )
+        .await;
+        let inner = impatient_client()
+            .head(format!("http://{address}/"))
+            .send()
+            .await
+            .expect("The server sends a full response head, so the request always gets a response");
+
+        let expected_result = None;
+
+        let result = SecResponse::<ZipHeadBody>::from_inner(inner).await.err();
 
         assert_eq!(result, expected_result);
     }

@@ -75,7 +75,8 @@ impl ReqwestClient {
     /// Builds a [`reqwest::Client`] that sends `user_agent` as its `User-Agent` header.
     ///
     /// The client fails a request that cannot connect within [`CONNECT_TIMEOUT`], or that waits
-    /// longer than [`READ_TIMEOUT`] for the next bytes of the response.
+    /// longer than [`READ_TIMEOUT`] for the next bytes of the response. It asks for gzip bodies
+    /// and decodes them, so the body bytes equal the file.
     ///
     /// # Errors
     ///
@@ -154,7 +155,8 @@ mod tests {
     use tokio::time;
 
     use super::*;
-    use crate::tests::fixtures::sample_server::stalled_server;
+    use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
+    use crate::tests::fixtures::sample_server::{gzip_server, stalled_server};
 
     #[tokio::test]
     async fn should_return_a_timeout_error_when_the_server_sends_no_response() {
@@ -179,6 +181,33 @@ mod tests {
 
         let guarded_response = time::timeout(guard, client.execute_request(request)).await;
         let result = matches!(guarded_response, Ok(Err(ref error)) if error.is_timeout());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_decode_a_gzip_body_when_built_with_the_timeouts_of_new() {
+        let address = gzip_server("application/zip", SAMPLE_NOTES_ZIP).await;
+        let builder = timed_builder(&TIMEOUTS).no_proxy();
+        let user_agent = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
+        let client = ReqwestClient::from_builder(builder, user_agent)
+            .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize");
+        let request = client
+            .client
+            .get(format!("http://{address}/"))
+            .build()
+            .expect("A URL built from a bound socket address always parses");
+
+        // `reqwest` removes `Content-Length` only when it decodes a gzip body, and the server sends
+        // a gzip body only when the request asks for one.
+        let expected_result = None;
+
+        let response = client
+            .execute_request(request)
+            .await
+            .expect("The local server always answers with a full response");
+        let result = response.headers().get("content-length").cloned();
 
         assert_eq!(result, expected_result);
     }

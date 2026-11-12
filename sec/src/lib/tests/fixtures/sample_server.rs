@@ -13,8 +13,8 @@ use flate2::write::GzEncoder;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
-/// The request header that asks for a gzip body, in lowercase.
-const ACCEPT_GZIP_HEADER: &[u8] = b"accept-encoding: gzip";
+/// The name of the request header that lists the accepted encodings, in lowercase.
+const ACCEPT_ENCODING_HEADER: &str = "accept-encoding:";
 
 /// The value of `Content-Encoding` for a gzip body.
 const GZIP_ENCODING: &str = "gzip";
@@ -29,7 +29,7 @@ const GZIP_ENCODING: &str = "gzip";
 ///
 /// Panics if the OS cannot bind a free port on the loopback interface.
 pub async fn stalled_server(response_head: &'static [u8]) -> SocketAddr {
-    serve_once(move |_| response_head.to_vec(), AfterHead::HoldOpen).await
+    serve_once(move |_| response_head.to_vec(), AfterResponse::HoldOpen).await
 }
 
 /// Starts a server that accepts one connection, reads the request, writes `response`, and then
@@ -42,7 +42,7 @@ pub async fn stalled_server(response_head: &'static [u8]) -> SocketAddr {
 /// Panics if the OS cannot bind a free port on the loopback interface.
 pub async fn closing_server(response: impl Into<Vec<u8>>) -> SocketAddr {
     let response = response.into();
-    serve_once(move |_| response, AfterHead::Close).await
+    serve_once(move |_| response, AfterResponse::Close).await
 }
 
 /// Starts a server that answers one request with status 200, `content_type`, and `body`, and then
@@ -63,14 +63,14 @@ pub async fn gzip_server(content_type: &'static str, body: &'static [u8]) -> Soc
             response(content_type, None, body)
         }
     };
-    serve_once(answer, AfterHead::Close).await
+    serve_once(answer, AfterResponse::Close).await
 }
 
 /// Returns `body` gzip-encoded.
 ///
 /// # Panics
 ///
-/// Panics if the encoder fails to write to its [`Vec`], which does not happen.
+/// Panics if the gzip encoder fails to write to its [`Vec`].
 #[must_use]
 pub fn gzip(body: &[u8]) -> Vec<u8> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
@@ -106,16 +106,18 @@ fn response(content_type: &str, content_encoding: Option<&str>, body: &[u8]) -> 
     response
 }
 
-/// Returns `true` if `request_head` asks for a gzip body.
+/// Returns `true` if the `Accept-Encoding` header of `request_head` lists gzip.
 fn asks_for_gzip(request_head: &[u8]) -> bool {
-    request_head
+    String::from_utf8_lossy(request_head)
         .to_ascii_lowercase()
-        .windows(ACCEPT_GZIP_HEADER.len())
-        .any(|line| line == ACCEPT_GZIP_HEADER)
+        .lines()
+        .filter_map(|line| line.strip_prefix(ACCEPT_ENCODING_HEADER))
+        .flat_map(|encodings| encodings.split(','))
+        .any(|encoding| encoding.trim() == GZIP_ENCODING)
 }
 
 /// What a server does after it writes the response.
-enum AfterHead {
+enum AfterResponse {
     /// Keep the connection open and send nothing.
     HoldOpen,
     /// Close the connection.
@@ -123,10 +125,10 @@ enum AfterHead {
 }
 
 /// Starts a server that answers one connection with the bytes `answer` returns for the request
-/// head, then acts as `after_head` says.
+/// head, then acts as `after_response` says.
 async fn serve_once(
     answer: impl FnOnce(&[u8]) -> Vec<u8> + Send + 'static,
-    after_head: AfterHead,
+    after_response: AfterResponse,
 ) -> SocketAddr {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect(
         "Port 0 on the loopback interface lets the OS pick a free port, so binding always succeeds",
@@ -138,7 +140,7 @@ async fn serve_once(
         if let Ok((mut connection, _)) = listener.accept().await {
             let request_head = read_request_head(&mut connection).await;
             let _ = connection.write_all(&answer(&request_head)).await;
-            if matches!(after_head, AfterHead::HoldOpen) {
+            if matches!(after_response, AfterResponse::HoldOpen) {
                 future::pending::<()>().await;
             }
         }

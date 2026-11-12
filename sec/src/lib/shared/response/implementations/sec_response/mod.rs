@@ -366,6 +366,26 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_a_failed_body_read_when_the_gzip_length_does_not_match() {
+        let mut gzip_body = gzip(SAMPLE_NOTES_ZIP);
+        // The last 4 bytes of the gzip trailer are the length of the decoded body.
+        let length_start = gzip_body.len() - 4;
+        gzip_body[length_start] ^= 0xFF;
+        let response = gzip_response(ZIP_CONTENT_TYPE, &gzip_body);
+
+        let expected_result = true;
+
+        let reason = zip_response_from_server(response)
+            .await
+            .expect_err("The length in the trailer is wrong, so the decoder always fails")
+            .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
+        let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_a_failed_body_read_when_the_connection_closes_in_a_gzip_body() {
         let gzip_body = gzip(SAMPLE_NOTES_ZIP);
         let mut response = gzip_response(ZIP_CONTENT_TYPE, &gzip_body);
