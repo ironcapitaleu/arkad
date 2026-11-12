@@ -171,12 +171,11 @@
           {
             "name": "fiscal_period",
             "in": "query",
-            "description": "One fiscal period: `fy`, `q1`, `q2`, `q3`, or `q4`. Default: all.",
+            "description": "One fiscal period. Default: all.",
             "required": false,
             "schema": {
-              "type": "string"
-            },
-            "example": "fy"
+              "$ref": "#/components/schemas/FiscalPeriod"
+            }
           },
           {
             "name": "fiscal_year_from",
@@ -411,6 +410,11 @@
   },
   "components": {
     "schemas": {
+      "AccessionNumber": {
+        "type": "string",
+        "description": "The accession number of a filing, for example `0000320193-24-000123`.",
+        "example": "0000320193-24-000123"
+      },
       "Company": {
         "type": "object",
         "description": "One company with its identifiers.",
@@ -594,9 +598,8 @@
         ],
         "properties": {
           "concept": {
-            "type": "string",
-            "description": "The stable identifier of the concept.",
-            "example": "net_income"
+            "$ref": "#/components/schemas/ConceptId",
+            "description": "The stable identifier of the concept."
           },
           "name": {
             "type": "string",
@@ -604,6 +607,11 @@
             "example": "Net Income"
           }
         }
+      },
+      "ConceptId": {
+        "type": "string",
+        "description": "The stable identifier of a concept in `snake_case`, for example `net_income`.",
+        "example": "net_income"
       },
       "ConceptList": {
         "type": "object",
@@ -636,6 +644,21 @@
           }
         }
       },
+      "Confidence": {
+        "type": "string",
+        "description": "The resolution tier that produced a fact. A later tier is less certain.",
+        "enum": [
+          "exact",
+          "synonym",
+          "derived",
+          "computed"
+        ]
+      },
+      "ExactDecimal": {
+        "type": "string",
+        "description": "An exact decimal number as a string without an exponent, for example `391035000000`.\n\nA JSON number passes through a 64-bit float in many clients, and a float cannot hold every\ndecimal exactly.",
+        "example": "391035000000"
+      },
       "Fact": {
         "type": "object",
         "description": "One value of one concept for one period.",
@@ -651,14 +674,12 @@
         ],
         "properties": {
           "concept": {
-            "type": "string",
-            "description": "The concept, from `GET /v1/concepts`.",
-            "example": "revenue"
+            "$ref": "#/components/schemas/ConceptId",
+            "description": "The concept, from `GET /v1/concepts`."
           },
           "fiscal_period": {
-            "type": "string",
-            "description": "The fiscal period of the value: `fy`, `q1`, `q2`, `q3`, or `q4`.",
-            "example": "fy"
+            "$ref": "#/components/schemas/FiscalPeriod",
+            "description": "The fiscal period of the value."
           },
           "fiscal_year": {
             "type": "integer",
@@ -687,14 +708,12 @@
             "description": "The filing that the value comes from."
           },
           "unit": {
-            "type": "string",
-            "description": "An ISO 4217 currency code, `shares`, `usd_per_share`, or `pure` for a ratio.",
-            "example": "USD"
+            "$ref": "#/components/schemas/Unit",
+            "description": "An ISO 4217 currency code, `shares`, `usd_per_share`, or `pure` for a ratio."
           },
           "value": {
-            "type": "string",
-            "description": "The exact decimal value in whole units of `unit`, as a string.",
-            "example": "391035000000"
+            "$ref": "#/components/schemas/ExactDecimal",
+            "description": "The exact decimal value in whole units of `unit`, as a string."
           }
         }
       },
@@ -751,9 +770,8 @@
         ],
         "properties": {
           "accession_number": {
-            "type": "string",
-            "description": "The accession number of the filing.",
-            "example": "0000320193-24-000123"
+            "$ref": "#/components/schemas/AccessionNumber",
+            "description": "The accession number of the filing."
           },
           "filed_at": {
             "type": "string",
@@ -787,9 +805,8 @@
         ],
         "properties": {
           "accession_number": {
-            "type": "string",
-            "description": "The accession number of the filing.",
-            "example": "0000320193-24-000123"
+            "$ref": "#/components/schemas/AccessionNumber",
+            "description": "The accession number of the filing."
           },
           "filed_at": {
             "type": "string",
@@ -798,9 +815,8 @@
             "example": "2024-11-01"
           },
           "fiscal_period": {
-            "type": "string",
-            "description": "The fiscal period that the filing reports on: `fy`, `q1`, `q2`, `q3`, or `q4`.",
-            "example": "fy"
+            "$ref": "#/components/schemas/FiscalPeriod",
+            "description": "The fiscal period that the filing reports on."
           },
           "fiscal_year": {
             "type": "integer",
@@ -869,6 +885,17 @@
           }
         }
       },
+      "FiscalPeriod": {
+        "type": "string",
+        "description": "The fiscal period of a fact or a filing.",
+        "enum": [
+          "fy",
+          "q1",
+          "q2",
+          "q3",
+          "q4"
+        ]
+      },
       "IdentifierScheme": {
         "type": "string",
         "description": "The kind of a company identifier.",
@@ -887,14 +914,8 @@
         ],
         "properties": {
           "confidence": {
-            "type": "string",
-            "description": "The resolution tier that produced the value. A later tier is less certain.",
-            "enum": [
-              "exact",
-              "synonym",
-              "derived",
-              "computed"
-            ]
+            "$ref": "#/components/schemas/Confidence",
+            "description": "The resolution tier that produced the value."
           },
           "native_concept": {
             "type": "string",
@@ -969,7 +990,7 @@
             }
           }
         ],
-        "description": "The wire shape of a [`Period`]: `duration` with `start` and `end`, or `instant` with `end`."
+        "description": "The period that a fact covers: `duration` with `start` and `end`, or `instant` with `end`."
       },
       "Problem": {
         "type": "object",
@@ -1016,6 +1037,11 @@
             "example": "/errors/not_found"
           }
         }
+      },
+      "Unit": {
+        "type": "string",
+        "description": "The unit of a fact as one text: an ISO 4217 currency code, `shares`, `usd_per_share`, or\n`pure` for a ratio.",
+        "example": "USD"
       }
     }
   }

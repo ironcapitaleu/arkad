@@ -14,6 +14,7 @@
 //! - [`middleware`]: The middleware that the router runs on every request.
 //! - [`routes`]: The router of the crate, with `GET /health` and the versioned routes.
 //! - [`shared`]: The domain types, which depend on no route.
+//! - [`traits`]: The traits of the API.
 
 use axum::Router;
 
@@ -25,6 +26,7 @@ pub mod logging;
 pub mod middleware;
 pub mod routes;
 pub mod shared;
+pub mod traits;
 
 pub use routes::INTERNAL_DOCS_PATH;
 

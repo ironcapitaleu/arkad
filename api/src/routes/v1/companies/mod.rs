@@ -11,7 +11,6 @@
 //! - [`company`]: `GET /v1/companies` and `GET /v1/companies/{company_id}`.
 //! - [`facts`]: `GET /v1/companies/{company_id}/facts`.
 //! - [`filings`]: `GET /v1/companies/{company_id}/filings`.
-//! - [`wire`]: The serde functions that write `xbrl` domain types in the format of the contract.
 
 use serde::Deserialize;
 use utoipa::IntoParams;
@@ -19,7 +18,6 @@ use utoipa::IntoParams;
 pub mod company;
 pub mod facts;
 pub mod filings;
-pub mod wire;
 
 /// The path parameter of a route that names one company.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, IntoParams)]

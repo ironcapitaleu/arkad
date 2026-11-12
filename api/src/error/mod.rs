@@ -14,7 +14,9 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use thiserror::Error;
 
+use crate::shared::fiscal_period::UnsupportedFiscalPeriod;
 use crate::shared::pascal_case::InvalidPascalCase;
+use crate::shared::period::UnsupportedPeriod;
 
 pub mod problem;
 
@@ -89,6 +91,22 @@ impl IntoResponse for ApiError {
         let mut response = self.status().into_response();
         response.extensions_mut().insert(self);
         response
+    }
+}
+
+impl From<UnsupportedFiscalPeriod> for ApiError {
+    /// Converts an [`UnsupportedFiscalPeriod`] into [`ApiError::InternalError`], because the
+    /// period comes from the server and not from the client.
+    fn from(_: UnsupportedFiscalPeriod) -> Self {
+        Self::InternalError
+    }
+}
+
+impl From<UnsupportedPeriod> for ApiError {
+    /// Converts an [`UnsupportedPeriod`] into [`ApiError::InternalError`], because the period
+    /// comes from the server and not from the client.
+    fn from(_: UnsupportedPeriod) -> Self {
+        Self::InternalError
     }
 }
 
@@ -183,6 +201,28 @@ mod tests {
         let expected_result = "[NotImplemented] The server does not answer the route yet";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_become_internal_error_when_converting_unsupported_fiscal_period() {
+        let error = UnsupportedFiscalPeriod::new("H1");
+
+        let expected_result = ApiError::InternalError;
+
+        let result = ApiError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_become_internal_error_when_converting_unsupported_period() {
+        let error = UnsupportedPeriod::new("2024-09-28");
+
+        let expected_result = ApiError::InternalError;
+
+        let result = ApiError::from(error);
 
         assert_eq!(result, expected_result);
     }
