@@ -5,8 +5,8 @@
 //!
 //! Every date is a day in New York (`America/New_York`). The SEC's days are Eastern. It publishes
 //! the daily index of a day in the evening of that day or later, so the index of today can be
-//! missing. At 02:00 UTC on 2 November it is still 1 November in New York, so [`YESTERDAY`] is
-//! 31 October.
+//! missing. At 02:00 UTC on 2 November it is still 1 November in New York, so
+//! [`PREVIOUS_DAY_KEYWORD`] names 31 October.
 //!
 //! `yesterday-N` names the day `N` days before yesterday. The scheduled run sets
 //! `ARKAD_FROM=yesterday-3`, so each run reads the last 4 days.
@@ -17,20 +17,21 @@ use chrono::{DateTime, Days, NaiveDate, Utc};
 use chrono_tz::America::New_York;
 use thiserror::Error;
 
-use crate::constants::{FROM_ENV_VAR, TO_ENV_VAR, YESTERDAY};
-use crate::yesterday::new_york_yesterday;
+use crate::constants::{FROM_ENV_VAR, PREVIOUS_DAY_KEYWORD, TO_ENV_VAR};
+use crate::new_york_clock::previous_day_in_new_york;
 
 /// The error when [`FROM_ENV_VAR`] and [`TO_ENV_VAR`] give no valid dates to run.
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum InvalidRunDates {
     /// [`FROM_ENV_VAR`] is unset or empty.
     #[error(
-        "[MissingStartDate] {FROM_ENV_VAR} is unset or empty, set {FROM_ENV_VAR} and optionally {TO_ENV_VAR} to a date (YYYY-MM-DD), '{YESTERDAY}' or '{YESTERDAY}-N'"
+        "[MissingStartDate] {FROM_ENV_VAR} is unset or empty, set {FROM_ENV_VAR} and optionally {TO_ENV_VAR} to a date (YYYY-MM-DD), '{PREVIOUS_DAY_KEYWORD}' or '{PREVIOUS_DAY_KEYWORD}-N'"
     )]
     MissingStartDate,
-    /// A value is neither a date in the form `YYYY-MM-DD`, nor [`YESTERDAY`], nor `yesterday-N`.
+    /// A value is neither a date in the form `YYYY-MM-DD`, nor [`PREVIOUS_DAY_KEYWORD`], nor
+    /// `yesterday-N`.
     #[error(
-        "[InvalidDate] {variable} value '{value}' is not a date (YYYY-MM-DD), '{YESTERDAY}' or '{YESTERDAY}-N', set {FROM_ENV_VAR} and {TO_ENV_VAR} in that form"
+        "[InvalidDate] {variable} value '{value}' is not a date (YYYY-MM-DD), '{PREVIOUS_DAY_KEYWORD}' or '{PREVIOUS_DAY_KEYWORD}-N', set {FROM_ENV_VAR} and {TO_ENV_VAR} in that form"
     )]
     InvalidDate {
         /// The variable that holds the value.
@@ -61,9 +62,9 @@ pub enum InvalidRunDates {
 /// Returns every date from `from` through `to`, oldest first, for the values of [`FROM_ENV_VAR`]
 /// and [`TO_ENV_VAR`] at the time `now`.
 ///
-/// Each value is a date in the form `YYYY-MM-DD`, [`YESTERDAY`] (the day before today in New
-/// York), or `yesterday-N` (`N` days before yesterday, `N` at least 1). An unset or empty `to`
-/// means [`YESTERDAY`].
+/// Each value is a date in the form `YYYY-MM-DD`, [`PREVIOUS_DAY_KEYWORD`] (the day before today
+/// in New York), or `yesterday-N` (`N` days before yesterday, `N` at least 1). An unset or empty
+/// `to` means [`PREVIOUS_DAY_KEYWORD`].
 ///
 /// # Errors
 ///
@@ -78,13 +79,13 @@ pub fn run_dates(
     now: DateTime<Utc>,
 ) -> Result<Vec<NaiveDate>, InvalidRunDates> {
     let today = now.with_timezone(&New_York).date_naive();
-    let yesterday = new_york_yesterday(now);
+    let previous_day = previous_day_in_new_york(now);
 
     let from = non_empty(from).ok_or(InvalidRunDates::MissingStartDate)?;
-    let from = parse_date(FROM_ENV_VAR, &from, yesterday)?;
+    let from = parse_date(FROM_ENV_VAR, &from, previous_day)?;
     let to = match non_empty(to) {
-        Some(to) => parse_date(TO_ENV_VAR, &to, yesterday)?,
-        None => yesterday,
+        Some(to) => parse_date(TO_ENV_VAR, &to, previous_day)?,
+        None => previous_day,
     };
 
     if to >= today {
@@ -103,20 +104,20 @@ fn non_empty(value: Option<OsString>) -> Option<String> {
         .map(|value| value.to_string_lossy().into_owned())
 }
 
-/// Parses `value` of `variable` as a date in the form `YYYY-MM-DD`, as [`YESTERDAY`], or as
-/// `yesterday-N`.
+/// Parses `value` of `variable` as a date in the form `YYYY-MM-DD`, as [`PREVIOUS_DAY_KEYWORD`],
+/// or as `yesterday-N`.
 fn parse_date(
     variable: &'static str,
     value: &str,
-    yesterday: NaiveDate,
+    previous_day: NaiveDate,
 ) -> Result<NaiveDate, InvalidRunDates> {
-    let date = if value == YESTERDAY {
-        Some(yesterday)
+    let date = if value == PREVIOUS_DAY_KEYWORD {
+        Some(previous_day)
     } else if let Some(days) = value
-        .strip_prefix(YESTERDAY)
+        .strip_prefix(PREVIOUS_DAY_KEYWORD)
         .and_then(|rest| rest.strip_prefix('-'))
     {
-        days_before(yesterday, days)
+        days_before(previous_day, days)
     } else {
         calendar_date(value)
     };
@@ -126,14 +127,14 @@ fn parse_date(
     })
 }
 
-/// Returns the date `days` days before `yesterday`, or `None` if `days` is not a whole number of
-/// at least 1 written without a sign or a leading zero.
-fn days_before(yesterday: NaiveDate, days: &str) -> Option<NaiveDate> {
+/// Returns the date `days` days before `previous_day`, or `None` if `days` is not a whole number
+/// of at least 1 written without a sign or a leading zero.
+fn days_before(previous_day: NaiveDate, days: &str) -> Option<NaiveDate> {
     // `u64` also reads a `+` and leading zeros, so the number must print back to the same text.
     days.parse::<u64>()
         .ok()
         .filter(|count| *count >= 1 && count.to_string() == days)
-        .and_then(|count| yesterday.checked_sub_days(Days::new(count)))
+        .and_then(|count| previous_day.checked_sub_days(Days::new(count)))
 }
 
 /// Returns the date written as `YYYY-MM-DD`, or `None` if `value` is not in that exact form.

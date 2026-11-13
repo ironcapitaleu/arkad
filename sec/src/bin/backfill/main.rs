@@ -8,6 +8,8 @@ mod batch_log;
 mod files_in_flight;
 #[path = "../shared/json_log.rs"]
 mod json_log;
+#[path = "../shared/new_york_clock.rs"]
+mod new_york_clock;
 #[path = "../shared/notes_periods.rs"]
 mod notes_periods;
 #[path = "../shared/sec_client.rs"]
@@ -17,8 +19,6 @@ mod sec_client;
 #[allow(dead_code)]
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
-#[path = "../shared/yesterday.rs"]
-mod yesterday;
 
 use std::cell::Cell;
 use std::env;
@@ -41,10 +41,10 @@ use batch_log::{
 };
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use json_log::init_logger;
+use new_york_clock::previous_day_in_new_york;
 use notes_periods::notes_periods;
 use run::{BackfillInputs, run};
 use storage_root::{raw_notes_archive_writer, raw_writer};
-use yesterday::new_york_yesterday;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -82,13 +82,13 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let backfill = Extraction::backfill();
     let execution_id = backfill.id();
     let now = Utc::now();
-    let yesterday = new_york_yesterday(now);
+    let last_date = previous_day_in_new_york(now);
     let periods = notes_periods_of_run(&sec_client, now.date_naive()).await?;
     let inputs = BackfillInputs {
         backfill,
         periods,
         files_in_flight,
-        yesterday,
+        last_date,
         sec_client,
         notes_repository,
         daily_repositories,
@@ -140,7 +140,7 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     })?;
     tracing::info!(
         event = %BatchEvent::Complete,
-        message = %format!("Ran the Notes periods and every date up to {yesterday} in {:.2?}", start.elapsed()),
+        message = %format!("Ran the Notes periods and every date up to {last_date} in {:.2?}", start.elapsed()),
         context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
     );
     Ok(())

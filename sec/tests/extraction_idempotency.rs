@@ -184,13 +184,13 @@ mod daily_filings {
     }
 
     /// Runs the date 2026-10-26 into `root` with `execution_id`. The run treats 2026-10-28 as
-    /// yesterday.
+    /// its `as_of` date.
     async fn run(root: &TempDir, execution_id: Uuid) -> DailyRunSummary {
         Extraction::incremental()
             .execution_id(execution_id)
             .daily_filings()
             .dates([date("2026-10-26")])
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client())
             .repositories(repositories(root))
             .retry_delays([Duration::ZERO, Duration::ZERO])

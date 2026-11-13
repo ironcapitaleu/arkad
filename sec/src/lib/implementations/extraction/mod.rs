@@ -136,12 +136,12 @@
 //!     labels: writer(),
 //!     submissions: writer(),
 //! };
-//! let yesterday = NaiveDate::from_ymd_opt(2026, 10, 31).expect("a valid date");
-//! let dates = vec![NaiveDate::from_ymd_opt(2026, 10, 28).expect("a valid date"), yesterday];
+//! let as_of = NaiveDate::from_ymd_opt(2026, 10, 31).expect("a valid date");
+//! let dates = vec![NaiveDate::from_ymd_opt(2026, 10, 28).expect("a valid date"), as_of];
 //! let summary = Extraction::incremental()
 //!     .daily_filings()
 //!     .dates(dates)
-//!     .yesterday(yesterday)
+//!     .as_of(as_of)
 //!     .sec_client(SecClient::default())
 //!     .repositories(repositories)
 //!     .run(|unit, event| {

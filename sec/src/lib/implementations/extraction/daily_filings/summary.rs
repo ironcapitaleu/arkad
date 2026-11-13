@@ -84,18 +84,18 @@ pub struct FailedDailyRun {
 /// Returns `true` if the detection of `date` failed only because its daily index does not exist
 /// yet, and a later run reads `date` again.
 ///
-/// That holds if `error` is a `MissingDailyIndex`, `date` is not `first_date`, and `date` is one
-/// of the [`PENDING_DAYS`] days that end with `yesterday`. The first date of a run can be its last
+/// That holds if `error` is a `MissingDailyIndex`, `date` is not `first_date`, and `date` is on or
+/// after the date [`PENDING_DAYS`] - 1 days before `as_of`. The first date of a run can be its last
 /// read, for example `yesterday-3` in the scheduled run, so a missing index there fails the run.
 /// This keeps the rule safe whatever window the job sets.
 pub(super) fn is_pending(
     error: &StreamError,
     date: NaiveDate,
     first_date: NaiveDate,
-    yesterday: NaiveDate,
+    as_of: NaiveDate,
 ) -> bool {
-    // A `yesterday` near `NaiveDate::MIN` has no oldest pending date, so every date is recent.
-    let is_recent = yesterday
+    // An `as_of` near `NaiveDate::MIN` has no oldest pending date, so every date is recent.
+    let is_recent = as_of
         .checked_sub_days(Days::new(PENDING_DAYS - 1))
         .is_none_or(|oldest_pending| date >= oldest_pending);
     date != first_date
@@ -356,29 +356,29 @@ mod tests {
     }
 
     #[test]
-    fn should_count_a_missing_index_as_pending_when_the_date_is_two_days_before_yesterday() {
+    fn should_count_a_missing_index_as_pending_when_the_date_is_two_days_before_as_of() {
         let run_date = date("2026-10-29");
         let error = missing_daily_index("2026-10-29");
         let first_date = date("2026-10-28");
-        let yesterday = date("2026-10-31");
+        let as_of = date("2026-10-31");
 
         let expected_result = true;
 
-        let result = is_pending(&error, run_date, first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, as_of);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_not_count_a_missing_index_as_pending_when_the_date_is_three_days_before_yesterday() {
+    fn should_not_count_a_missing_index_as_pending_when_the_date_is_three_days_before_as_of() {
         let run_date = date("2026-10-28");
         let error = missing_daily_index("2026-10-28");
         let first_date = date("2026-10-27");
-        let yesterday = date("2026-10-31");
+        let as_of = date("2026-10-31");
 
         let expected_result = false;
 
-        let result = is_pending(&error, run_date, first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, as_of);
 
         assert_eq!(result, expected_result);
     }
@@ -388,39 +388,53 @@ mod tests {
         let run_date = date("2026-10-31");
         let error = missing_daily_index("2026-10-31");
         let first_date = date("2026-10-31");
-        let yesterday = date("2026-10-31");
+        let as_of = date("2026-10-31");
 
         let expected_result = false;
 
-        let result = is_pending(&error, run_date, first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, as_of);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_not_count_another_detection_error_as_pending_when_the_date_is_yesterday() {
+    fn should_not_count_another_detection_error_as_pending_when_the_date_is_as_of() {
         let run_date = date("2026-10-31");
         let error = configuration_error();
         let first_date = date("2026-10-28");
-        let yesterday = date("2026-10-31");
+        let as_of = date("2026-10-31");
 
         let expected_result = false;
 
-        let result = is_pending(&error, run_date, first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, as_of);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_count_a_missing_index_as_pending_when_yesterday_is_the_minimum_date() {
-        let run_date = NaiveDate::MIN;
-        let error = missing_daily_index("2026-10-31");
+    fn should_count_a_missing_index_as_pending_when_the_date_is_after_as_of() {
+        let run_date = date("2026-11-05");
+        let error = missing_daily_index("2026-11-05");
         let first_date = date("2026-10-28");
-        let yesterday = NaiveDate::MIN;
+        let as_of = date("2026-10-31");
 
         let expected_result = true;
 
-        let result = is_pending(&error, run_date, first_date, yesterday);
+        let result = is_pending(&error, run_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_missing_index_as_pending_when_as_of_is_the_minimum_date() {
+        let run_date = NaiveDate::MIN;
+        let error = missing_daily_index("2026-10-31");
+        let first_date = date("2026-10-28");
+        let as_of = NaiveDate::MIN;
+
+        let expected_result = true;
+
+        let result = is_pending(&error, run_date, first_date, as_of);
 
         assert_eq!(result, expected_result);
     }
