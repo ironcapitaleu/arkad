@@ -62,6 +62,33 @@ Example: `ListRepository` is a standalone trait with its own `Key`, so a caller 
 `get`, and `ReadRepository` stays unchanged. The marker `ReadListRepository` combines the two
 ([`repository_listing.md`](storage/design/data_model/repository_listing.md), "The Trait").
 
+### Architecture Decision Records
+
+An ADR records one decision that later work must follow, with the facts behind it. ADRs live in
+`docs/adr/` as `NNNN-<short-description>.md`.
+
+**Check for an ADR when you make a decision, not when a person asks.** When a task makes you choose
+between options, run this test before you write the code:
+
+| Write an ADR if one of these holds | Keep it in the design doc, the ticket, or the PR |
+| ---------------------------------- | ------------------------------------------------ |
+| Another ticket, crate, or run must follow the choice | The choice stays inside one module |
+| A reversal costs a migration, stored data, or a public interface | A reversal is one PR |
+| The choice rests on a measurement that can go out of date | The choice follows from the code or from a rule of this file |
+| The choice adds a rule to this file or to a skill | The choice is a matter of style that a rule already covers |
+
+- If the test says ADR, write the ADR in the PR that first acts on the decision. Set its status to
+  "Proposed" and say who confirms it. An agent never accepts an ADR.
+- If the test is unclear, name the decision and both options in the PR description, and ask the
+  owner.
+- A design doc explains how the code works. An ADR explains why one option won. Link from the
+  design doc to the ADR. Do not copy the decision into the design doc.
+- Never change the decision of an accepted ADR. Add an amendment to it, or write a new ADR that
+  supersedes it.
+
+The **[`adr` skill](.claude/skills/adr/SKILL.md)** holds the template and the procedure. Read it
+before you write or amend an ADR.
+
 ### Documentation
 
 - Public items in libraries **must include docstrings** (`///`).
