@@ -255,6 +255,17 @@ mod tests {
     }
 
     #[test]
+    fn should_return_the_first_day_of_october_when_the_quarter_is_the_fourth() {
+        let quarter = Quarter::of(date(2026, 11, 13));
+
+        let expected_result = Some(date(2026, 10, 1));
+
+        let result = quarter.first_day();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_no_first_day_when_the_quarter_lies_after_the_last_year_of_naive_date() {
         let quarter = Quarter::of(NaiveDate::MAX);
 
