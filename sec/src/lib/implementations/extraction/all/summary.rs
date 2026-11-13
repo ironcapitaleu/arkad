@@ -17,8 +17,8 @@ use crate::implementations::extraction::notes::NotesRunSummary;
     "[FailedAllBackfill] Failed: {failed_periods} of {periods} Notes periods, {catch_up_failures} dates, filings, or submissions files in {catch_up_dates} catch-up dates"
 )]
 pub struct FailedAllBackfill {
-    /// The number of Notes periods that failed. An unpublished period counts only if the SEC
-    /// publishes the newest period and the run stored no period that ends on or after the
+    /// The number of Notes periods that failed. An unpublished period counts only if the `HEAD`
+    /// request found the newest period and the run stored no period that ends on or after the
     /// cut-over date.
     pub failed_periods: usize,
     /// The number of Notes periods in the run.

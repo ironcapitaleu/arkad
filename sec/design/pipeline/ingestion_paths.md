@@ -1814,8 +1814,8 @@ Rules:
    download of the same file then gets a 403.
    The Notes summary lists that period as unpublished, but `result()` counts it as failed. To
    check a run by hand, confirm that no entry in the Notes summary has a `failed_state`, and that
-   the newest stored period ends on or after the cut-over date, the `first_date` of the catch-up
-   summary. See
+   the newest stored period ends on or after the cut-over date. The `first_date` of the catch-up
+   summary is the cut-over date. If the catch-up has no date, `first_date` is empty. See
    [Calling the Machines](#calling-the-machines). Do not rely on the
    calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
