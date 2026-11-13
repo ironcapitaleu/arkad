@@ -201,11 +201,26 @@ classDiagram
         +InvalidDailyIndexCik(usize line_number, CikError source)
     }
 
+    class InvalidDailyIndexLineReason{
+        << enum >>
+        %% Why a line of a daily index is malformed
+        +MissingField
+        +InvalidFiledDate(String filed_date)
+        +InvalidFileName(String file_name)
+    }
+
     class FilingDocumentsError{
         << enum >>
         %% Domain error for a filing folder with no single XBRL instance or label file
         +MissingXbrlInstance(AccessionNumber accession_number)
         +AmbiguousFilingDocument(AccessionNumber accession_number, FilingDocumentRole role, usize candidate_count)
+    }
+
+    class FilingDocumentRole{
+        << enum >>
+        %% Which document of a filing folder a lookup selects
+        +XbrlInstance
+        +LabelFile
     }
 
     class InvalidCikReason{
@@ -276,8 +291,10 @@ classDiagram
     InvalidIndexDate --> IndexDateError
     IndexDateError --> InvalidIndexDateReason
     InvalidDailyIndex --> DailyIndexError
+    DailyIndexError --> InvalidDailyIndexLineReason
     DailyIndexError --> CikError
     FailedDocumentSelection --> FilingDocumentsError
+    FilingDocumentsError --> FilingDocumentRole
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
     FailedDocumentWrite --> FailedDocumentStorage
