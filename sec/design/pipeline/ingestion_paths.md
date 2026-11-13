@@ -1860,13 +1860,14 @@ The runs alternated, sequence first.
 | 3 | Sequence | 99.2 s | 54.9 s | 44.3 s | 1,793 MB | 395 | 0 | 0 |
 | 3 | Parallel | 52.4 s | 52.0 s | 43.6 s | 2,219 MB | 396 | 0 | 0 |
 
-- The parallel run was never slower than the fastest sequence run. Its median is 93.3 s against
-  99.2 s, and its best run took 52.4 s, the time of the Notes step alone.
+- The median parallel run took 93.3 s, against 99.2 s for the sequence. In run 1, the parallel
+  run was 1.1 s slower. Its best run took 52.4 s, the time of the Notes step alone.
 - In runs 1 and 2 of the parallel variant, the catch-up made about 2 requests per second while the
   Notes files downloaded, against about 6.5 alone. Both steps share one network link. The cause is
   not measured.
-- The parallel variant sends one more request, the `HEAD` request of the cut-over date, plus one
-  request for each retry after a 503. Each 503 passed on its retry.
+- The parallel variant sent 1 to 6 more requests: the `HEAD` request of the cut-over date, and
+  the retries after a 503. A retry runs the whole filing machine again, so it repeats the requests
+  of that filing. Each 503 passed on its retry.
 - The peak memory rose by 55 to 426 MB. The cap on Notes files in flight still bounds it.
 
 ### Idempotent Writes
