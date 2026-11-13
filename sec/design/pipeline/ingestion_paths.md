@@ -1591,8 +1591,10 @@ All super-states of one run share one `execution_id`. For each date, in this ord
 
 The dates run one after another, so each entry of the summary belongs to one date.
 
-Measured on 2026-11-13 in the cloud container: the run of 2026-11-02 (388 requests) in a fresh
-store, twice for each value, in the order 4, 8, 12, 16, 16, 12, 8, 4.
+Measured on 2026-11-13 in the cloud container, with the `daily_filings` binary alone: the run of
+2026-11-02 (388 requests) in a fresh store, twice for each value, in the order 4, 8, 12, 16, 16,
+12, 8, 4. The catch-up of `backfill().all()` was not measured with 8. While Notes files download,
+it runs below the rate limit (see [The Steps at the Same Time](#the-steps-at-the-same-time)).
 
 | Machines in flight | Run time | Requests per second | Median request | 503 |
 | ------------------ | -------- | ------------------- | -------------- | --- |
@@ -1603,8 +1605,8 @@ store, twice for each value, in the order 4, 8, 12, 16, 16, 12, 8, 4.
 
 Each machine sends its requests one after another and mostly waits for the SEC. With 4 machines,
 the run time follows the answer time of the SEC. With 8, both runs reached about 9 requests per
-second, near the cap of 10. Above 8, the requests only wait longer for the rate limiter. The
-request time includes that wait. No run got a 429 or a 503.
+second, the cap of the rate limiter (1 request each 110 ms). Above 8, the requests only wait
+longer for the rate limiter. The request time includes that wait. No run got a 429 or a 503.
 
 #### Failures
 
