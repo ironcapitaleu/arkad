@@ -1805,6 +1805,35 @@ Assumptions:
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
 
+#### The Steps at the Same Time
+
+`backfill().all()` runs the Notes step and the catch-up at the same time. In sequence, a run takes
+the sum of both steps. At the same time, it takes about the longer of the two. The cut-over date
+comes from one `HEAD` request, so the catch-up does not wait for the Notes step.
+
+Measured on 2026-11-13 in the cloud container (4 cores, about 13 to 15 MB/s to the SEC). Each run
+used a fresh store, the Notes periods `2025q1`, `2025q2`, and `2026_10` (1.27 GB), and the
+catch-up from 2026-10-31 to 2026-11-02. The sequence is the binary of `main` before this change.
+The runs alternated, sequence first.
+
+| Run | Variant | Run time | Notes step | Catch-up | Peak memory | Requests | 429 | 503 |
+| --- | ------- | -------- | ---------- | -------- | ----------- | -------- | --- | --- |
+| 1 | Sequence | 94.8 s | 51.2 s | 43.5 s | 1,604 MB | 395 | 0 | 0 |
+| 1 | Parallel | 95.9 s | 57.4 s | 95.4 s | 1,659 MB | 397 | 0 | 1 |
+| 2 | Sequence | 138.2 s | 62.8 s | 75.3 s | 1,679 MB | 395 | 0 | 0 |
+| 2 | Parallel | 93.3 s | 51.6 s | 92.8 s | 1,742 MB | 401 | 0 | 2 |
+| 3 | Sequence | 99.2 s | 54.9 s | 44.3 s | 1,793 MB | 395 | 0 | 0 |
+| 3 | Parallel | 52.4 s | 52.0 s | 43.6 s | 2,219 MB | 396 | 0 | 0 |
+
+- The parallel run was never slower than the fastest sequence run. Its median is 93.3 s against
+  99.2 s, and its best run took 52.4 s, the time of the Notes step alone.
+- In runs 1 and 2 of the parallel variant, the catch-up made about 2 requests per second while the
+  Notes files downloaded, against about 6.5 alone. Both steps share one network link. The cause is
+  not measured.
+- The parallel variant sends one more request, the `HEAD` request of the cut-over date, plus one
+  request for each retry after a 503. Each 503 passed on its retry.
+- The peak memory rose by 55 to 426 MB. The cap on Notes files in flight still bounds it.
+
 ### Idempotent Writes
 
 > **Input for STA-331.** Decided as a direction by the lead on 2026-10-28. The fact store design
