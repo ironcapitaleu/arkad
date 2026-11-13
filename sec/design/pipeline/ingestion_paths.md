@@ -1809,8 +1809,9 @@ Rules:
    catch-up runs at the same time as the Notes step, so it cannot wait for this check. A failed
    Notes period fails the run instead: `AllRunSummary::result()` returns `FailedAllBackfill`, and
    `backfill` exits with an error. Rerun the backfill (rule 8). The repeat downloads the failed
-   period. The run also fails if no stored Notes period ends on or after the cut-over date. For
-   example, the `HEAD` request answers 200, and the download of the same file then gets a 403.
+   period. The run also fails if the `HEAD` request found the newest period and no stored Notes
+   period ends on or after the cut-over date. For example, the `HEAD` request answers 200, and the
+   download of the same file then gets a 403.
    The Notes summary lists that period as unpublished, but `result()` counts it as failed. To
    check a run by hand, confirm that no entry in the Notes summary has a `failed_state`, and that
    the newest stored period ends on or after the cut-over date, the `first_date` of the catch-up
