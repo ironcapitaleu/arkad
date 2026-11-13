@@ -213,10 +213,49 @@ async fn should_run_the_catch_up_when_a_notes_period_fails() {
     let sec_client = sec_client(&["2026_09"]);
     let periods = ["2026_08", "2026_09"];
 
-    let expected_result = json!(["2026-09-30", "2026-10-01"]);
+    let expected_result = (1, json!(["2026-09-30", "2026-10-01"]));
 
     let summary = run_all(&root, sec_client, &periods).await;
-    let result = catch_up_dates(&summary);
+    let result = (summary.notes().failure_count(), catch_up_dates(&summary));
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_fail_the_older_period_when_the_list_is_not_in_order() {
+    let root = temporary_root();
+    let sec_client = sec_client(&["2026_09"]);
+    let periods = ["2026_09", "2026_08"];
+
+    let expected_result = Err(FailedAllBackfill {
+        failed_periods: 1,
+        periods: 2,
+        catch_up_failures: 0,
+        catch_up_dates: 2,
+    });
+
+    let result = run_all(&root, sec_client, &periods).await.result();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_run_no_catch_up_date_when_until_is_before_the_cut_over_date() {
+    let root = temporary_root();
+    let sec_client = sec_client(&["2026_09"]);
+
+    let expected_result = (json!([]), Ok(()));
+
+    let summary = Extraction::backfill()
+        .all()
+        .periods(["2026_09"])
+        .until(date("2026-09-01"))
+        .sec_client(sec_client)
+        .repositories(repositories(&root))
+        .run(|_, _| {})
+        .await
+        .expect(RUN_EXPECT);
+    let result = (catch_up_dates(&summary), summary.result());
 
     assert_eq!(result, expected_result);
 }

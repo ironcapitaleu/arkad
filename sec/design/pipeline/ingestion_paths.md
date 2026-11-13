@@ -179,8 +179,8 @@ deprecated example, next to `stream_extract`. See [Deprecated Binaries](#depreca
 | - | ---------- | -------------------------- | ---------------- | --------------- |
 | Unit | Notes period and, at the same time, as `daily_filings` from the cut-over date | Notes period | CIK of a fixed list | date, then filing, then CIK |
 | Loop | as `notes_backfill` and as `daily_filings`, at the same time | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, then `DEFAULT_MACHINES_IN_FLIGHT` = 4 | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
-| Task per unit | as `notes_backfill`, then no | `tokio::spawn` (STA-344, open in STA-360) | no | no |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, for the Notes step, and `DEFAULT_MACHINES_IN_FLIGHT` = 4 for the catch-up | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
+| Task per unit | as `notes_backfill` for the Notes step, none for the catch-up | `tokio::spawn` (STA-344, open in STA-360) | no | no |
 | Rules | the rules of both, and the cut-over date from one `HEAD` request before any download | skip of an intact stored file, transient retry, unpublished at the end | none | transient retry, pending, unextractable |
 | Summary | `AllRunSummary`, `FailedAllBackfill` (facade) | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
 | Logging | one observer for both steps, one summary per step | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |

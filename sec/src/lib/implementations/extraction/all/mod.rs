@@ -273,7 +273,8 @@ where
     /// Finds the cut-over date, then runs the Notes step and the catch-up at the same time, and
     /// returns the summary of both.
     ///
-    /// The cut-over date is the last day of the newest Notes period of the run if the SEC answers
+    /// The run sorts the periods, oldest first. The cut-over date is the last day of the newest
+    /// Notes period if the SEC answers
     /// a `HEAD` request for its file. If the SEC answers 404, the cut-over date is the last day of
     /// the next older period of the run. The date of today plays no part.
     ///
@@ -296,15 +297,18 @@ where
         self,
         observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
     ) -> Result<AllRunSummary, FailedCutOverDate> {
-        let cut_over_date =
-            cut_over_date(&self.sec_client, &self.periods, &self.retry_delays).await?;
+        let mut periods = self.periods;
+        // The Notes summary counts only the last period of the list as unpublished, so the newest
+        // period must be last. An invalid period sorts first and still fails.
+        periods.sort_by_key(|period| NotesPeriod::new(period).ok());
+        let cut_over_date = cut_over_date(&self.sec_client, &periods, &self.retry_delays).await?;
         let catch_up_dates = dates_between(cut_over_date, self.until);
         let observer = Arc::new(observer);
         let notes_observer = Arc::clone(&observer);
         let notes = self
             .backfill
             .notes()
-            .periods(self.periods)
+            .periods(periods)
             .sec_client(self.sec_client.clone())
             .repository(self.repositories.notes)
             .in_flight(self.in_flight)

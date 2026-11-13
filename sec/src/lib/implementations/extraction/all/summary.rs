@@ -53,7 +53,7 @@ impl AllRunSummary {
         self.notes_duration
     }
 
-    /// Returns the cut-over date: the first date of the catch-up.
+    /// Returns the cut-over date: the first date that the catch-up asks for.
     #[must_use]
     pub const fn cut_over_date(&self) -> NaiveDate {
         self.cut_over_date
