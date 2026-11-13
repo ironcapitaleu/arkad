@@ -234,10 +234,13 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::fixtures::sample_document::{SampleContext, sample_metadata};
+    use crate::tests::fixtures::sample_document::{
+        SampleContext, sample_metadata, sample_metadata_of,
+    };
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -347,6 +350,52 @@ mod tests {
 
         let result = serde_json::to_value(metadata)
             .expect("Given metadata of owned fields, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_all_nine_digits_when_the_produced_at_has_nanoseconds() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.123456789Z");
+
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.123456789Z");
+
+        let result = serde_json::to_value(metadata)
+            .expect("Given metadata of owned fields, serialization should always succeed")
+            ["produced_at"]
+            .take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_pad_the_fraction_to_whole_microseconds_when_the_produced_at_has_trailing_zeros() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.1234Z");
+
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.123400Z");
+
+        let result = serde_json::to_value(metadata)
+            .expect("Given metadata of owned fields, serialization should always succeed")
+            ["produced_at"]
+            .take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_nanoseconds_when_the_stored_produced_at_has_fractional_seconds() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["produced_at"] = "2026-09-22T20:05:30.123456789Z".into();
+
+        let expected_result = NaiveDate::from_ymd_opt(2026, 9, 22)
+            .and_then(|date| date.and_hms_nano_opt(20, 5, 30, 123_456_789))
+            .expect("Given a hardcoded valid date and time, creating it should always succeed")
+            .and_utc();
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .expect("Given stored metadata with every field, deserialization should always succeed")
+            .produced_at();
 
         assert_eq!(result, expected_result);
     }
