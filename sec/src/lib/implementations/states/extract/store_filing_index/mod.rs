@@ -98,6 +98,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::raw_document::RawDocumentMetadataContext;
     use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::FakeFilingIndexRepository;
     use crate::traits::state_machine::state::State;
 
@@ -285,11 +286,7 @@ mod tests {
     #[tokio::test]
     async fn should_record_the_inputs_of_the_state_in_the_metadata_of_the_document() {
         let repository = FakeFilingIndexRepository::new();
-        let inputs = vec![InputDocument::new(
-            DocumentKey::new("sec/daily-index/form.20260909.idx")
-                .expect("Given a hardcoded valid relative path, the key should always build"),
-            storage::Sha256Digest::of(b"index"),
-        )];
+        let inputs = daily_index_inputs();
         let mut state = sample_state(repository.clone()).with_inputs(inputs.clone());
 
         let expected_result = Some(inputs);

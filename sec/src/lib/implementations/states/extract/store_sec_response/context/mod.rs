@@ -38,8 +38,8 @@ pub struct StoreSecResponseContext<E: RequestKind, R> {
     pub ingestion_mode: IngestionMode,
     /// The repository that stores the document.
     pub repository: R,
-    /// The documents that the response came from, for the metadata of the stored document. Empty
-    /// by default.
+    /// The documents that the response came from. The state records them as inputs in the
+    /// metadata. Empty by default.
     pub inputs: Vec<InputDocument>,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
@@ -288,6 +288,7 @@ mod tests {
     use crate::implementations::states::extract::store_company_facts::StoreCompanyFactsContext;
     use crate::shared::cik::Cik;
     use crate::shared::request::implementations::sec_request::CompanyFacts;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::FakeWriteRepository;
 
     fn sample_cik(cik: &str) -> Cik {
@@ -391,16 +392,6 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn sample_inputs() -> Vec<InputDocument> {
-        vec![InputDocument::new(
-            storage::implementations::repository::filesystem::DocumentKey::new(
-                "sec/daily-index/form.20260909.idx",
-            )
-            .expect("Given a hardcoded valid relative path, the key should always build"),
-            storage::Sha256Digest::of(b"index"),
-        )]
-    }
-
     #[test]
     fn should_hold_no_inputs_when_created_with_new() {
         let context = sample_context();
@@ -414,9 +405,9 @@ mod tests {
 
     #[test]
     fn should_hold_the_inputs_when_created_with_inputs() {
-        let context = sample_context().with_inputs(sample_inputs());
+        let context = sample_context().with_inputs(daily_index_inputs());
 
-        let expected_result = sample_inputs();
+        let expected_result = daily_index_inputs();
 
         let result = context.inputs().to_vec();
 
@@ -428,10 +419,10 @@ mod tests {
         let mut context = sample_context();
         let updater =
             StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
-                .inputs(sample_inputs())
+                .inputs(daily_index_inputs())
                 .build();
 
-        let expected_result = sample_inputs();
+        let expected_result = daily_index_inputs();
 
         context.update_context(updater);
         let result = context.inputs;

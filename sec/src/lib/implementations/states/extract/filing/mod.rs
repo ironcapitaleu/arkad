@@ -788,6 +788,7 @@ mod tests {
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::raw_document::RawDocument;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::{
         FakeFilingIndexRepository, FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
     };
@@ -1317,16 +1318,6 @@ mod tests {
             .collect();
 
         assert_eq!(result, expected_result);
-    }
-
-    fn daily_index_inputs() -> Vec<InputDocument> {
-        vec![InputDocument::new(
-            storage::implementations::repository::filesystem::DocumentKey::new(
-                "sec/daily-index/form.20260909.idx",
-            )
-            .expect("Given a hardcoded valid relative path, the key should always build"),
-            storage::Sha256Digest::of(b"index"),
-        )]
     }
 
     #[tokio::test]

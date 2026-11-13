@@ -317,13 +317,13 @@ mod tests {
     async fn should_record_no_inputs_for_notes_archives() {
         let repository = FakeNotesRepository::new();
         let mut state = sample_state(repository.clone());
+
+        let expected_result = Some(Vec::<InputDocument>::new());
+
         state
             .compute_output_data_async()
             .await
             .expect("Given a fake repository that accepts every write, the state should succeed");
-
-        let expected_result = Some(Vec::<InputDocument>::new());
-
         let result = repository
             .persisted()
             .pop()
