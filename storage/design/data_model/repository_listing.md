@@ -547,8 +547,8 @@ Rules of the run:
   index changes every day under one key, so the SHA-256 in `inputs` names bytes that the store
   replaces the next day. The daily index has the same gap today when the SEC changes it.
 
-The full index source of the catch-up of `backfill` and this run read the same file. The catch-up
-design picks `form.idx` or `xbrl.idx`, and this run uses the same choice.
+The full index source of the catch-up of `backfill` and this run read the same file.
+[ADR 0003](../../../docs/adr/0003-full-index-source.md) picks `form.idx` for both.
 
 ## Assumptions and Triggers
 
@@ -609,7 +609,7 @@ Triggers:
 - The quarter file grows enough that one download per run costs too much.
 - The selected forms widen, and the filings per quarter grow a lot.
 - The timeout or the rate limit changes.
-- The catch-up of `backfill` picks `xbrl.idx` over `form.idx`. This run then reads the same file.
+- A new ADR replaces `form.idx` of [ADR 0003](../../../docs/adr/0003-full-index-source.md) with another file. This run then reads the same file.
 
 ### Cut-Over Date From the Store
 
