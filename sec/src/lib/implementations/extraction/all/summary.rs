@@ -17,7 +17,9 @@ use crate::implementations::extraction::notes::NotesRunSummary;
     "[FailedAllBackfill] Failed: {failed_periods} of {periods} Notes periods, {catch_up_failures} dates, filings, or submissions files in {catch_up_dates} catch-up dates"
 )]
 pub struct FailedAllBackfill {
-    /// The number of Notes periods that failed. An unpublished period does not count.
+    /// The number of Notes periods that failed. An unpublished period counts only if the SEC
+    /// publishes the newest period and the run stored no period that ends on or after the
+    /// cut-over date.
     pub failed_periods: usize,
     /// The number of Notes periods in the run.
     pub periods: usize,
@@ -35,6 +37,7 @@ pub struct AllRunSummary {
     pub(super) notes: NotesRunSummary,
     pub(super) notes_duration: Duration,
     pub(super) cut_over_date: NaiveDate,
+    pub(super) newest_published: bool,
     pub(super) catch_up_dates: Vec<NaiveDate>,
     pub(super) catch_up: DailyRunSummary,
     pub(super) catch_up_duration: Duration,
@@ -83,9 +86,9 @@ impl AllRunSummary {
     ///
     /// Returns [`FailedAllBackfill`] if at least one of them failed. A pending date and an
     /// unextractable filing do not count as failed. An unpublished Notes period does not count
-    /// either, unless the newest stored period ends before the cut-over date. The SEC then
-    /// published the period at the cut-over date, and the run did not store it, so the catch-up
-    /// starts after a gap.
+    /// either, unless the `HEAD` request found the newest period and no stored period ends on or
+    /// after the cut-over date. In that case the catch-up starts after the newest stored period,
+    /// and the days between are in neither path.
     pub fn result(&self) -> Result<(), FailedAllBackfill> {
         let unpublished_periods = self.notes.unpublished_count();
         let failed_periods = if self.misses_cut_over_period() {
@@ -109,13 +112,16 @@ impl AllRunSummary {
         })
     }
 
-    /// Returns `true` if no stored Notes period ends on or after the cut-over date.
+    /// Returns `true` if the `HEAD` request found the newest period, and no stored Notes period
+    /// ends on or after the cut-over date.
     fn misses_cut_over_period(&self) -> bool {
-        self.notes
-            .stored_archives()
-            .map(|archive| archive.period().last_day())
-            .max()
-            .is_none_or(|newest| newest < self.cut_over_date)
+        self.newest_published
+            && self
+                .notes
+                .stored_archives()
+                .map(|archive| archive.period().last_day())
+                .max()
+                .is_none_or(|newest| newest < self.cut_over_date)
     }
 }
 
