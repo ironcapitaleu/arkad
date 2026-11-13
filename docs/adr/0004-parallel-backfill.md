@@ -1,4 +1,4 @@
-# ADR 0003: The Backfill Runs the Notes Step and the Catch-Up at the Same Time
+# ADR 0004: The Backfill Runs the Notes Step and the Catch-Up at the Same Time
 
 | Field | Value |
 | ----- | ----- |
@@ -40,7 +40,7 @@ download. The risks of a wrong date are not equal:
      download.
    - The date of today plays no part, and the run reads no stored file for the date.
 3. **The run checks for a gap after both steps end.** `AllRunSummary::result()` fails, and the
-   binary exits with an error, in two cases:
+   binary exits with an error, if a part of the catch-up failed, or in two gap cases:
    - A Notes period failed.
    - The `HEAD` request found the newest period, and no stored period ends on or after the
      cut-over date. For example, the download of that file got a 403.
