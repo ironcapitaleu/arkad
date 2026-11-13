@@ -75,10 +75,11 @@ between options, run this test before you write the code:
 | Another ticket, crate, or run must follow the choice | The choice stays inside one module |
 | A reversal costs a migration, stored data, or a public interface | A reversal is one PR |
 | The choice rests on a measurement that can go out of date | The choice follows from the code or from a rule of this file |
-| The choice adds a rule that binds other crates or tickets to one option over another | The choice is a matter of style that a rule already covers |
 
 If a row of the left column holds, write the ADR, even if a row of the right column also holds. A
-change to a guideline that records no choice between options needs no ADR.
+matter of style that a rule of this file already covers needs no ADR. A guideline edit records a
+choice only if it rejects an option that a reader can name. A guideline edit that rejects no such
+option needs no ADR.
 
 - If the test says ADR, write the ADR in the PR that first acts on the decision. A decision from a
   ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. Set its status to

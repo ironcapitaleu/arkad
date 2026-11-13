@@ -28,15 +28,16 @@ for when a decision needs an ADR.
 3. **Collect the facts before you write.** Measure each option that you can measure. Write down
    the command or the source, the date, and the result. A reason without a number, a source, or a
    mechanism is an opinion. Leave it out or mark it as open.
-4. **Pick the number.** Take the highest number in `docs/adr/` on `main` and in each open PR that
-   adds a file to `docs/adr/`, and add 1. Use four digits. An open PR can hold a number that
-   `main` does not show yet. Name the file `NNNN-<short-description>.md`, with a few kebab-case
+4. **Pick the number.** Find the highest number in `docs/adr/` on `main`. Check each open PR that
+   adds a file to `docs/adr/` for a higher number, because `main` does not show it yet. Add 1,
+   and use four digits. Name the file `NNNN-<short-description>.md`, with a few kebab-case
    words that name the subject.
 5. **Write the ADR** from the template. Follow the `plain-english` skill.
 6. **Link it.** Each design doc that describes the affected code links to the ADR. If the decision
    adds a rule for all code, add the rule to `AGENTS.md` with a link to the ADR.
-7. **Ship it** in the PR that first acts on the decision. Name the ADR in the PR description, and
-   say who confirms it.
+7. **Ship it** in the PR that first acts on the decision. A decision from a ticket without a PR,
+   such as a SPIKE, ships in the first PR that changes the code. Name the ADR in the PR
+   description, and say who confirms it.
 
 ## Template
 
