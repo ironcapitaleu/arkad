@@ -23,9 +23,8 @@ The same compacted content serves two destinations: a fresh agent session, or a 
 comment on the Linear ticket for a human takeover. This skill writes the content and stops. It does
 not spawn a session or take over a ticket itself.
 
-Before it writes the content, the skill brings the ticket up to date (see "Update the Ticket"). A
-successor reads the ticket first. A stale ticket sends it the wrong way, even if the handoff is
-right.
+The skill also brings the ticket up to date with a comment (see "Update the Ticket"). A successor
+reads the ticket first. A stale ticket sends it the wrong way, even if the handoff is right.
 
 ## When to Use
 
@@ -174,61 +173,61 @@ successor knows how much slack it has.
 ## Update the Ticket
 
 A handoff for a ticket updates that ticket in Linear, for every destination. Do not only tell the
-user that a point is stale. Fix it, or post it.
+user that a point is stale.
 
 Read the ticket, its comments, its relations, and its linked PRs through the `linear` skill.
 Compare each point with the facts of this session. A point is stale if a commit, a PR, a Linear
 status, or a decision of the user contradicts it.
 
-**Fix in place** each stale point that a fact proves. Change nothing else.
+**Post a comment. This is the default, and it needs no question.** The comment names each stale
+point: quote the stale sentence, state the fact that contradicts it, and name the source. Examples
+of a stale point: an open box of a Definition of Done item that a merged PR does, a status that
+does not match the work, a changed scope, a decision that replaces a sentence of the description,
+an old measurement, a split of the ticket, a file path or symbol that moved.
 
-| Stale point | Fix | Proof that the fix needs |
-| ----------- | --- | ------------------------ |
-| A Definition of Done item is done, and its box is open | Check the box | A merged PR or a commit on the default branch that does this item. Name it in "Fixed on this ticket" |
-| The status does not match the work | Set the status | Work started, a PR is open, or a PR merged. Never set Done unless the user asks |
-| The ticket has no assignee, and work started | Assign the user | The user owns this session |
-| A blocker is missing | Add the relation | The ticket text, a design doc, or the user names the dependency |
-| A PR or a branch is not linked | Add the link | The PR or the branch exists |
+Leave **one** current comment of each kind on the ticket through the `linear` skill, in status
+voice. The two kinds are the state-of-play comment and the short update comment. If an earlier
+handoff left a comment of the same kind and the session can edit a comment, edit that comment.
+Otherwise post a new one, and say in its first line which comment it replaces. Never replace a
+state-of-play comment with a short update comment.
 
-A merged PR proves only the items that it does. Check no box for work that no PR or commit shows.
-To check a box, change only `- [ ]` to `- [x]` on that line. Read the description again right
-before the write, so the write drops no edit of the author. Never remove a blocker relation. Linear
-marks a finished blocker as resolved, and the relation records the dependency.
+- For the Linear destination, the state-of-play comment holds one more list: "Stale on this
+  ticket".
+- For the agent-session destination, post a short update comment with that list, the branch, and
+  the PR. If no point is stale, post no comment.
 
-**Post in a comment** each stale point that a fix in place cannot hold. Examples: a changed scope,
-a decision that replaces a sentence of the description, a Definition of Done item that no longer
-fits, an old measurement, a split of the ticket, or a file path or symbol that moved. Never
-rewrite the user story, the description, or the wording of a Definition of Done item. The author of
-the ticket owns them. Quote the stale sentence, state the fact that contradicts it, and name the
-source.
+**Change the ticket itself only after the user agrees.** A change to the ticket is a checked box,
+a new status, an assignee, a relation, a link, or an edit of the description. If such a change
+serves the successor better than the comment, ask the user once, with every change in one list.
+For each change, name the proof from the table. Make only the changes that the user confirms, and
+add the list "Fixed on this ticket" to the comment.
 
-At the delivery step, leave **one** current comment of each kind on the ticket through the
-`linear` skill, in status voice. The two kinds are the state-of-play comment and the short update
-comment. If an earlier handoff left a comment of the same kind and the session can edit a comment,
-edit that comment. Otherwise post a new one, and say in its first line which comment it replaces.
-Never replace a state-of-play comment with a short update comment.
+| Change | Proof that the change needs |
+| ------ | --------------------------- |
+| Check the box of a Definition of Done item | A merged PR or a commit on the default branch that does this item |
+| Set the status | Work started, a PR is open, or a PR merged. Never set Done unless the user asks |
+| Assign the user | The user owns this session, and work started |
+| Add a blocker relation | The ticket text, a design doc, or the user names the dependency |
+| Link a PR or a branch | The PR or the branch exists |
 
-- For the Linear destination, the state-of-play comment holds two more lists: "Fixed on this
-  ticket" and "Stale, for the author".
-- For the agent-session destination, post a short update comment with the same two lists, the
-  branch, and the PR. The ticket then matches the handoff that the successor receives.
-
-If the destination is an agent session and no point was fixed or is stale, post no comment.
+A merged PR proves only the items that it does. To check a box, change only `- [ ]` to `- [x]` on
+that line, and read the description again right before the write. Never remove a blocker relation.
+Never rewrite the user story, the description, or the wording of a Definition of Done item, even if
+the user confirms a list. Ask the author of the ticket for that.
 
 Every write goes through the Linear tools of the session, by the rules of the `linear` skill. If
 the session has no tool for a write, such as a comment, a relation, or a link, do not use another
 way. Name the write that is missing in the chat reply.
 
-In the handoff document, list each point of "Stale, for the author" under "Blocked / undecided",
-so the successor does not act on the stale text. In the chat reply, tell the user what you fixed
-on each ticket and what you posted.
+In the handoff document, name the comment under "Artifacts", and list each stale point under
+"Blocked / undecided", so the successor does not act on the stale text. In the chat reply, tell the
+user what you posted and what you changed on each ticket.
 
-If a ticket of the Roadmap other than the handoff ticket is stale, fix only its status and a
-missing blocker, with the same proof. Do this in Procedure step 4, when you read those tickets.
-Report every other stale point of such a ticket to the user.
+A stale ticket of the Roadmap other than the handoff ticket follows the same rule, in Procedure
+step 4: report its stale points to the user, and change it only after the user agrees.
 
 If Linear is unreachable, change nothing, and name each stale point under "Blocked / undecided".
-If Linear fails after a fix, list the fixes already made in the chat reply.
+If Linear fails after a change, list the changes already made in the chat reply.
 
 ## Procedure
 
@@ -237,18 +236,18 @@ If Linear fails after a fix, list the fixes already made in the chat reply.
    nothing new in. A person then reviews and merges it. For work whose output lives outside the
    repository, such as a SPIKE that ends in a Linear document, the end is that document and a
    report, with no PR. Use this end unless the user names a different one.
-2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Make the fixes
-   in place before you compile, so the document names the ticket as it now stands. Post the
-   comment in step 7.
+2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Collect the
+   stale points before you compile. If a change to the ticket itself serves better, ask the user
+   now. Post the comment in step 7.
 3. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
    with the `AGENTS.md` "Branch Naming" convention.
 4. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
    project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example".
    Read every ticket's status, blockers, and linked PR through the `linear` skill at the time you
-   write the handoff. Never copy a roadmap from an earlier handoff without this check. Fix a stale
-   status or a missing blocker of a Roadmap ticket by the rule in "Update the Ticket". Then
-   recompute the critical path and the unblocked tickets from the fresh data. If Linear is unreachable,
+   write the handoff. Never copy a roadmap from an earlier handoff without this check. Handle a
+   stale Roadmap ticket by the rule in "Update the Ticket". Then recompute the critical path and
+   the unblocked tickets from the fresh data. If Linear is unreachable,
    leave the Roadmap out and say so under "Blocked / undecided". The Linear note carries the
    Roadmap too, with its date, so a reader can tell how old the statuses are.
 5. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
@@ -264,8 +263,8 @@ If Linear fails after a fix, list the fixes already made in the chat reply.
      `handoff-<short-slug>.md`. Never commit it.
    - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
      the `linear` skill, in status voice.
-   - **Every destination** — the comment carries the two lists of "Update the Ticket". For an
-     agent session alone, post the short update comment only if a point was fixed or is stale.
+   - **Every destination** — the comment carries the lists of "Update the Ticket". For an agent
+     session alone, post the short update comment only if a point is stale.
 
    This skill writes the handoff content. It does not spawn a session or take over the ticket
    itself.
@@ -273,8 +272,8 @@ If Linear fails after a fix, list the fixes already made in the chat reply.
 ## Critical Invariants
 
 - **The ticket matches the handoff.** After a handoff, no point of the ticket contradicts the
-  handoff without a comment that says so. Fix a stale point only with proof. Never rewrite the
-  words of the author.
+  handoff without a comment that says so. A comment needs no question. A change to the ticket
+  itself needs the user's agreement and a proof. Never rewrite the words of the author.
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
@@ -303,5 +302,5 @@ After a handoff where the successor missed context or the user corrected the sha
 2. Add the confirmed pattern to the template or the procedure.
 
 Common additions: a template section the successor needed, a guardrail that was easy to miss, a
-skill the successor must load for a class of task, a kind of stale point that the table of "Update
-the Ticket" lacks.
+skill the successor must load for a class of task, a kind of change that the table of "Update the
+Ticket" lacks.
