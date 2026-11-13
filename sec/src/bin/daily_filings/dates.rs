@@ -6,7 +6,7 @@
 //! Every date is a day in New York (`America/New_York`). The SEC's days are Eastern. It publishes
 //! the daily index of a day in the evening of that day or later, so the index of today can be
 //! missing. At 02:00 UTC on 2 November it is still 1 November in New York, so
-//! [`PREVIOUS_DAY_KEYWORD`] is 31 October.
+//! [`PREVIOUS_DAY_KEYWORD`] names 31 October.
 //!
 //! `yesterday-N` names the day `N` days before yesterday. The scheduled run sets
 //! `ARKAD_FROM=yesterday-3`, so each run reads the last 4 days.

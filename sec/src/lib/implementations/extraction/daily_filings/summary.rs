@@ -84,8 +84,8 @@ pub struct FailedDailyRun {
 /// Returns `true` if the detection of `date` failed only because its daily index does not exist
 /// yet, and a later run reads `date` again.
 ///
-/// That holds if `error` is a `MissingDailyIndex`, `date` is not `first_date`, and `date` is one
-/// of the [`PENDING_DAYS`] days that end with `as_of`. The first date of a run can be its last
+/// That holds if `error` is a `MissingDailyIndex`, `date` is not `first_date`, and `date` is on or
+/// after the date [`PENDING_DAYS`] - 1 days before `as_of`. The first date of a run can be its last
 /// read, for example `yesterday-3` in the scheduled run, so a missing index there fails the run.
 /// This keeps the rule safe whatever window the job sets.
 pub(super) fn is_pending(
@@ -405,6 +405,20 @@ mod tests {
         let as_of = date("2026-10-31");
 
         let expected_result = false;
+
+        let result = is_pending(&error, run_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_missing_index_as_pending_when_the_date_is_after_as_of() {
+        let run_date = date("2026-11-05");
+        let error = missing_daily_index("2026-11-05");
+        let first_date = date("2026-10-28");
+        let as_of = date("2026-10-31");
+
+        let expected_result = true;
 
         let result = is_pending(&error, run_date, first_date, as_of);
 

@@ -295,8 +295,9 @@ values.
 | `daily_filings()` | transient retry, pending, unextractable, `AmbiguousFilingDocument` fails the run | dates, `as_of`, cap, retry waits |
 
 The rules of `daily_filings` from STA-378 stay as they are. `ARKAD_FROM` and `ARKAD_TO` stay in
-`main`, in Eastern time. The window of 4 days stays an operator setting. `as_of(d)` is an input:
-the run treats `d` as its latest date for the pending rule, so a test can fix it.
+`main`, in Eastern time. The window of 4 days stays an operator setting. `as_of(d)` is an input,
+so a test can fix `d`. The pending rule counts back from `d`, and a date after `d` also counts as
+pending.
 
 #### Ingestion Mode
 

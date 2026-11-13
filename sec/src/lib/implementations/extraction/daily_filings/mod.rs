@@ -62,9 +62,8 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// faster.
 pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
 
-/// The number of dates, the date of [`as_of`](DailyFilingsBuilder::as_of) and the days before it,
-/// whose missing daily index counts as pending. A pending date does not fail the run, because a
-/// later run reads it again.
+/// The number of days, from [`as_of`](DailyFilingsBuilder::as_of) back, in the window of the
+/// pending rule. A pending date does not fail the run, because a later run reads it again.
 pub const PENDING_DAYS: u64 = 3;
 
 /// The SEC client that every machine of a run accepts.
@@ -227,11 +226,12 @@ pub struct DailyFilingsBuilder<A, C, R> {
 }
 
 impl<C, R> DailyFilingsBuilder<NoAsOf, C, R> {
-    /// Sets `as_of`, the date that the run treats as its latest date for the pending rule.
+    /// Sets `as_of`, the date that the pending rule counts back from.
     ///
-    /// A missing daily index counts as pending if its date is one of the [`PENDING_DAYS`] days
-    /// that end with `as_of`, and is not the first date of the run. A pending date does not fail
-    /// the run. The binaries pass the day before today in New York.
+    /// A missing daily index counts as pending if its date is not the first date of the run, and
+    /// is on or after the date [`PENDING_DAYS`] - 1 days before `as_of`. A date after `as_of` also
+    /// counts. A pending date does not fail the run. The binaries pass the day before today in New
+    /// York.
     #[must_use]
     pub fn as_of(self, as_of: NaiveDate) -> DailyFilingsBuilder<NaiveDate, C, R> {
         DailyFilingsBuilder {
