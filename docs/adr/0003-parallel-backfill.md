@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the owner on 2026-11-13. Built in ironcapitaleu/arkad#513, with the gap check of ironcapitaleu/arkad#517. ironcapitaleu/arkad#519, still open, adds the `HEAD` condition of rule 3 |
+| Status | Accepted by the owner on 2026-11-13. Built in ironcapitaleu/arkad#513, with the gap check of ironcapitaleu/arkad#517. ironcapitaleu/arkad#519 adds the `HEAD` condition of rule 3 |
 | Date | 2026-11-13 |
 | Deciders | The project owner |
 | Ticket | [STA-435](https://linear.app/state-machine/issue/STA-435). The gap check is [STA-511](https://linear.app/state-machine/issue/STA-511) |
