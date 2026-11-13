@@ -1102,11 +1102,11 @@ pub struct FilingRef {
 `TenQ` today. It gets the variants `TwentyF` and `FortyF`. `is_amendment` marks the `/A` forms, so
 amendments need no extra variants.
 
-`parse_daily_index` (`shared/daily_index_row`) reads the index into one `DailyIndexRow` per row:
+`parse_form_index` (`shared/form_index_row`) reads the index into one `FormIndexRow` per row:
 the form text, the CIK, the date filed, and the accession number from the file name. It reads the
 form from its 17-character column, and the last three fields from the end of the line. An invalid
-CIK returns `InvalidDailyIndexCik` with its line number and the `CikError` as its source. Any other
-malformed line returns `InvalidDailyIndexLine` with its line number. `FilingRef::try_from` converts
+CIK returns `InvalidFormIndexCik` with its line number and the `CikError` as its source. Any other
+malformed line returns `InvalidFormIndexLine` with its line number. `FilingRef::try_from` converts
 a row whose form parses with `Form::from_sec_str` and is in `SELECTED_FORMS`, and returns
 `UnsupportedForm` for any other form.
 
@@ -1120,7 +1120,7 @@ Decided in STA-372:
 - The state keeps the rows that `FilingRef::try_from` accepts, and then the first row of each
   accession number. It adds no second form filter.
 - An index that does not parse fails the state with `InvalidDailyIndex`, which wraps the
-  `DailyIndexError`. The state skips no line, because a skipped line drops filings without a trace.
+  `FormIndexError`. The state skips no line, because a skipped line drops filings without a trace.
 
 ### Fetch of Each Filing
 
