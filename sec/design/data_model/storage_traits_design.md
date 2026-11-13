@@ -201,6 +201,25 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
   `sec` also compiles its fixtures under the `test-fixtures` feature, and names itself as a
   dev-dependency with that feature (STA-378). Only test targets turn the feature on.
 
+### Media type of a stored document
+
+`DocumentMetadata.media_type` holds a `MediaType`, a checked newtype in `storage`. Media types are
+an open set, so `MediaType` is not an enum. It checks the form `type/subtype`, not a fixed list.
+
+- **Normalization.** `MediaType::new` drops the parameters after `;`, trims whitespace, and
+  lowercases the text. Then the type and the subtype must each be a non-empty RFC 9110 token.
+  `Display` and serde write the normalized text.
+- **Read.** Deserializing runs `MediaType::new`. A stored `media_type` that is not a media type
+  fails to read. `persist` rewrites such a metadata file, because its JSON differs from the new
+  metadata.
+- **No mapping trait between `ContentType` and `MediaType`.** `storage` does not depend on `sec`,
+  and `sec` keeps `ContentType` to classify responses. A private function in `raw_document`
+  builds the `MediaType` from the `Display` text of the `ContentType`.
+- **Fallback.** If that text is not a media type, as for `ContentType::Unknown` or a malformed
+  `ContentType::Other`, the media type is `application/octet-stream` (RFC 9110, section 8.3).
+  `from_response` and `from_file` stay infallible. Today every body kind of an `SecResponse`
+  rejects both variants, so a stored raw document never takes the fallback.
+
 ### Deferred to STA-139 (marked, not decided)
 
 1. **Read surface** (`scan` / `completeness` / `ownership_tree` / `query`) + the CQRS read/write split.

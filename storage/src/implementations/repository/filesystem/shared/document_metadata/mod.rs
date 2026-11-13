@@ -9,6 +9,7 @@
 //! - [`ingestion_mode`]: The [`IngestionMode`] of the run that produced a document.
 //! - [`input_document`]: The [`InputDocument`] pointing at a document that another document came
 //!   from.
+//! - [`media_type`]: The [`MediaType`] of the document bytes.
 //! - [`producer`]: The [`Producer`] naming the code that wrote a document.
 
 use chrono::{DateTime, Utc};
@@ -21,6 +22,7 @@ pub mod builder;
 pub mod constants;
 pub mod ingestion_mode;
 pub mod input_document;
+pub mod media_type;
 pub mod producer;
 
 pub use builder::{
@@ -30,6 +32,7 @@ pub use builder::{
 pub use constants::METADATA_VERSION;
 pub use ingestion_mode::IngestionMode;
 pub use input_document::InputDocument;
+pub use media_type::{InvalidMediaType, InvalidMediaTypeReason, MediaType};
 pub use producer::Producer;
 
 /// Describes one stored document: the fields every document type shares, and the context of its
@@ -52,7 +55,7 @@ pub struct DocumentMetadata<C> {
     metadata_version: u32,
     document_type: String,
     document_type_version: u32,
-    media_type: String,
+    media_type: MediaType,
     #[serde(rename = "bytes")]
     size_in_bytes: u64,
     sha256: Sha256Digest,
@@ -78,7 +81,7 @@ impl DocumentMetadata<NoContext> {
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -124,7 +127,7 @@ impl DocumentMetadata<NoContext> {
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
-    ///     .media_type("application/json")
+    ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
@@ -173,7 +176,7 @@ impl<C> DocumentMetadata<C> {
 
     /// Returns the media type of the document bytes, for example `application/json`.
     #[must_use]
-    pub fn media_type(&self) -> &str {
+    pub const fn media_type(&self) -> &MediaType {
         &self.media_type
     }
 
@@ -369,6 +372,19 @@ mod tests {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
         stored["ingestion_mode"] = "foo".into();
+
+        let expected_result = true;
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored).is_err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_read_metadata_when_the_media_type_is_malformed() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["media_type"] = "unknown".into();
 
         let expected_result = true;
 

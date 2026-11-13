@@ -17,7 +17,8 @@ use tempfile::TempDir;
 use uuid::Uuid;
 
 use storage::implementations::repository::filesystem::{
-    Document, DocumentKey, DocumentMetadata, FilesystemRepository, IngestionMode, Producer,
+    Document, DocumentKey, DocumentMetadata, FilesystemRepository, IngestionMode, MediaType,
+    Producer,
 };
 use storage::{ReadRepository, WriteRepository};
 
@@ -78,7 +79,10 @@ fn sample_document() -> SampleDocument {
     let bytes = br#"{"cik":320193, "n":1.50, "dup":1,"dup":2}"#;
     let metadata = DocumentMetadata::builder()
         .document_type::<SampleDocument>()
-        .media_type("application/json")
+        .media_type(
+            MediaType::new("application/json")
+                .expect("Given a hardcoded valid media type, creation should always succeed"),
+        )
         .content(bytes)
         .produced_at(DateTime::<Utc>::UNIX_EPOCH)
         .run(

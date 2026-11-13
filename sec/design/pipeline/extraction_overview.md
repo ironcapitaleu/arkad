@@ -167,7 +167,7 @@ Every metadata file has the same top-level fields:
 | ----- | ------- | ---- |
 | `metadata_version` | Version of this layout, 1 today | Content |
 | `document_type`, `document_type_version` | The raw source, for example `raw_xbrl_instance`, version 1 | Content |
-| `media_type` | The content type that the SEC sent | Content |
+| `media_type` | The content type that the SEC sent, as `type/subtype` | Content |
 | `bytes`, `sha256` | Size and digest of the stored document | Content |
 | `inputs` | The documents this one came from, each with its key and SHA-256 | Content |
 | `context` | The request: `requested_url`, `final_url`, `http_status`, `user_agent`. For a filing document, also `filing`: `filed_date`, `form`, `is_amendment` | Content |

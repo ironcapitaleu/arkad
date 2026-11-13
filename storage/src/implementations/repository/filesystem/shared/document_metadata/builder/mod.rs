@@ -17,6 +17,7 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 use crate::implementations::repository::filesystem::shared::document_metadata::constants::METADATA_VERSION;
 use crate::implementations::repository::filesystem::shared::document_metadata::ingestion_mode::IngestionMode;
 use crate::implementations::repository::filesystem::shared::document_metadata::input_document::InputDocument;
+use crate::implementations::repository::filesystem::shared::document_metadata::media_type::MediaType;
 use crate::implementations::repository::filesystem::shared::document_metadata::producer::Producer;
 use crate::implementations::repository::filesystem::traits::document::Document;
 use crate::shared::Sha256Digest;
@@ -137,11 +138,11 @@ impl<D, B, P, R, I, C> DocumentMetadataBuilder<D, NoMediaType, B, P, R, I, C> {
     #[must_use]
     pub fn media_type(
         self,
-        media_type: impl Into<String>,
-    ) -> DocumentMetadataBuilder<D, String, B, P, R, I, C> {
+        media_type: MediaType,
+    ) -> DocumentMetadataBuilder<D, MediaType, B, P, R, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
-            media_type: media_type.into(),
+            media_type,
             content: self.content,
             produced_at: self.produced_at,
             run: self.run,
@@ -310,7 +311,7 @@ impl<D, M, B, P, R, I, C> DocumentMetadataBuilder<D, M, B, P, R, I, C> {
 }
 
 impl<D: Document>
-    DocumentMetadataBuilder<D, String, Content, DateTime<Utc>, Run, IngestionMode, D::Context>
+    DocumentMetadataBuilder<D, MediaType, Content, DateTime<Utc>, Run, IngestionMode, D::Context>
 {
     /// Builds a [`DocumentMetadata`] with the fields this builder holds.
     ///
@@ -325,13 +326,13 @@ impl<D: Document>
     /// ```compile_fail,E0599
     /// use chrono::{DateTime, Utc};
     /// use storage::implementations::repository::filesystem::{
-    ///     DocumentMetadata, IngestionMode, Producer,
+    ///     DocumentMetadata, IngestionMode, MediaType, Producer,
     /// };
     /// use uuid::Uuid;
     ///
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
-    ///     .media_type("application/json")
+    ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
@@ -348,7 +349,7 @@ impl<D: Document>
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -394,7 +395,7 @@ impl<D: Document>
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
-    ///     .media_type("application/json")
+    ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
@@ -411,7 +412,7 @@ impl<D: Document>
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -457,7 +458,7 @@ impl<D: Document>
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
-    ///     .media_type("application/json")
+    ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .ingestion_mode(IngestionMode::Backfill)
@@ -473,7 +474,7 @@ impl<D: Document>
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, MediaType, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -519,7 +520,7 @@ impl<D: Document>
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
-    ///     .media_type("application/json")
+    ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
@@ -636,7 +637,10 @@ mod tests {
 
         let result = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -661,7 +665,10 @@ mod tests {
             .run(execution_id, producer)
             .produced_at(produced_at())
             .content(b"{}")
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .document_type::<SampleDocument>()
             .ingestion_mode(IngestionMode::Backfill)
             .build();
@@ -678,7 +685,10 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -700,7 +710,10 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content_hashed(bytes, &digest_of_other_bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -721,7 +734,10 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -741,7 +757,10 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -762,7 +781,10 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)

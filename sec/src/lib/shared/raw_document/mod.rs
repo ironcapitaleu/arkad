@@ -14,9 +14,10 @@ use std::marker::PhantomData;
 
 use bytes::Bytes;
 use storage::implementations::repository::filesystem::{
-    Document, DocumentKey, DocumentMetadata, InputDocument,
+    Document, DocumentKey, DocumentMetadata, InputDocument, MediaType,
 };
 
+use crate::shared::content_type::ContentType;
 use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::{RawFileSource, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
@@ -47,7 +48,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// use sec::shared::status_code::StatusCode;
 /// use sec::shared::user_agent::UserAgent;
 /// use storage::implementations::repository::filesystem::{
-///     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
+///     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
 /// };
 /// use uuid::Uuid;
 ///
@@ -56,7 +57,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// let bytes = b"{}";
 /// let metadata = DocumentMetadata::builder()
 ///     .document_type::<RawDocument<RawCompanyFacts>>()
-///     .media_type("application/json")
+///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
 ///     .content(bytes)
 ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
@@ -255,7 +256,7 @@ impl<S: RawSource> RawDocument<S> {
         let raw_body = response.raw_body();
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
-            .media_type(response.content_type().to_string())
+            .media_type(media_type_of(&response.content_type()))
             .content_hashed(raw_body, response.body_digest())
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
@@ -272,8 +273,8 @@ impl<S: RawFileSource> RawDocument<S> {
     ///
     /// The document shares the body buffer of `file`, so the bytes are not copied. The size comes
     /// from the body, and the SHA-256 digest is the body digest of `file`, so the body is not
-    /// hashed again. The media type is the [`ContentType`](crate::shared::content_type::ContentType)
-    /// of `file`, so `text/xml` is recorded as `application/xml`.
+    /// hashed again. The media type is the [`ContentType`] of `file`, so `text/xml` is recorded as
+    /// `application/xml`.
     ///
     /// # Examples
     ///
@@ -450,7 +451,7 @@ impl<S: RawFileSource> RawDocument<S> {
     ) -> Self {
         let metadata = DocumentMetadata::builder()
             .document_type::<Self>()
-            .media_type(file.content_type().to_string())
+            .media_type(media_type_of(&file.content_type()))
             .content_hashed(file.body(), file.body_digest())
             .produced_at(run.produced_at)
             .run(run.execution_id, run.producer)
@@ -494,6 +495,17 @@ impl<S: RawSource> Document for RawDocument<S> {
     }
 }
 
+/// Returns the [`MediaType`] that the metadata records for a response of `content_type`.
+///
+/// Returns `application/octet-stream` if `content_type` is not a media type, such as
+/// [`ContentType::Unknown`] or a malformed [`ContentType::Other`]. RFC 9110, section 8.3, lets a
+/// recipient treat bytes without a media type that way. Today every body kind of an
+/// [`SecResponse`] rejects both variants, so the fallback applies only to a body kind that accepts
+/// them.
+fn media_type_of(content_type: &ContentType) -> MediaType {
+    MediaType::new(&content_type.to_string()).unwrap_or_else(|_| MediaType::octet_stream())
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
@@ -509,7 +521,6 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
     use crate::shared::raw_source::{
         RawCompanyFacts, RawDailyIndex, RawNotesArchive, RawXbrlInstance,
@@ -571,7 +582,10 @@ mod tests {
             .expect("Given a valid relative path, the key should always build");
         let metadata = DocumentMetadata::builder()
             .document_type::<RawDocument<RawCompanyFacts>>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(b"{}")
             .produced_at(DateTime::<Utc>::UNIX_EPOCH)
             .run(
@@ -677,7 +691,10 @@ mod tests {
             .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
         let metadata = DocumentMetadata::builder()
             .document_type::<RawDocument<RawCompanyFacts>>()
-            .media_type("application/json")
+            .media_type(
+                MediaType::new("application/json")
+                    .expect("Given a hardcoded valid media type, creation should always succeed"),
+            )
             .content(b"{}")
             .produced_at(produced_at)
             .run(
@@ -763,7 +780,40 @@ mod tests {
 
         let expected_result = "application/json";
 
-        let result = document.metadata().media_type();
+        let result = document.metadata().media_type().as_str();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_application_octet_stream_when_the_content_type_is_unknown() {
+        let content_type = ContentType::Unknown;
+
+        let expected_result = MediaType::octet_stream();
+
+        let result = media_type_of(&content_type);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_record_application_octet_stream_when_the_other_content_type_is_malformed() {
+        let content_type = ContentType::Other("not a media type".to_owned());
+
+        let expected_result = MediaType::octet_stream();
+
+        let result = media_type_of(&content_type);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_drop_the_parameters_when_the_other_content_type_has_parameters() {
+        let content_type = ContentType::Other("text/CSV; charset=utf-8".to_owned());
+
+        let expected_result = "text/csv";
+
+        let result = media_type_of(&content_type).to_string();
 
         assert_eq!(result, expected_result);
     }
@@ -928,7 +978,7 @@ mod tests {
 
         let expected_result = "application/octet-stream";
 
-        let result = document.metadata().media_type();
+        let result = document.metadata().media_type().as_str();
 
         assert_eq!(result, expected_result);
     }
@@ -1038,7 +1088,7 @@ mod tests {
 
         let expected_result = "application/xml";
 
-        let result = document.metadata().media_type();
+        let result = document.metadata().media_type().as_str();
 
         assert_eq!(result, expected_result);
     }

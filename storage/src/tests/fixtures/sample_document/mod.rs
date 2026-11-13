@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::shared::document_metadata::{
-    DocumentMetadata, IngestionMode, InputDocument, Producer,
+    DocumentMetadata, IngestionMode, InputDocument, MediaType, Producer,
 };
 use crate::implementations::repository::filesystem::traits::document::Document;
 
@@ -102,7 +102,10 @@ pub fn sample_metadata_of(bytes: &[u8], produced_at: &str) -> DocumentMetadata<S
         .expect("Given a valid relative path, the key should always build");
     DocumentMetadata::builder()
         .document_type::<SampleDocument>()
-        .media_type("application/json")
+        .media_type(
+            MediaType::new("application/json")
+                .expect("Given a hardcoded valid media type, creation should always succeed"),
+        )
         .content(bytes)
         .produced_at(produced_at)
         .run(

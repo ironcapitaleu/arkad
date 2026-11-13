@@ -996,6 +996,18 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_replace_the_metadata_when_the_stored_media_type_is_malformed() {
+        let field = "media_type";
+        let value = serde_json::Value::from("unknown");
+
+        let expected_result = sample_metadata();
+
+        let result = persist_over_stored_metadata_field(field, value).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_replace_the_document_when_a_refetch_finds_a_torn_pair() {
         let root = temporary_root();
         let repository = repository_at(root.path());
