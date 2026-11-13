@@ -429,11 +429,15 @@ listing gives the newest stored period from the store:
 1. Call `list_keys(sec/notes)`.
 2. Parse the period from each file name: the text before `_notes`, through `NotesPeriod::new`.
 3. Take the newest period by `NotesPeriod::last_day`. Its last day is the cut-over date.
-4. Check for a gap from the keys alone, with no SEC request. Each quarter from `2009q1`, the
-   first period of the backfill, through the quarter of the newest period must be covered: by its quarterly file, or by
-   its three monthly files. The quarter of the newest period needs only its months up to the
-   newest one. If a quarter is not covered, fail and name it. This is the check of rule 5, read
-   from the store instead of a run summary.
+4. Check for a gap from the keys alone, with no SEC request. Each quarter from the first quarter
+   of `FIRST_YEAR`, `2009q1`, through the quarter of the newest period must be covered: by its
+   quarterly file, or by its three monthly files. The quarter of the newest period needs only its
+   months up to the newest one. If a quarter is not covered, fail and name it. This is the check
+   of rule 5, read from the store instead of a run summary.
+
+`stored_cut_over_date` in `sec/src/lib/implementations/extraction/notes/stored_cut_over_date.rs`
+implements these steps. A key whose file name has no `_notes`, or whose text before `_notes` is no
+Notes period, fails the function. So does an error item of the listing.
 
 The SEC merges the monthly files of a quarter into one quarterly file about a year later. The store
 can then hold the months, the quarter, or both. Each of the three counts as covered, and each gives
@@ -609,7 +613,7 @@ Triggers:
 
 ### Cut-Over Date From the Store
 
-Status: proposed. See [2. Cut-Over Date](#2-cut-over-date).
+Status: implemented in `stored_cut_over_date`. See [2. Cut-Over Date](#2-cut-over-date).
 
 Assumptions:
 
@@ -658,7 +662,8 @@ These follow the decisions above. Each is one PR within the review budget.
    `list_keys(sec/notes)`, with the gap check from the keys. Tests for a merged quarter beside its
    months, for months that cover a quarter, for a missing first period, and for a missing period.
    Reuses `FIRST_YEAR` of `notes_period/constants.rs`: the gap check starts at its first quarter.
-   The list of published periods also uses it, in place of its literal `2009`.
+   The list of published periods also uses it, in place of its literal `2009`. Implemented as
+   `stored_cut_over_date` in `sec`.
 5. **`daily_filings` reads the full index minus the stored filings.** Replaces the window of 4
    days. The cap, the exact range, the alert, and the quarter boundary. Blocked by features 2 and 4
    and by the full index source of the catch-up.

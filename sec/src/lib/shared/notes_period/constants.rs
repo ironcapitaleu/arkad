@@ -11,6 +11,10 @@ pub const FIRST_YEAR: Year = Year(2009);
 /// The text after the period in every Notes file name that follows the pattern.
 pub const FILE_NAME_SUFFIX: &str = "_notes.zip";
 
+/// The text that follows the period in every Notes file name, including the
+/// [`FILE_NAME_OVERRIDES`].
+pub const FILE_NAME_MARKER: &str = "_notes";
+
 /// The periods whose linked file name breaks the pattern, and the linked file name.
 ///
 /// For these periods, the file name of the pattern also returns HTTP 200. It serves an older
