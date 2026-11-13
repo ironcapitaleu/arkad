@@ -16,6 +16,8 @@ pub enum SecDocumentType {
     RawDailyIndex,
     /// The folder `index.json` of one filing exactly as the SEC returned it.
     RawFilingIndex,
+    /// The EDGAR full index `form.idx` of one quarter exactly as the SEC returned it.
+    RawFullIndex,
     /// One Financial Statement and Notes ZIP exactly as the SEC returned it.
     RawNotesArchive,
     /// The `submissions` JSON of one company exactly as the SEC returned it.
@@ -32,6 +34,7 @@ impl Display for SecDocumentType {
             Self::RawCompanyFacts => write!(f, "raw_company_facts"),
             Self::RawDailyIndex => write!(f, "raw_daily_index"),
             Self::RawFilingIndex => write!(f, "raw_filing_index"),
+            Self::RawFullIndex => write!(f, "raw_full_index"),
             Self::RawNotesArchive => write!(f, "raw_notes_archive"),
             Self::RawSubmissions => write!(f, "raw_submissions"),
             Self::RawXbrlInstance => write!(f, "raw_xbrl_instance"),
@@ -91,6 +94,17 @@ mod tests {
         let document_type = SecDocumentType::RawFilingIndex;
 
         let expected_result = "raw_filing_index";
+
+        let result = document_type.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_raw_full_index_for_the_raw_full_index_document_type() {
+        let document_type = SecDocumentType::RawFullIndex;
+
+        let expected_result = "raw_full_index";
 
         let result = document_type.to_string();
 

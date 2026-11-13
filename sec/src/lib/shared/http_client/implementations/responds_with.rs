@@ -5,7 +5,7 @@
 
 use crate::shared::http_client::RespondsWith;
 use crate::shared::request::implementations::sec_request::{
-    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, NotesFile,
+    CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingIndex, FullIndex, NotesFile,
     NotesFileProbe, Submissions,
 };
 use crate::shared::response::implementations::sec_response::{
@@ -28,6 +28,12 @@ impl RespondsWith for NotesFileProbe {
 // the checks the index needs: status 200, `application/octet-stream`, and `Content-Length`. It
 // keeps the body as raw bytes for the store.
 impl RespondsWith for DailyIndex {
+    type Body = ZipBody;
+}
+
+// Deviation: the full index is fixed-width text, as the daily index. `ZipBody` is reused for the
+// same reason. The SEC sends both files as `application/octet-stream` with a `Content-Length`.
+impl RespondsWith for FullIndex {
     type Body = ZipBody;
 }
 

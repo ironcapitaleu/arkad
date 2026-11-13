@@ -16,6 +16,7 @@
 //! - [`index_date`]: Provides [`IndexDate`](index_date::IndexDate), the date of one EDGAR daily index, and the parts of its URL.
 //! - [`notes_archive_ref`]: Provides [`NotesArchiveRef`](notes_archive_ref::NotesArchiveRef), the period, key, size, and SHA-256 digest of one stored Notes file.
 //! - [`notes_period`]: Provides [`NotesPeriod`](notes_period::NotesPeriod), the period of one SEC Financial Statement and Notes file, and its file name.
+//! - [`quarter`]: Provides [`Quarter`](quarter::Quarter), one calendar quarter of one year, which names the folder of an EDGAR full index.
 //! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
 //! - [`raw_repository`]: Provides [`RawRepository`](raw_repository::RawRepository), the bound on a repository of raw documents that a state context can hold.
 //! - [`raw_source`]: Provides [`RawSource`](raw_source::RawSource), the trait that names the SEC file a raw document holds, and one implementation per file.
@@ -48,6 +49,7 @@ pub mod http_client;
 pub mod index_date;
 pub mod notes_archive_ref;
 pub mod notes_period;
+pub mod quarter;
 pub mod rate_limiter;
 pub mod raw_document;
 pub mod raw_repository;
