@@ -1728,9 +1728,10 @@ A binary links the library built without `cfg(test)`, so the fixtures of `sec`, 
 `sec::tests::fixtures`. The dependency `http`, which the fixtures use, becomes optional under that
 feature, and stays in `[dev-dependencies]` for the library's own unit tests. `RoutingSecClient`
 answers each URL with one fixed response. PR 2 adds a route that serves a list of responses in
-order, for the test of a 503 followed by a 200. `sec` names itself as a dev-dependency with the feature, so the integration tests enable
-it. `sec/tests/daily_filings.rs` includes `dates.rs` and `constants.rs` through `#[path]`, so the
-`integration-tests` job of CI runs their tests. It runs the facade offline and live.
+order, for the test of a 503 followed by a 200. `sec` names itself as a dev-dependency with the
+feature, so the integration tests and the unit tests of the binaries enable it. CI runs the tests
+of `dates.rs` with `cargo test --bins --features tracing-logging`. `sec/tests/daily_filings.rs`
+runs the facade offline and live.
 
 - `dates.rs`: `yesterday` alone, `yesterday-3`, a range, one day, `ARKAD_FROM` unset, a value
   that does not parse, `yesterday-N` with a zero, a sign, or a leading zero, `ARKAD_FROM` after
