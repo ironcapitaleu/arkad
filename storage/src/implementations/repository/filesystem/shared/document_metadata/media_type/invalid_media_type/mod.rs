@@ -110,4 +110,15 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_format_display_as_expected_for_a_wildcard_media_type() {
+        let error = InvalidMediaType::new("text/*", InvalidMediaTypeReason::Wildcard);
+
+        let expected_result = "[InvalidMediaType] Media type 'text/*' is not of the form 'type/subtype', Reason: 'The wildcard '*' names a media range, not a media type'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 }

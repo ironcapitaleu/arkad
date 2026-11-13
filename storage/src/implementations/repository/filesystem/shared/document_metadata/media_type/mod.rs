@@ -280,6 +280,20 @@ mod tests {
     }
 
     #[test]
+    fn should_return_wildcard_when_the_type_is_a_wildcard() {
+        let media_type = "*/json";
+
+        let expected_result = Err(InvalidMediaType::new(
+            "*/json",
+            InvalidMediaTypeReason::Wildcard,
+        ));
+
+        let result = MediaType::new(media_type);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_wildcard_when_the_subtype_is_a_wildcard() {
         let media_type = "text/*";
 
