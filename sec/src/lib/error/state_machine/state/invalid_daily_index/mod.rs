@@ -100,7 +100,7 @@ mod tests {
         let daily_index_error = DailyIndexError::MissingDailyIndexHeader;
         let invalid_daily_index = InvalidDailyIndex::new("Select Filings", daily_index_error);
 
-        let expected_result = "[InvalidDailyIndex] Failed to parse the daily index, Caused by: [MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows";
+        let expected_result = "[InvalidDailyIndex] Failed to parse the daily index, Caused by: [MissingDailyIndexHeader] The index has no line that starts with '---' before its rows";
 
         let result = invalid_daily_index.to_string();
 

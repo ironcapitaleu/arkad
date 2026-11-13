@@ -10,18 +10,18 @@ use thiserror::Error;
 
 use crate::shared::cik::CikError;
 
-/// Error indicating that a daily index could not be parsed into rows.
+/// Error indicating that a daily index or a full index could not be parsed into rows.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DailyIndexError {
     /// No line of the text starts with `---`, so the parser cannot find where the rows start.
     #[error(
-        "[MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows"
+        "[MissingDailyIndexHeader] The index has no line that starts with '---' before its rows"
     )]
     MissingDailyIndexHeader,
     /// A row line does not hold a form, a CIK, a date filed, and a file name.
     #[error(
-        "[InvalidDailyIndexLine] Line {line_number} of the daily index is malformed, Reason: '{reason}'"
+        "[InvalidDailyIndexLine] Line {line_number} of the index is malformed, Reason: '{reason}'"
     )]
     InvalidDailyIndexLine {
         /// The number of the line in the whole text, counted from 1.
@@ -31,7 +31,7 @@ pub enum DailyIndexError {
     },
     /// The CIK field of a row line fails [`Cik`](crate::shared::cik::Cik) validation.
     #[error(
-        "[InvalidDailyIndexCik] Line {line_number} of the daily index has an invalid CIK, Caused by: {source}"
+        "[InvalidDailyIndexCik] Line {line_number} of the index has an invalid CIK, Caused by: {source}"
     )]
     InvalidDailyIndexCik {
         /// The number of the line in the whole text, counted from 1.
@@ -48,7 +48,7 @@ pub enum DailyIndexError {
 pub enum InvalidDailyIndexLineReason {
     /// The line has fewer fields than a row.
     MissingField,
-    /// The date filed field is not a date of the form `YYYYMMDD`.
+    /// The date filed field is not a date of the form `YYYYMMDD` or `YYYY-MM-DD`.
     InvalidFiledDate {
         /// The text of the date filed field.
         filed_date: String,
@@ -69,7 +69,7 @@ impl Display for InvalidDailyIndexLineReason {
             ),
             Self::InvalidFiledDate { filed_date } => write!(
                 f,
-                "The date filed '{filed_date}' is not a date of the form YYYYMMDD"
+                "The date filed '{filed_date}' is not a date of the form YYYYMMDD or YYYY-MM-DD"
             ),
             Self::InvalidFileName { file_name } => write!(
                 f,
@@ -99,7 +99,7 @@ mod tests {
     fn should_format_display_when_header_is_missing() {
         let error = DailyIndexError::MissingDailyIndexHeader;
 
-        let expected_result = "[MissingDailyIndexHeader] The daily index has no line that starts with '---' before its rows";
+        let expected_result = "[MissingDailyIndexHeader] The index has no line that starts with '---' before its rows";
 
         let result = error.to_string();
 
@@ -113,7 +113,7 @@ mod tests {
             reason: InvalidDailyIndexLineReason::MissingField,
         };
 
-        let expected_result = "[InvalidDailyIndexLine] Line 12 of the daily index is malformed, Reason: 'Expected a form, a company name, a CIK, a date filed, and a file name'";
+        let expected_result = "[InvalidDailyIndexLine] Line 12 of the index is malformed, Reason: 'Expected a form, a company name, a CIK, a date filed, and a file name'";
 
         let result = error.to_string();
 
@@ -125,7 +125,7 @@ mod tests {
         let error = invalid_cik_error();
 
         let expected_result = format!(
-            "[InvalidDailyIndexCik] Line 12 of the daily index has an invalid CIK, Caused by: {}",
+            "[InvalidDailyIndexCik] Line 12 of the index has an invalid CIK, Caused by: {}",
             CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "12A")
         );
 
@@ -157,7 +157,8 @@ mod tests {
             filed_date: "20261332".to_string(),
         };
 
-        let expected_result = "The date filed '20261332' is not a date of the form YYYYMMDD";
+        let expected_result =
+            "The date filed '20261332' is not a date of the form YYYYMMDD or YYYY-MM-DD";
 
         let result = reason.to_string();
 
