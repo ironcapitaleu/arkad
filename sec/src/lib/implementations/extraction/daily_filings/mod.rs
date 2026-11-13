@@ -62,8 +62,9 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// faster.
 pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
 
-/// The number of days, from [`as_of`](DailyFilingsBuilder::as_of) back, in the window of the
-/// pending rule. A pending date does not fail the run, because a later run reads it again.
+/// The number of days that the pending rule counts back from
+/// [`as_of`](DailyFilingsBuilder::as_of), `as_of` included. A pending date does not fail the run,
+/// because a later run reads it again.
 pub const PENDING_DAYS: u64 = 3;
 
 /// The SEC client that every machine of a run accepts.
