@@ -581,7 +581,8 @@ where
                 self.context.execution_id,
                 self.context.ingestion_mode,
                 repository,
-            ))?,
+            ))?
+            .with_inputs(self.context.inputs.clone()),
             input: ExtractFilingSuperStateData,
             output: None,
             context: self.context,
@@ -1313,6 +1314,44 @@ mod tests {
             .persisted()
             .iter()
             .map(|document| document.metadata().ingestion_mode())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn daily_index_inputs() -> Vec<InputDocument> {
+        vec![InputDocument::new(
+            storage::implementations::repository::filesystem::DocumentKey::new(
+                "sec/daily-index/form.20260909.idx",
+            )
+            .expect("Given a hardcoded valid relative path, the key should always build"),
+            storage::Sha256Digest::of(b"index"),
+        )]
+    }
+
+    #[tokio::test]
+    async fn should_record_the_inputs_of_the_builder_when_storing_the_folder_index() {
+        let filing_index_repository = FakeFilingIndexRepository::new();
+        let super_state = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client())
+            .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
+            .filing_index_repository(filing_index_repository.clone())
+            .instance_repository(FakeXbrlInstanceRepository::new())
+            .labels_repository(FakeXbrlLabelsRepository::new())
+            .inputs(daily_index_inputs())
+            .build();
+
+        let expected_result = vec![daily_index_inputs()];
+
+        super_state.run_to_documents(|_| {}).await.expect(
+            "Given a client that serves the folder index and both files, the run should always succeed",
+        );
+        let result: Vec<Vec<InputDocument>> = filing_index_repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().inputs().to_vec())
             .collect();
 
         assert_eq!(result, expected_result);

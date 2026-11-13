@@ -800,6 +800,51 @@ mod run_loop {
     }
 
     #[tokio::test]
+    async fn should_name_the_same_daily_index_as_the_input_of_the_folder_index_and_the_instance() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_files = [
+            "sec/filings/CIK0000003545/0000003545-26-000047/index.json.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json",
+        ];
+
+        let expected_result = json!([
+            [{
+                "key": "sec/daily-index/form.20261026.idx",
+                "sha256": "83ca0d88935c90c2780df7f3e0ff306903d79779102d891ccb17146987888964",
+            }],
+            [{
+                "key": "sec/daily-index/form.20261026.idx",
+                "sha256": "83ca0d88935c90c2780df7f3e0ff306903d79779102d891ccb17146987888964",
+            }],
+        ]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result: Value = metadata_files
+            .iter()
+            .map(|file| stored_metadata(&root, file)["inputs"].clone())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_name_no_input_for_the_stored_submissions_of_a_run() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_file = "sec/submissions/CIK0000003545.json.meta.json";
+
+        let expected_result = json!([]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result = stored_metadata(&root, metadata_file)["inputs"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_record_the_incremental_ingestion_mode_for_every_document_type_of_a_run() {
         let root = temporary_root();
         let dates = [date("2026-10-26")];

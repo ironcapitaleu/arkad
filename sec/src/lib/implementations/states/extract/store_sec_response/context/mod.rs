@@ -5,14 +5,15 @@
 //! state, together with its updater and its builder.
 //!
 //! The context holds the request input that names the stored document, the `execution_id`, the
-//! [`IngestionMode`] of the run, the repository that stores the document, and the retry budget.
+//! [`IngestionMode`] of the run, the repository that stores the document, the documents that the
+//! response came from, and the retry budget.
 
 use std::fmt::{self, Display};
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use state_maschine::prelude::Context as SMContext;
-use storage::implementations::repository::filesystem::IngestionMode;
+use storage::implementations::repository::filesystem::{IngestionMode, InputDocument};
 use uuid::Uuid;
 
 #[cfg(doc)]
@@ -37,6 +38,9 @@ pub struct StoreSecResponseContext<E: RequestKind, R> {
     pub ingestion_mode: IngestionMode,
     /// The repository that stores the document.
     pub repository: R,
+    /// The documents that the response came from, for the metadata of the stored document. Empty
+    /// by default.
+    pub inputs: Vec<InputDocument>,
     /// Maximum number of times the state may be retried on failure.
     pub max_retries: u32,
 }
@@ -55,8 +59,15 @@ impl<E: RequestKind, R> StoreSecResponseContext<E, R> {
             execution_id,
             ingestion_mode,
             repository,
+            inputs: Vec::new(),
             max_retries: 0,
         }
+    }
+
+    /// Returns this context with the documents that the response came from.
+    #[must_use]
+    pub fn with_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self { inputs, ..self }
     }
 
     /// Returns a reference to the request input.
@@ -82,16 +93,23 @@ impl<E: RequestKind, R> StoreSecResponseContext<E, R> {
     pub const fn repository(&self) -> &R {
         &self.repository
     }
+
+    /// Returns the documents that the response came from.
+    #[must_use]
+    pub fn inputs(&self) -> &[InputDocument] {
+        &self.inputs
+    }
 }
 
 /// Serializes the request input under the name its kind gives it, for example `cik`.
 impl<E: RequestKind, R: Serialize> Serialize for StoreSecResponseContext<E, R> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("StoreSecResponseContext", 5)?;
+        let mut state = serializer.serialize_struct("StoreSecResponseContext", 6)?;
         state.serialize_field(E::INPUT_NAME, &self.request_input)?;
         state.serialize_field("execution_id", &self.execution_id)?;
         state.serialize_field("ingestion_mode", &self.ingestion_mode)?;
         state.serialize_field("repository", &self.repository)?;
+        state.serialize_field("inputs", &self.inputs)?;
         state.serialize_field("max_retries", &self.max_retries)?;
         state.end()
     }
@@ -123,6 +141,9 @@ impl<E: StoredAs, R: RawRepository<E::Source>> SMContext for StoreSecResponseCon
         if let Some(repository) = updates.repository {
             self.repository = repository;
         }
+        if let Some(inputs) = updates.inputs {
+            self.inputs = inputs;
+        }
         if let Some(max_retries) = updates.max_retries {
             self.max_retries = max_retries;
         }
@@ -152,6 +173,8 @@ pub struct StoreSecResponseContextUpdater<E: RequestKind, R> {
     pub ingestion_mode: Option<IngestionMode>,
     /// Optional new value for the repository.
     pub repository: Option<R>,
+    /// Optional new value for the documents that the response came from.
+    pub inputs: Option<Vec<InputDocument>>,
     /// Optional new value for the retry budget.
     pub max_retries: Option<u32>,
 }
@@ -170,6 +193,7 @@ pub struct StoreSecResponseContextUpdaterBuilder<E: RequestKind, R> {
     execution_id: Option<Uuid>,
     ingestion_mode: Option<IngestionMode>,
     repository: Option<R>,
+    inputs: Option<Vec<InputDocument>>,
     max_retries: Option<u32>,
 }
 
@@ -183,6 +207,7 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
             execution_id: None,
             ingestion_mode: None,
             repository: None,
+            inputs: None,
             max_retries: None,
         }
     }
@@ -219,6 +244,13 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
         self
     }
 
+    /// Sets the documents that the response came from.
+    #[must_use]
+    pub fn inputs(mut self, inputs: Vec<InputDocument>) -> Self {
+        self.inputs = Some(inputs);
+        self
+    }
+
     /// Sets the `max_retries` field.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
@@ -235,6 +267,7 @@ impl<E: RequestKind, R> StoreSecResponseContextUpdaterBuilder<E, R> {
             execution_id: self.execution_id,
             ingestion_mode: self.ingestion_mode,
             repository: self.repository,
+            inputs: self.inputs,
             max_retries: self.max_retries,
         }
     }
@@ -358,6 +391,54 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    fn sample_inputs() -> Vec<InputDocument> {
+        vec![InputDocument::new(
+            storage::implementations::repository::filesystem::DocumentKey::new(
+                "sec/daily-index/form.20260909.idx",
+            )
+            .expect("Given a hardcoded valid relative path, the key should always build"),
+            storage::Sha256Digest::of(b"index"),
+        )]
+    }
+
+    #[test]
+    fn should_hold_no_inputs_when_created_with_new() {
+        let context = sample_context();
+
+        let expected_result: &[InputDocument] = &[];
+
+        let result = context.inputs();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_the_inputs_when_created_with_inputs() {
+        let context = sample_context().with_inputs(sample_inputs());
+
+        let expected_result = sample_inputs();
+
+        let result = context.inputs().to_vec();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_update_inputs_when_updater_contains_inputs() {
+        let mut context = sample_context();
+        let updater =
+            StoreSecResponseContextUpdater::<CompanyFacts, FakeWriteRepository>::builder()
+                .inputs(sample_inputs())
+                .build();
+
+        let expected_result = sample_inputs();
+
+        context.update_context(updater);
+        let result = context.inputs;
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_update_max_retries_when_updater_contains_max_retries() {
         let mut context = sample_context();
@@ -397,6 +478,7 @@ mod tests {
             "execution_id": "00000000-0000-0000-0000-000000000000",
             "ingestion_mode": "backfill",
             "repository": { "kind": "fake", "rejection": null },
+            "inputs": [],
             "max_retries": 0,
         });
 

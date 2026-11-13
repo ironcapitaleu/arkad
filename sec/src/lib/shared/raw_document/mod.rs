@@ -267,6 +267,19 @@ impl<S: RawSource> RawDocument<S> {
     }
 }
 
+impl<S: RawSource> RawDocument<S> {
+    /// Returns this document with `inputs` added to the inputs its metadata records.
+    ///
+    /// The key and the bytes stay as they are. If `inputs` is empty, the document is unchanged.
+    #[must_use]
+    pub fn with_added_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self {
+            metadata: self.metadata.with_added_inputs(inputs),
+            ..self
+        }
+    }
+}
+
 impl<S: RawFileSource> RawDocument<S> {
     /// Creates a new [`RawDocument`] from a raw-bytes response, such as a Notes file, a daily
     /// index, or an XML file of a filing, and the fetch that produced it.
