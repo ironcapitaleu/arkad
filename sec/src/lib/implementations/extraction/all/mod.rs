@@ -301,7 +301,10 @@ where
         // The Notes summary counts only the last period of the list as unpublished, so the newest
         // period must be last. An invalid period sorts first and still fails.
         periods.sort_by_key(|period| NotesPeriod::new(period).ok());
-        let cut_over_date = cut_over_date(&self.sec_client, &periods, &self.retry_delays).await?;
+        let CutOver {
+            date: cut_over_date,
+            newest_published,
+        } = cut_over_date(&self.sec_client, &periods, &self.retry_delays).await?;
         let catch_up_dates = dates_between(cut_over_date, self.until);
         let observer = Arc::new(observer);
         let notes_observer = Arc::clone(&observer);
@@ -329,6 +332,7 @@ where
             notes,
             notes_duration,
             cut_over_date,
+            newest_published,
             catch_up_dates,
             catch_up,
             catch_up_duration,
@@ -337,7 +341,8 @@ where
 }
 
 /// Returns the cut-over date of `periods`: the last day of the newest valid period if the SEC
-/// publishes its file, else the last day of the next older valid period.
+/// publishes its file, else the last day of the next older valid period. Also returns whether the
+/// SEC publishes the file of the newest period.
 ///
 /// Sends one `HEAD` request, and repeats it after each wait of `retry_delays` while it fails with
 /// a transient SEC failure.
@@ -352,7 +357,7 @@ async fn cut_over_date<C: AllClient>(
     sec_client: &C,
     periods: &[String],
     retry_delays: &[Duration],
-) -> Result<NaiveDate, FailedCutOverDate> {
+) -> Result<CutOver, FailedCutOverDate> {
     let mut valid: Vec<NotesPeriod> = periods
         .iter()
         .filter_map(|period| NotesPeriod::new(period).ok())
@@ -361,12 +366,25 @@ async fn cut_over_date<C: AllClient>(
     valid.dedup();
     let newest = valid.pop().ok_or(FailedCutOverDate::MissingPeriod)?;
     if is_published(sec_client, newest, retry_delays, &|_, _| {}).await? {
-        return Ok(newest.last_day());
+        return Ok(CutOver {
+            date: newest.last_day(),
+            newest_published: true,
+        });
     }
     valid
         .pop()
-        .map(|older| older.last_day())
+        .map(|older| CutOver {
+            date: older.last_day(),
+            newest_published: false,
+        })
         .ok_or(FailedCutOverDate::MissingPublishedPeriod)
+}
+
+/// The cut-over date, and whether the `HEAD` request found the file of the newest period.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CutOver {
+    date: NaiveDate,
+    newest_published: bool,
 }
 
 /// Returns every date from `cut_over` to `until`, both included, oldest first.
@@ -498,7 +516,10 @@ mod tests {
         let sec_client = sec_with_periods(&["2026_09"]);
         let periods = periods(&["2026_08", "2026_09"]);
 
-        let expected_result = Ok(date(2026, 9, 30));
+        let expected_result = Ok(CutOver {
+            date: date(2026, 9, 30),
+            newest_published: true,
+        });
 
         let result = cut_over_date(&sec_client, &periods, &NO_WAIT).await;
 
@@ -511,7 +532,10 @@ mod tests {
         let sec_client = sec_with_periods(&[]);
         let periods = periods(&["2026_08", "2026_09"]);
 
-        let expected_result = Ok(date(2026, 8, 31));
+        let expected_result = Ok(CutOver {
+            date: date(2026, 8, 31),
+            newest_published: false,
+        });
 
         let result = cut_over_date(&sec_client, &periods, &NO_WAIT).await;
 
@@ -523,7 +547,10 @@ mod tests {
         let sec_client = sec_with_periods(&["2026_09"]);
         let periods = periods(&["2026_09", "2025q3", "2026_08"]);
 
-        let expected_result = Ok(date(2026, 9, 30));
+        let expected_result = Ok(CutOver {
+            date: date(2026, 9, 30),
+            newest_published: true,
+        });
 
         let result = cut_over_date(&sec_client, &periods, &NO_WAIT).await;
 
