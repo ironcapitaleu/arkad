@@ -10,7 +10,7 @@ use storage::implementations::repository::filesystem::{DocumentKey, InputDocumen
 ///
 /// # Panics
 ///
-/// Never panics. The key is a hardcoded valid relative path.
+/// Never panics: the key is a hardcoded valid relative path.
 #[must_use]
 pub fn daily_index_inputs() -> Vec<InputDocument> {
     vec![InputDocument::new(
