@@ -31,7 +31,7 @@ impl RespondsWith for DailyIndex {
     type Body = ZipBody;
 }
 
-// Deviation: the full index is fixed-width text, as the daily index. `ZipBody` is reused for the
+// Deviation: the full index is fixed-width text, like the daily index. `ZipBody` is reused for the
 // same reason. The SEC sends both files as `application/octet-stream` with a `Content-Length`.
 impl RespondsWith for FullIndex {
     type Body = ZipBody;

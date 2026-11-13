@@ -1,7 +1,6 @@
 //! # Index Date Constants
 //!
-//! The first date with a daily index of the form `form.YYYYMMDD.idx`, and the quarter folders of
-//! the daily index.
+//! The first date with a daily index of the form `form.YYYYMMDD.idx`.
 
 use chrono::NaiveDate;
 
@@ -12,6 +11,3 @@ use chrono::NaiveDate;
 /// `YYYYMMDD` name exists. The SEC quarter listings showed this on 2026-10-30.
 pub const FIRST_INDEX_DATE: NaiveDate = NaiveDate::from_ymd_opt(1998, 5, 18)
     .expect("Given a hardcoded valid date, construction should always succeed");
-
-/// The quarter folders of the daily index, in the order of the quarters.
-pub(crate) const QUARTER_FOLDERS: [&str; 4] = ["QTR1", "QTR2", "QTR3", "QTR4"];

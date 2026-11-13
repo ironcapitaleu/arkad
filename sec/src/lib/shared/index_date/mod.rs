@@ -9,7 +9,7 @@
 //!
 //! ## Modules
 //!
-//! - [`constants`]: The [`FIRST_INDEX_DATE`] and the quarter folders.
+//! - [`constants`]: The [`FIRST_INDEX_DATE`].
 //! - [`index_date_error`]: The [`IndexDateError`] returned when validation fails, and its
 //!   [`InvalidIndexDateReason`].
 //! - [`listing`]: The parser for the dates in the listing of a quarter folder.
@@ -19,7 +19,7 @@ use std::fmt::{self, Display, Formatter};
 use chrono::{Datelike, NaiveDate, Utc};
 use serde::{Serialize, Serializer};
 
-use constants::QUARTER_FOLDERS;
+use crate::shared::quarter::Quarter;
 
 pub mod constants;
 pub mod index_date_error;
@@ -101,7 +101,7 @@ impl IndexDate {
     /// ```
     #[must_use]
     pub fn quarter(&self) -> &'static str {
-        QUARTER_FOLDERS[self.0.month0() as usize / 3]
+        Quarter::of(self.0).folder()
     }
 
     /// Returns the date in the ISO 8601 basic format `YYYYMMDD`, the date part of the file name.

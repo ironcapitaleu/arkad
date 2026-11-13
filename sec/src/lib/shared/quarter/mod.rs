@@ -8,7 +8,8 @@ use std::fmt::{self, Display, Formatter};
 use chrono::{Datelike, NaiveDate};
 use serde::{Serialize, Serializer};
 
-use crate::shared::index_date::constants::QUARTER_FOLDERS;
+/// The quarter folders of the daily index and the full index, in the order of the quarters.
+const QUARTER_FOLDERS: [&str; 4] = ["QTR1", "QTR2", "QTR3", "QTR4"];
 
 /// The number of months in one quarter.
 const MONTHS_PER_QUARTER: u32 = 3;
@@ -92,6 +93,28 @@ mod tests {
         let date = date(2026, 1, 1);
 
         let expected_result = "QTR1";
+
+        let result = Quarter::of(date).folder();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_first_quarter_when_the_date_is_the_last_day_of_march() {
+        let date = date(2026, 3, 31);
+
+        let expected_result = "QTR1";
+
+        let result = Quarter::of(date).folder();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_second_quarter_when_the_date_is_the_first_day_of_april() {
+        let date = date(2026, 4, 1);
+
+        let expected_result = "QTR2";
 
         let result = Quarter::of(date).folder();
 
