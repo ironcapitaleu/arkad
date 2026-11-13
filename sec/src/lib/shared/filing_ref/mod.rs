@@ -1,7 +1,7 @@
 //! # Filing Reference
 //!
 //! Provides [`FilingRef`], which names one filing to fetch, and its conversion from a
-//! [`DailyIndexRow`]. [`select_filings`] and [`select_filings_filed_in`] pick the filings to fetch
+//! [`FormIndexRow`]. [`select_filings`] and [`select_filings_filed_in`] pick the filings to fetch
 //! from the rows of an index.
 
 use std::collections::HashSet;
@@ -12,9 +12,9 @@ use chrono::NaiveDate;
 use serde::Serialize;
 
 use crate::shared::cik::Cik;
-use crate::shared::daily_index_row::DailyIndexRow;
 use crate::shared::financial::accession_number::AccessionNumber;
 use crate::shared::financial::form::{Form, ParsedForm, SELECTED_FORMS, UnsupportedForm};
+use crate::shared::form_index_row::FormIndexRow;
 
 /// The filer, the accession number, the form, and the date filed of one filing to fetch.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
@@ -82,7 +82,7 @@ impl Display for FilingRef {
     }
 }
 
-impl TryFrom<&DailyIndexRow> for FilingRef {
+impl TryFrom<&FormIndexRow> for FilingRef {
     type Error = UnsupportedForm;
 
     /// Converts a row whose form is in [`SELECTED_FORMS`], or an amendment of one.
@@ -91,7 +91,7 @@ impl TryFrom<&DailyIndexRow> for FilingRef {
     ///
     /// Returns an [`UnsupportedForm`] if [`Form::from_sec_str`] rejects the form text of the row,
     /// or if its form is not in [`SELECTED_FORMS`].
-    fn try_from(row: &DailyIndexRow) -> Result<Self, Self::Error> {
+    fn try_from(row: &FormIndexRow) -> Result<Self, Self::Error> {
         let parsed_form = Form::from_sec_str(row.form_text())?;
         if !SELECTED_FORMS.contains(&parsed_form.form()) {
             return Err(UnsupportedForm::new(row.form_text()));
@@ -112,7 +112,7 @@ impl TryFrom<&DailyIndexRow> for FilingRef {
 /// Keeps the rows that [`FilingRef::try_from`] accepts. A filing with several filers has one row
 /// per filer, and the first one stays.
 #[must_use]
-pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a DailyIndexRow>) -> Vec<FilingRef> {
+pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a FormIndexRow>) -> Vec<FilingRef> {
     let mut seen_accession_numbers = HashSet::new();
     rows.into_iter()
         .filter_map(|row| FilingRef::try_from(row).ok())
@@ -129,13 +129,13 @@ pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a DailyIndexRow>) -> 
 ///
 /// ```
 /// use chrono::NaiveDate;
-/// use sec::shared::daily_index_row::parse_daily_index;
+/// use sec::shared::form_index_row::parse_form_index;
 /// use sec::shared::filing_ref::select_filings_filed_in;
 ///
 /// let text = "Form Type   Company Name\n---\n\
 ///     10-K             APPLE INC                                                     320193      2026-10-30  edgar/data/320193/0000320193-26-000106.txt\n\
 ///     10-Q             CARMAX INC                                                    1170010     2026-09-30  edgar/data/1170010/0001170010-26-000104.txt";
-/// let rows = parse_daily_index(text)
+/// let rows = parse_form_index(text)
 ///     .expect("Given two hardcoded well-formed rows, parsing should always succeed");
 /// let october = NaiveDate::from_ymd_opt(2026, 10, 1)
 ///     .expect("Given a hardcoded calendar date, the date should always build")
@@ -153,7 +153,7 @@ pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a DailyIndexRow>) -> 
 /// ```
 #[must_use]
 pub fn select_filings_filed_in<'a>(
-    rows: impl IntoIterator<Item = &'a DailyIndexRow>,
+    rows: impl IntoIterator<Item = &'a FormIndexRow>,
     dates: &RangeInclusive<NaiveDate>,
 ) -> Vec<FilingRef> {
     select_filings(
@@ -167,7 +167,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::shared::daily_index_row::parse_daily_index;
+    use crate::shared::form_index_row::parse_form_index;
     use crate::tests::fixtures::data::daily_index::{
         SAMPLE_DAILY_INDEX, SAMPLE_DAILY_INDEX_2026_09_30, SAMPLE_DAILY_INDEX_2026_10_01,
     };
@@ -186,8 +186,8 @@ mod tests {
             .expect("Given a hardcoded calendar date, the date should always build")
     }
 
-    fn row(form_text: &str) -> DailyIndexRow {
-        DailyIndexRow::new(
+    fn row(form_text: &str) -> FormIndexRow {
+        FormIndexRow::new(
             form_text.to_string(),
             cik(),
             filed_date(),
@@ -217,29 +217,29 @@ mod tests {
 
     #[test]
     fn should_convert_row_when_form_is_ten_k() {
-        let daily_index_row = row("10-K");
+        let form_index_row = row("10-K");
 
         let expected_result = Ok(filing_ref(Form::TenK, false));
 
-        let result = FilingRef::try_from(&daily_index_row);
+        let result = FilingRef::try_from(&form_index_row);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_set_amendment_when_form_is_ten_k_amendment() {
-        let daily_index_row = row("10-K/A");
+        let form_index_row = row("10-K/A");
 
         let expected_result = Ok(filing_ref(Form::TenK, true));
 
-        let result = FilingRef::try_from(&daily_index_row);
+        let result = FilingRef::try_from(&form_index_row);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_convert_row_for_each_selected_form() {
-        let daily_index_rows: Vec<DailyIndexRow> = SELECTED_FORMS
+        let daily_index_rows: Vec<FormIndexRow> = SELECTED_FORMS
             .iter()
             .map(|form| row(&form.to_string()))
             .collect();
@@ -259,22 +259,22 @@ mod tests {
 
     #[test]
     fn should_return_unsupported_form_when_form_is_eight_k() {
-        let daily_index_row = row("8-K");
+        let form_index_row = row("8-K");
 
         let expected_result = Err(UnsupportedForm::new("8-K"));
 
-        let result = FilingRef::try_from(&daily_index_row);
+        let result = FilingRef::try_from(&form_index_row);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_unsupported_form_when_form_text_has_two_words() {
-        let daily_index_row = row("DEF 14A");
+        let form_index_row = row("DEF 14A");
 
         let expected_result = Err(UnsupportedForm::new("DEF 14A"));
 
-        let result = FilingRef::try_from(&daily_index_row);
+        let result = FilingRef::try_from(&form_index_row);
 
         assert_eq!(result, expected_result);
     }
@@ -284,11 +284,11 @@ mod tests {
             .expect("Given a hardcoded calendar date, the date should always build")
     }
 
-    fn rows_of(texts: &[&str]) -> Vec<DailyIndexRow> {
+    fn rows_of(texts: &[&str]) -> Vec<FormIndexRow> {
         texts
             .iter()
             .flat_map(|text| {
-                parse_daily_index(text).expect(
+                parse_form_index(text).expect(
                     "Given the stored fixture of a real index, parsing should always succeed",
                 )
             })

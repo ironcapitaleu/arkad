@@ -70,7 +70,7 @@ classDiagram
         << struct >>
         %% State-level wrapper for a daily index that does not parse into rows
         +String state_name
-        +DailyIndexError daily_index_error
+        +FormIndexError daily_index_error
     }
 
     class FailedRequestExecution{
@@ -193,17 +193,17 @@ classDiagram
         +FutureIndexDate(today: NaiveDate)
     }
 
-    class DailyIndexError{
+    class FormIndexError{
         << enum >>
-        %% Domain error for a daily index that does not parse into rows
-        +MissingDailyIndexHeader
-        +InvalidDailyIndexLine(usize line_number, InvalidDailyIndexLineReason reason)
-        +InvalidDailyIndexCik(usize line_number, CikError source)
+        %% Domain error for a daily index or a full index that does not parse into rows
+        +MissingFormIndexHeader
+        +InvalidFormIndexLine(usize line_number, InvalidFormIndexLineReason reason)
+        +InvalidFormIndexCik(usize line_number, CikError source)
     }
 
-    class InvalidDailyIndexLineReason{
+    class InvalidFormIndexLineReason{
         << enum >>
-        %% Why a line of a daily index is malformed
+        %% Why a line of a form index is malformed
         +MissingField
         +InvalidFiledDate(String filed_date)
         +InvalidFileName(String file_name)
@@ -290,9 +290,9 @@ classDiagram
     NotesPeriodError --> InvalidNotesPeriodReason
     InvalidIndexDate --> IndexDateError
     IndexDateError --> InvalidIndexDateReason
-    InvalidDailyIndex --> DailyIndexError
-    DailyIndexError --> InvalidDailyIndexLineReason
-    DailyIndexError --> CikError
+    InvalidDailyIndex --> FormIndexError
+    FormIndexError --> InvalidFormIndexLineReason
+    FormIndexError --> CikError
     FailedDocumentSelection --> FilingDocumentsError
     FilingDocumentsError --> FilingDocumentRole
     IncompleteCompanyFacts --> MissingFields

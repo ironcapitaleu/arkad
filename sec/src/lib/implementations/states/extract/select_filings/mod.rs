@@ -50,8 +50,8 @@ use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidDailyIndex;
-use crate::shared::daily_index_row::{DailyIndexError, parse_daily_index};
 use crate::shared::filing_ref::{FilingRef, select_filings};
+use crate::shared::form_index_row::{FormIndexError, parse_form_index};
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -125,7 +125,7 @@ impl State for SelectFilings {
     ///
     /// # Errors
     ///
-    /// Returns [`StateError::InvalidDailyIndex`] if [`parse_daily_index`] rejects the index text.
+    /// Returns [`StateError::InvalidDailyIndex`] if [`parse_form_index`] rejects the index text.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
         let filings = match &self.input.index {
             Some(index) => selected_filings(&String::from_utf8_lossy(&index.text))
@@ -201,8 +201,8 @@ impl fmt::Display for SelectFilings {
 }
 
 /// Parses the index text and selects its filings with [`select_filings`].
-fn selected_filings(text: &str) -> Result<Vec<FilingRef>, DailyIndexError> {
-    Ok(select_filings(&parse_daily_index(text)?))
+fn selected_filings(text: &str) -> Result<Vec<FilingRef>, FormIndexError> {
+    Ok(select_filings(&parse_form_index(text)?))
 }
 
 #[cfg(test)]
@@ -218,9 +218,9 @@ mod tests {
     use super::*;
     use crate::implementations::states::extract::store_daily_index::StoredDailyIndex;
     use crate::shared::cik::Cik;
-    use crate::shared::daily_index_row::InvalidDailyIndexLineReason;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form_index_row::InvalidFormIndexLineReason;
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
 
     /// The header of a hand-written daily index. The last line starts with `---`.
@@ -379,7 +379,7 @@ mod tests {
         let eight_k_accession_number = AccessionNumber::new("0001213900-26-112698").expect(
             "Given a hardcoded accession number of the right shape, creation should always succeed",
         );
-        let index_holds_eight_k = parse_daily_index(&index_text)
+        let index_holds_eight_k = parse_form_index(&index_text)
             .expect("Given the real daily index fixture, parsing should always succeed")
             .iter()
             .any(|row| {
@@ -499,7 +499,7 @@ mod tests {
 
         let expected_result = StateError::InvalidDailyIndex(InvalidDailyIndex::new(
             STATE_NAME,
-            DailyIndexError::MissingDailyIndexHeader,
+            FormIndexError::MissingFormIndexHeader,
         ));
 
         let result = state.compute_output_data_async().await.expect_err(
@@ -519,9 +519,9 @@ mod tests {
 
         let expected_result = StateError::InvalidDailyIndex(InvalidDailyIndex::new(
             STATE_NAME,
-            DailyIndexError::InvalidDailyIndexLine {
+            FormIndexError::InvalidFormIndexLine {
                 line_number: 3,
-                reason: InvalidDailyIndexLineReason::InvalidFiledDate {
+                reason: InvalidFormIndexLineReason::InvalidFiledDate {
                     filed_date: "2026103".to_string(),
                 },
             },

@@ -6,12 +6,12 @@
 //! ## Modules
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
-//! - [`daily_index_row`]: Provides [`DailyIndexRow`](daily_index_row::DailyIndexRow), one row of an EDGAR daily index, and the parser of the whole index.
 //! - [`document_type`]: Provides [`SecDocumentType`](document_type::SecDocumentType), the types of document the SEC state machines store.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
 //! - [`filing_documents_ref`]: Provides [`FilingDocumentsRef`](filing_documents_ref::FilingDocumentsRef), the filing and the keys of its stored XBRL instance and label file.
 //! - [`filing_ref`]: Provides [`FilingRef`](filing_ref::FilingRef), which names one filing to fetch.
+//! - [`form_index_row`]: Provides [`FormIndexRow`](form_index_row::FormIndexRow), one row of an EDGAR daily index or full index, and the parser of the whole index.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
 //! - [`index_date`]: Provides [`IndexDate`](index_date::IndexDate), the date of one EDGAR daily index, and the parts of its URL.
 //! - [`notes_archive_ref`]: Provides [`NotesArchiveRef`](notes_archive_ref::NotesArchiveRef), the period, key, size, and SHA-256 digest of one stored Notes file.
@@ -37,13 +37,13 @@
 pub mod build_info;
 pub mod cik;
 pub mod content_type;
-pub mod daily_index_row;
 pub mod document_storage;
 pub mod document_type;
 pub mod filing_documents;
 pub mod filing_documents_ref;
 pub mod filing_ref;
 pub mod financial;
+pub mod form_index_row;
 pub mod headers;
 pub mod http_client;
 pub mod index_date;
