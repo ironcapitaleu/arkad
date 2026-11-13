@@ -458,6 +458,7 @@ mod tests {
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::{
         FakeFilingIndexRepository, FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
     };
@@ -568,13 +569,7 @@ mod tests {
 
     #[test]
     fn should_carry_the_inputs_into_the_context_when_they_are_set() {
-        let inputs = vec![InputDocument::new(
-            storage::implementations::repository::filesystem::DocumentKey::new(
-                "sec/daily-index/form.20260909.idx",
-            )
-            .expect("Given a hardcoded valid relative path, the key should always build"),
-            storage::Sha256Digest::of(b"index"),
-        )];
+        let inputs = daily_index_inputs();
         let builder = ExtractFilingSuperState::builder()
             .filing_ref(filing_ref())
             .sec_client(sec_client())

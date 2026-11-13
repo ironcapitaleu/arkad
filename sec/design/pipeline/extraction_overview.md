@@ -177,8 +177,8 @@ Every metadata file has the same top-level fields:
 | `ingestion_mode` | `backfill` or `incremental` | Run field |
 | `producer` | The code that wrote it: name, crate version, git commit | Run field |
 
-The instance and the label file name the daily index that listed the filing in `inputs`. The
-folder index, the Notes file, `submissions`, and Company Facts name no input.
+The instance, the label file, and the folder index name the daily index that listed the filing in
+`inputs`. The Notes file, `submissions`, and Company Facts name no input.
 
 ### How a Write Works
 
@@ -342,7 +342,7 @@ lets a check reconcile one company against its stored filings.
 3. Response: JSON with every file of the filing folder.
 4. Stored as `RawFilingIndex`, before the selection of the files. A filing without an instance
    keeps this file as the record that it is unextractable.
-5. Provenance: the metadata of the request, the `filing` fields, no input.
+5. Provenance: the metadata of the request, the `filing` fields, and the daily index as input.
 6. `SelectFilingDocuments` picks the instance and the label file:
    - The instance is the file that ends in `_htm.xml`. If none exists, it is the one `.xml` file
      that is not `FilingSummary.xml` and not a linkbase.

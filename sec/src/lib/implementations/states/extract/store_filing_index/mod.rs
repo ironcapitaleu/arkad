@@ -85,7 +85,7 @@ mod tests {
     use serde::Serialize;
     use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
-        Document, DocumentKey, FilesystemRepository, IngestionMode, ReadWrite,
+        Document, DocumentKey, FilesystemRepository, IngestionMode, InputDocument, ReadWrite,
     };
     use uuid::Uuid;
 
@@ -98,6 +98,7 @@ mod tests {
     use crate::shared::headers::Headers;
     use crate::shared::raw_document::RawDocumentMetadataContext;
     use crate::shared::status_code::StatusCode;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::FakeFilingIndexRepository;
     use crate::traits::state_machine::state::State;
 
@@ -267,6 +268,37 @@ mod tests {
         let expected_result = "raw_filing_index";
 
         let result = document.metadata().document_type().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_no_inputs_in_the_metadata_of_the_document() {
+        let document = persisted_document().await;
+
+        let expected_result: &[InputDocument] = &[];
+
+        let result = document.metadata().inputs();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_inputs_of_the_state_in_the_metadata_of_the_document() {
+        let repository = FakeFilingIndexRepository::new();
+        let inputs = daily_index_inputs();
+        let mut state = sample_state(repository.clone()).with_inputs(inputs.clone());
+
+        let expected_result = Some(inputs);
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a fake repository that accepts every write, the state should succeed");
+        let result = repository
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().inputs().to_vec());
 
         assert_eq!(result, expected_result);
     }

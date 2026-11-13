@@ -5,6 +5,7 @@
 //! ## Modules
 //!
 //! - [`sample_http_client`]: Fake HTTP and SEC clients.
+//! - [`sample_input_document`]: Sample input lists for the metadata `inputs` of stored documents.
 //! - [`sample_rate_limiter`]: Fake rate limiters that never block, count turns, or hold callers.
 //! - [`sample_request`]: Fake inner and SEC requests.
 //! - [`sample_response`]: Fake inner and SEC responses.
@@ -17,6 +18,7 @@
 //! - [`data`]: Raw file fixtures (e.g. captured SEC responses).
 
 pub mod sample_http_client;
+pub mod sample_input_document;
 pub mod sample_rate_limiter;
 pub mod sample_request;
 pub mod sample_response;

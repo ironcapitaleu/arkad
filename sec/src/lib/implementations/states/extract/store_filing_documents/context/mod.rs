@@ -258,6 +258,7 @@ mod tests {
     use storage::WriteError;
 
     use super::*;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::{
         FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
     };
@@ -292,13 +293,7 @@ mod tests {
     #[test]
     fn should_update_inputs_when_update_contains_inputs() {
         let mut context = test_context();
-        let inputs = vec![InputDocument::new(
-            storage::implementations::repository::filesystem::DocumentKey::new(
-                "sec/daily-index/form.20260909.idx",
-            )
-            .expect("Given a hardcoded valid relative path, the key should always build"),
-            storage::Sha256Digest::of(b"index"),
-        )];
+        let inputs = daily_index_inputs();
         let update = StoreFilingDocumentsContextUpdater::builder()
             .inputs(inputs.clone())
             .build();

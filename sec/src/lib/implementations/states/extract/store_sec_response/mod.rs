@@ -60,6 +60,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
+use storage::implementations::repository::filesystem::InputDocument;
 
 use crate::error::State as StateError;
 use crate::error::state_machine::state::FailedDocumentWrite;
@@ -80,7 +81,8 @@ pub use data::StoreSecResponseInput;
 ///
 /// [`StoredAs::store`] builds the document and the output. The state writes the document through
 /// the repository of type `R` and keeps the output once the write succeeds. The metadata names
-/// [`StoredAs::STATE_NAME`] as the producer and records the ingestion mode of the context.
+/// [`StoredAs::STATE_NAME`] as the producer, and records the ingestion mode and the inputs of the
+/// context.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 #[serde(bound(serialize = "R: Serialize"))]
 pub struct StoreSecResponse<E: StoredAs, R> {
@@ -101,6 +103,16 @@ impl<E: StoredAs, R> StoreSecResponse<E, R> {
             input,
             context,
             output: None,
+        }
+    }
+
+    /// Returns this state with the documents that the response came from, which the metadata of
+    /// the stored document records as inputs.
+    #[must_use]
+    pub fn with_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self {
+            context: self.context.with_inputs(inputs),
+            ..self
         }
     }
 
@@ -137,6 +149,7 @@ impl<E: StoredAs, R: RawRepository<E::Source>> State for StoreSecResponse<E, R> 
                 ingestion_mode: self.context.ingestion_mode,
             },
         );
+        let document = document.with_added_inputs(self.context.inputs.clone());
 
         self.context
             .repository
