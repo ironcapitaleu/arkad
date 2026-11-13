@@ -204,7 +204,8 @@ a new status, an assignee, a relation, a link, or an edit of the description. If
 names an open box or a wrong status, offer the change. Ask the user once, with every change in
 one list.
 For each change, name the proof from the table. Make only the changes that the user confirms, and
-add the list "Fixed on this ticket" to the comment.
+add the list "Fixed on this ticket" to the comment. Move each confirmed change from "Blocked /
+undecided" to "Done" in the handoff document.
 
 | Change | Proof that the change needs |
 | ------ | --------------------------- |
@@ -224,8 +225,8 @@ the session has no tool for a write, such as a comment, a relation, or a link, d
 way. Name the write that is missing in the chat reply.
 
 In the handoff document, list each stale point under "Blocked / undecided", so the successor does
-not act on the stale text. For an agent session, post the short update comment before you print
-the prompt, and name it under "Artifacts". In the chat reply, tell the user what you posted and
+not act on the stale text. For an agent session, leave the comment before you print the prompt,
+and name it under "Artifacts". In the chat reply, tell the user what you posted and
 what you changed on each ticket.
 
 A stale ticket of the Roadmap other than the handoff ticket gets no comment. Name its stale points
@@ -242,7 +243,8 @@ If Linear fails after a change, list the changes already made in the chat reply.
    repository, such as a SPIKE that ends in a Linear document, the end is that document and a
    report, with no PR. Use this end unless the user names a different one.
 2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Collect the
-   stale points before you compile. Post the comment in step 7.
+   stale points before you compile. If you offer a change, ask once at the end of step 4, or at
+   the end of step 3 if there is no Roadmap. Post the comment in step 7.
 3. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
    with the `AGENTS.md` "Branch Naming" convention.
@@ -251,8 +253,8 @@ If Linear fails after a change, list the changes already made in the chat reply.
    Read every ticket's status, blockers, and linked PR through the `linear` skill at the time you
    write the handoff. Never copy a roadmap from an earlier handoff without this check. Collect the
    stale points of each Roadmap ticket by the rule in "Update the Ticket". If you offer a change
-   to a ticket, ask the user now, once, with every change of steps 2 and 4 in one list. A handoff
-   without a Roadmap asks at the end of step 3. Then recompute the critical path and the
+   to a ticket, ask the user now, once, with every change of steps 2 and 4 in one list. Then
+   recompute the critical path and the
    unblocked tickets from the fresh data. If Linear is unreachable,
    leave the Roadmap out and say so under "Blocked / undecided". The Linear note carries the
    Roadmap too, with its date, so a reader can tell how old the statuses are.
@@ -260,18 +262,17 @@ If Linear fails after a change, list the changes already made in the chat reply.
    secret's location instead, never its value.
 6. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
 7. **Deliver:**
-   - **Agent session** — post the short update comment first, if a point is stale, and put its
-     URL under "Artifacts". Then print the whole document in the chat reply, inside one fenced code block
-     tagged `markdown`. Put nothing else inside the block. Count the longest run of backticks that
+   - **Comment first** — leave the comment by the rule in "Update the Ticket", through the
+     `linear` skill, in status voice. For a Linear note or both, that is the state-of-play
+     comment. For an agent session alone, it is the short update comment, if a point is stale.
+   - **Agent session** — put the URL of the comment under "Artifacts". Then print the whole
+     document in the chat reply, inside one fenced code block tagged `markdown`. Put nothing else
+     inside the block. Count the longest run of backticks that
      opens a fence in the document. Open and close the outer block with one more backtick than that
      run. Use at least three. Do not split the document across several blocks.
      Write a file only in these cases: the user asks for one, a session-spawning tool needs one, or
      the session runs in a terminal. Write it to a temporary directory outside the repository, as
      `handoff-<short-slug>.md`. Never commit it.
-   - **Linear note** — leave the state-of-play comment by the rule in "Update the Ticket", through
-     the `linear` skill, in status voice.
-   - **Every destination** — the comment carries the lists of "Update the Ticket". For an agent
-     session alone, post the short update comment only if a point is stale.
 
    This skill writes the handoff content. It does not spawn a session or take over the ticket
    itself.
