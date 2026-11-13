@@ -1,7 +1,7 @@
 //! # Store Full Index State
 //!
-//! Provides [`StoreFullIndex`], the [`StoreSecResponse`] state of the [`FullIndex`] kind, which
-//! writes the full index `form.idx` of one quarter to the store and outputs the stored index with
+//! Provides [`StoreFullIndex`], the [`StoreSecResponse`] state of the [`FullIndex`] kind. It
+//! writes the full index `form.idx` of one quarter to the store. It outputs the stored index with
 //! its text. [`full_index_key`] gives the key of the file of a quarter.
 //!
 //! The SEC adds rows to the file of the current quarter each day, and a later run replaces the
@@ -156,6 +156,10 @@ mod tests {
     }
 
     fn sample_response() -> Arc<SecResponse<ZipBody>> {
+        response_with_body(SAMPLE_FULL_INDEX_2026_Q4.as_bytes())
+    }
+
+    fn response_with_body(body: &[u8]) -> Arc<SecResponse<ZipBody>> {
         let url: Url = "https://www.sec.gov/Archives/edgar/full-index/2026/QTR4/form.idx"
             .parse()
             .expect("Given a hardcoded valid URL, parsing should always succeed");
@@ -168,14 +172,21 @@ mod tests {
             headers,
             ContentType::OctetStream,
             StatusCode::Ok,
-            SAMPLE_FULL_INDEX_2026_Q4.as_bytes().to_vec(),
+            body.to_vec(),
         )
         .expect("Given status 200 and an octet-stream content type, building the response should always succeed");
         Arc::new(response)
     }
 
     fn sample_state<R>(ingestion_mode: IngestionMode, repository: R) -> StoreFullIndex<R> {
-        let response = sample_response();
+        state_with_response(ingestion_mode, repository, sample_response())
+    }
+
+    fn state_with_response<R>(
+        ingestion_mode: IngestionMode,
+        repository: R,
+        response: Arc<SecResponse<ZipBody>>,
+    ) -> StoreFullIndex<R> {
         let requested_url = response.url().clone();
         let user_agent = UserAgent::new("arkad contact@example.com")
             .expect("Given a hardcoded SEC-format user agent, validation should always succeed");
@@ -255,6 +266,34 @@ mod tests {
 
         let expected_result = SAMPLE_FULL_INDEX_2026_Q4.as_bytes();
 
+        let result = std::fs::read(repository.document_path(&sample_key())).expect(
+            "Given a document this test just stored under the key, reading it should always succeed",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_replace_the_stored_bytes_when_a_later_run_stores_the_same_quarter() {
+        let root = temporary_root();
+        let repository = filesystem_repository(&root);
+        sample_state(IngestionMode::Incremental, repository.clone())
+            .compute_output_data_async()
+            .await
+            .expect("Given a fresh writable temp directory, the first store should always succeed");
+        let later_body = b"Form Type   Company Name\n---\n";
+        let mut later_state = state_with_response(
+            IngestionMode::Incremental,
+            repository.clone(),
+            response_with_body(later_body),
+        );
+
+        let expected_result = later_body.to_vec();
+
+        later_state
+            .compute_output_data_async()
+            .await
+            .expect("Given a writable temp directory, the second store should always succeed");
         let result = std::fs::read(repository.document_path(&sample_key())).expect(
             "Given a document this test just stored under the key, reading it should always succeed",
         );
