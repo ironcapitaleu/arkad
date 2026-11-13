@@ -197,7 +197,8 @@ fits, a measurement that is out of date, or a split of the ticket. Never rewrite
 the description, or the wording of a Definition of Done item. The author of the ticket owns them.
 Quote the stale sentence, state the fact that contradicts it, and name the source.
 
-Then post **one** comment on the ticket through the `linear` skill, in status voice:
+At the delivery step, post **one** comment on the ticket through the `linear` skill, in status
+voice:
 
 - For the Linear destination, the state-of-play comment holds two more lists: "Fixed on this
   ticket" and "Stale, for the author".
@@ -222,8 +223,9 @@ If Linear is unreachable, change nothing, and name each stale point under "Block
    nothing new in. A person then reviews and merges it. For work whose output lives outside the
    repository, such as a SPIKE that ends in a Linear document, the end is that document and a
    report, with no PR. Use this end unless the user names a different one.
-2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Do this before
-   you compile, so the document names the ticket as it now stands.
+2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Make the fixes
+   in place before you compile, so the document names the ticket as it now stands. Post the
+   comment in step 7.
 3. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
    with the `AGENTS.md` "Branch Naming" convention.
@@ -247,6 +249,8 @@ If Linear is unreachable, change nothing, and name each stale point under "Block
      `handoff-<short-slug>.md`. Never commit it.
    - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
      the `linear` skill, in status voice.
+   - **Every destination** — the comment carries the two lists of "Update the Ticket". For an
+     agent session alone, post the short update comment.
 
    This skill writes the handoff content. It does not spawn a session or take over the ticket
    itself.
