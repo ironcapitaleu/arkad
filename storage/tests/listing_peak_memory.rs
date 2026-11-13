@@ -26,7 +26,7 @@ use uuid::Uuid;
 use storage::ListRepository;
 use storage::implementations::repository::filesystem::{
     Document, DocumentKey, DocumentMetadata, FilesystemRepository, IngestionMode, KeyPrefix,
-    METADATA_SUFFIX, Producer,
+    METADATA_SUFFIX, MediaType, Producer,
 };
 
 #[global_allocator]
@@ -94,7 +94,10 @@ fn write_store(root: &Path, filings_per_company: usize) {
     let bytes = b"{}";
     let metadata = DocumentMetadata::builder()
         .document_type::<SampleDocument>()
-        .media_type("application/json")
+        .media_type(
+            MediaType::new("application/json")
+                .expect("Given a hardcoded valid media type, creation should always succeed"),
+        )
         .content(bytes)
         .produced_at(DateTime::<Utc>::UNIX_EPOCH)
         .run(
