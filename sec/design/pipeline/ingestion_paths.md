@@ -211,7 +211,7 @@ Extraction::backfill().all().periods(ps).sec_client(c).repositories(rs).in_fligh
 Extraction::incremental()
     .daily_filings()
     .dates(ds)
-    .yesterday(y)
+    .as_of(d)
     .sec_client(c)
     .repositories(rs)
     .in_flight(n)
@@ -292,11 +292,11 @@ values.
 | `notes()` | skip of an intact stored file, task per period, transient retry, unpublished at the end, `cut_over_date()` | periods, cap, retry waits |
 | `company_facts()` | none | CIKs, cap |
 | `submissions()` | none | CIKs, cap |
-| `daily_filings()` | transient retry, pending, unextractable, `AmbiguousFilingDocument` fails the run | dates, `yesterday`, cap, retry waits |
+| `daily_filings()` | transient retry, pending, unextractable, `AmbiguousFilingDocument` fails the run | dates, `as_of`, cap, retry waits |
 
 The rules of `daily_filings` from STA-378 stay as they are. `ARKAD_FROM` and `ARKAD_TO` stay in
-`main`, in Eastern time. The window of 4 days stays an operator setting. `yesterday` is an input,
-so a test can fix it.
+`main`, in Eastern time. The window of 4 days stays an operator setting. `as_of(d)` is an input:
+the run treats `d` as its latest date for the pending rule, so a test can fix it.
 
 #### Ingestion Mode
 
@@ -373,12 +373,12 @@ let past = backfill
     .await;
 log_summary(&past);
 let cut_over = past.cut_over_date()?;
-let yesterday = new_york_yesterday(now);
+let last_date = previous_day_in_new_york(now);
 let recent = Extraction::incremental()
     .execution_id(backfill.id())
     .daily_filings()
-    .dates(dates_between(cut_over, yesterday))
-    .yesterday(yesterday)
+    .dates(dates_between(cut_over, last_date))
+    .as_of(last_date)
     .sec_client(sec_client)
     .repositories(repositories)
     .run(log_event)
@@ -392,7 +392,7 @@ let now = Utc::now();
 let summary = Extraction::incremental()
     .daily_filings()
     .dates(run_dates(env::var_os(FROM_ENV_VAR), env::var_os(TO_ENV_VAR), now)?)
-    .yesterday(new_york_yesterday(now))
+    .as_of(previous_day_in_new_york(now))
     .sec_client(sec_client)
     .repositories(repositories)
     .run(log_event)
@@ -1704,7 +1704,7 @@ JSON logs with the five fields of `AGENTS.md`, as in `backfill`:
 | `extraction/retry.rs` (library) | The retry of a machine after a transient SEC failure, `retry_while` (the same loop for any error type, used by the Notes `HEAD` request), and `DEFAULT_RETRY_DELAYS` |
 
 - `dates.rs` takes "now" as an argument, so its tests set the clock, for example 02:00 UTC.
-- The builder takes `retry_delays` and `yesterday`, and it is generic over the SEC client. So the
+- The builder takes `retry_delays` and `as_of`, and it is generic over the SEC client. So the
   tests pass zero delays, a fixed date, and a fake client.
 
 #### Tests

@@ -83,14 +83,14 @@ mod two_calls {
             )
     }
 
-    /// Returns the inputs of a run over `periods` into `root`, with yesterday on 2026-10-01 and
-    /// the `execution_id` 7.
+    /// Returns the inputs of a run over `periods` into `root`, with the last date on 2026-10-01
+    /// and the `execution_id` 7.
     fn inputs(root: &TempDir, periods: &[&str]) -> BackfillInputs<RoutingSecClient> {
         BackfillInputs {
             backfill: Extraction::backfill().execution_id(Uuid::from_u128(7)),
             periods: periods.iter().map(ToString::to_string).collect(),
             files_in_flight: 2,
-            yesterday: date("2026-10-01"),
+            last_date: date("2026-10-01"),
             sec_client: sec_client(),
             notes_repository: FilesystemRepository::builder()
                 .writer()

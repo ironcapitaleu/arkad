@@ -13,8 +13,8 @@
 mod constants;
 #[path = "../src/bin/daily_filings/dates.rs"]
 mod dates;
-#[path = "../src/bin/shared/yesterday.rs"]
-mod yesterday;
+#[path = "../src/bin/shared/new_york_clock.rs"]
+mod new_york_clock;
 
 /// Runs the facade offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
@@ -134,7 +134,7 @@ mod run_loop {
         }
     }
 
-    /// Runs `dates` with the stores under `root`, yesterday on 2026-10-28, and no wait between
+    /// Runs `dates` with the stores under `root`, `as_of` on 2026-10-28, and no wait between
     /// attempts, and passes each event to `observer`.
     async fn run_observed(
         root: &TempDir,
@@ -146,7 +146,7 @@ mod run_loop {
             .execution_id(Uuid::from_u128(7))
             .daily_filings()
             .dates(dates.iter().copied())
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client.clone())
             .repositories(repositories(root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
@@ -882,7 +882,7 @@ mod run_loop {
         Extraction::incremental()
             .daily_filings()
             .dates(dates)
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client)
             .repositories(repositories(&root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
@@ -930,7 +930,7 @@ mod run_loop {
         Extraction::incremental()
             .daily_filings()
             .dates(dates)
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client)
             .repositories(repositories(&root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
@@ -1032,7 +1032,7 @@ mod live {
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
 
-    use crate::yesterday::new_york_yesterday;
+    use crate::new_york_clock::previous_day_in_new_york;
 
     /// A past weekday with few filings, so the test stays short: the Friday after Thanksgiving
     /// 2025. A run of it took 10 s on 2026-11-01.
@@ -1081,7 +1081,7 @@ mod live {
         let summary = Extraction::incremental()
             .daily_filings()
             .dates([date])
-            .yesterday(new_york_yesterday(Utc::now()))
+            .as_of(previous_day_in_new_york(Utc::now()))
             .sec_client(sec_client())
             .repositories(repositories(&root))
             .run(|_, _| {})

@@ -62,8 +62,9 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// faster.
 pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
 
-/// The number of dates, yesterday and the days before it, whose missing daily index counts as
-/// pending. A pending date does not fail the run, because a later run reads it again.
+/// The number of dates, the date of [`as_of`](DailyFilingsBuilder::as_of) and the days before it,
+/// whose missing daily index counts as pending. A pending date does not fail the run, because a
+/// later run reads it again.
 pub const PENDING_DAYS: u64 = 3;
 
 /// The SEC client that every machine of a run accepts.
@@ -113,9 +114,9 @@ pub struct DailyFilingsRepositories {
     pub submissions: SubmissionsRepository,
 }
 
-/// Marks a [`DailyFilingsBuilder`] that holds no `yesterday` yet.
+/// Marks a [`DailyFilingsBuilder`] that holds no `as_of` date yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NoYesterday;
+pub struct NoAsOf;
 
 /// Marks a [`DailyFilingsBuilder`] that holds no stores yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -138,20 +139,20 @@ impl IncrementalDailyFilings {
 
     /// Returns the builder of a run over `dates`. The run reads them oldest first, once each.
     ///
-    /// The pending rule never applies to the oldest date. The builder still needs yesterday, an
-    /// SEC client, and the stores.
+    /// The pending rule never applies to the oldest date. The builder still needs the `as_of`
+    /// date, an SEC client, and the stores.
     #[must_use]
     pub fn dates(
         self,
         dates: impl IntoIterator<Item = NaiveDate>,
-    ) -> DailyFilingsBuilder<NoYesterday, NoSecClient, NoRepositories> {
+    ) -> DailyFilingsBuilder<NoAsOf, NoSecClient, NoRepositories> {
         let mut dates: Vec<NaiveDate> = dates.into_iter().collect();
         dates.sort_unstable();
         dates.dedup();
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates,
-            yesterday: NoYesterday,
+            as_of: NoAsOf,
             sec_client: NoSecClient,
             repositories: NoRepositories,
             in_flight: DEFAULT_MACHINES_IN_FLIGHT,
@@ -162,7 +163,7 @@ impl IncrementalDailyFilings {
 
 /// Builds and runs the new-filing path over many dates.
 ///
-/// Set [`yesterday`](Self::yesterday), [`sec_client`](Self::sec_client), and
+/// Set [`as_of`](Self::as_of), [`sec_client`](Self::sec_client), and
 /// [`repositories`](Self::repositories), in any order. [`in_flight`](Self::in_flight) and
 /// [`retry_delays`](Self::retry_delays) are optional. Then call [`run`](Self::run).
 ///
@@ -173,11 +174,11 @@ impl IncrementalDailyFilings {
 /// use sec::implementations::extraction::Extraction;
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
-/// let yesterday = NaiveDate::MIN;
+/// let as_of = NaiveDate::MIN;
 /// let _run = Extraction::incremental()
 ///     .daily_filings()
-///     .dates([yesterday])
-///     .yesterday(yesterday)
+///     .dates([as_of])
+///     .as_of(as_of)
 ///     .sec_client(SecClient::default())
 ///     .run(|_, _| {});
 /// ```
@@ -192,20 +193,20 @@ impl IncrementalDailyFilings {
 ///     let _run = Extraction::incremental()
 ///         .daily_filings()
 ///         .dates([NaiveDate::MIN])
-///         .yesterday(NaiveDate::MIN)
+///         .as_of(NaiveDate::MIN)
 ///         .repositories(repositories)
 ///         .run(|_, _| {});
 /// }
 /// ```
 ///
-/// And `run` needs yesterday:
+/// And `run` needs the `as_of` date:
 ///
 /// ```compile_fail,E0599
 /// use chrono::NaiveDate;
 /// use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
-/// fn run_without_yesterday(repositories: DailyFilingsRepositories) {
+/// fn run_without_as_of(repositories: DailyFilingsRepositories) {
 ///     let _run = Extraction::incremental()
 ///         .daily_filings()
 ///         .dates([NaiveDate::MIN])
@@ -215,24 +216,28 @@ impl IncrementalDailyFilings {
 /// }
 /// ```
 #[derive(Debug, Clone)]
-pub struct DailyFilingsBuilder<Y, C, R> {
+pub struct DailyFilingsBuilder<A, C, R> {
     incremental: Incremental,
     dates: Vec<NaiveDate>,
-    yesterday: Y,
+    as_of: A,
     sec_client: C,
     repositories: R,
     in_flight: usize,
     retry_delays: Vec<Duration>,
 }
 
-impl<C, R> DailyFilingsBuilder<NoYesterday, C, R> {
-    /// Sets yesterday in New York, the last date that the pending rule covers.
+impl<C, R> DailyFilingsBuilder<NoAsOf, C, R> {
+    /// Sets `as_of`, the date that the run treats as its latest date for the pending rule.
+    ///
+    /// A missing daily index counts as pending if its date is one of the [`PENDING_DAYS`] days
+    /// that end with `as_of`, and is not the first date of the run. A pending date does not fail
+    /// the run. The binaries pass the day before today in New York.
     #[must_use]
-    pub fn yesterday(self, yesterday: NaiveDate) -> DailyFilingsBuilder<NaiveDate, C, R> {
+    pub fn as_of(self, as_of: NaiveDate) -> DailyFilingsBuilder<NaiveDate, C, R> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
-            yesterday,
+            as_of,
             sec_client: self.sec_client,
             repositories: self.repositories,
             in_flight: self.in_flight,
@@ -241,14 +246,14 @@ impl<C, R> DailyFilingsBuilder<NoYesterday, C, R> {
     }
 }
 
-impl<Y, R> DailyFilingsBuilder<Y, NoSecClient, R> {
+impl<A, R> DailyFilingsBuilder<A, NoSecClient, R> {
     /// Sets the SEC client of every machine of the run.
     #[must_use]
-    pub fn sec_client<C: DailyClient>(self, sec_client: C) -> DailyFilingsBuilder<Y, C, R> {
+    pub fn sec_client<C: DailyClient>(self, sec_client: C) -> DailyFilingsBuilder<A, C, R> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
-            yesterday: self.yesterday,
+            as_of: self.as_of,
             sec_client,
             repositories: self.repositories,
             in_flight: self.in_flight,
@@ -257,18 +262,18 @@ impl<Y, R> DailyFilingsBuilder<Y, NoSecClient, R> {
     }
 }
 
-impl<Y, C> DailyFilingsBuilder<Y, C, NoRepositories> {
+impl<A, C> DailyFilingsBuilder<A, C, NoRepositories> {
     /// Sets the stores of the daily indexes, the folder indexes and the documents of the filings,
     /// and the `submissions` files.
     #[must_use]
     pub fn repositories(
         self,
         repositories: DailyFilingsRepositories,
-    ) -> DailyFilingsBuilder<Y, C, DailyFilingsRepositories> {
+    ) -> DailyFilingsBuilder<A, C, DailyFilingsRepositories> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
-            yesterday: self.yesterday,
+            as_of: self.as_of,
             sec_client: self.sec_client,
             repositories,
             in_flight: self.in_flight,
@@ -277,7 +282,7 @@ impl<Y, C> DailyFilingsBuilder<Y, C, NoRepositories> {
     }
 }
 
-impl<Y, C, R> DailyFilingsBuilder<Y, C, R> {
+impl<A, C, R> DailyFilingsBuilder<A, C, R> {
     /// Sets the most filing machines, and the most `submissions` machines, that one date runs at
     /// once. The default is [`DEFAULT_MACHINES_IN_FLIGHT`], and `0` counts as `1`.
     #[must_use]
@@ -357,7 +362,7 @@ where
                         .extract_companies(date, &detected.filings, &observer)
                         .await,
                 },
-                Err(error) if is_pending(&error, date, first_date, self.yesterday) => {
+                Err(error) if is_pending(&error, date, first_date, self.as_of) => {
                     observer(&unit, RunEvent::Error(&error, ErrorKind::Pending));
                     DateOutcome::Pending(error)
                 }

@@ -4,7 +4,7 @@
 //! [`dates_between`], which lists the dates of its catch-up.
 //!
 //! The first call stores the Notes periods. The second call, the catch-up, reads each daily index
-//! from the cut-over date to yesterday. See "Cut-Over Between the Paths" in
+//! from the cut-over date to the last date. See "Cut-Over Between the Paths" in
 //! `sec/design/pipeline/ingestion_paths.md`.
 
 use std::sync::Arc;
@@ -42,7 +42,7 @@ pub struct BackfillInputs<C> {
     /// The most Notes files that the first call downloads at once.
     pub files_in_flight: usize,
     /// The last date of the catch-up: yesterday in New York.
-    pub yesterday: NaiveDate,
+    pub last_date: NaiveDate,
     /// The SEC client of both calls.
     pub sec_client: C,
     /// The store of the Notes files.
@@ -53,14 +53,14 @@ pub struct BackfillInputs<C> {
 
 /// The catch-up of one `backfill` run, the second call.
 pub struct CatchUp {
-    /// The dates of the catch-up, from the cut-over date to yesterday.
+    /// The dates of the catch-up, from the cut-over date to the last date.
     pub dates: Vec<NaiveDate>,
     /// The summary of the catch-up.
     pub summary: DailyRunSummary,
 }
 
 /// Stores the Notes periods of `inputs`, then reads each date from the cut-over date to
-/// yesterday, and returns the catch-up.
+/// the last date, and returns the catch-up.
 ///
 /// Calls `on_past` with the Notes summary before the catch-up starts. Passes every event of both
 /// calls to `observer`. The catch-up runs even if it has no date, and then its summary is empty.
@@ -107,12 +107,12 @@ where
         .run(move |unit, event| past_observer(unit, event))
         .await;
     on_past(&past);
-    let dates = dates_between(past.cut_over_date()?, inputs.yesterday);
+    let dates = dates_between(past.cut_over_date()?, inputs.last_date);
     let recent = Extraction::incremental()
         .execution_id(inputs.backfill.id())
         .daily_filings()
         .dates(dates.iter().copied())
-        .yesterday(inputs.yesterday)
+        .as_of(inputs.last_date)
         .sec_client(inputs.sec_client)
         .repositories(inputs.daily_repositories)
         .run(move |unit, event| observer(unit, event))
@@ -123,13 +123,13 @@ where
     })
 }
 
-/// Returns every date from `cut_over` to `yesterday`, both included, oldest first.
+/// Returns every date from `cut_over` to `last_date`, both included, oldest first.
 ///
-/// If `cut_over` comes after `yesterday`, the list is empty.
-pub fn dates_between(cut_over: NaiveDate, yesterday: NaiveDate) -> Vec<NaiveDate> {
+/// If `cut_over` comes after `last_date`, the list is empty.
+pub fn dates_between(cut_over: NaiveDate, last_date: NaiveDate) -> Vec<NaiveDate> {
     cut_over
         .iter_days()
-        .take_while(|date| *date <= yesterday)
+        .take_while(|date| *date <= last_date)
         .collect()
 }
 
@@ -145,9 +145,9 @@ mod tests {
     }
 
     #[test]
-    fn should_list_every_date_from_the_cut_over_to_yesterday_when_the_cut_over_is_earlier() {
+    fn should_list_every_date_from_the_cut_over_to_the_last_date_when_the_cut_over_is_earlier() {
         let cut_over = date("2026-09-30");
-        let yesterday = date("2026-10-03");
+        let last_date = date("2026-10-03");
 
         let expected_result = vec![
             date("2026-09-30"),
@@ -156,31 +156,31 @@ mod tests {
             date("2026-10-03"),
         ];
 
-        let result = dates_between(cut_over, yesterday);
+        let result = dates_between(cut_over, last_date);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_list_one_date_when_the_cut_over_is_yesterday() {
+    fn should_list_one_date_when_the_cut_over_is_the_last_date() {
         let cut_over = date("2026-10-31");
-        let yesterday = date("2026-10-31");
+        let last_date = date("2026-10-31");
 
         let expected_result = vec![date("2026-10-31")];
 
-        let result = dates_between(cut_over, yesterday);
+        let result = dates_between(cut_over, last_date);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_list_no_date_when_the_cut_over_is_after_yesterday() {
+    fn should_list_no_date_when_the_cut_over_is_after_the_last_date() {
         let cut_over = date("2026-11-30");
-        let yesterday = date("2026-11-01");
+        let last_date = date("2026-11-01");
 
         let expected_result: Vec<NaiveDate> = Vec::new();
 
-        let result = dates_between(cut_over, yesterday);
+        let result = dates_between(cut_over, last_date);
 
         assert_eq!(result, expected_result);
     }
