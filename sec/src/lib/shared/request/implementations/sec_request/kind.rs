@@ -19,6 +19,7 @@ use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::HasResponse;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
+use crate::shared::quarter::Quarter;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::RawSource;
 use crate::shared::run_fields::RunFields;
@@ -132,6 +133,21 @@ impl RequestKind for DailyIndexListing {
     }
 }
 
+/// The kind of a request that downloads the full index `form.idx` of one quarter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FullIndex;
+
+impl RequestKind for FullIndex {
+    type Input = Quarter;
+
+    const INPUT_NAME: &'static str = "quarter";
+    const INPUT_LABEL: &'static str = "quarter";
+
+    fn request_type(quarter: Quarter) -> SecRequestType {
+        SecRequestType::FetchFullIndex { quarter }
+    }
+}
+
 /// The kind of a request that fetches the `submissions` JSON of one company.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Submissions;
@@ -236,10 +252,12 @@ mod tests {
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::quarter::Quarter;
 
     use super::{
         CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet,
-        FilingIndex, NotesFile, NotesFileProbe, RequestKind, SecRequestType, Submissions,
+        FilingIndex, FullIndex, NotesFile, NotesFileProbe, RequestKind, SecRequestType,
+        Submissions,
     };
 
     fn filing_ref() -> FilingRef {
@@ -284,6 +302,20 @@ mod tests {
         let expected_result = SecRequestType::ProbeNotesFile { period };
 
         let result = NotesFileProbe::request_type(period);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_fetch_full_index_for_full_index_kind() {
+        let quarter = Quarter::of(
+            NaiveDate::from_ymd_opt(2026, 10, 1)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+
+        let expected_result = SecRequestType::FetchFullIndex { quarter };
+
+        let result = FullIndex::request_type(quarter);
 
         assert_eq!(result, expected_result);
     }
@@ -374,6 +406,11 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_daily_index_listing() {
         implements_auto_traits::<DailyIndexListing>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_full_index() {
+        implements_auto_traits::<FullIndex>();
     }
 
     #[test]

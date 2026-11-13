@@ -1809,11 +1809,13 @@ Rules:
    catch-up runs at the same time as the Notes step, so it cannot wait for this check. A failed
    Notes period fails the run instead: `AllRunSummary::result()` returns `FailedAllBackfill`, and
    `backfill` exits with an error. Rerun the backfill (rule 8). The repeat downloads the failed
-   period. The run also fails if no stored Notes period ends on or after the cut-over date. For
-   example, the `HEAD` request answers 200, and the download of the same file then gets a 403.
+   period. The run also fails if the `HEAD` request found the newest period and no stored Notes
+   period ends on or after the cut-over date. For example, the `HEAD` request answers 200, and the
+   download of the same file then gets a 403.
    The Notes summary lists that period as unpublished, but `result()` counts it as failed. To
    check a run by hand, confirm that no entry in the Notes summary has a `failed_state`, and that
-   the newest stored period ends on or after the cut-over date. See
+   the newest stored period ends on or after the cut-over date. The `first_date` of the catch-up
+   summary is the cut-over date. If the catch-up has no date, `first_date` is `null`. See
    [Calling the Machines](#calling-the-machines). Do not rely on the
    calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
@@ -1844,6 +1846,7 @@ Assumptions:
 `backfill().all()` runs the Notes step and the catch-up at the same time. In sequence, a run takes
 the sum of both steps. At the same time, it takes about the longer of the two. The cut-over date
 comes from one `HEAD` request, so the catch-up does not wait for the Notes step.
+[ADR 0004](../../../docs/adr/0004-parallel-backfill.md) records this decision and the options.
 
 Measured on 2026-11-13 in the cloud container (4 cores, about 13 to 15 MB/s to the SEC). Each run
 used a fresh store, the Notes periods `2025q1`, `2025q2`, and `2026_10` (1.27 GB), and the
@@ -1859,13 +1862,14 @@ The runs alternated, sequence first.
 | 3 | Sequence | 99.2 s | 54.9 s | 44.3 s | 1,793 MB | 395 | 0 | 0 |
 | 3 | Parallel | 52.4 s | 52.0 s | 43.6 s | 2,219 MB | 396 | 0 | 0 |
 
-- The parallel run was never slower than the fastest sequence run. Its median is 93.3 s against
-  99.2 s, and its best run took 52.4 s, the time of the Notes step alone.
+- The median parallel run took 93.3 s, against 99.2 s for the sequence. In run 1, the parallel
+  run was 1.1 s slower. Its best run took 52.4 s, the time of the Notes step alone.
 - In runs 1 and 2 of the parallel variant, the catch-up made about 2 requests per second while the
   Notes files downloaded, against about 6.5 alone. Both steps share one network link. The cause is
   not measured.
-- The parallel variant sends one more request, the `HEAD` request of the cut-over date, plus one
-  request for each retry after a 503. Each 503 passed on its retry.
+- The parallel variant sent 1 to 6 more requests: the `HEAD` request of the cut-over date, and
+  the retries after a 503. A retry runs the whole filing machine again, so it repeats the requests
+  of that filing. Each 503 passed on its retry.
 - The peak memory rose by 55 to 426 MB. The cap on Notes files in flight still bounds it.
 
 ### Idempotent Writes

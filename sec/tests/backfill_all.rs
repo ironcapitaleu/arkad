@@ -326,3 +326,71 @@ async fn should_return_failed_all_backfill_when_the_sec_refuses_the_download_of_
 
     assert_eq!(result, expected_result);
 }
+
+#[tokio::test]
+async fn should_count_one_failed_period_when_the_newest_period_is_unpublished_and_the_older_period_fails()
+ {
+    let root = temporary_root();
+    let sec_client = sec_client(&[]).route(
+        &format!("{NOTES_URL}2026_08_notes.zip"),
+        500,
+        "text/html",
+        b"",
+    );
+    let periods = ["2026_08", "2026_09"];
+    // The cut-over date is 2026-08-31. An earlier `until` runs no catch-up date, so the result
+    // counts only the Notes periods.
+    let until = date("2026-08-30");
+
+    let expected_result = Err(FailedAllBackfill {
+        failed_periods: 1,
+        periods: 2,
+        catch_up_failures: 0,
+        catch_up_dates: 0,
+    });
+
+    let result = Extraction::backfill()
+        .all()
+        .periods(periods)
+        .until(until)
+        .sec_client(sec_client)
+        .repositories(repositories(&root))
+        .retry_delays(Vec::new())
+        .run(|_, _| {})
+        .await
+        .expect("Given two valid periods, the run falls back to the older period and should always find a cut-over date")
+        .result();
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_count_the_missed_cut_over_period_and_the_failed_period_when_both_happen() {
+    let root = temporary_root();
+    let sec_client = sec_client(&[])
+        .route(
+            &format!("{NOTES_URL}2026_08_notes.zip"),
+            500,
+            "text/html",
+            b"",
+        )
+        .route_sequence(
+            &format!("{NOTES_URL}2026_09_notes.zip"),
+            &[
+                (200, "application/zip", SAMPLE_NOTES_ZIP),
+                (403, "application/xml", b""),
+            ],
+        );
+    let periods = ["2026_08", "2026_09"];
+
+    let expected_result = Err(FailedAllBackfill {
+        failed_periods: 2,
+        periods: 2,
+        catch_up_failures: 0,
+        catch_up_dates: 2,
+    });
+
+    let result = run_all(&root, sec_client, &periods).await.result();
+
+    assert_eq!(result, expected_result);
+}

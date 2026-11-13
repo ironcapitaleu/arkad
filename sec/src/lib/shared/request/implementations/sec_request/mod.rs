@@ -10,8 +10,8 @@
 //! - [`builder`]: The [`SecRequestBuilder`] for constructing requests fluently.
 //! - [`constants`]: The endpoint URL fragments.
 //! - [`kind`]: The [`RequestKind`] trait and the [`CompanyFacts`], [`NotesFile`],
-//!   [`NotesFileProbe`], [`DailyIndex`], [`DailyIndexListing`], [`Submissions`], [`FilingIndex`],
-//!   [`FilingDocument`], and [`FilingDocumentSet`] kinds.
+//!   [`NotesFileProbe`], [`DailyIndex`], [`DailyIndexListing`], [`FullIndex`], [`Submissions`],
+//!   [`FilingIndex`], [`FilingDocument`], and [`FilingDocumentSet`] kinds.
 
 use std::marker::PhantomData;
 
@@ -22,6 +22,7 @@ use serde::{Serialize, Serializer};
 use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef};
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
+use crate::shared::quarter::Quarter;
 use crate::shared::{cik::Cik, notes_period::NotesPeriod, request::SecRequest as SecRequestTrait};
 
 pub mod builder;
@@ -31,13 +32,14 @@ pub mod kind;
 pub use builder::SecRequestBuilder;
 pub use kind::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, NotesFileProbe, RequestKind, StoredAs, Submissions,
+    FullIndex, NotesFile, NotesFileProbe, RequestKind, StoredAs, Submissions,
 };
 
 use constants::{
     SEC_COMPANY_FACTS_URL_PREFIX, SEC_COMPANY_FACTS_URL_SUFFIX, SEC_DAILY_INDEX_LISTING_FILE_NAME,
     SEC_DAILY_INDEX_URL_PREFIX, SEC_FILING_FOLDER_URL_PREFIX, SEC_FILING_INDEX_FILE_NAME,
-    SEC_NOTES_URL_PREFIX, SEC_SUBMISSIONS_URL_PREFIX, SEC_SUBMISSIONS_URL_SUFFIX,
+    SEC_FULL_INDEX_FILE_NAME, SEC_FULL_INDEX_URL_PREFIX, SEC_NOTES_URL_PREFIX,
+    SEC_SUBMISSIONS_URL_PREFIX, SEC_SUBMISSIONS_URL_SUFFIX,
 };
 
 /// A ready-to-send SEC API request of kind `K`.
@@ -51,6 +53,7 @@ use constants::{
 /// - [`NotesFileProbe`]: built from a [`NotesPeriod`]. It is a `HEAD` request, set by
 ///   [`RequestKind::METHOD`]. Every other kind is a `GET` request.
 /// - [`DailyIndex`] and [`DailyIndexListing`]: built from an [`IndexDate`].
+/// - [`FullIndex`]: built from a [`Quarter`].
 /// - [`Submissions`]: built from a [`Cik`].
 /// - [`FilingIndex`]: built from a [`FilingRef`].
 /// - [`FilingDocument`]: built from a [`FilingDocumentRef`].
@@ -158,6 +161,11 @@ impl<K: RequestKind> SecRequestTrait for SecRequest<K> {
                 "{SEC_DAILY_INDEX_URL_PREFIX}{}/{}/{SEC_DAILY_INDEX_LISTING_FILE_NAME}",
                 date.year(),
                 date.quarter()
+            ),
+            SecRequestType::FetchFullIndex { quarter } => format!(
+                "{SEC_FULL_INDEX_URL_PREFIX}{}/{}/{SEC_FULL_INDEX_FILE_NAME}",
+                quarter.year(),
+                quarter.folder()
             ),
             SecRequestType::FetchSubmissions { cik } => {
                 format!("{SEC_SUBMISSIONS_URL_PREFIX}{cik}{SEC_SUBMISSIONS_URL_SUFFIX}")
@@ -285,6 +293,11 @@ pub enum SecRequestType {
     FetchDailyIndexListing {
         /// A date of the quarter whose listing to fetch.
         date: IndexDate,
+    },
+    /// Fetch the full index `form.idx` of one quarter.
+    FetchFullIndex {
+        /// The quarter of the full index to fetch.
+        quarter: Quarter,
     },
     /// Fetch a company's `submissions` JSON (name, SIC code, tickers, and former names) by CIK.
     FetchSubmissions {
