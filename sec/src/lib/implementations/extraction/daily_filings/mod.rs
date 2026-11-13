@@ -58,9 +58,11 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// The number of filing machines, and of `submissions` machines, that one date runs at once
 /// without a call to [`DailyFilingsBuilder::in_flight`].
 ///
-/// The rate limiter of the SEC client caps the requests, so a higher value does not make a run
-/// faster.
-pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
+/// Each machine sends its requests one after another and mostly waits for the SEC. With 8 machines,
+/// a run reaches about 9 requests per second, near the cap of the rate limiter of the SEC client.
+/// A higher value does not make a run faster. See "One Date" in
+/// `sec/design/pipeline/ingestion_paths.md`.
+pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 8;
 
 /// The number of days that the pending rule counts back from
 /// [`as_of`](DailyFilingsBuilder::as_of), `as_of` included. A pending date does not fail the run,
