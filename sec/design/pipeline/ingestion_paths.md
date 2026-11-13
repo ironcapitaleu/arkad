@@ -1773,7 +1773,8 @@ Rules:
 
    `daily_filings` has no Notes step and sends no such request. `stored_cut_over_date` gives the
    date from the store: the last day of the newest stored Notes period. If no stored file covers
-   a quarter from `2009q1` on, the function fails and names the first such quarter. If a Notes
+   a quarter from `2009q1` through the quarter of that period, the function fails and names the
+   first such quarter. If a Notes
    period failed, this date is earlier than the date of `backfill().all()`. That costs only
    overlap. `daily_filings` does not call the function yet (rule 7).
 2. The first run reads every day from the start date up to yesterday. The binary `backfill` runs

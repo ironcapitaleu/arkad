@@ -3,9 +3,7 @@
 //! Provides [`stored_cut_over_date`], which reads the cut-over date from the keys of the stored
 //! Notes files, and its error [`MissingStoredCutOverDate`].
 //!
-//! The function sends no SEC request. Rule 1 of "Cut-Over Between the Paths" in
-//! `sec/design/pipeline/ingestion_paths.md` defines the date, and "2. Cut-Over Date" in
-//! `storage/design/data_model/repository_listing.md` defines the gap check.
+//! The function sends no SEC request.
 
 use std::collections::BTreeSet;
 
