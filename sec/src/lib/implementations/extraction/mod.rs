@@ -220,7 +220,8 @@ pub use daily_filings::{
 };
 pub use notes::{
     BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, FailedNotesProbe, MAX_UNPUBLISHED,
-    MissingCutOverDate, NotesBatchBuilder, NotesRunSummary, published_periods,
+    MissingCutOverDate, MissingStoredCutOverDate, NotesBatchBuilder, NotesRunSummary,
+    published_periods, stored_cut_over_date,
 };
 pub use retry::DEFAULT_RETRY_DELAYS;
 pub use run_event::{ErrorKind, RunEvent, Unit};
