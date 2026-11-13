@@ -390,17 +390,7 @@ async fn should_count_the_missed_cut_over_period_and_the_failed_period_when_both
         catch_up_dates: 2,
     });
 
-    let result = Extraction::backfill()
-        .all()
-        .periods(periods)
-        .until(date("2026-10-01"))
-        .sec_client(sec_client)
-        .repositories(repositories(&root))
-        .retry_delays(Vec::new())
-        .run(|_, _| {})
-        .await
-        .expect(RUN_EXPECT)
-        .result();
+    let result = run_all(&root, sec_client, &periods).await.result();
 
     assert_eq!(result, expected_result);
 }
