@@ -181,7 +181,7 @@ deprecated example, next to `stream_extract`. See [Deprecated Binaries](#depreca
 | - | ---------- | -------------------------- | ---------------- | --------------- |
 | Unit | Notes period and, at the same time, as `daily_filings` from the cut-over date | Notes period | CIK of a fixed list | date, then filing, then CIK |
 | Loop | as `notes_backfill` and as `daily_filings`, at the same time | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, for the Notes step, and `DEFAULT_MACHINES_IN_FLIGHT` = 4 for the catch-up | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, for the Notes step, and `DEFAULT_MACHINES_IN_FLIGHT` = 8 for the catch-up | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 8 (facade) |
 | Task per unit | as `notes_backfill` for the Notes step, none for the catch-up | `tokio::spawn` (STA-344, open in STA-360) | no | no |
 | Rules | the rules of both, and the cut-over date from one `HEAD` request before any download | skip of an intact stored file, transient retry, unpublished at the end | none | transient retry, pending, unextractable |
 | Summary | `AllRunSummary`, `FailedAllBackfill` (facade) | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
@@ -227,10 +227,11 @@ Extraction::incremental()
   `build()` only after one unit and `run()` only after many.
 - `in_flight(n)` caps the machines that run at once. In a batch, these are the units. In a
   pipeline, these are the machines inside one step. In `all()`, `n` caps the Notes periods,
-  because each Notes file costs memory. Its catch-up uses the default of 4. In
+  because each Notes file costs memory. Its catch-up uses the default of 8. In
   `daily_filings()`, `n` caps the filings and the CIKs of one date. The dates run in order,
   because the pending rule depends on the order. Without the call, the source uses its default:
-  2 for Notes, 4 for the others. The rate limiter of the SEC client still caps the requests.
+  2 for Notes, 8 for `daily_filings()`, and 4 for the CIK sources. The rate limiter of the SEC
+  client still caps the requests.
 - `all()` and `daily_filings()` are the two pipelines. `all()` first finds the cut-over date with
   one `HEAD` request (see [Cut-Over Between the Paths](#cut-over-between-the-paths), rule 1). It
   then runs `notes()` over the periods and `daily_filings()` from the cut-over date to `until(d)`
@@ -1580,13 +1581,32 @@ All super-states of one run share one `execution_id`. For each date, in this ord
    again, as in STA-400. The reads are by key, not by a listing, which belongs to STA-403.
    One `ExtractFilingSuperState` runs for each other `FilingRef`, with the daily index as its
    input.
-   `run_to_documents` returns the `FilingDocumentsRef`. At most `in_flight(n)` machines run at once, by default `DEFAULT_MACHINES_IN_FLIGHT` (4). The global
-   rate limiter of `SecClient` caps the requests, so a value above 4 does not make the run faster.
+   `run_to_documents` returns the `FilingDocumentsRef`. At most `in_flight(n)` machines run at
+   once, by default `DEFAULT_MACHINES_IN_FLIGHT` (8). The global rate limiter of `SecClient`
+   caps the requests, so a value above 8 does not make the run faster. See the measurement
+   below.
 3. One `ExtractSubmissionsSuperState` for each distinct CIK of the selected filings, with the
    ingestion mode `incremental`, and the same cap. It runs for the CIK of a failed
    filing too, because the company data does not depend on the filing.
 
 The dates run one after another, so each entry of the summary belongs to one date.
+
+Measured on 2026-11-13 in the cloud container, with the `daily_filings` binary alone: the run of
+2026-11-02 (388 requests) in a fresh store, twice for each value, in the order 4, 8, 12, 16, 16,
+12, 8, 4. The catch-up of `backfill().all()` was not measured with 8. While Notes files download,
+it runs below the rate limit (see [The Steps at the Same Time](#the-steps-at-the-same-time)).
+
+| Machines in flight | Run time | Requests per second | Median request | 503 |
+| ------------------ | -------- | ------------------- | -------------- | --- |
+| 4 | 78.6 s, 47.4 s | 4.9, 8.2 | 388 ms, 409 ms | 0 |
+| 8 | 43.2 s, 43.9 s | 9.0, 8.8 | 671 ms, 735 ms | 0 |
+| 12 | 43.1 s, 49.3 s | 9.0, 7.9 | 879 ms, 1,121 ms | 0 |
+| 16 | 45.9 s, 76.8 s | 8.5, 5.1 | 1,259 ms, 1,096 ms | 0 |
+
+Each machine sends its requests one after another and mostly waits for the SEC. With 4 machines,
+the run time follows the answer time of the SEC. With 8, both runs reached about 9 requests per
+second, the cap of the rate limiter (1 request each 110 ms). Above 8, the requests only wait
+longer for the rate limiter. The request time includes that wait. No run got a 429 or a 503.
 
 #### Failures
 

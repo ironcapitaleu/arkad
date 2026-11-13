@@ -415,7 +415,7 @@ flowchart TB
     DI -- "yes" --> SD["Store the daily index<br/>select the filings"]:::step
     DI -- "no, a later index exists" --> E["No filings"]:::skip
     DI -- "no, no later index" --> P["Pending or failed,<br/>by the window rules"]:::fail
-    SD --> F["For each filing, at most 4 at once"]:::step
+    SD --> F["For each filing, at most 8 at once"]:::step
     F --> R{"In the store?"}
     R -- "intact instance, label file intact or not listed" --> S1["Already stored,<br/>no request"]:::skip
     R -- "folder index without instance" --> S2["Unextractable,<br/>no request"]:::skip
@@ -423,7 +423,7 @@ flowchart TB
     X -- "transient failure" --> RT["Retry after 10 s, then 60 s"]:::fail
     RT -- "retry" --> X
     RT -- "third attempt fails" --> C
-    S1 --> C["For each distinct CIK, at most 4 at once:<br/>fetch and store submissions"]:::step
+    S1 --> C["For each distinct CIK, at most 8 at once:<br/>fetch and store submissions"]:::step
     S2 --> C
     X --> C
     E --> D
@@ -555,15 +555,17 @@ Sizes and request counts do not depend on the environment. Times do.
 | 4 Notes files, 2.15 GB, 2 in flight | 4 | 95 to 107 s in the cloud container, 23.6 to 25.2 s on the lead's Mac | 2.15 GB | Network. More files in flight do not lower the total time | Findings of 2026-10-29 |
 | One Notes file | 1 | 25 s for `2024q1` (619 MB) | 0.62 GB | Network | [Download](ingestion_paths.md#download), 2026-10-28. Environment not recorded. The speed, about 25 MB/s, matches the cloud container |
 | One new filing | 3, plus 1 for its company | Not measured | 4.8 MB for one 10-Q. 25 KB for one small filer | Rate limit. Not measured for a large filer | Code. Sizes measured in the cloud container on 2026-11-02 |
-| One date, about 90 filings | About 360 | About 40 s at the rate limit alone | About 1 MB of daily index, plus the filings | Rate limit, if each request ends within 440 ms | Estimate from 90 filings per business day in `2024q1` |
+| One peak date, 2026-11-02, 8 machines in flight | 388 | 43 s, measured twice. 47 to 79 s with 4 machines | Not measured | Rate limit: 1 request each 110 ms, about 9 per second | Cloud container, 2026-11-13, [One Date](ingestion_paths.md#one-date) |
+| One date, about 90 filings | About 360 | About 40 s at the rate limit alone | About 1 MB of daily index, plus the filings | Rate limit, if each request ends within 880 ms | Estimate from 90 filings per business day in `2024q1` |
 | One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread | Not measured | Rate limit or network, not measured | Estimate |
-| `backfill`, catch-up, 40 business days | About 14,000 | About 26 minutes at the rate limit alone | Not measured | Rate limit, if each request ends within 440 ms | Estimate, [Dates](ingestion_paths.md#dates) |
+| `backfill`, catch-up, 40 business days | About 14,000 | About 26 minutes at the rate limit alone | Not measured | Rate limit, if each request ends within 880 ms | Estimate, [Dates](ingestion_paths.md#dates) |
 | `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day, inside the 30-minute timeout under both estimates | About 4.6 MB of daily indexes | Rate limit or network, not measured | Estimate |
 
-The estimates "at the rate limit alone" assume that each request ends within 4 × 110 ms, because 4
+The estimates "at the rate limit alone" assume that each request ends within 8 × 110 ms, because 8
 filing machines run at once and each machine sends its requests in series. A 3.9 MB instance takes
 about 0.16 s at 25 MB/s, so bandwidth alone does not slow a day of large filers. A round trip longer
-than 440 ms per request can. The gap between 2 and 9 minutes is not explained and not measured.
+than 880 ms per request can. The gap between 2 and 9 minutes is not explained. The measured peak date ran at the rate limit
+(388 requests in 43 s), which supports the 2-minute estimate.
 
 The selected rows per day were 77 on 2026-10-27, 197 on 2026-03-02, and 295 on 2026-08-10
 (measured). The bytes per day are not measured. One 10-Q of a large filer is 1,000 times larger
