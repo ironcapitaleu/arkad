@@ -1,4 +1,4 @@
-# ADR 0003: `form.idx` as the Full Index Source
+# ADR 0004: `form.idx` as the Full Index Source
 
 | Field | Value |
 | ----- | ----- |
@@ -89,8 +89,8 @@ Reasons for `form.idx`:
   the start of its range. Two options: start the range some days before the cut-over date and
   let the store check skip the stored filings, or select the quarter minus the stored filings, as
   `daily_filings` does. The change that makes the catch-up read `form.idx` picks one.
-- Both options cover only a date filed in a quarter that the run reads. A filing that the SEC
-  sent again with a date filed in an earlier quarter, as the 20-F, stays open.
+- Both options cover only a date filed in a quarter that the run reads. No rule yet covers a
+  filing that the SEC sent again with a date filed in an earlier quarter, as the 20-F.
 - For `daily_filings`, one download of 47 MB per run can cost too much. `form.gz` holds the same
   rows in 4.8 MB. No measurement of the daily run exists yet.
 - The header line `Last Data Received` names the last date of the file. No code reads it yet. It
