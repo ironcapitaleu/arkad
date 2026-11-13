@@ -1,18 +1,14 @@
 //! # `daily_filings` Tests
 //!
-//! Runs the tests of the modules of the `daily_filings` binary, and the run of the `Extraction`
-//! facade that the binary calls: offline against a fake SEC, and for one date live. The binary is
-//! its own crate root, so this test compiles its modules as private modules.
+//! Runs the `Extraction` facade that the `daily_filings` binary calls: offline against a fake SEC,
+//! and for one date live. The live run takes its last date from the clock of the binary. The binary
+//! is its own crate root, so this test compiles that module as a private module.
 //!
 //! ## External Dependencies
 //!
 //! - `www.sec.gov` and `data.sec.gov`: the daily index of [`live::DATE`], and the folders and the
 //!   `submissions` files of its filings
 
-#[path = "../src/bin/daily_filings/constants.rs"]
-mod constants;
-#[path = "../src/bin/daily_filings/dates.rs"]
-mod dates;
 #[path = "../src/bin/shared/new_york_clock.rs"]
 mod new_york_clock;
 

@@ -50,6 +50,8 @@ jobs:
       run: cargo clippy --workspace --all-targets --all-features -- -D warnings
     - name: Unit Tests
       run: cargo test --lib
+    - name: Binary Unit Tests
+      run: cargo test --bins --features tracing-logging
     - name: Documentation Tests
       run: cargo test --doc
 
