@@ -1,7 +1,7 @@
 //! # ZIP Body
 //!
 //! Provides the [`ZipBody`], the body kind of a response that the store keeps as raw bytes. The
-//! body is one SEC Financial Statement and Notes file (a ZIP) or one daily index (text).
+//! body is one SEC Financial Statement and Notes file (a ZIP), or one daily or full index (text).
 
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -16,7 +16,7 @@ use crate::shared::status_code::StatusCode;
 
 use super::{FileBody, ResponseBody, checked_bytes, checked_bytes_off_task};
 
-/// The bytes of a ZIP file or a daily index, exactly as the server sent them.
+/// The bytes of a ZIP file, a daily index, or a full index, exactly as the server sent them.
 ///
 /// Accepts status 200 only, and the [`ContentType::OctetStream`] or [`ContentType::Zip`]
 /// content type. If the `Content-Length` header is present, the body has exactly that many bytes.
