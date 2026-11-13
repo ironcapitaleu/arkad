@@ -1844,6 +1844,7 @@ Assumptions:
 `backfill().all()` runs the Notes step and the catch-up at the same time. In sequence, a run takes
 the sum of both steps. At the same time, it takes about the longer of the two. The cut-over date
 comes from one `HEAD` request, so the catch-up does not wait for the Notes step.
+[ADR 0003](../../../docs/adr/0003-parallel-backfill.md) records this decision and the options.
 
 Measured on 2026-11-13 in the cloud container (4 cores, about 13 to 15 MB/s to the SEC). Each run
 used a fresh store, the Notes periods `2025q1`, `2025q2`, and `2026_10` (1.27 GB), and the
