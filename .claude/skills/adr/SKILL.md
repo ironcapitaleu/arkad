@@ -19,7 +19,8 @@ for when a decision needs an ADR.
 ## Procedure
 
 1. **Run the test** of `AGENTS.md`, "Architecture Decision Records". If no row of the left column
-   holds, write no ADR. Record the choice in the design doc, the ticket, or the PR.
+   holds, write no ADR. Record the choice in the design doc, the ticket, or the PR. If the test is
+   unclear, name the decision and both options in the PR description, and ask the owner.
 2. **Search `docs/adr/`** for an ADR on the same subject.
    - If an accepted ADR covers the subject and the decision stays, link to it and stop.
    - If the decision changes in part, add an amendment (see "Amend or Supersede").
@@ -27,8 +28,10 @@ for when a decision needs an ADR.
 3. **Collect the facts before you write.** Measure each option that you can measure. Write down
    the command or the source, the date, and the result. A reason without a number, a source, or a
    mechanism is an opinion. Leave it out or mark it as open.
-4. **Pick the number.** Use the highest number in `docs/adr/` plus 1, with four digits. Name the
-   file `NNNN-<short-description>.md`, with a few kebab-case words that name the subject.
+4. **Pick the number.** Take the highest number in `docs/adr/` on `main` and in each open PR that
+   adds a file to `docs/adr/`, and add 1. Use four digits. An open PR can hold a number that
+   `main` does not show yet. Name the file `NNNN-<short-description>.md`, with a few kebab-case
+   words that name the subject.
 5. **Write the ADR** from the template. Follow the `plain-english` skill.
 6. **Link it.** Each design doc that describes the affected code links to the ADR. If the decision
    adds a rule for all code, add the rule to `AGENTS.md` with a link to the ADR.
@@ -83,8 +86,8 @@ decision.>
 <Each source of a fact above: a file, a URL, a ticket comment, or a command, with its date.>
 ```
 
-Leave out a section only if it has no content. A long ADR can add sections, as
-`docs/adr/0001-mvp-database.md` does. Keep the six sections above and their order.
+Keep the order of the six sections. Leave out a section only if it has no content. A long ADR can
+add sections, as `docs/adr/0001-mvp-database.md` does.
 
 ## Amend or Supersede
 
@@ -102,7 +105,9 @@ Leave out a section only if it has no content. A long ADR can add sections, as
 - Never rewrite the decision of an accepted ADR. Amend it or supersede it.
 - Every count, size, and time has a date and a source.
 - State what the decision does not cover. A reader must not take a gap for a covered case.
-- The decision lives in the ADR only. Design docs and `AGENTS.md` link to it.
+- The reasons and the options live in the ADR only. `AGENTS.md` can state the rule that the
+  decision adds, with a link to the ADR. A design doc links to the ADR and does not repeat the
+  decision.
 
 ## Authoritative Sources
 
