@@ -18,9 +18,9 @@ for when a decision needs an ADR.
 
 ## Procedure
 
-1. **Run the test** of `AGENTS.md`, "Architecture Decision Records". If no row of the left column
-   holds, write no ADR. Record the choice in the design doc, the ticket, or the PR. If the test is
-   unclear, name the decision and both options in the PR description, and ask the owner.
+1. **Run the test** of `AGENTS.md`, "Architecture Decision Records". If the test says no ADR,
+   record the choice in the design doc, the ticket, or the PR. If the test is unclear, name the
+   decision and both options in the PR description, and ask the owner.
 2. **Search `docs/adr/`** for an ADR on the same subject.
    - If an accepted ADR covers the subject and the decision stays, link to it and stop.
    - If the decision changes in part, add an amendment (see "Amend or Supersede").
