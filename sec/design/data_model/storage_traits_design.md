@@ -207,7 +207,8 @@ impl<R: RawStore, G: GraphStore, F: FactStore> Repository for SecRepository<R, G
 an open set, so `MediaType` is not an enum. It checks the form `type/subtype`, not a fixed list.
 
 - **Normalization.** `MediaType::new` drops the parameters after `;`, trims whitespace, and
-  lowercases the text. Then the type and the subtype must each be a non-empty RFC 9110 token.
+  lowercases the text. Then the type and the subtype must each be a non-empty RFC 9110 token
+  other than the wildcard `*`.
   `Display` and serde write the normalized text.
 - **Read.** Deserializing runs `MediaType::new`. A stored `media_type` that is not a media type
   fails to read. `persist` rewrites such a metadata file, because its JSON differs from the new

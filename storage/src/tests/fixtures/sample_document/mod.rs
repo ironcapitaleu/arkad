@@ -77,6 +77,17 @@ impl Document for SampleDocument {
     }
 }
 
+/// Returns the media type `application/json` of the sample bytes.
+///
+/// # Panics
+///
+/// Panics if the hardcoded media type is invalid. It is a valid one.
+#[must_use]
+pub fn sample_media_type() -> MediaType {
+    MediaType::new("application/json")
+        .expect("Given a hardcoded valid media type, creation should always succeed")
+}
+
 /// Returns fixed metadata of a [`SampleDocument`].
 ///
 /// # Panics
@@ -102,10 +113,7 @@ pub fn sample_metadata_of(bytes: &[u8], produced_at: &str) -> DocumentMetadata<S
         .expect("Given a valid relative path, the key should always build");
     DocumentMetadata::builder()
         .document_type::<SampleDocument>()
-        .media_type(
-            MediaType::new("application/json")
-                .expect("Given a hardcoded valid media type, creation should always succeed"),
-        )
+        .media_type(sample_media_type())
         .content(bytes)
         .produced_at(produced_at)
         .run(

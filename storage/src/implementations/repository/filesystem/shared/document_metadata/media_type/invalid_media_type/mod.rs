@@ -42,6 +42,8 @@ pub enum InvalidMediaTypeReason {
     EmptySubtype,
     /// The type or the subtype holds a character that RFC 9110 does not allow in a token.
     InvalidCharacter(char),
+    /// The type or the subtype is the wildcard `*`, which names a media range, not a media type.
+    Wildcard,
 }
 
 impl Display for InvalidMediaTypeReason {
@@ -57,6 +59,7 @@ impl Display for InvalidMediaTypeReason {
                     u32::from(*character)
                 )
             }
+            Self::Wildcard => write!(f, "The wildcard '*' names a media range, not a media type"),
         }
     }
 }

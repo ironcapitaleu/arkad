@@ -388,7 +388,13 @@ mod tests {
 
         let expected_result = true;
 
-        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored).is_err();
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .err()
+            .is_some_and(|error| {
+                error
+                    .to_string()
+                    .starts_with("[InvalidMediaType] Media type 'unknown'")
+            });
 
         assert_eq!(result, expected_result);
     }

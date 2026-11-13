@@ -554,7 +554,9 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::fixtures::sample_document::{SampleContext, SampleDocument, sample_metadata};
+    use crate::tests::fixtures::sample_document::{
+        SampleContext, SampleDocument, sample_media_type, sample_metadata,
+    };
 
     fn produced_at() -> DateTime<Utc> {
         "2026-09-22T20:05:30Z"
@@ -637,10 +639,7 @@ mod tests {
 
         let result = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -665,10 +664,7 @@ mod tests {
             .run(execution_id, producer)
             .produced_at(produced_at())
             .content(b"{}")
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .document_type::<SampleDocument>()
             .ingestion_mode(IngestionMode::Backfill)
             .build();
@@ -685,10 +681,7 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -710,10 +703,7 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .content_hashed(bytes, &digest_of_other_bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -734,10 +724,7 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .content(bytes)
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -757,10 +744,7 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)
@@ -781,10 +765,7 @@ mod tests {
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()
-            .media_type(
-                MediaType::new("application/json")
-                    .expect("Given a hardcoded valid media type, creation should always succeed"),
-            )
+            .media_type(sample_media_type())
             .content(b"{}")
             .produced_at(produced_at())
             .run(execution_id, producer)

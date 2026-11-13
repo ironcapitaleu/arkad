@@ -498,8 +498,7 @@ impl<S: RawSource> Document for RawDocument<S> {
 /// Returns the [`MediaType`] that the metadata records for a response of `content_type`.
 ///
 /// Returns `application/octet-stream` if `content_type` is not a media type, such as
-/// [`ContentType::Unknown`] or a malformed [`ContentType::Other`]. RFC 9110, section 8.3, lets a
-/// recipient treat bytes without a media type that way. Today every body kind of an
+/// [`ContentType::Unknown`] or a malformed [`ContentType::Other`]. Today every body kind of an
 /// [`SecResponse`] rejects both variants, so the fallback applies only to a body kind that accepts
 /// them.
 fn media_type_of(content_type: &ContentType) -> MediaType {

@@ -20,7 +20,7 @@ pub use invalid_media_type::{InvalidMediaType, InvalidMediaTypeReason};
 /// [`MediaType::new`] normalizes the input before it checks it. It drops the parameters after the
 /// first `;`, such as `; charset=utf-8`, trims whitespace, and lowercases the text, because media
 /// types are case-insensitive (RFC 9110, section 8.3.1). Then the type and the subtype must each
-/// be a non-empty RFC 9110 token.
+/// be a non-empty RFC 9110 token other than the wildcard `*`.
 ///
 /// [`Display`] and serde write the normalized text. Deserializing runs [`MediaType::new`], so a
 /// stored value that is not a media type fails to read.
@@ -50,8 +50,8 @@ impl MediaType {
     /// # Errors
     ///
     /// Returns an [`InvalidMediaType`] if, after the normalization in [`MediaType`], the text has
-    /// no `/`, an empty type or subtype, or a character that is not allowed in a token, such as a
-    /// space or a second `/`.
+    /// no `/`, an empty type or subtype, a wildcard type or subtype, or a character that is not
+    /// allowed in a token, such as a space or a second `/`.
     pub fn new(media_type: &str) -> Result<Self, InvalidMediaType> {
         let normalized = media_type
             .split(';')
@@ -68,6 +68,9 @@ impl MediaType {
         }
         if subtype.is_empty() {
             return Err(reject(InvalidMediaTypeReason::EmptySubtype));
+        }
+        if type_part == "*" || subtype == "*" {
+            return Err(reject(InvalidMediaTypeReason::Wildcard));
         }
         if let Some(character) = type_part
             .chars()
@@ -269,6 +272,48 @@ mod tests {
         let expected_result = Err(InvalidMediaType::new(
             "text plain/x",
             InvalidMediaTypeReason::InvalidCharacter(' '),
+        ));
+
+        let result = MediaType::new(media_type);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_wildcard_when_the_subtype_is_a_wildcard() {
+        let media_type = "text/*";
+
+        let expected_result = Err(InvalidMediaType::new(
+            "text/*",
+            InvalidMediaTypeReason::Wildcard,
+        ));
+
+        let result = MediaType::new(media_type);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_character_when_the_subtype_holds_a_non_ascii_character() {
+        let media_type = "text/plaın";
+
+        let expected_result = Err(InvalidMediaType::new(
+            "text/plaın",
+            InvalidMediaTypeReason::InvalidCharacter('ı'),
+        ));
+
+        let result = MediaType::new(media_type);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_missing_slash_when_the_text_is_empty() {
+        let media_type = "";
+
+        let expected_result = Err(InvalidMediaType::new(
+            "",
+            InvalidMediaTypeReason::MissingSlash,
         ));
 
         let result = MediaType::new(media_type);

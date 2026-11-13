@@ -1996,8 +1996,8 @@ documents:
 - The daily index is stored so that detection can run again without the SEC.
 - A new fetch of `submissions` replaces the old file. The raw store holds the latest company data
   only. The same holds for a replaced Notes file.
-- The metadata records the content type that the SEC sent, as `ContentType` names it, in a
-  `MediaType`. For example, a Notes ZIP keeps `application/octet-stream`, and an XML file sent as
+- The metadata records the content type that the SEC sent as a `MediaType`, with the name that
+  `ContentType` gives it. For example, a Notes ZIP keeps `application/octet-stream`, and an XML file sent as
   `text/xml` gets `application/xml`. A content type that is not of the form `type/subtype` is
   recorded as `application/octet-stream`.
 
