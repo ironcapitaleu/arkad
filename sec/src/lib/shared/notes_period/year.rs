@@ -32,6 +32,24 @@ impl Year {
             .then(|| number.parse().ok().map(Self))
             .flatten()
     }
+
+    /// Returns the number of the year, for example `2009`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sec::shared::notes_period::constants::FIRST_YEAR;
+    ///
+    /// let expected_result = 2009;
+    ///
+    /// let result = FIRST_YEAR.number();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub const fn number(self) -> u16 {
+        self.0
+    }
 }
 
 impl Display for Year {

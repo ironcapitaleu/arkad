@@ -1791,6 +1791,13 @@ Rules:
    assumption A2 below. A cut-over date that is too early costs only overlap, because rule 4
    keeps every write idempotent. A cut-over date that is too late leaves a gap that no step
    reports.
+
+   `daily_filings` has no Notes step and sends no such request. `stored_cut_over_date` gives the
+   date from the store: the last day of the newest stored Notes period. If no stored file covers
+   a quarter from `2009q1` through the quarter of that period, the function fails and names the
+   first such quarter. If a Notes
+   period failed, this date is earlier than the date of `backfill().all()`. That costs only
+   overlap. `daily_filings` does not call the function yet (rule 7).
 2. The first run reads every day from the start date up to yesterday. The binary `backfill` runs
    the first load: the Notes periods and, at the same time, this catch-up. Each later run of
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).
@@ -1815,9 +1822,8 @@ Rules:
    keeps the overlap free of duplicate rows.
 7. The operator sets the first `ARKAD_FROM` of `daily_filings` by rule 1, after the check of
    rule 5. The binary `backfill` passes only the last date to `all()`, which finds the cut-over
-   date itself, so no operator sets the start date. `daily_filings` reads no stored document to pick its dates, so it cannot check
-   this rule itself. The check from the store comes with the repository listing
-   (STA-403).
+   date itself, so no operator sets the start date. `stored_cut_over_date` checks this rule from
+   the keys of the stored Notes files (rule 1). `daily_filings` does not call it yet.
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
    (STA-400), so a repeat downloads only the files that are missing or that the store cannot
    verify.
