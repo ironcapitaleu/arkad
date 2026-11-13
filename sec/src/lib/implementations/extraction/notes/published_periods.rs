@@ -113,7 +113,7 @@ fn is_merged(quarter: NotesPeriod, through: NaiveDate) -> bool {
 /// # Errors
 ///
 /// Returns a [`FailedNotesProbe`] if the last request fails with any answer other than 404.
-async fn is_published<C>(
+pub(in crate::implementations::extraction) async fn is_published<C>(
     sec_client: &C,
     quarter: NotesPeriod,
     retry_delays: &[Duration],
