@@ -81,10 +81,18 @@ impl AllRunSummary {
     ///
     /// # Errors
     ///
-    /// Returns [`FailedAllBackfill`] if at least one of them failed. An unpublished Notes period,
-    /// a pending date, and an unextractable filing do not count as failed.
+    /// Returns [`FailedAllBackfill`] if at least one of them failed. A pending date and an
+    /// unextractable filing do not count as failed. An unpublished Notes period does not count
+    /// either, unless the newest stored period ends before the cut-over date. The SEC then
+    /// published the period at the cut-over date, and the run did not store it, so the catch-up
+    /// starts after a gap.
     pub fn result(&self) -> Result<(), FailedAllBackfill> {
-        let failed_periods = self.notes.failure_count();
+        let unpublished_periods = self.notes.unpublished_count();
+        let failed_periods = if self.misses_cut_over_period() {
+            self.notes.failure_count() + unpublished_periods
+        } else {
+            self.notes.failure_count()
+        };
         let catch_up_failures = self
             .catch_up
             .result()
@@ -95,10 +103,19 @@ impl AllRunSummary {
         }
         Err(FailedAllBackfill {
             failed_periods,
-            periods: self.notes.success_count() + failed_periods + self.notes.unpublished_count(),
+            periods: self.notes.success_count() + self.notes.failure_count() + unpublished_periods,
             catch_up_failures,
             catch_up_dates: self.catch_up_dates.len(),
         })
+    }
+
+    /// Returns `true` if no stored Notes period ends on or after the cut-over date.
+    fn misses_cut_over_period(&self) -> bool {
+        self.notes
+            .stored_archives()
+            .map(|archive| archive.period().last_day())
+            .max()
+            .is_none_or(|newest| newest < self.cut_over_date)
     }
 }
 

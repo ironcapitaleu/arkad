@@ -301,3 +301,28 @@ async fn should_download_the_failed_period_when_a_second_run_repeats_the_run() {
 
     assert_eq!(result, expected_result);
 }
+
+#[tokio::test]
+async fn should_return_failed_all_backfill_when_the_sec_refuses_the_download_of_the_published_newest_period()
+ {
+    let root = temporary_root();
+    let sec_client = sec_client(&["2026_08"]).route_sequence(
+        &format!("{NOTES_URL}2026_09_notes.zip"),
+        &[
+            (200, "application/zip", SAMPLE_NOTES_ZIP),
+            (403, "application/xml", b""),
+        ],
+    );
+    let periods = ["2026_08", "2026_09"];
+
+    let expected_result = Err(FailedAllBackfill {
+        failed_periods: 1,
+        periods: 2,
+        catch_up_failures: 0,
+        catch_up_dates: 2,
+    });
+
+    let result = run_all(&root, sec_client, &periods).await.result();
+
+    assert_eq!(result, expected_result);
+}
