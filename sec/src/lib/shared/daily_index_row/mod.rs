@@ -5,8 +5,11 @@
 //!
 //! The daily index is fixed-width text. Header lines come first. The last header line starts with
 //! `---`. Each row after it holds a form, a company name, a CIK, a date filed, and a file name. The
-//! parser returns every row. `SelectFilings` picks the forms and keeps one row per accession
-//! number.
+//! parser returns every row. [`select_filings`](crate::shared::filing_ref::select_filings) picks
+//! the forms and keeps one row per accession number.
+//!
+//! The full index `form.idx` of a quarter has the same layout. Its date filed has the form
+//! `YYYY-MM-DD`, not `YYYYMMDD`. The parser reads both files.
 //!
 //! ## Modules
 //!
@@ -29,11 +32,23 @@ const HEADER_END_PREFIX: &str = "---";
 /// The width of the form column. Form text can hold spaces, as in `DEF 14A`.
 const FORM_COLUMN_WIDTH: usize = 17;
 
-/// The format of the date filed field, as in `20261027`.
-const FILED_DATE_FORMAT: &str = "%Y%m%d";
+/// The format of the date filed field of a daily index, as in `20261027`.
+const DAILY_FILED_DATE_FORMAT: &str = "%Y%m%d";
 
-/// The length of the date filed field.
-const FILED_DATE_LENGTH: usize = 8;
+/// The length of the date filed field of a daily index.
+const DAILY_FILED_DATE_LENGTH: usize = 8;
+
+/// The format of the date filed field of a full index, as in `2026-10-27`.
+const FULL_FILED_DATE_FORMAT: &str = "%Y-%m-%d";
+
+/// The length of the date filed field of a full index.
+const FULL_FILED_DATE_LENGTH: usize = 10;
+
+/// The dash between the parts of the date filed field of a full index.
+const FULL_FILED_DATE_SEPARATOR: u8 = b'-';
+
+/// The positions of the two dashes in the date filed field of a full index.
+const FULL_FILED_DATE_SEPARATOR_POSITIONS: [usize; 2] = [4, 7];
 
 /// The extension of the file name field, as in `edgar/data/320193/0000320193-26-000106.txt`.
 const FILE_NAME_EXTENSION: &str = ".txt";
@@ -48,7 +63,8 @@ pub struct DailyIndexRow {
     accession_number: AccessionNumber,
 }
 
-/// Parses the text of an EDGAR daily index into one [`DailyIndexRow`] per row line.
+/// Parses the text of an EDGAR daily index, or of the full index `form.idx` of a quarter, into
+/// one [`DailyIndexRow`] per row line.
 ///
 /// Skips every line up to the first line that starts with `---`, and skips blank lines after it. Accepts `\n` and
 /// `\r\n` line endings.
@@ -174,16 +190,33 @@ impl DailyIndexRow {
     }
 }
 
-/// Returns the date of an 8-digit text such as `20261027`, or `None` if it has another shape.
+/// Returns the date of a text such as `20261027` or `2026-10-27`, or `None` if it has another
+/// shape.
 ///
-/// Checks the length first, because `%Y%m%d` also accepts a 1-digit month or day, as in
-/// `2026102`.
+/// Checks the length and the characters first, because both formats also accept a 1-digit month
+/// or day, as in `2026102`, and a sign before the year.
 fn filed_date_of(text: &str) -> Option<NaiveDate> {
-    if text.len() != FILED_DATE_LENGTH || !text.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
+    let format = match text.len() {
+        DAILY_FILED_DATE_LENGTH if text.bytes().all(|byte| byte.is_ascii_digit()) => {
+            DAILY_FILED_DATE_FORMAT
+        }
+        FULL_FILED_DATE_LENGTH if has_full_filed_date_shape(text) => FULL_FILED_DATE_FORMAT,
+        _ => return None,
+    };
 
-    NaiveDate::parse_from_str(text, FILED_DATE_FORMAT).ok()
+    NaiveDate::parse_from_str(text, format).ok()
+}
+
+/// Returns `true` if `text` has a `-` at the two positions of `2026-10-27` and a digit at every
+/// other position.
+fn has_full_filed_date_shape(text: &str) -> bool {
+    text.bytes().enumerate().all(|(position, byte)| {
+        if FULL_FILED_DATE_SEPARATOR_POSITIONS.contains(&position) {
+            byte == FULL_FILED_DATE_SEPARATOR
+        } else {
+            byte.is_ascii_digit()
+        }
+    })
 }
 
 /// Returns the accession number at the end of a file name such as
@@ -204,6 +237,7 @@ mod tests {
     use super::*;
     use crate::shared::cik::{CikError, InvalidCikReason};
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
+    use crate::tests::fixtures::data::full_index::SAMPLE_FULL_INDEX_2026_Q3;
 
     const FILE_NAME: &str = "edgar/data/320193/0000320193-26-000106.txt";
 
@@ -403,6 +437,69 @@ mod tests {
         });
 
         let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_filed_date_when_row_has_the_date_form_of_a_full_index() {
+        let line = row_line("10-K", "320193", "2026-10-27", FILE_NAME);
+
+        let expected_result = Ok(vec![row("10-K", "320193", "0000320193-26-000106")]);
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_dashed_filed_date_has_a_one_digit_day() {
+        let line = row_line("10-K", "320193", "2026-10-7", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+            filed_date: "2026-10-7".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_dashed_filed_date_starts_with_a_sign() {
+        let line = row_line("10-K", "320193", "-026-10-27", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+            filed_date: "-026-10-27".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_ten_digits_hold_no_dash() {
+        let line = row_line("10-K", "320193", "2026102700", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+            filed_date: "2026102700".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_one_row_per_row_line_for_sample_full_index() {
+        let text = SAMPLE_FULL_INDEX_2026_Q3;
+
+        let expected_result = 6;
+
+        let result = parse_daily_index(text)
+            .expect("Given the stored fixture of a real index, parsing should always succeed")
+            .len();
 
         assert_eq!(result, expected_result);
     }
