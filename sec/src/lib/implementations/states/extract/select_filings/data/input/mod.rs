@@ -10,7 +10,7 @@ use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::implementations::states::extract::store_daily_index::StoredDailyIndex;
+use crate::shared::stored_form_index::StoredFormIndex;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`SelectFilings`](super::super::SelectFilings) state.
@@ -18,7 +18,7 @@ use crate::traits::state_machine::state::StateData;
 pub struct SelectFilingsInput {
     /// The stored daily index, or `None` if the day had no filings, as in
     /// [`StoreDailyIndexOutput`](crate::implementations::states::extract::store_daily_index::StoreDailyIndexOutput).
-    pub index: Option<StoredDailyIndex>,
+    pub index: Option<StoredFormIndex>,
 }
 
 impl SelectFilingsInput {
@@ -38,7 +38,7 @@ impl SelectFilingsInput {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(index: Option<StoredDailyIndex>) -> Self {
+    pub const fn new(index: Option<StoredFormIndex>) -> Self {
         Self { index }
     }
 }
@@ -92,7 +92,7 @@ impl fmt::Display for SelectFilingsInput {
 #[derive(Debug)]
 pub struct SelectFilingsInputUpdater {
     /// The new stored index. `Some(None)` marks a day without filings.
-    pub index: Option<Option<StoredDailyIndex>>,
+    pub index: Option<Option<StoredFormIndex>>,
 }
 
 impl SelectFilingsInputUpdater {
@@ -121,7 +121,7 @@ impl SelectFilingsInputUpdaterBuilder {
     /// Sets the stored index. `None` marks a day without filings.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn index(mut self, index: Option<StoredDailyIndex>) -> Self {
+    pub fn index(mut self, index: Option<StoredFormIndex>) -> Self {
         self.updater.index = Some(index);
         self
     }
@@ -150,8 +150,8 @@ mod tests {
 
     use super::*;
 
-    fn stored_index(text: &'static [u8]) -> StoredDailyIndex {
-        StoredDailyIndex {
+    fn stored_index(text: &'static [u8]) -> StoredFormIndex {
+        StoredFormIndex {
             key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
             sha256: storage::Sha256Digest::of(text),

@@ -21,6 +21,7 @@
 //! - [`store_sec_response`]: Writes the response to a request of any stored kind to the store.
 //! - [`store_company_facts`]: The store state of the Company Facts kind.
 //! - [`validate_notes_period`]: Validates the raw period of a Notes file.
+//! - [`store_full_index`]: Writes the full index of one quarter to the store.
 //! - [`store_notes_archive`]: Writes the Notes file to the store.
 //! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
 //! - [`download_daily_index`]: Downloads the daily index of one date, with the rule for a missing index.
@@ -44,6 +45,7 @@ pub mod store_company_facts;
 pub mod store_daily_index;
 pub mod store_filing_documents;
 pub mod store_filing_index;
+pub mod store_full_index;
 pub mod store_notes_archive;
 pub mod store_sec_response;
 pub mod store_submissions;

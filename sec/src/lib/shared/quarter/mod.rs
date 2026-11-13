@@ -1,7 +1,7 @@
 //! # Quarter
 //!
-//! Provides [`Quarter`], one calendar quarter of one year. It names the folder of an EDGAR full
-//! index, as in `full-index/2026/QTR4/`.
+//! Provides [`Quarter`], one calendar quarter of one year. It names the folder of an EDGAR daily
+//! index or full index, as in `full-index/2026/QTR4/`.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -13,6 +13,9 @@ const QUARTER_FOLDERS: [&str; 4] = ["QTR1", "QTR2", "QTR3", "QTR4"];
 
 /// The number of months in one quarter.
 const MONTHS_PER_QUARTER: u32 = 3;
+
+/// The number of quarters in one year.
+const QUARTERS_PER_YEAR: u32 = 4;
 
 /// One calendar quarter of one year, for example the fourth quarter of 2026.
 ///
@@ -60,6 +63,46 @@ impl Quarter {
     #[must_use]
     pub const fn folder(&self) -> &'static str {
         QUARTER_FOLDERS[self.index as usize]
+    }
+
+    /// Returns the quarter after this one. The quarter after the fourth is the first of the next
+    /// year.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::quarter::Quarter;
+    ///
+    /// let date = NaiveDate::from_ymd_opt(2026, 12, 31)
+    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    ///
+    /// let expected_result = "2027/QTR1";
+    ///
+    /// let result = Quarter::of(date).next().to_string();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub const fn next(&self) -> Self {
+        if self.index + 1 == QUARTERS_PER_YEAR {
+            Self {
+                year: self.year + 1,
+                index: 0,
+            }
+        } else {
+            Self {
+                year: self.year,
+                index: self.index + 1,
+            }
+        }
+    }
+
+    /// Returns the first day of the quarter, or `None` if the quarter lies after the last year that
+    /// [`NaiveDate`] holds.
+    #[must_use]
+    pub const fn first_day(&self) -> Option<NaiveDate> {
+        NaiveDate::from_ymd_opt(self.year, self.index * MONTHS_PER_QUARTER + 1, 1)
     }
 }
 
@@ -174,6 +217,50 @@ mod tests {
         let expected_result = true;
 
         let result = earlier < later;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_next_quarter_of_the_same_year_when_the_quarter_is_the_third() {
+        let quarter = Quarter::of(date(2026, 9, 30));
+
+        let expected_result = Quarter::of(date(2026, 10, 1));
+
+        let result = quarter.next();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_first_quarter_of_the_next_year_when_the_quarter_is_the_fourth() {
+        let quarter = Quarter::of(date(2026, 12, 31));
+
+        let expected_result = Quarter::of(date(2027, 1, 1));
+
+        let result = quarter.next();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_first_day_of_the_quarter_when_the_quarter_holds_a_date_in_its_middle() {
+        let quarter = Quarter::of(date(2026, 8, 15));
+
+        let expected_result = Some(date(2026, 7, 1));
+
+        let result = quarter.first_day();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_first_day_when_the_quarter_lies_after_the_last_year_of_naive_date() {
+        let quarter = Quarter::of(NaiveDate::MAX);
+
+        let expected_result = None;
+
+        let result = quarter.next().first_day();
 
         assert_eq!(result, expected_result);
     }

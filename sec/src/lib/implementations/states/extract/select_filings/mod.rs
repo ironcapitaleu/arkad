@@ -216,18 +216,18 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::implementations::states::extract::store_daily_index::StoredDailyIndex;
     use crate::shared::cik::Cik;
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::form_index_row::InvalidFormIndexLineReason;
+    use crate::shared::stored_form_index::StoredFormIndex;
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
 
     /// The header of a hand-written daily index. The last line starts with `---`.
     const INDEX_HEADER: &str = "Form Type   Company Name\n---\n";
 
     fn test_state(index_bytes: Option<Vec<u8>>) -> SelectFilings {
-        let index = index_bytes.map(|text| StoredDailyIndex {
+        let index = index_bytes.map(|text| StoredFormIndex {
             key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
             sha256: storage::Sha256Digest::of(&text),

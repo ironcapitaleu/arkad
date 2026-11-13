@@ -33,6 +33,7 @@
 //! ## See Also
 //! - [`crate::implementations`]: Concrete state and state machine implementations that use these shared utilities.
 //! - [`crate::error`]: Error types that may reference shared domain types for detailed error reporting.
+//! - [`stored_form_index`]: Provides [`StoredFormIndex`](stored_form_index::StoredFormIndex), the key, the SHA-256, and the text of one stored daily index or full index.
 
 pub mod build_info;
 pub mod cik;
@@ -58,5 +59,6 @@ pub mod request;
 pub mod response;
 pub mod run_fields;
 pub mod status_code;
+pub mod stored_form_index;
 pub mod url;
 pub mod user_agent;
