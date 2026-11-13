@@ -23,8 +23,11 @@ classDiagram
         %% Errors from internal state operations
         +InvalidCikFormat(InvalidCikFormat)
         +InvalidNotesPeriod(InvalidNotesPeriod)
+        +InvalidIndexDate(InvalidIndexDate)
+        +InvalidDailyIndex(InvalidDailyIndex)
         +FailedRequestExecution(FailedRequestExecution)
         +MissingDailyIndex(MissingDailyIndex)
+        +FailedDocumentSelection(FailedDocumentSelection)
         +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
@@ -56,6 +59,20 @@ classDiagram
         +NotesPeriodError notes_period_error
     }
 
+    class InvalidIndexDate{
+        << struct >>
+        %% State-level wrapper for index date validation errors
+        +String state_name
+        +IndexDateError index_date_error
+    }
+
+    class InvalidDailyIndex{
+        << struct >>
+        %% State-level wrapper for a daily index that does not parse into rows
+        +String state_name
+        +DailyIndexError daily_index_error
+    }
+
     class FailedRequestExecution{
         << struct >>
         %% State-level wrapper for request execution errors
@@ -68,6 +85,13 @@ classDiagram
         %% State-level leaf error for a daily index the SEC did not send
         +String state_name
         +IndexDate index_date
+    }
+
+    class FailedDocumentSelection{
+        << struct >>
+        %% State-level wrapper for a filing folder with no single XBRL instance or label file
+        +String state_name
+        +FilingDocumentsError filing_documents_error
     }
 
     class FailedDocumentWrite{
@@ -154,6 +178,36 @@ classDiagram
         +UnpublishedYear(year: Year)
     }
 
+    class IndexDateError{
+        << struct >>
+        %% Domain error for an invalid index date
+        +InvalidIndexDateReason reason
+        +String invalid_date
+    }
+
+    class InvalidIndexDateReason{
+        << enum >>
+        %% Why a string failed index date validation
+        +InvalidIndexDateFormat
+        +EarlyIndexDate
+        +FutureIndexDate(today: NaiveDate)
+    }
+
+    class DailyIndexError{
+        << enum >>
+        %% Domain error for a daily index that does not parse into rows
+        +MissingDailyIndexHeader
+        +InvalidDailyIndexLine(usize line_number, InvalidDailyIndexLineReason reason)
+        +InvalidDailyIndexCik(usize line_number, CikError source)
+    }
+
+    class FilingDocumentsError{
+        << enum >>
+        %% Domain error for a filing folder with no single XBRL instance or label file
+        +MissingXbrlInstance(AccessionNumber accession_number)
+        +AmbiguousFilingDocument(AccessionNumber accession_number, FilingDocumentRole role, usize candidate_count)
+    }
+
     class InvalidCikReason{
         << enum >>
         %% Why a string failed CIK validation
@@ -201,8 +255,11 @@ classDiagram
     %% State error wraps domain errors
     State <|-- InvalidCikFormat
     State <|-- InvalidNotesPeriod
+    State <|-- InvalidIndexDate
+    State <|-- InvalidDailyIndex
     State <|-- FailedRequestExecution
     State <|-- MissingDailyIndex
+    State <|-- FailedDocumentSelection
     State <|-- FailedDocumentWrite
     State <|-- IncompleteCompanyFacts
 
@@ -216,6 +273,11 @@ classDiagram
     CikError --> InvalidCikReason
     InvalidNotesPeriod --> NotesPeriodError
     NotesPeriodError --> InvalidNotesPeriodReason
+    InvalidIndexDate --> IndexDateError
+    IndexDateError --> InvalidIndexDateReason
+    InvalidDailyIndex --> DailyIndexError
+    DailyIndexError --> CikError
+    FailedDocumentSelection --> FilingDocumentsError
     IncompleteCompanyFacts --> MissingFields
     FailedRequestExecution --> FailedSecRequest
     FailedDocumentWrite --> FailedDocumentStorage
