@@ -1771,10 +1771,11 @@ Rules:
    keeps every write idempotent. A cut-over date that is too late leaves a gap that no step
    reports.
 
-   `daily_filings` has no Notes step and sends no such request. It reads the date from the store
-   with `stored_cut_over_date`: the last day of the newest stored Notes period. The function fails
-   and names the first quarter from `2009q1` on that no stored file covers. If a Notes period
-   failed, this date is earlier than the date of `backfill().all()`. That costs only overlap.
+   `daily_filings` has no Notes step and sends no such request. `stored_cut_over_date` gives the
+   date from the store: the last day of the newest stored Notes period. If no stored file covers
+   a quarter from `2009q1` on, the function fails and names the first such quarter. If a Notes
+   period failed, this date is earlier than the date of `backfill().all()`. That costs only
+   overlap. `daily_filings` does not call the function yet (rule 7).
 2. The first run reads every day from the start date up to yesterday. The binary `backfill` runs
    the first load: the Notes periods and, at the same time, this catch-up. Each later run of
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).

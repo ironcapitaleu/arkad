@@ -613,7 +613,8 @@ Triggers:
 
 ### Cut-Over Date From the Store
 
-Status: implemented in `stored_cut_over_date`. See [2. Cut-Over Date](#2-cut-over-date).
+Status: the function is implemented as `stored_cut_over_date`. `daily_filings` does not call it
+yet. See [2. Cut-Over Date](#2-cut-over-date).
 
 Assumptions:
 

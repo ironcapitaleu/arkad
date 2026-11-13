@@ -56,7 +56,7 @@ pub enum MissingStoredCutOverDate {
 /// quarterly file, or by its three monthly files. The quarter of the newest period needs only its
 /// months up to the newest one. The store can hold a quarter and its months at once. Both count.
 ///
-/// The check reads the keys alone. It sends no SEC request and reads no file.
+/// The check reads only the keys. It sends no SEC request and reads no file.
 ///
 /// # Errors
 ///
@@ -185,6 +185,7 @@ mod tests {
     use storage::error::BackendError;
 
     use super::*;
+    use crate::shared::notes_period::Year;
 
     /// A store that lists its seeded keys under the directory of the filter, sorted by bytes.
     struct StoredKeys(Vec<Result<DocumentKey, ReadError>>);
@@ -360,6 +361,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_name_the_newest_quarter_when_a_month_before_the_newest_month_is_missing() {
+        let notes_store = StoredKeys::of(&[
+            "sec/notes/2009q1_notes.zip",
+            "sec/notes/2009q2_notes.zip",
+            "sec/notes/2009q3_notes.zip",
+            "sec/notes/2009_11_notes.zip",
+        ]);
+
+        let expected_result = Err(MissingStoredCutOverDate::UncoveredQuarter {
+            quarter: period("2009q4"),
+        });
+
+        let result = stored_cut_over_date(&notes_store).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_parse_2010q1_when_the_key_has_the_override_file_name_of_2010q1() {
         let notes_store = StoredKeys::of(&[
             "sec/notes/2009q1_notes.zip",
@@ -450,8 +469,13 @@ mod tests {
 
         let expected_result = Err(MissingStoredCutOverDate::InvalidNotesKey {
             key: "sec/notes/2008q4_notes.zip".to_string(),
-            source: NotesPeriod::new("2008q4")
-                .expect_err("Given a year before the first Notes year, parsing should always fail"),
+            source: NotesPeriodError::new(
+                InvalidNotesPeriodReason::UnpublishedYear {
+                    year: Year::from_number_str("2008")
+                        .expect("Given a hardcoded four-digit year, the year should always parse"),
+                },
+                "2008q4",
+            ),
         });
 
         let result = stored_cut_over_date(&notes_store).await;
