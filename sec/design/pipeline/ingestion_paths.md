@@ -1781,8 +1781,12 @@ Rules:
    catch-up runs at the same time as the Notes step, so it cannot wait for this check. A failed
    Notes period fails the run instead: `AllRunSummary::result()` returns `FailedAllBackfill`, and
    `backfill` exits with an error. Rerun the backfill (rule 8). The repeat downloads the failed
-   period. To check a run by hand, confirm that no entry in the Notes summary has a
-   `failed_state`. See [Calling the Machines](#calling-the-machines). Do not rely on the
+   period. The run also fails if no stored Notes period ends on or after the cut-over date. For
+   example, the `HEAD` request answers 200, and the download of the same file then gets a 403.
+   The Notes summary lists that period as unpublished, but `result()` counts it as failed. To
+   check a run by hand, confirm that no entry in the Notes summary has a `failed_state`, and that
+   the newest stored period ends on or after the cut-over date. See
+   [Calling the Machines](#calling-the-machines). Do not rely on the
    calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
    [Notes ZIP Findings](#notes-zip-findings)).
