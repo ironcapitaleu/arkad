@@ -44,10 +44,10 @@ const FULL_FILED_DATE_FORMAT: &str = "%Y-%m-%d";
 /// The length of the date filed field of a full index.
 const FULL_FILED_DATE_LENGTH: usize = 10;
 
-/// The sign between the parts of the date filed field of a full index.
+/// The dash between the parts of the date filed field of a full index.
 const FULL_FILED_DATE_SEPARATOR: u8 = b'-';
 
-/// The positions of the two signs in the date filed field of a full index.
+/// The positions of the two dashes in the date filed field of a full index.
 const FULL_FILED_DATE_SEPARATOR_POSITIONS: [usize; 2] = [4, 7];
 
 /// The extension of the file name field, as in `edgar/data/320193/0000320193-26-000106.txt`.

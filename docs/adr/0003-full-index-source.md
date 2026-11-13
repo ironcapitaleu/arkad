@@ -73,11 +73,13 @@ Reasons for `form.idx`:
   - The daily index of 2026-10-16 lists a 10-Q with the date filed 2026-10-16. The daily index of
     2026-10-19 lists it again with 2026-10-15 (`0001437749-26-032746`). `form.idx` lists it once,
     with 2026-10-15.
-- A filter by date filed misses a filing whose date filed lies before the start of the range,
-  if the SEC sent it inside the range. The 20-F above is such a filing. The daily index
-  path fetches them, because it reads the file of the day the SEC sent the filing. The Notes
-  files cover a date filed before the cut-over date only if the SEC builds them by date filed,
-  and no measurement shows that yet.
+- A filter by date filed misses a filing that the SEC sent inside the range with a date filed
+  before the start of the range. The 10-Q above is such a filing: a range that starts on
+  2026-10-16 misses it. The daily index path fetches such a filing, because it reads the file of
+  the day the SEC sent it.
+- A run that reads `form.idx` of a quarter misses a filing that the SEC sent again with a date
+  filed in an earlier quarter, as the 20-F above. The Notes files store such a filing only if the
+  SEC builds them by date filed. No measurement shows that yet.
 - A date without rows in `form.idx` can be a day without filings or a day that the SEC has not
   added yet. The file does not tell the two cases apart by its rows.
 
@@ -87,6 +89,8 @@ Reasons for `form.idx`:
   the start of its range. Two options: start the range some days before the cut-over date and
   let the store check skip the stored filings, or select the quarter minus the stored filings, as
   `daily_filings` does. The change that makes the catch-up read `form.idx` picks one.
+- Both options cover only a date filed in a quarter that the run reads. A filing that the SEC
+  sent again with a date filed in an earlier quarter, as the 20-F, stays open.
 - For `daily_filings`, one download of 47 MB per run can cost too much. `form.gz` holds the same
   rows in 4.8 MB. No measurement of the daily run exists yet.
 - The header line `Last Data Received` names the last date of the file. No code reads it yet. It
