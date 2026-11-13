@@ -8,15 +8,15 @@
 //! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
 //! with [`BackfillNotes::periods`]. The Company Facts and the `submissions` sources run a batch of
 //! CIKs with [`BackfillCompanyFacts::ciks`] and [`BackfillSubmissions::ciks`]. The new-filing path
-//! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods,
-//! then the `submissions` file of each CIK of the stored Notes files.
+//! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods
+//! and, at the same time, the new-filing path from the cut-over date.
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
 //! ## Modules
 //!
-//! - [`all`]: The pipeline of a backfill run: the Notes periods, then the `submissions` file of
-//!   each distinct CIK of the stored Notes files.
+//! - [`all`]: The pipeline of a backfill run: the Notes periods and, at the same time, the
+//!   new-filing path from the cut-over date.
 //! - [`company_facts`]: The Company Facts source of a backfill run, and its batch run over many
 //!   CIKs.
 //! - [`daily_filings`]: The new-filing path of an incremental run over many dates.

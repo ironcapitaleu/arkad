@@ -423,8 +423,8 @@ After a parser fix, a driver reruns transform on every stored Notes file and ins
 ### 2. Cut-Over Date
 
 Rule 1 of "Cut-Over Between the Paths" starts the new-filing path at the last day of the newest
-stored Notes month. Today the run summary of `backfill` gives that month. The listing gives it from
-the store:
+published Notes period. Today `backfill` asks the SEC for that period with one `HEAD` request. The
+listing gives the newest stored period from the store:
 
 1. Call `list_keys(sec/notes)`.
 2. Parse the period from each file name: the text before `_notes`, through `NotesPeriod::new`.
@@ -439,8 +439,9 @@ The SEC merges the monthly files of a quarter into one quarterly file about a ye
 can then hold the months, the quarter, or both. Each of the three counts as covered, and each gives
 the same newest last day.
 
-The `backfill` binary keeps `cut_over_date()` from its own summary, because it has the summary in
-memory. `daily_filings` has no summary, so it uses the listing (see consumer 3).
+The `backfill` binary keeps its `HEAD` request, because its catch-up starts before its Notes step
+stores the newest period. `daily_filings` sends no such request, so it uses the listing (see
+consumer 3).
 
 ### 3. `daily_filings`: Full Index Minus Stored Filings
 

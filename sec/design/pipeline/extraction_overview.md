@@ -17,7 +17,8 @@ Extraction has two parts. Each part has its own SEC sources:
   the run fetches the folder `index.json`, the XBRL instance, and the label file. For each company
   of those filings, it fetches `submissions`.
 
-The cut-over date joins the two parts. It is the last day of the newest Notes file in the store.
+The cut-over date joins the two parts. It is the last day of the newest Notes period that the SEC
+publishes.
 
 ```mermaid
 flowchart LR
@@ -37,8 +38,8 @@ flowchart LR
     end
 
     subgraph RUN["Binaries"]
-        BF1["backfill, part 1<br/>Notes periods"]:::bin
-        BF2["backfill, part 2<br/>cut-over to yesterday"]:::bin
+        BF1["backfill, Notes step<br/>Notes periods"]:::bin
+        BF2["backfill, catch-up<br/>cut-over to yesterday"]:::bin
         DF["daily_filings<br/>last 4 days"]:::bin
     end
 
@@ -50,7 +51,7 @@ flowchart LR
     end
 
     NZ --> BF1 --> RN
-    BF1 -- "cut-over date" --> BF2
+    NZ -- "cut-over date,<br/>one HEAD request" --> BF2
     DI --> BF2
     DI --> DF
     QL -. "only for a missing index,<br/>not stored" .-> BF2
@@ -76,10 +77,10 @@ The dashed box marks an endpoint with working code that no production run calls.
 
 | Capability | Today | How | Notes |
 | ---------- | ----- | --- | ----- |
-| Backfill of history (Notes files from 2009 to last month) | Yes | `backfill` binary, part 1, on demand | The `backfill` image exists. No Cloud Run job runs it yet |
-| Catch-up from the cut-over date to yesterday | Yes | `backfill` binary, part 2, on demand | One daily index per day. The quarterly full index needs fewer requests |
+| Backfill of history (Notes files from 2009 to last month) | Yes | `backfill` binary, Notes step, on demand | The `backfill` image exists. No Cloud Run job runs it yet |
+| Catch-up from the cut-over date to yesterday | Yes | `backfill` binary, catch-up, at the same time as the Notes step | One daily index per day. The quarterly full index needs fewer requests |
 | New filings each day | Yes | `daily_filings` binary with `ARKAD_FROM=yesterday-3` | The `daily-filings` image exists. No schedule yet |
-| Company data (`submissions`) | Partly | Part 2 of `backfill` and `daily_filings`: one file per company of the day | No run stores `submissions` for a company that appears only in the Notes files. The facade has `backfill().submissions()` and `backfill().all()` for this. Only a binary is missing |
+| Company data (`submissions`) | Partly | The catch-up of `backfill` and `daily_filings`: one file per company of the day | No run stores `submissions` for a company that appears only in the Notes files. The screener reads the ticker, name, and SIC as filed from the Notes files. `backfill().submissions()` reconciles one company |
 | Company Facts | No, but the code exists | Only `stream_etl` (469 S&P 500 companies) and the `extraction` demo call it | Company Facts drops every value with a dimension |
 | Rerun without duplicate work | Yes | A run skips each stored file that passes its size and SHA-256 check | The daily index and `submissions` are fetched again on each run |
 | Continue after a long pause | Partly | A hand-set `ARKAD_FROM` | The scheduled window covers 4 days |
@@ -113,7 +114,7 @@ facade writes the ingestion mode, `backfill` or `incremental`, into the metadata
 
 | Binary | Facade calls | Started by | Stores |
 | ------ | ------------ | ---------- | ------ |
-| `backfill` | `backfill().notes()`, then `incremental().daily_filings()` from the cut-over date to yesterday, with the same `execution_id` | An operator, on demand | Notes files, then everything `daily_filings` stores |
+| `backfill` | `backfill().all()`: the Notes periods and, at the same time, `incremental().daily_filings()` from the cut-over date to yesterday, with the same `execution_id` | An operator, on demand | Notes files, and everything `daily_filings` stores |
 | `daily_filings` | `incremental().daily_filings()` for the dates of `ARKAD_FROM` to `ARKAD_TO` | An operator today. A daily schedule is planned | Daily indexes, folder indexes, instances, label files, `submissions` |
 | `stream_etl` | `backfill().company_facts()` per CIK, for a fixed list of 469 CIKs | An operator, for tests | Company Facts |
 | `extraction` | None. It runs the Company Facts states one by one for CIK 1067983 | An operator, as a demo | Company Facts |
@@ -122,8 +123,8 @@ Two deprecated examples in `sec/examples/` still compile: `notes_backfill` (repl
 and `stream_extract` (Company Facts). The `Dockerfile` builds one image for `backfill` and one
 for `daily_filings`. No image holds an example.
 
-`backfill().all()` exists in the facade. It runs the Notes periods, then stores `submissions` for
-each CIK of the stored Notes files. No binary calls it.
+`backfill().all()` first finds the cut-over date with one `HEAD` request. It then runs the Notes
+periods and the catch-up at the same time.
 
 ## Where: The Raw Store
 
@@ -199,12 +200,12 @@ flowchart LR
     classDef cut fill:#f8cecc,stroke:#b85450
 
     Q["Notes quarters<br/>HEAD request for each recent one"]:::notes --> M["Notes months<br/>up to last month"]:::notes
-    M --> C["Cut-over date<br/>last day of the newest<br/>stored Notes month"]:::cut
-    C --> K["backfill, part 2<br/>daily indexes from the<br/>cut-over date to yesterday"]:::daily
+    M --> C["Cut-over date<br/>last day of the newest<br/>published Notes period"]:::cut
+    C --> K["backfill, catch-up<br/>daily indexes from the<br/>cut-over date to yesterday"]:::daily
     K --> W["daily_filings, each day<br/>yesterday-3 to yesterday"]:::daily
 ```
 
-### Backfill, Part 1: Notes Files
+### Backfill, Notes Step
 
 - The run asks the SEC with a `HEAD` request whether each recent quarterly file exists. The list
   holds the quarters, then the months that the SEC has not merged into a quarter yet.
@@ -215,16 +216,21 @@ flowchart LR
 
 ### The Cut-Over Date
 
-The cut-over date is the last day of the newest stored Notes month. `cut_over_date()` on the run
-summary returns it. It fails if a period failed or if no period is stored. A failed period means a
-gap, so the backfill must run again before the catch-up starts.
+The cut-over date is the last day of the newest published Notes period. Before any download,
+`backfill().all()` sends one `HEAD` request for the file of the newest period of its list. If the
+SEC answers 404, the cut-over date falls back to the last day of the next older period. The date
+of today plays no part. A cut-over date that is too early costs only overlap. One that is too late
+leaves a gap.
+
+The Notes step and the catch-up run at the same time. A failed Notes period fails the run, and a
+repeat run downloads the period.
 
 The cut-over day is in both paths. Its filings reach the store as Notes rows and as instances.
 
-### Backfill, Part 2: Catch-Up
+### Backfill, Catch-Up
 
-The second part runs the daily path for every date from the cut-over date to yesterday. It uses
-the same `execution_id` as part 1, with the ingestion mode `incremental`.
+The catch-up runs the daily path for every date from the cut-over date to yesterday. It uses the
+same `execution_id` as the Notes step, with the ingestion mode `incremental`.
 
 ### The Daily Run and Its Window
 
@@ -256,13 +262,13 @@ endpoint. Sizes are bodies without gzip, measured on 2026-11-02 unless the table
 
 | Endpoint | URL pattern | Key | Data it offers | Code | Used today | Stored | Size |
 | -------- | ----------- | --- | -------------- | ---- | ---------- | ------ | ---- |
-| Notes ZIP | `www.sec.gov/files/dera/data/financial-statement-notes-data-sets/<period>_notes.zip` | Notes period | All values of all filings in the period, with dimensions and text. One filing row each: CIK, name, SIC, form, period, filed date | `NotesFile` | `backfill`, part 1 | Yes | 619 MB for `2024q1`. The largest file is 0.85 GB. All 79 files: 27.7 GB |
-| Daily index | `www.sec.gov/Archives/edgar/daily-index/YYYY/QTRn/form.YYYYMMDD.idx` | Date | One row per filing of the day: form, company name, CIK, date, path | `DailyIndex` | `backfill`, part 2, and `daily_filings` | Yes | 1.16 MB for 2026-10-30, 187 rows of the selected forms |
+| Notes ZIP | `www.sec.gov/files/dera/data/financial-statement-notes-data-sets/<period>_notes.zip` | Notes period | All values of all filings in the period, with dimensions and text. One filing row each: CIK, name, SIC, form, period, filed date | `NotesFile` | `backfill`, Notes step | Yes | 619 MB for `2024q1`. The largest file is 0.85 GB. All 79 files: 27.7 GB |
+| Daily index | `www.sec.gov/Archives/edgar/daily-index/YYYY/QTRn/form.YYYYMMDD.idx` | Date | One row per filing of the day: form, company name, CIK, date, path | `DailyIndex` | `backfill`, catch-up, and `daily_filings` | Yes | 1.16 MB for 2026-10-30, 187 rows of the selected forms |
 | Quarter listing | `www.sec.gov/Archives/edgar/daily-index/YYYY/QTRn/index.json` | Quarter | The names and dates of the index files of the quarter | `DailyIndexListing` | Only when a daily index is missing | No | 14 KB |
-| Folder index | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/index.json` | Accession number | The files of one filing: name, size, last-modified | `FilingIndex` | `backfill`, part 2, and `daily_filings` | Yes | 8 KB for a 10-Q with 86 files |
-| XBRL instance | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/<name>_htm.xml` | Accession number and file name | All values of one filing, with dimensions | `FilingDocumentSet` | `backfill`, part 2, and `daily_filings` | Yes | 3.9 MB for one 10-Q. 2.8 KB for one small filer |
-| Label file | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/<name>_lab.xml` | Accession number and file name | The labels the company gave to its concepts | `FilingDocumentSet` | `backfill`, part 2, and `daily_filings` | Yes | 0.88 MB for the same 10-Q |
-| `submissions` | `data.sec.gov/submissions/CIK##########.json` | CIK | Name, SIC and its description, tickers, exchanges, former names, EIN, fiscal year end, addresses. It has an `lei` field, but the field was `null` for all 5 companies checked on 2026-11-02, among them JPMorgan Chase and Goldman Sachs. The last 1,000 filings with form, dates, and XBRL flags | `Submissions` | `backfill`, part 2, and `daily_filings`: one per company of the day | Yes | 164 KB for CIK 320193 |
+| Folder index | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/index.json` | Accession number | The files of one filing: name, size, last-modified | `FilingIndex` | `backfill`, catch-up, and `daily_filings` | Yes | 8 KB for a 10-Q with 86 files |
+| XBRL instance | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/<name>_htm.xml` | Accession number and file name | All values of one filing, with dimensions | `FilingDocumentSet` | `backfill`, catch-up, and `daily_filings` | Yes | 3.9 MB for one 10-Q. 2.8 KB for one small filer |
+| Label file | `www.sec.gov/Archives/edgar/data/<cik>/<accession>/<name>_lab.xml` | Accession number and file name | The labels the company gave to its concepts | `FilingDocumentSet` | `backfill`, catch-up, and `daily_filings` | Yes | 0.88 MB for the same 10-Q |
+| `submissions` | `data.sec.gov/submissions/CIK##########.json` | CIK | Name, SIC and its description, tickers, exchanges, former names, EIN, fiscal year end, addresses. It has an `lei` field, but the field was `null` for all 5 companies checked on 2026-11-02, among them JPMorgan Chase and Goldman Sachs. The last 1,000 filings with form, dates, and XBRL flags | `Submissions` | `backfill`, catch-up, and `daily_filings`: one per company of the day | Yes | 164 KB for CIK 320193 |
 | Company Facts | `data.sec.gov/api/xbrl/companyfacts/CIK##########.json` | CIK | All values of all filings of one company, without dimensions. The entity name | `CompanyFacts` | Only `stream_etl` and the `extraction` demo | Yes, when called | 3.8 MB for CIK 320193 |
 | Full index | `www.sec.gov/Archives/edgar/full-index/YYYY/QTRn/form.idx` and `xbrl.idx` | Quarter | One row per filing of the quarter: form, company name, CIK, date filed, path. `xbrl.idx` lists only filings with XBRL | None | No | No | `form.idx` for 2026 Q3: 47.2 MB, or 4.8 MB as `form.gz`. `xbrl.idx`: 5.1 MB |
 
@@ -544,14 +550,14 @@ Sizes and request counts do not depend on the environment. Times do.
 
 | Run | Requests | Time | Bytes | Bottleneck | Where and source |
 | --- | -------- | ---- | ----- | ---------- | ---------------- |
-| `backfill`, part 1, empty store | 79 | 14 minutes (about 32 MB/s) in the cloud container. Estimate: about 19 to 20 minutes in the cloud container at 23 to 25 MB/s, 5 to 8 minutes on the lead's Mac | 27.7 GB | Network | Cloud container, MVP decision spike. Estimates from the findings of 2026-10-29 |
-| `backfill`, part 1, rerun | 0 | Reads every stored file once for the check: about 0.43 s of hashing per 619 MB | 0 | Disk read and SHA-256, about 1.4 GB/s per core | Code. Hash time measured in the cloud container |
+| `backfill`, Notes step, empty store | 79 | 14 minutes (about 32 MB/s) in the cloud container. Estimate: about 19 to 20 minutes in the cloud container at 23 to 25 MB/s, 5 to 8 minutes on the lead's Mac | 27.7 GB | Network | Cloud container, MVP decision spike. Estimates from the findings of 2026-10-29 |
+| `backfill`, Notes step, rerun | 0 | Reads every stored file once for the check: about 0.43 s of hashing per 619 MB | 0 | Disk read and SHA-256, about 1.4 GB/s per core | Code. Hash time measured in the cloud container |
 | 4 Notes files, 2.15 GB, 2 in flight | 4 | 95 to 107 s in the cloud container, 23.6 to 25.2 s on the lead's Mac | 2.15 GB | Network. More files in flight do not lower the total time | Findings of 2026-10-29 |
 | One Notes file | 1 | 25 s for `2024q1` (619 MB) | 0.62 GB | Network | [Download](ingestion_paths.md#download), 2026-10-28. Environment not recorded. The speed, about 25 MB/s, matches the cloud container |
 | One new filing | 3, plus 1 for its company | Not measured | 4.8 MB for one 10-Q. 25 KB for one small filer | Rate limit. Not measured for a large filer | Code. Sizes measured in the cloud container on 2026-11-02 |
 | One date, about 90 filings | About 360 | About 40 s at the rate limit alone | About 1 MB of daily index, plus the filings | Rate limit, if each request ends within 440 ms | Estimate from 90 filings per business day in `2024q1` |
 | One peak date, 295 filings | About 1,200 | About 2 minutes at the rate limit alone. [Window](ingestion_paths.md#window) estimates 9 minutes. Under 1 minute on a reread | Not measured | Rate limit or network, not measured | Estimate |
-| `backfill`, part 2, 40 business days | About 14,000 | About 26 minutes at the rate limit alone | Not measured | Rate limit, if each request ends within 440 ms | Estimate, [Dates](ingestion_paths.md#dates) |
+| `backfill`, catch-up, 40 business days | About 14,000 | About 26 minutes at the rate limit alone | Not measured | Rate limit, if each request ends within 440 ms | Estimate, [Dates](ingestion_paths.md#dates) |
 | `daily_filings`, 4 dates | 1 new date plus 3 rereads | Under 10 minutes on a peak day, inside the 30-minute timeout under both estimates | About 4.6 MB of daily indexes | Rate limit or network, not measured | Estimate |
 
 The estimates "at the rate limit alone" assume that each request ends within 4 × 110 ms, because 4
@@ -653,7 +659,6 @@ each gap through the facade calls that exist. A weekly job in the same container
 | No full-store check and no reconciliation | A missing or broken file stays unnoticed until a run reads its key |
 | The window covers 4 days | A pause longer than 4 days needs a hand-set `ARKAD_FROM` |
 | One daily index per day in the catch-up | A long catch-up sends one request per day. The full index needs one per quarter |
-| `backfill().all()` and the `backfill` binary each cover a different part | `all()` runs the Notes periods and `submissions`, but no catch-up. The binary runs the Notes periods and the catch-up, but no `submissions` for the companies that appear only in the Notes files. These companies have their ticker, name, and SIC as filed in the Notes files. They get no current data from `submissions` until they file again. The screener does not need current data |
 | No gzip | The three measured files (Company Facts, `submissions`, the daily index) transfer 6 to 14 times more bytes than with gzip |
 | One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` fits in one run for about 10 business days by the [Window](ingestion_paths.md#window) estimate, or about 40 at the rate limit alone. Neither is measured |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
