@@ -5,8 +5,8 @@
 //!
 //! The daily index is fixed-width text. Header lines come first. The last header line starts with
 //! `---`. Each row after it holds a form, a company name, a CIK, a date filed, and a file name. The
-//! parser returns every row. `SelectFilings` picks the forms and keeps one row per accession
-//! number.
+//! parser returns every row. [`select_filings`](crate::shared::filing_ref::select_filings) picks
+//! the forms and keeps one row per accession number.
 //!
 //! The full index `form.idx` of a quarter has the same layout. Its date filed has the form
 //! `YYYY-MM-DD`, not `YYYYMMDD`. The parser reads both files.
@@ -46,6 +46,9 @@ const FULL_FILED_DATE_LENGTH: usize = 10;
 
 /// The sign between the parts of the date filed field of a full index.
 const FULL_FILED_DATE_SEPARATOR: u8 = b'-';
+
+/// The positions of the two signs in the date filed field of a full index.
+const FULL_FILED_DATE_SEPARATOR_POSITIONS: [usize; 2] = [4, 7];
 
 /// The extension of the file name field, as in `edgar/data/320193/0000320193-26-000106.txt`.
 const FILE_NAME_EXTENSION: &str = ".txt";
@@ -191,22 +194,29 @@ impl DailyIndexRow {
 /// shape.
 ///
 /// Checks the length and the characters first, because both formats also accept a 1-digit month
-/// or day, as in `2026102`.
+/// or day, as in `2026102`, and a sign before the year.
 fn filed_date_of(text: &str) -> Option<NaiveDate> {
-    let is_digit = |byte: u8| byte.is_ascii_digit();
     let format = match text.len() {
-        DAILY_FILED_DATE_LENGTH if text.bytes().all(is_digit) => DAILY_FILED_DATE_FORMAT,
-        FULL_FILED_DATE_LENGTH
-            if text
-                .bytes()
-                .all(|byte| is_digit(byte) || byte == FULL_FILED_DATE_SEPARATOR) =>
-        {
-            FULL_FILED_DATE_FORMAT
+        DAILY_FILED_DATE_LENGTH if text.bytes().all(|byte| byte.is_ascii_digit()) => {
+            DAILY_FILED_DATE_FORMAT
         }
+        FULL_FILED_DATE_LENGTH if has_full_filed_date_shape(text) => FULL_FILED_DATE_FORMAT,
         _ => return None,
     };
 
     NaiveDate::parse_from_str(text, format).ok()
+}
+
+/// Returns `true` if `text` has a `-` at the two positions of `2026-10-27` and a digit at every
+/// other position.
+fn has_full_filed_date_shape(text: &str) -> bool {
+    text.bytes().enumerate().all(|(position, byte)| {
+        if FULL_FILED_DATE_SEPARATOR_POSITIONS.contains(&position) {
+            byte == FULL_FILED_DATE_SEPARATOR
+        } else {
+            byte.is_ascii_digit()
+        }
+    })
 }
 
 /// Returns the accession number at the end of a file name such as
@@ -448,6 +458,19 @@ mod tests {
 
         let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
             filed_date: "2026-10-7".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_dashed_filed_date_starts_with_a_sign() {
+        let line = row_line("10-K", "320193", "-026-10-27", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+            filed_date: "-026-10-27".to_string(),
         });
 
         let result = parse_row_line(&line);

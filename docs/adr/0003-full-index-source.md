@@ -63,8 +63,9 @@ Reasons for `form.idx`:
 - The catch-up sends one request per quarter in place of one request per day.
 - A run stores up to 47 MB per quarter under one key. The SHA-256 in the `inputs` of an instance
   names bytes that a later run replaces. The daily index has the same gap.
-- `form.idx` lists a filing once, with its last date filed. A daily index lists a filing on the day
-  the SEC sent it. Two differences follow, both seen in the measured range:
+- `form.idx` lists a filing once, with the date filed of the last time the SEC sent it. A daily
+  index lists a filing on the day the SEC sent it. Two differences follow, both seen in the
+  measured range:
   - The daily index of 2026-11-09 lists a 20-F with the date filed 2026-03-31
     (`0001628280-26-022148`). `form.idx` lists it in Q1 only. So a run that reads `form.idx` does
     not see that the SEC sent an old filing again. This is the one filing that only the daily
@@ -72,11 +73,20 @@ Reasons for `form.idx`:
   - The daily index of 2026-10-16 lists a 10-Q with the date filed 2026-10-16. The daily index of
     2026-10-19 lists it again with 2026-10-15 (`0001437749-26-032746`). `form.idx` lists it once,
     with 2026-10-15.
+- A filter by date filed misses a filing whose date filed lies before the start of the range,
+  if the SEC sent it inside the range. The 20-F above is such a filing. The daily index
+  path fetches them, because it reads the file of the day the SEC sent the filing. The Notes
+  files cover a date filed before the cut-over date only if the SEC builds them by date filed,
+  and no measurement shows that yet.
 - A date without rows in `form.idx` can be a day without filings or a day that the SEC has not
   added yet. The file does not tell the two cases apart by its rows.
 
 ## Open Questions
 
+- The catch-up filters by date filed, so it needs a rule for a filing with a date filed before
+  the start of its range. Two options: start the range some days before the cut-over date and
+  let the store check skip the stored filings, or select the quarter minus the stored filings, as
+  `daily_filings` does. The change that makes the catch-up read `form.idx` picks one.
 - For `daily_filings`, one download of 47 MB per run can cost too much. `form.gz` holds the same
   rows in 4.8 MB. No measurement of the daily run exists yet.
 - The header line `Last Data Received` names the last date of the file. No code reads it yet. It
