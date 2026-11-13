@@ -1,16 +1,21 @@
-//! # Daily Index Row
+//! # Form Index Row
 //!
-//! Provides [`DailyIndexRow`], one row of the EDGAR daily index `form.YYYYMMDD.idx`, and
-//! [`parse_daily_index`], which reads the text of a daily index into its rows.
+//! Provides [`FormIndexRow`], one row of an EDGAR form index, and [`parse_form_index`], which
+//! reads the text of a form index into its rows. A form index lists filings sorted by form. The
+//! SEC publishes one per day, the daily index `form.YYYYMMDD.idx`, and one per quarter, the full
+//! index `form.idx`.
 //!
-//! The daily index is fixed-width text. Header lines come first. The last header line starts with
+//! A form index is fixed-width text. Header lines come first. The last header line starts with
 //! `---`. Each row after it holds a form, a company name, a CIK, a date filed, and a file name. The
-//! parser returns every row. `SelectFilings` picks the forms and keeps one row per accession
-//! number.
+//! parser returns every row. [`select_filings`](crate::shared::filing_ref::select_filings) picks
+//! the forms and keeps one row per accession number.
+//!
+//! Both files have the same layout. The date filed has the form `YYYYMMDD` in the daily index and
+//! `YYYY-MM-DD` in the full index. The parser reads both.
 //!
 //! ## Modules
 //!
-//! - [`daily_index_error`]: The [`DailyIndexError`] returned when the text or one of its lines is
+//! - [`form_index_error`]: The [`FormIndexError`] returned when the text or one of its lines is
 //!   malformed.
 
 use chrono::NaiveDate;
@@ -19,9 +24,9 @@ use serde::Serialize;
 use crate::shared::cik::Cik;
 use crate::shared::financial::accession_number::AccessionNumber;
 
-pub mod daily_index_error;
+pub mod form_index_error;
 
-pub use daily_index_error::{DailyIndexError, InvalidDailyIndexLineReason};
+pub use form_index_error::{FormIndexError, InvalidFormIndexLineReason};
 
 /// The start of the last header line, a line of dashes.
 const HEADER_END_PREFIX: &str = "---";
@@ -29,69 +34,82 @@ const HEADER_END_PREFIX: &str = "---";
 /// The width of the form column. Form text can hold spaces, as in `DEF 14A`.
 const FORM_COLUMN_WIDTH: usize = 17;
 
-/// The format of the date filed field, as in `20261027`.
-const FILED_DATE_FORMAT: &str = "%Y%m%d";
+/// The format of the date filed field of a daily index, as in `20261027`.
+const DAILY_FILED_DATE_FORMAT: &str = "%Y%m%d";
 
-/// The length of the date filed field.
-const FILED_DATE_LENGTH: usize = 8;
+/// The length of the date filed field of a daily index.
+const DAILY_FILED_DATE_LENGTH: usize = 8;
+
+/// The format of the date filed field of a full index, as in `2026-10-27`.
+const FULL_FILED_DATE_FORMAT: &str = "%Y-%m-%d";
+
+/// The length of the date filed field of a full index.
+const FULL_FILED_DATE_LENGTH: usize = 10;
+
+/// The dash between the parts of the date filed field of a full index.
+const FULL_FILED_DATE_SEPARATOR: u8 = b'-';
+
+/// The positions of the two dashes in the date filed field of a full index.
+const FULL_FILED_DATE_SEPARATOR_POSITIONS: [usize; 2] = [4, 7];
 
 /// The extension of the file name field, as in `edgar/data/320193/0000320193-26-000106.txt`.
 const FILE_NAME_EXTENSION: &str = ".txt";
 
-/// One row of an EDGAR daily index: the form text, the CIK, the date filed, and the accession
-/// number.
+/// One row of an EDGAR form index, daily or full: the form text, the CIK, the date filed, and the
+/// accession number.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub struct DailyIndexRow {
+pub struct FormIndexRow {
     form_text: String,
     cik: Cik,
     filed_date: NaiveDate,
     accession_number: AccessionNumber,
 }
 
-/// Parses the text of an EDGAR daily index into one [`DailyIndexRow`] per row line.
+/// Parses the text of an EDGAR daily index, or of the full index `form.idx` of a quarter, into
+/// one [`FormIndexRow`] per row line.
 ///
 /// Skips every line up to the first line that starts with `---`, and skips blank lines after it. Accepts `\n` and
 /// `\r\n` line endings.
 ///
 /// # Errors
 ///
-/// Returns [`DailyIndexError::MissingDailyIndexHeader`] if no line starts with `---`.
-/// Returns [`DailyIndexError::InvalidDailyIndexCik`] with the line number and the
+/// Returns [`FormIndexError::MissingFormIndexHeader`] if no line starts with `---`.
+/// Returns [`FormIndexError::InvalidFormIndexCik`] with the line number and the
 /// [`CikError`](crate::shared::cik::CikError) for the first row line whose CIK fails validation.
-/// Returns [`DailyIndexError::InvalidDailyIndexLine`] with the line number for the first row line
+/// Returns [`FormIndexError::InvalidFormIndexLine`] with the line number for the first row line
 /// that is malformed in any other way.
 ///
 /// # Examples
 ///
 /// ```
-/// use sec::shared::daily_index_row::parse_daily_index;
+/// use sec::shared::form_index_row::parse_form_index;
 ///
 /// let text = "Form Type   Company Name\n---\n\
 ///     10-K             APPLE INC                                                     320193      20261030    edgar/data/320193/0000320193-26-000106.txt";
 ///
 /// let expected_result = 1;
 ///
-/// let result = parse_daily_index(text)
+/// let result = parse_form_index(text)
 ///     .expect("Given a hardcoded well-formed row, parsing should always succeed")
 ///     .len();
 ///
 /// assert_eq!(result, expected_result);
 /// ```
-pub fn parse_daily_index(text: &str) -> Result<Vec<DailyIndexRow>, DailyIndexError> {
+pub fn parse_form_index(text: &str) -> Result<Vec<FormIndexRow>, FormIndexError> {
     let mut lines = text.lines().enumerate();
     lines
         .by_ref()
         .find(|(_, line)| line.starts_with(HEADER_END_PREFIX))
-        .ok_or(DailyIndexError::MissingDailyIndexHeader)?;
+        .ok_or(FormIndexError::MissingFormIndexHeader)?;
 
     lines
         .filter(|(_, line)| !line.trim().is_empty())
-        .map(|(index, line)| DailyIndexRow::from_line(index + 1, line))
+        .map(|(index, line)| FormIndexRow::from_line(index + 1, line))
         .collect()
 }
 
-impl DailyIndexRow {
-    /// Creates a new [`DailyIndexRow`].
+impl FormIndexRow {
+    /// Creates a new [`FormIndexRow`].
     #[must_use]
     pub const fn new(
         form_text: String,
@@ -133,8 +151,8 @@ impl DailyIndexRow {
 
     /// Parses one row line. Reads the form from its column, and the last three fields from the
     /// end of the line, so a company name that overflows its column still parses.
-    fn from_line(line_number: usize, line: &str) -> Result<Self, DailyIndexError> {
-        let invalid_line = |reason| DailyIndexError::InvalidDailyIndexLine {
+    fn from_line(line_number: usize, line: &str) -> Result<Self, FormIndexError> {
+        let invalid_line = |reason| FormIndexError::InvalidFormIndexLine {
             line_number,
             reason,
         };
@@ -142,25 +160,25 @@ impl DailyIndexRow {
         let (Some(file_name), Some(filed_date), Some(cik), Some(_)) =
             (fields.next(), fields.next(), fields.next(), fields.next())
         else {
-            return Err(invalid_line(InvalidDailyIndexLineReason::MissingField));
+            return Err(invalid_line(InvalidFormIndexLineReason::MissingField));
         };
         let form_text = line
             .get(..FORM_COLUMN_WIDTH)
             .map(str::trim)
             .filter(|form_text| !form_text.is_empty())
-            .ok_or_else(|| invalid_line(InvalidDailyIndexLineReason::MissingField))?;
+            .ok_or_else(|| invalid_line(InvalidFormIndexLineReason::MissingField))?;
 
-        let cik = Cik::new(cik).map_err(|source| DailyIndexError::InvalidDailyIndexCik {
+        let cik = Cik::new(cik).map_err(|source| FormIndexError::InvalidFormIndexCik {
             line_number,
             source,
         })?;
         let filed_date = filed_date_of(filed_date).ok_or_else(|| {
-            invalid_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+            invalid_line(InvalidFormIndexLineReason::InvalidFiledDate {
                 filed_date: filed_date.to_string(),
             })
         })?;
         let accession_number = accession_number_of(file_name).ok_or_else(|| {
-            invalid_line(InvalidDailyIndexLineReason::InvalidFileName {
+            invalid_line(InvalidFormIndexLineReason::InvalidFileName {
                 file_name: file_name.to_string(),
             })
         })?;
@@ -174,16 +192,33 @@ impl DailyIndexRow {
     }
 }
 
-/// Returns the date of an 8-digit text such as `20261027`, or `None` if it has another shape.
+/// Returns the date of a text such as `20261027` or `2026-10-27`, or `None` if it has another
+/// shape.
 ///
-/// Checks the length first, because `%Y%m%d` also accepts a 1-digit month or day, as in
-/// `2026102`.
+/// Checks the length and the characters first, because both formats also accept a 1-digit month
+/// or day, as in `2026102`, and a sign before the year.
 fn filed_date_of(text: &str) -> Option<NaiveDate> {
-    if text.len() != FILED_DATE_LENGTH || !text.bytes().all(|byte| byte.is_ascii_digit()) {
-        return None;
-    }
+    let format = match text.len() {
+        DAILY_FILED_DATE_LENGTH if text.bytes().all(|byte| byte.is_ascii_digit()) => {
+            DAILY_FILED_DATE_FORMAT
+        }
+        FULL_FILED_DATE_LENGTH if has_full_filed_date_shape(text) => FULL_FILED_DATE_FORMAT,
+        _ => return None,
+    };
 
-    NaiveDate::parse_from_str(text, FILED_DATE_FORMAT).ok()
+    NaiveDate::parse_from_str(text, format).ok()
+}
+
+/// Returns `true` if `text` has a `-` at the two positions of `2026-10-27` and a digit at every
+/// other position.
+fn has_full_filed_date_shape(text: &str) -> bool {
+    text.bytes().enumerate().all(|(position, byte)| {
+        if FULL_FILED_DATE_SEPARATOR_POSITIONS.contains(&position) {
+            byte == FULL_FILED_DATE_SEPARATOR
+        } else {
+            byte.is_ascii_digit()
+        }
+    })
 }
 
 /// Returns the accession number at the end of a file name such as
@@ -204,6 +239,7 @@ mod tests {
     use super::*;
     use crate::shared::cik::{CikError, InvalidCikReason};
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
+    use crate::tests::fixtures::data::full_index::SAMPLE_FULL_INDEX_2026_Q3;
 
     const FILE_NAME: &str = "edgar/data/320193/0000320193-26-000106.txt";
 
@@ -219,12 +255,12 @@ mod tests {
     }
 
     /// Parses an index with one header line of dashes and the given row line.
-    fn parse_row_line(line: &str) -> Result<Vec<DailyIndexRow>, DailyIndexError> {
-        parse_daily_index(&format!("---\n{line}"))
+    fn parse_row_line(line: &str) -> Result<Vec<FormIndexRow>, FormIndexError> {
+        parse_form_index(&format!("---\n{line}"))
     }
 
-    fn row(form_text: &str, cik: &str, accession_number: &str) -> DailyIndexRow {
-        DailyIndexRow::new(
+    fn row(form_text: &str, cik: &str, accession_number: &str) -> FormIndexRow {
+        FormIndexRow::new(
             form_text.to_string(),
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
             NaiveDate::from_ymd_opt(2026, 10, 27)
@@ -234,9 +270,9 @@ mod tests {
     }
 
     fn invalid_second_line(
-        reason: InvalidDailyIndexLineReason,
-    ) -> Result<Vec<DailyIndexRow>, DailyIndexError> {
-        Err(DailyIndexError::InvalidDailyIndexLine {
+        reason: InvalidFormIndexLineReason,
+    ) -> Result<Vec<FormIndexRow>, FormIndexError> {
+        Err(FormIndexError::InvalidFormIndexLine {
             line_number: 2,
             reason,
         })
@@ -248,7 +284,7 @@ mod tests {
 
         let expected_result = 19;
 
-        let result = parse_daily_index(text)
+        let result = parse_form_index(text)
             .expect("Given the stored fixture of a real index, parsing should always succeed")
             .len();
 
@@ -261,7 +297,7 @@ mod tests {
 
         let expected_result = row("10-Q", "201533", "0000811156-26-000032");
 
-        let result = parse_daily_index(text)
+        let result = parse_form_index(text)
             .expect("Given the stored fixture of a real index, parsing should always succeed")
             .swap_remove(SECOND_FILER_ROW_INDEX);
 
@@ -274,7 +310,7 @@ mod tests {
 
         let expected_result = Ok(vec![]);
 
-        let result = parse_daily_index(text);
+        let result = parse_form_index(text);
 
         assert_eq!(result, expected_result);
     }
@@ -297,7 +333,7 @@ mod tests {
 
         let expected_result = Ok(vec![row("10-K/A", "320193", "0000320193-26-000106")]);
 
-        let result = parse_daily_index(&text);
+        let result = parse_form_index(&text);
 
         assert_eq!(result, expected_result);
     }
@@ -309,7 +345,7 @@ mod tests {
 
         let expected_result = Ok(vec![row("8-K", "320193", "0000320193-26-000106")]);
 
-        let result = parse_daily_index(&text);
+        let result = parse_form_index(&text);
 
         assert_eq!(result, expected_result);
     }
@@ -318,9 +354,9 @@ mod tests {
     fn should_return_missing_header_when_index_has_no_line_of_dashes() {
         let line = row_line("10-K", "320193", "20261027", FILE_NAME);
 
-        let expected_result = Err(DailyIndexError::MissingDailyIndexHeader);
+        let expected_result = Err(FormIndexError::MissingFormIndexHeader);
 
-        let result = parse_daily_index(&line);
+        let result = parse_form_index(&line);
 
         assert_eq!(result, expected_result);
     }
@@ -329,12 +365,12 @@ mod tests {
     fn should_return_missing_field_with_line_number_when_line_has_too_few_fields() {
         let text = "Description: Daily Index\n---\n10-K  320193  20261027";
 
-        let expected_result = Err(DailyIndexError::InvalidDailyIndexLine {
+        let expected_result = Err(FormIndexError::InvalidFormIndexLine {
             line_number: 3,
-            reason: InvalidDailyIndexLineReason::MissingField,
+            reason: InvalidFormIndexLineReason::MissingField,
         });
 
-        let result = parse_daily_index(text);
+        let result = parse_form_index(text);
 
         assert_eq!(result, expected_result);
     }
@@ -343,7 +379,7 @@ mod tests {
     fn should_return_missing_field_when_form_column_is_blank() {
         let line = row_line("", "320193", "20261027", FILE_NAME);
 
-        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::MissingField);
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::MissingField);
 
         let result = parse_row_line(&line);
 
@@ -354,7 +390,7 @@ mod tests {
     fn should_return_invalid_cik_with_cik_error_when_cik_is_not_a_number() {
         let line = row_line("10-K", "32O193", "20261027", FILE_NAME);
 
-        let expected_result = Err(DailyIndexError::InvalidDailyIndexCik {
+        let expected_result = Err(FormIndexError::InvalidFormIndexCik {
             line_number: 2,
             source: CikError::new(InvalidCikReason::ContainsNonNumericCharacters, "32O193"),
         });
@@ -368,7 +404,7 @@ mod tests {
     fn should_return_invalid_cik_with_cik_error_when_cik_has_eleven_digits() {
         let line = row_line("10-K", "12345678901", "20261027", FILE_NAME);
 
-        let expected_result = Err(DailyIndexError::InvalidDailyIndexCik {
+        let expected_result = Err(FormIndexError::InvalidFormIndexCik {
             line_number: 2,
             source: CikError::new(
                 InvalidCikReason::MaxLengthExceeded { cik_length: 11 },
@@ -385,7 +421,7 @@ mod tests {
     fn should_return_invalid_filed_date_when_filed_date_is_not_a_calendar_date() {
         let line = row_line("10-K", "320193", "20261332", FILE_NAME);
 
-        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFiledDate {
             filed_date: "20261332".to_string(),
         });
 
@@ -398,11 +434,74 @@ mod tests {
     fn should_return_invalid_filed_date_when_filed_date_has_seven_digits() {
         let line = row_line("10-K", "320193", "2026102", FILE_NAME);
 
-        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFiledDate {
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFiledDate {
             filed_date: "2026102".to_string(),
         });
 
         let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_filed_date_when_row_has_the_date_form_of_a_full_index() {
+        let line = row_line("10-K", "320193", "2026-10-27", FILE_NAME);
+
+        let expected_result = Ok(vec![row("10-K", "320193", "0000320193-26-000106")]);
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_dashed_filed_date_has_a_one_digit_day() {
+        let line = row_line("10-K", "320193", "2026-10-7", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFiledDate {
+            filed_date: "2026-10-7".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_dashed_filed_date_starts_with_a_sign() {
+        let line = row_line("10-K", "320193", "-026-10-27", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFiledDate {
+            filed_date: "-026-10-27".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_filed_date_when_ten_digits_hold_no_dash() {
+        let line = row_line("10-K", "320193", "2026102700", FILE_NAME);
+
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFiledDate {
+            filed_date: "2026102700".to_string(),
+        });
+
+        let result = parse_row_line(&line);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_one_row_per_row_line_for_sample_full_index() {
+        let text = SAMPLE_FULL_INDEX_2026_Q3;
+
+        let expected_result = 6;
+
+        let result = parse_form_index(text)
+            .expect("Given the stored fixture of a real index, parsing should always succeed")
+            .len();
 
         assert_eq!(result, expected_result);
     }
@@ -427,7 +526,7 @@ mod tests {
         let file_name = "edgar/data/320193/0000320193-26-000106.htm";
         let line = row_line("10-K", "320193", "20261027", file_name);
 
-        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFileName {
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFileName {
             file_name: file_name.to_string(),
         });
 
@@ -441,7 +540,7 @@ mod tests {
         let file_name = "edgar/data/320193/000032019326000106.txt";
         let line = row_line("10-K", "320193", "20261027", file_name);
 
-        let expected_result = invalid_second_line(InvalidDailyIndexLineReason::InvalidFileName {
+        let expected_result = invalid_second_line(InvalidFormIndexLineReason::InvalidFileName {
             file_name: file_name.to_string(),
         });
 
@@ -452,7 +551,7 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_daily_index_row() {
-        implements_auto_traits::<DailyIndexRow>();
+    const fn should_implement_auto_traits_for_form_index_row() {
+        implements_auto_traits::<FormIndexRow>();
     }
 }

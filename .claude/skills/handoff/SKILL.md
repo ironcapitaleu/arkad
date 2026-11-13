@@ -5,8 +5,8 @@ description: >
   "spin up a driver session", "compact this session for another agent", "leave a state-of-play
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
-  a human takeover.
-version: 0.4.0
+  a human takeover. Also posts the stale points of that ticket in a comment.
+version: 0.5.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -22,6 +22,9 @@ session's context.
 The same compacted content serves two destinations: a fresh agent session, or a state-of-play
 comment on the Linear ticket for a human takeover. This skill writes the content and stops. It does
 not spawn a session or take over a ticket itself.
+
+The skill also brings the ticket up to date with a comment (see "Update the Ticket"). A successor
+reads the ticket first. A stale ticket sends it the wrong way, even if the handoff is right.
 
 ## When to Use
 
@@ -71,7 +74,7 @@ package in scope.>
 
 # Roadmap
 
-<Only when the ticket belongs to an ordered set (see Procedure step 3). One row per ticket, in
+<Only when the ticket belongs to an ordered set (see Procedure step 4). One row per ticket, in
 working order. Mark the successor's ticket with ▶.>
 
 Project <name>, milestone <name>. All tickets link to <design ticket>. Statuses as of <YYYY-MM-DD>.
@@ -167,6 +170,71 @@ two steps of slack.
 The last line is optional. Add it when the successor's ticket sits off the critical path, so the
 successor knows how much slack it has.
 
+## Update the Ticket
+
+A handoff for a ticket updates that ticket in Linear, for every destination. Do not only tell the
+user that a point is stale.
+
+Read the ticket, its comments, its relations, and its linked PRs through the `linear` skill.
+Compare each point with the facts of this session. A point is stale if a commit, a PR, a Linear
+status, or a decision of the user contradicts it.
+
+**Post a comment. This is the default, and it needs no question.** The comment names each stale
+point: quote the stale sentence, state the fact that contradicts it, and name the source. Examples
+of a stale point: an open box of a Definition of Done item that a merged PR does, a status that
+does not match the work, a changed scope, a decision that replaces a sentence of the description,
+an old measurement, a split of the ticket, a file path or symbol that moved.
+
+Leave **one** current comment of each kind on the ticket through the `linear` skill, in status
+voice. The two kinds are the state-of-play comment and the short update comment. If an earlier
+handoff left a comment of the same kind and the session can edit a comment, edit that comment.
+Otherwise post a new one. If it replaces an earlier comment, name that comment in its first line.
+Never replace a state-of-play comment with a short update comment. If a state-of-play comment
+exists, the first line of the short update names it and says which of its points are now out of
+date.
+
+- For the Linear destination, the state-of-play comment holds one more list: "Stale on this
+  ticket".
+- For the agent-session destination, post a short update comment with that list, the branch, and
+  the PR. If no point is stale, post no comment.
+- If the destination is both, post only the state-of-play comment.
+
+**Change the ticket itself only after the user agrees.** A change to the ticket is a checked box,
+a new status, an assignee, a relation, a link, or an edit of the description. If the comment
+names an open box or a wrong status, offer the change. Ask the user once, with every change in
+one list.
+For each change, name the proof from the table. Make only the changes that the user confirms, and
+add the list "Fixed on this ticket" to the comment. Move each confirmed change from "Blocked /
+undecided" to "Done" in the handoff document.
+
+| Change | Proof that the change needs |
+| ------ | --------------------------- |
+| Check the box of a Definition of Done item | A merged PR or a commit on the default branch that does this item |
+| Set the status | Work started, a PR is open, or a PR merged. Never set Done unless the user asks |
+| Assign the user | The user owns this session, and work started |
+| Add a blocker relation | The ticket text, a design doc, or the user names the dependency |
+| Link a PR or a branch | The PR or the branch exists |
+
+A merged PR proves only the items that it does. To check a box, change only `- [ ]` to `- [x]` on
+that line, and read the description again right before the write. Never remove a blocker relation.
+Never rewrite the user story, the description, or the wording of a Definition of Done item, even if
+the user confirms a list. Tell the user to ask the author of the ticket for that.
+
+Every write goes through the Linear tools of the session, by the rules of the `linear` skill. If
+the session has no tool for a write, such as a comment, a relation, or a link, do not use another
+way. Name the write that is missing in the chat reply.
+
+In the handoff document, list each stale point under "Blocked / undecided", so the successor does
+not act on the stale text. For an agent session, leave the comment before you print the prompt,
+and name it under "Artifacts". In the chat reply, tell the user what you posted and
+what you changed on each ticket.
+
+A stale ticket of the Roadmap other than the handoff ticket gets no comment. Name its stale points
+in the chat reply, and change it only after the user agrees.
+
+If Linear is unreachable, change nothing, and name each stale point under "Blocked / undecided".
+If Linear fails after a change, list the changes already made in the chat reply.
+
 ## Procedure
 
 1. **Read the argument.** If the user gave no focus, ask the user once. Ask what the next session
@@ -174,35 +242,46 @@ successor knows how much slack it has.
    nothing new in. A person then reviews and merges it. For work whose output lives outside the
    repository, such as a SPIKE that ends in a Linear document, the end is that document and a
    report, with no PR. Use this end unless the user names a different one.
-2. **Compile the document** from the conversation, following the template. Reference every artifact
+2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Collect the
+   stale points before you compile. If you offer a change, ask once at the end of step 4, or at
+   the end of step 3 if there is no Roadmap. Post the comment in step 7.
+3. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
    with the `AGENTS.md` "Branch Naming" convention.
-3. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
+4. **Add the Roadmap** if the ticket belongs to an ordered set: an epic (a Linear project), a
    project milestone, or the "Implementation Tickets" list of a design doc. See "Roadmap Example".
    Read every ticket's status, blockers, and linked PR through the `linear` skill at the time you
-   write the handoff. Never copy a roadmap from an earlier handoff without this check. Recompute
-   the critical path and the unblocked tickets from the fresh data. If Linear is unreachable,
+   write the handoff. Never copy a roadmap from an earlier handoff without this check. Collect the
+   stale points of each Roadmap ticket by the rule in "Update the Ticket". If you offer a change
+   to a ticket, ask the user now, once, with every change of steps 2 and 4 in one list. Then
+   recompute the critical path and the
+   unblocked tickets from the fresh data. If Linear is unreachable,
    leave the Roadmap out and say so under "Blocked / undecided". The Linear note carries the
    Roadmap too, with its date, so a reader can tell how old the statuses are.
-4. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
+5. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
-5. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
-6. **Deliver:**
-   - **Agent session** — print the whole document in the chat reply, inside one fenced code block
-     tagged `markdown`. Put nothing else inside the block. Count the longest run of backticks that
+6. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
+7. **Deliver:**
+   - **Comment first** — leave the comment by the rule in "Update the Ticket", through the
+     `linear` skill, in status voice. For a Linear note or both, that is the state-of-play
+     comment. For an agent session alone, it is the short update comment, if a point is stale.
+   - **Agent session** — put the URL of the comment under "Artifacts". Then print the whole
+     document in the chat reply, inside one fenced code block tagged `markdown`. Put nothing else
+     inside the block. Count the longest run of backticks that
      opens a fence in the document. Open and close the outer block with one more backtick than that
      run. Use at least three. Do not split the document across several blocks.
      Write a file only in these cases: the user asks for one, a session-spawning tool needs one, or
      the session runs in a terminal. Write it to a temporary directory outside the repository, as
      `handoff-<short-slug>.md`. Never commit it.
-   - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
-     the `linear` skill, in status voice.
 
    This skill writes the handoff content. It does not spawn a session or take over the ticket
    itself.
 
 ## Critical Invariants
 
+- **The ticket matches the handoff.** After a handoff, no point of the ticket contradicts the
+  handoff without a comment that says so. A comment needs no question. A change to the ticket
+  itself needs the user's agreement and a proof. Never rewrite the words of the author.
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
 - **Reference, do not duplicate.** Link tickets, PRs, branches, and docs. Never copy their bodies.
@@ -231,4 +310,5 @@ After a handoff where the successor missed context or the user corrected the sha
 2. Add the confirmed pattern to the template or the procedure.
 
 Common additions: a template section the successor needed, a guardrail that was easy to miss, a
-skill the successor must load for a class of task.
+skill the successor must load for a class of task, a kind of change that the table of "Update the
+Ticket" lacks.

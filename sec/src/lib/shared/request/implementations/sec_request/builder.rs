@@ -44,6 +44,16 @@
 //!     let _request = builder.build();
 //! }
 //! ```
+//!
+//! A full-index request needs a quarter before `build()` exists:
+//!
+//! ```compile_fail,E0599
+//! use sec::shared::request::implementations::sec_request::builder::{FullIndexBuilder, NoQuarter};
+//!
+//! fn build_without_quarter(builder: FullIndexBuilder<NoQuarter>) {
+//!     let _request = builder.build();
+//! }
+//! ```
 
 use std::marker::PhantomData;
 
@@ -52,10 +62,11 @@ use crate::shared::filing_documents::{FilingDocumentRef, FilingDocumentSetRef, F
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::index_date::IndexDate;
 use crate::shared::notes_period::NotesPeriod;
+use crate::shared::quarter::Quarter;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::{
     CompanyFacts, DailyIndex, DailyIndexListing, FilingDocument, FilingDocumentSet, FilingIndex,
-    NotesFile, NotesFileProbe, RequestKind, SecRequest, Submissions,
+    FullIndex, NotesFile, NotesFileProbe, RequestKind, SecRequest, Submissions,
 };
 
 /// Typestate marker: no CIK has been set yet.
@@ -76,6 +87,12 @@ pub struct NoPeriod;
 /// While the builder is in this state, [`build`](DailyIndexBuilder::build) is unavailable.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoDate;
+
+/// Typestate marker: no quarter has been set yet.
+///
+/// While the builder is in this state, [`build`](FullIndexBuilder::build) is unavailable.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NoQuarter;
 
 /// Typestate marker: no filing has been set yet.
 ///
@@ -144,6 +161,12 @@ impl SecRequestBuilder {
     #[must_use]
     pub const fn daily_index_listing(self) -> DailyIndexBuilder<DailyIndexListing, NoDate> {
         DailyIndexBuilder::new()
+    }
+
+    /// Selects the [`FullIndex`] request kind.
+    #[must_use]
+    pub const fn full_index(self) -> FullIndexBuilder<NoQuarter> {
+        FullIndexBuilder { quarter: NoQuarter }
     }
 
     /// Selects the [`Submissions`] request kind.
@@ -579,6 +602,52 @@ impl<K: RequestKind<Input = IndexDate>> DailyIndexBuilder<K, IndexDate> {
     }
 }
 
+/// Typestate builder for the [`FullIndex`] request.
+///
+/// The `Q` type parameter tracks the quarter. It starts as [`NoQuarter`].
+/// [`quarter`](Self::quarter) changes it to [`Quarter`]. Only that type has [`build`](Self::build).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FullIndexBuilder<Q> {
+    quarter: Q,
+}
+
+impl FullIndexBuilder<NoQuarter> {
+    /// Sets the quarter, unlocking [`build`](FullIndexBuilder::build).
+    #[must_use]
+    pub const fn quarter(self, quarter: Quarter) -> FullIndexBuilder<Quarter> {
+        FullIndexBuilder { quarter }
+    }
+}
+
+impl FullIndexBuilder<Quarter> {
+    /// Builds the [`SecRequest`]; available only once the quarter is set.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::shared::quarter::Quarter;
+    /// use sec::shared::request::implementations::sec_request::SecRequest;
+    ///
+    /// let date = NaiveDate::from_ymd_opt(2026, 10, 27)
+    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let request = SecRequest::builder()
+    ///     .full_index()
+    ///     .quarter(Quarter::of(date))
+    ///     .build();
+    ///
+    /// let expected_result = "https://www.sec.gov/Archives/edgar/full-index/2026/QTR4/form.idx";
+    ///
+    /// let result = request.inner.url().as_str();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn build(self) -> SecRequest<FullIndex> {
+        SecRequest::new(self.quarter)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
@@ -592,6 +661,7 @@ mod tests {
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::index_date::IndexDate;
     use crate::shared::notes_period::NotesPeriod;
+    use crate::shared::quarter::Quarter;
     use crate::shared::request::SecRequest as SecRequestTrait;
     use crate::shared::request::implementations::sec_request::SecRequest;
 
@@ -682,6 +752,26 @@ mod tests {
         let result = SecRequest::builder()
             .daily_index_listing()
             .date(date)
+            .build()
+            .inner()
+            .url()
+            .to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_produce_the_form_idx_url_of_the_quarter_for_a_full_index_request() {
+        let quarter = Quarter::of(
+            NaiveDate::from_ymd_opt(2026, 9, 30)
+                .expect("Given a hardcoded calendar date, the date should always build"),
+        );
+
+        let expected_result = "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/form.idx";
+
+        let result = SecRequest::builder()
+            .full_index()
+            .quarter(quarter)
             .build()
             .inner()
             .url()
