@@ -42,7 +42,6 @@
 //! # }
 //! ```
 
-use std::collections::HashSet;
 use std::fmt;
 
 use async_trait::async_trait;
@@ -52,7 +51,7 @@ use state_maschine::prelude::State as SMState;
 use crate::error::State as StateError;
 use crate::error::state_machine::state::InvalidDailyIndex;
 use crate::shared::daily_index_row::{DailyIndexError, parse_daily_index};
-use crate::shared::filing_ref::FilingRef;
+use crate::shared::filing_ref::{FilingRef, select_filings};
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -201,15 +200,9 @@ impl fmt::Display for SelectFilings {
     }
 }
 
-/// Parses the index text and keeps the first selected row of each accession number, in index
-/// order.
+/// Parses the index text and selects its filings with [`select_filings`].
 fn selected_filings(text: &str) -> Result<Vec<FilingRef>, DailyIndexError> {
-    let mut seen_accession_numbers = HashSet::new();
-    Ok(parse_daily_index(text)?
-        .iter()
-        .filter_map(|row| FilingRef::try_from(row).ok())
-        .filter(|filing| seen_accession_numbers.insert(filing.accession_number().clone()))
-        .collect())
+    Ok(select_filings(&parse_daily_index(text)?))
 }
 
 #[cfg(test)]
