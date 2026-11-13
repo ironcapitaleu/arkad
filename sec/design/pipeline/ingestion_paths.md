@@ -167,7 +167,7 @@ Two binaries run the facade:
 
 | Binary | Facade calls | Run |
 | ------ | ------------ | --- |
-| `backfill` | `backfill().notes()`, then `incremental().daily_filings()` from the cut-over date to yesterday. It does not call `all()` (decision of 2026-11-01) | By hand, once. Rerun by hand. |
+| `backfill` | `backfill().all()`: the Notes periods and, at the same time, `incremental().daily_filings()` from the cut-over date to yesterday | By hand, once. Rerun by hand. |
 | `daily_filings` | `incremental().daily_filings()` over the last days | Cloud Scheduler, once a day |
 
 So one run of `backfill` extracts everything up to yesterday, and it sets the cut-over date
@@ -179,14 +179,14 @@ deprecated example, next to `stream_extract`. See [Deprecated Binaries](#depreca
 
 | | `backfill` | `notes_backfill` (example) | `stream_extract` | `daily_filings` |
 | - | ---------- | -------------------------- | ---------------- | --------------- |
-| Unit | Notes period, then as `daily_filings` from the cut-over date (STA-416) | Notes period | CIK of a fixed list | date, then filing, then CIK |
-| Loop | as `notes_backfill`, then as `daily_filings` | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
-| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, then `DEFAULT_MACHINES_IN_FLIGHT` = 4 | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
-| Task per unit | as `notes_backfill`, then no | `tokio::spawn` (STA-344, open in STA-360) | no | no |
-| Rules | the rules of both, and no catch-up without `cut_over_date()` | skip of an intact stored file, transient retry, unpublished at the end | none | transient retry, pending, unextractable |
-| Summary | `NotesRunSummary`, then `DailyRunSummary` | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
-| Logging | one observer for both calls, one summary per call | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
-| Exit | error if a period, a date, a filing, or a CIK failed, or if no period is stored | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
+| Unit | Notes period and, at the same time, as `daily_filings` from the cut-over date | Notes period | CIK of a fixed list | date, then filing, then CIK |
+| Loop | as `notes_backfill` and as `daily_filings`, at the same time | `buffer_unordered`, sorted by index after | `buffer_unordered`, sorted by index after (facade, STA-358) | dates in order, `buffered` per date |
+| Cap | `ARKAD_FILES_IN_FLIGHT`, default 2, for the Notes step, and `DEFAULT_MACHINES_IN_FLIGHT` = 4 for the catch-up | `ARKAD_FILES_IN_FLIGHT`, default 2 | all CIKs (`in_flight(CIKS.len())`), facade default 4 | `DEFAULT_MACHINES_IN_FLIGHT` = 4 (facade, STA-415) |
+| Task per unit | as `notes_backfill` for the Notes step, none for the catch-up | `tokio::spawn` (STA-344, open in STA-360) | no | no |
+| Rules | the rules of both, and the cut-over date from one `HEAD` request before any download | skip of an intact stored file, transient retry, unpublished at the end | none | transient retry, pending, unextractable |
+| Summary | `AllRunSummary`, `FailedAllBackfill` (facade) | `NotesRunSummary`, `FailedBackfill` (facade, STA-414) | `CompanyFactsRunSummary`, `FailedCompanyFactsBackfill` (facade, STA-358) | `DailyRunSummary`, `FailedDailyRun` (facade, STA-415) |
+| Logging | one observer for both steps, one summary per step | observer with `RunEvent` and `ErrorKind` (facade, STA-414) | observer with `RunEvent` and `ErrorKind` (facade, STA-358) | observer with `RunEvent` and `ErrorKind` (facade, STA-415) |
+| Exit | error if the cut-over probe, a period, a date, a filing, or a CIK failed | error if a period failed | error if a CIK failed | error if a date, filing, or CIK failed |
 
 Common to all four: the logger, the SEC client and its User-Agent warning, `create_root`, one
 `execution_id`, a capped loop over units, one outcome per unit, a summary, and an exit code from
@@ -206,8 +206,9 @@ Extraction::backfill().notes().periods(ps).sec_client(c).repository(r).in_flight
 Extraction::backfill().company_facts().ciks(cs).sec_client(c).repository(r).in_flight(n).run(observer)
 Extraction::backfill().submissions().ciks(cs).sec_client(c).repository(r).in_flight(n).run(observer)
 
-// Pipeline of the backfill: every Notes period, then submissions per distinct CIK.
-Extraction::backfill().all().periods(ps).sec_client(c).repositories(rs).in_flight(n).run(observer)
+// Pipeline of the backfill: the cut-over probe, then the Notes periods and the catch-up at the
+// same time.
+Extraction::backfill().all().periods(ps).until(d).sec_client(c).repositories(rs).in_flight(n).run(observer)
 
 // Pipeline of the new-filing path: per date, detection, then filings, then companies.
 Extraction::incremental()
@@ -226,16 +227,16 @@ Extraction::incremental()
   `build()` only after one unit and `run()` only after many.
 - `in_flight(n)` caps the machines that run at once. In a batch, these are the units. In a
   pipeline, these are the machines inside one step. In `all()`, `n` caps the Notes periods,
-  because each Notes file costs memory. Its `submissions` step uses the default of 4. In
+  because each Notes file costs memory. Its catch-up uses the default of 4. In
   `daily_filings()`, `n` caps the filings and the CIKs of one date. The dates run in order,
   because the pending rule depends on the order. Without the call, the source uses its default:
   2 for Notes, 4 for the others. The rate limiter of the SEC client still caps the requests.
-- `all()` and `daily_filings()` are the two pipelines. `all()` runs `notes()` over the periods,
-  then `submissions()` over the distinct CIKs of the stored Notes files (STA-377). It reads the
-  column `cik` of `sub.tsv` from each stored Notes file, one file at a time, so at most one file
-  is in memory. It runs `submissions()` even if a Notes period failed, over the CIKs of the
-  periods that the store holds. A Notes file that it cannot read fails `result()`, as a failed
-  CIK does, and the other files and CIKs still run.
+- `all()` and `daily_filings()` are the two pipelines. `all()` first finds the cut-over date with
+  one `HEAD` request (see [Cut-Over Between the Paths](#cut-over-between-the-paths), rule 1). It
+  then runs `notes()` over the periods and `daily_filings()` from the cut-over date to `until(d)`
+  at the same time, with one `execution_id`. A failed Notes period does not stop the catch-up. It
+  fails `result()`, and a repeat run downloads the period. `all()` runs no `submissions` step for
+  the companies in the Notes files (see [Company Data](#company-data)).
 - The units of `daily_filings()` are the dates. Per date, the facade runs
   `DetectFilingsSuperState` once, one `ExtractFilingSuperState` per selected filing, and one
   `ExtractSubmissionsSuperState` per distinct CIK. The chain is code in the facade, not a fork of
@@ -246,7 +247,8 @@ Extraction::incremental()
   unit or `ciks(cs)` for a batch. Every error of a CIK is `ErrorKind::Failed`, and the unit is
   `Unit::Cik`.
 - `run()` is `async` and returns the summary of the source, not a `Result`. A failed unit does not
-  stop the others. `main` calls `summary.result()` for the exit code.
+  stop the others. `main` calls `summary.result()` for the exit code. `all()` is the exception: it
+  returns a `Result`, because it fails before any download if it finds no cut-over date.
 
 #### Observer and Summary
 
@@ -276,10 +278,11 @@ observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static
   of the newest stored Notes month. It fails if a Notes period failed, so a gap can never pass
   into the catch-up. It also fails if no Notes period is stored, for example when every period is
   unpublished. Its error `MissingCutOverDate` names the case: `FailedBackfill` or
-  `MissingStoredPeriod`. The summary of `all()` passes it on. A failed `submissions` CIK does not block the
-  catch-up, but it fails `result()`. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
-  The binary `backfill` calls `notes()`, not `all()` (decision of 2026-11-01). `all()` is there
-  for a run that needs the `submissions` file of every company in the Notes files.
+  `MissingStoredPeriod`. `all()` does not use it, because its catch-up starts before the Notes
+  step ends. See [Cut-Over Between the Paths](#cut-over-between-the-paths).
+- `AllRunSummary`, the summary of `all()`, holds the summary and the run time of each step, the
+  cut-over date, and the dates of the catch-up. Its `result()` fails if a Notes period or a part
+  of the catch-up failed.
 - The callback replaces a returned event stream. A stream gives the same timing, but each `main`
   then needs its own loop.
 
@@ -290,7 +293,7 @@ values.
 
 | Source | Rules in the facade | Values from `main` |
 | ------ | ------------------- | ------------------ |
-| `all()` | the rules of `notes()`, distinct CIKs of the stored periods, one Notes file in memory, `cut_over_date()` | periods, cap |
+| `all()` | the rules of `notes()` and of `daily_filings()`, the cut-over date from one `HEAD` request, both steps at the same time | periods, `until`, cap |
 | `notes()` | skip of an intact stored file, task per period, transient retry, unpublished at the end, `cut_over_date()` | periods, cap, retry waits |
 | `company_facts()` | none | CIKs, cap |
 | `submissions()` | none | CIKs, cap |
@@ -340,21 +343,19 @@ flowchart LR
     EX["stream_extract (deprecated example)"]
     subgraph facade["Extraction"]
         NOTES["backfill().notes()"]
-        ALL["backfill().all()<br/>(no binary calls it)"]
+        ALL["backfill().all()"]
         DFS["incremental().daily_filings()"]
         CF["backfill().company_facts()"]
     end
-    BF -->|"1. run"| NOTES
-    NOTES -->|"cut_over_date()"| BF
-    BF -->|"2. run from the cut-over date"| DFS
+    BF -->|run| ALL
     DF -->|"run over the last days"| DFS
     EX -->|run| CF
-    ALL -->|"1. runs notes()"| NOTES
+    ALL -->|"runs notes()"| NOTES
+    ALL -->|"runs from the cut-over date,<br/>at the same time"| DFS
     NOTES -->|per period| ENS[ExtractNotesSuperState]
-    ALL -->|"2. per CIK of the stored Notes files"| ESS[ExtractSubmissionsSuperState]
     DFS -->|"1. per date"| DET[DetectFilingsSuperState]
     DFS -->|"2. per filing"| EFS[ExtractFilingSuperState]
-    DFS -->|"3. per CIK"| ESS
+    DFS -->|"3. per CIK"| ESS[ExtractSubmissionsSuperState]
     CF -->|per CIK| ECS[ExtractCompanyFactsSuperState]
 ```
 
@@ -365,30 +366,18 @@ Startup, the logger, and the summary log stay as today. The run becomes one or t
 ```rust
 // backfill
 let now = Utc::now();
-let backfill = Extraction::backfill();
-let past = backfill
-    .notes() // `all()` adds the `submissions` step. The binary does not call it.
+let summary = Extraction::backfill()
+    .all()
     .periods(notes_periods(&sec_client, now.date_naive()).await?)
-    .sec_client(sec_client.clone())
-    .repository(notes_repository)
-    .in_flight(files_in_flight_from_env()?)
-    .run(log_event)
-    .await;
-log_summary(&past);
-let cut_over = past.cut_over_date()?;
-let last_date = previous_day_in_new_york(now);
-let recent = Extraction::incremental()
-    .execution_id(backfill.id())
-    .daily_filings()
-    .dates(dates_between(cut_over, last_date))
-    .as_of(last_date)
+    .until(previous_day_in_new_york(now))
     .sec_client(sec_client)
     .repositories(repositories)
+    .in_flight(files_in_flight_from_env()?)
     .run(log_event)
-    .await;
-log_summary(&recent);
-past.result()?;
-recent.result()?;
+    .await?;
+log_summary(summary.notes());
+log_summary(summary.catch_up());
+summary.result()?;
 
 // daily_filings
 let now = Utc::now();
@@ -404,11 +393,12 @@ log_summary(&summary);
 summary.result()?;
 ```
 
-- Both calls of `backfill` carry one `execution_id`, so the logs and the metadata name one run.
+- Both steps of `backfill` carry one `execution_id`, so the logs and the metadata name one run.
   Each document still records its own mode: `backfill` for the Notes files, `incremental` for the
   daily indexes and filings.
 - `backfill` exits with an error if a Notes period or the catch-up failed.
-- `dates_between` and `run_dates` stay in the binaries, because they read time and the environment.
+- `run_dates` stays in `daily_filings`, because it reads time and the environment. `all()` lists
+  the dates of its catch-up itself, from the cut-over date to `until(d)`.
 
 #### Deprecated Binaries
 
@@ -1438,8 +1428,8 @@ Decided in STA-376:
 - URL: `https://data.sec.gov/submissions/CIK##########.json`. Measured: it holds `sic`,
   `sicDescription`, `name`, `tickers`, `exchanges`, `formerNames`, and the recent filings.
 - New-filing path: one run per distinct CIK of the day's filings.
-- Backfill: no run (see the decisions below). `backfill().all()` still runs `submissions` once
-  per distinct CIK of the stored Notes files, and no binary calls it. STA-435 removes this step.
+- Backfill: no run (see the decisions below). `backfill().all()` runs no `submissions` step for
+  the companies in the Notes files.
 - Single company: `backfill().submissions().cik(cik)` with `build()` reconciles one company.
 
 Decided by the lead (STA-417, 2026-11-01 and 2026-11-03):
@@ -1772,29 +1762,35 @@ month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
-1. The new-filing path starts at the daily index of the last day of the newest stored Notes
-   month. That day is in both paths. The overlap of one day covers assumption A2 below.
+1. The new-filing path starts at the daily index of the last day of the newest published Notes
+   period. Before any download, `backfill().all()` sends one `HEAD` request for the file of the
+   newest period of its list. If the SEC answers 200, the cut-over date is the last day of that
+   period. If it answers 404, the cut-over date is the last day of the next older period. The
+   date of today plays no part. That day is in both paths. The overlap of one day covers
+   assumption A2 below. A cut-over date that is too early costs only overlap, because rule 4
+   keeps every write idempotent. A cut-over date that is too late leaves a gap that no step
+   reports.
 2. The first run reads every day from the start date up to yesterday. The binary `backfill` runs
-   the first load: the Notes periods, then this catch-up in its second call (STA-416). Each later run of
+   the first load: the Notes periods and, at the same time, this catch-up. Each later run of
    `daily_filings` reads the last 4 days (`ARKAD_FROM=yesterday-3`). See [Window](#window).
 3. If the run missed a day older than the window, rerun that date.
 4. A filing that reaches both paths writes no duplicate row, because every write is idempotent.
    Silver keeps both copies, and a read takes the instance. See
    [`silver_layer.md`](silver_layer.md#current-facts).
-5. Rule 1 leaves no gap only if the backfill stored every period up to the newest stored Notes
-   month. To check, confirm that no entry in the run summary has a `failed_state`. If one does,
-   rerun the backfill (rule 8). Then read the newest period in the run summary with the status
-   `downloaded`, `already_stored`, or `replaced`. That period is the newest stored Notes month of
-   rule 1. `NotesRunSummary::cut_over_date()` does this check (STA-414). It returns
-   the last day of that month. It fails if a period failed or if no period is stored. See
-   [Calling the Machines](#calling-the-machines). Do not rely on the calendar. In three samples, the SEC posted a month in the first 8
+5. Rule 1 leaves no gap only if the backfill stored every period up to the cut-over date. The
+   catch-up runs at the same time as the Notes step, so it cannot wait for this check. A failed
+   Notes period fails the run instead: `AllRunSummary::result()` returns `FailedAllBackfill`, and
+   `backfill` exits with an error. Rerun the backfill (rule 8). The repeat downloads the failed
+   period. To check a run by hand, confirm that no entry in the Notes summary has a
+   `failed_state`. See [Calling the Machines](#calling-the-machines). Do not rely on the
+   calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
    [Notes ZIP Findings](#notes-zip-findings)).
 6. If a later backfill run stores newer months, those months overlap the new-filing path. Rule 4
    keeps the overlap free of duplicate rows.
 7. The operator sets the first `ARKAD_FROM` of `daily_filings` by rule 1, after the check of
-   rule 5. The binary `backfill` passes `cut_over_date()` to its second call, so no operator sets
-   the start date. `daily_filings` reads no stored document to pick its dates, so it cannot check
+   rule 5. The binary `backfill` passes only the last date to `all()`, which finds the cut-over
+   date itself, so no operator sets the start date. `daily_filings` reads no stored document to pick its dates, so it cannot check
    this rule itself. The check from the store comes with the repository listing
    (STA-403).
 8. A backfill run can repeat. It skips each stored file that passes the size and SHA-256 check
@@ -1811,6 +1807,35 @@ Assumptions:
 | A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `backfill` sends a `HEAD` request for each quarterly file after 2025q3 that ended less than 24 months ago. After the merge of 2025q4, the request answers 200, so the run asks for `2025q4` and skips the stored months `2025_10` to `2025_12`. The merge came 367 to 458 days after the quarter end in the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. If the SEC stops merging, every request answers 404 and the run keeps the months for 24 months. After that, the run counts the quarter as merged, asks for a file that does not exist, and fails. A merge that takes more than 24 months fails the same way, which shows the case. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
 | A6 | The SEC publishes the daily indexes in date order | Unverified | The 404 rule counts a date as empty once a later index exists. An index published after a later one is lost with no alert. A rerun of that date picks it up. |
+
+#### The Steps at the Same Time
+
+`backfill().all()` runs the Notes step and the catch-up at the same time. In sequence, a run takes
+the sum of both steps. At the same time, it takes about the longer of the two. The cut-over date
+comes from one `HEAD` request, so the catch-up does not wait for the Notes step.
+
+Measured on 2026-11-13 in the cloud container (4 cores, about 13 to 15 MB/s to the SEC). Each run
+used a fresh store, the Notes periods `2025q1`, `2025q2`, and `2026_10` (1.27 GB), and the
+catch-up from 2026-10-31 to 2026-11-02. The sequence is the binary of `main` before this change.
+The runs alternated, sequence first.
+
+| Run | Variant | Run time | Notes step | Catch-up | Peak memory | Requests | 429 | 503 |
+| --- | ------- | -------- | ---------- | -------- | ----------- | -------- | --- | --- |
+| 1 | Sequence | 94.8 s | 51.2 s | 43.5 s | 1,604 MB | 395 | 0 | 0 |
+| 1 | Parallel | 95.9 s | 57.4 s | 95.4 s | 1,659 MB | 397 | 0 | 1 |
+| 2 | Sequence | 138.2 s | 62.8 s | 75.3 s | 1,679 MB | 395 | 0 | 0 |
+| 2 | Parallel | 93.3 s | 51.6 s | 92.8 s | 1,742 MB | 401 | 0 | 2 |
+| 3 | Sequence | 99.2 s | 54.9 s | 44.3 s | 1,793 MB | 395 | 0 | 0 |
+| 3 | Parallel | 52.4 s | 52.0 s | 43.6 s | 2,219 MB | 396 | 0 | 0 |
+
+- The parallel run was never slower than the fastest sequence run. Its median is 93.3 s against
+  99.2 s, and its best run took 52.4 s, the time of the Notes step alone.
+- In runs 1 and 2 of the parallel variant, the catch-up made about 2 requests per second while the
+  Notes files downloaded, against about 6.5 alone. Both steps share one network link. The cause is
+  not measured.
+- The parallel variant sends one more request, the `HEAD` request of the cut-over date, plus one
+  request for each retry after a 503. Each 503 passed on its retry.
+- The peak memory rose by 55 to 426 MB. The cap on Notes files in flight still bounds it.
 
 ### Idempotent Writes
 
@@ -2100,10 +2125,8 @@ binaries once as static musl binaries. Each final stage holds one binary on
   exits with an error if any machine failed, and Cloud Run retries it. Pending and unextractable
   do not count as failed. The retry is safe, because
   every write is idempotent.
-- `backfill` does not run the `submissions` machine for the Notes companies (decision of
-  2026-11-01). `backfill().all()` does, if a later run needs it. It reads every stored Notes file
-  in full, one at a time, and fetches one `submissions` file per distinct CIK, an estimated
-  10,000 to 25,000 requests.
+- `backfill` does not run the `submissions` machine for the Notes companies (decisions of
+  2026-11-01 and 2026-11-03). See [Company Data](#company-data).
 - `backfill` reads `ARKAD_FILES_IN_FLIGHT` for the number of Notes files in flight. Unset, it
   uses 2. STA-379 measures the value for Cloud Run.
 - Both jobs share the SEC client, the User-Agent, and the storage root through

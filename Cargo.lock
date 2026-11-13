@@ -1894,7 +1894,6 @@ dependencies = [
  "url",
  "uuid",
  "xbrl",
- "zip",
 ]
 
 [[package]]
