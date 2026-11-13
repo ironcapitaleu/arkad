@@ -202,10 +202,11 @@ rewrite the user story, the description, or the wording of a Definition of Done 
 the ticket owns them. Quote the stale sentence, state the fact that contradicts it, and name the
 source.
 
-At the delivery step, leave **one** current comment on the ticket through the `linear` skill, in
-status voice. If an earlier handoff left a state-of-play comment and the session can edit a
-comment, edit that comment. Otherwise post a new one, and say in its first line which comment it
-replaces.
+At the delivery step, leave **one** current comment of each kind on the ticket through the
+`linear` skill, in status voice. The two kinds are the state-of-play comment and the short update
+comment. If an earlier handoff left a comment of the same kind and the session can edit a comment,
+edit that comment. Otherwise post a new one, and say in its first line which comment it replaces.
+Never replace a state-of-play comment with a short update comment.
 
 - For the Linear destination, the state-of-play comment holds two more lists: "Fixed on this
   ticket" and "Stale, for the author".
@@ -220,7 +221,7 @@ way. Name the write that is missing in the chat reply.
 
 In the handoff document, list each point of "Stale, for the author" under "Blocked / undecided",
 so the successor does not act on the stale text. In the chat reply, tell the user what you fixed
-and what you posted.
+on each ticket and what you posted.
 
 If a ticket of the Roadmap other than the handoff ticket is stale, fix only its status and a
 missing blocker, with the same proof. Do this in Procedure step 4, when you read those tickets.
