@@ -188,13 +188,16 @@ an old measurement, a split of the ticket, a file path or symbol that moved.
 Leave **one** current comment of each kind on the ticket through the `linear` skill, in status
 voice. The two kinds are the state-of-play comment and the short update comment. If an earlier
 handoff left a comment of the same kind and the session can edit a comment, edit that comment.
-Otherwise post a new one, and say in its first line which comment it replaces. Never replace a
-state-of-play comment with a short update comment.
+Otherwise post a new one. If it replaces an earlier comment, name that comment in its first line.
+Never replace a state-of-play comment with a short update comment. If a state-of-play comment
+exists, the first line of the short update names it and says which of its points are now out of
+date.
 
 - For the Linear destination, the state-of-play comment holds one more list: "Stale on this
   ticket".
 - For the agent-session destination, post a short update comment with that list, the branch, and
   the PR. If no point is stale, post no comment.
+- If the destination is both, post only the state-of-play comment.
 
 **Change the ticket itself only after the user agrees.** A change to the ticket is a checked box,
 a new status, an assignee, a relation, a link, or an edit of the description. If such a change
@@ -261,7 +264,7 @@ If Linear fails after a change, list the changes already made in the chat reply.
      Write a file only in these cases: the user asks for one, a session-spawning tool needs one, or
      the session runs in a terminal. Write it to a temporary directory outside the repository, as
      `handoff-<short-slug>.md`. Never commit it.
-   - **Linear note** — post the content as a state-of-play comment on the In Progress ticket through
+   - **Linear note** — leave the state-of-play comment by the rule in "Update the Ticket", through
      the `linear` skill, in status voice.
    - **Every destination** — the comment carries the lists of "Update the Ticket". For an agent
      session alone, post the short update comment only if a point is stale.
