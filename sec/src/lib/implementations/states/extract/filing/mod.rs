@@ -581,7 +581,8 @@ where
                 self.context.execution_id,
                 self.context.ingestion_mode,
                 repository,
-            ))?,
+            ))?
+            .with_inputs(self.context.inputs.clone()),
             input: ExtractFilingSuperStateData,
             output: None,
             context: self.context,
@@ -787,6 +788,7 @@ mod tests {
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::raw_document::RawDocument;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
+    use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::{
         FakeFilingIndexRepository, FakeXbrlInstanceRepository, FakeXbrlLabelsRepository,
     };
@@ -1313,6 +1315,34 @@ mod tests {
             .persisted()
             .iter()
             .map(|document| document.metadata().ingestion_mode())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_the_inputs_of_the_builder_when_storing_the_folder_index() {
+        let filing_index_repository = FakeFilingIndexRepository::new();
+        let super_state = ExtractFilingSuperState::builder()
+            .filing_ref(filing_ref())
+            .sec_client(sec_client())
+            .execution_id(EXECUTION_ID)
+            .ingestion_mode(IngestionMode::Incremental)
+            .filing_index_repository(filing_index_repository.clone())
+            .instance_repository(FakeXbrlInstanceRepository::new())
+            .labels_repository(FakeXbrlLabelsRepository::new())
+            .inputs(daily_index_inputs())
+            .build();
+
+        let expected_result = vec![daily_index_inputs()];
+
+        super_state.run_to_documents(|_| {}).await.expect(
+            "Given a client that serves the folder index and both files, the run should always succeed",
+        );
+        let result: Vec<Vec<InputDocument>> = filing_index_repository
+            .persisted()
+            .iter()
+            .map(|document| document.metadata().inputs().to_vec())
             .collect();
 
         assert_eq!(result, expected_result);

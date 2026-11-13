@@ -227,6 +227,16 @@ impl<C> DocumentMetadata<C> {
     pub const fn context(&self) -> &C {
         &self.context
     }
+
+    /// Returns this metadata with `inputs` added after the inputs it already holds.
+    ///
+    /// The other fields stay as they are. The digest covers the document bytes only, so it stays
+    /// valid.
+    #[must_use]
+    pub fn with_added_inputs(mut self, inputs: Vec<InputDocument>) -> Self {
+        self.inputs.extend(inputs);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -297,6 +307,53 @@ mod tests {
         let expected_result = "sample_document";
 
         let result = metadata.document_type();
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn input_of(key: &str, sha256: Sha256Digest) -> InputDocument {
+        InputDocument::new(
+            crate::implementations::repository::filesystem::DocumentKey::new(key)
+                .expect("Given a hardcoded valid relative path, the key should always build"),
+            sha256,
+        )
+    }
+
+    #[test]
+    fn should_keep_the_held_inputs_first_when_adding_inputs() {
+        let metadata = sample_metadata();
+        let added = vec![input_of(
+            "sec/daily-index/form.20260909.idx",
+            Sha256Digest::of(b"index"),
+        )];
+
+        let expected_result = vec![
+            input_of(
+                "sec/companyfacts/CIK0000320193.json",
+                "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
+                    .parse()
+                    .expect(
+                        "Given 64 hardcoded lowercase hex characters, parsing should always succeed",
+                    ),
+            ),
+            input_of(
+                "sec/daily-index/form.20260909.idx",
+                Sha256Digest::of(b"index"),
+            ),
+        ];
+
+        let result = metadata.with_added_inputs(added).inputs().to_vec();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_leave_the_metadata_unchanged_when_adding_no_inputs() {
+        let metadata = sample_metadata();
+
+        let expected_result = sample_metadata();
+
+        let result = metadata.with_added_inputs(Vec::new());
 
         assert_eq!(result, expected_result);
     }

@@ -111,7 +111,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
-        FilesystemRepository, IngestionMode, METADATA_SUFFIX, ReadWrite,
+        FilesystemRepository, IngestionMode, InputDocument, METADATA_SUFFIX, ReadWrite,
     };
     use storage::{Sha256Digest, WriteError};
     use tempfile::TempDir;
@@ -309,6 +309,25 @@ mod tests {
             .persisted()
             .pop()
             .map(|document| document.metadata().ingestion_mode());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_no_inputs_for_notes_archives() {
+        let repository = FakeNotesRepository::new();
+        let mut state = sample_state(repository.clone());
+
+        let expected_result = Some(Vec::<InputDocument>::new());
+
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given a fake repository that accepts every write, the state should succeed");
+        let result = repository
+            .persisted()
+            .pop()
+            .map(|document| document.metadata().inputs().to_vec());
 
         assert_eq!(result, expected_result);
     }

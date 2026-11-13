@@ -87,7 +87,7 @@ mod tests {
     use serde::Serialize;
     use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
-        Document, FilesystemRepository, IngestionMode, ReadWrite,
+        Document, FilesystemRepository, IngestionMode, InputDocument, ReadWrite,
     };
     use storage::{Sha256Digest, WriteError};
     use uuid::Uuid;
@@ -355,6 +355,17 @@ mod tests {
         let expected_result = "raw_submissions";
 
         let result = document.metadata().document_type().to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_record_no_inputs_in_the_metadata_of_the_document() {
+        let document = persisted_document().await;
+
+        let expected_result: &[InputDocument] = &[];
+
+        let result = document.metadata().inputs();
 
         assert_eq!(result, expected_result);
     }

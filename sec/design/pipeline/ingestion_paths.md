@@ -119,9 +119,11 @@ pub trait StoredAs: HasResponse {
 - `STATE_NAME` is the name in `state_name()`, in the stream, and in the producer of the document.
 - The label of the request input in error messages, for example `CIK`, is
   `RequestKind::INPUT_LABEL`, next to `INPUT_NAME`. Every request check reads it (STA-418).
-- The context holds the request input, the `execution_id`, the ingestion mode, and the repository.
-  The input holds the response in an `Arc`, the requested URL, and the `User-Agent`. The run sets
-  the mode, because `submissions` runs in both modes. STA-384 moved the mode into the context.
+- The context holds the request input, the `execution_id`, the ingestion mode, the repository,
+  and the inputs. The state adds the inputs to the document that `store` builds, so `store` takes
+  none. They are empty unless the caller sets them with `with_inputs`. The input holds the
+  response in an `Arc`, the requested URL, and the `User-Agent`. The run sets the mode, because
+  `submissions` runs in both modes. STA-384 moved the mode into the context.
 - One generic transition moves `ExecuteSecRequest<E, C>` into `StoreSecResponse<E, R>`. It takes
   the `execution_id`, the ingestion mode, and the repository from the run.
 - `StoreCompanyFacts<R>` is an alias of `StoreSecResponse<CompanyFacts, R>`.
@@ -1674,11 +1676,12 @@ state is `StoreFilingIndex`, the `StoreSecResponse` of the kind `FilingIndex`.
 - The document keeps the body as the SEC sent it, through `RawDocument::from_filing_response`.
   Its metadata names the filing, as the instance and the label file do (see
   [Raw Store](#raw-store)).
-- It names no input document. The generic `StoreSecResponse` state builds the document from the
-  response and the request input only, and `StoredAs::store` takes no inputs. Adding them changes
-  every store kind, so it is out of scope for STA-413. The `filed_date` in its metadata names the
-  date of the daily index that listed the filing. If the folder holds an instance, its `inputs`
-  also name that daily index.
+- Its `inputs` name the daily index that listed the filing, as the `inputs` of the instance and
+  the label file do. The filing machine hands its inputs to `StoreFilingIndex`, and the generic
+  `StoreSecResponse` state adds them to the document after `StoredAs::store` builds it. The
+  `filed_date` in its metadata names the date of the same daily index.
+- A folder index stored before it had `inputs` keeps none until a run fetches its filing again.
+  That write changes the metadata once and keeps the bytes.
 
 #### Logs and Summary
 
@@ -1990,10 +1993,9 @@ documents:
   metadata `context` of the instance, the label file, and the folder index also holds `filing`:
   the `filed_date`, the `form` (`10-Q`), and `is_amendment`. A metadata file without `filing`
   reads as no filing.
-- The `inputs` of the instance and the label file name the daily index that listed the filing,
-  with its key and SHA-256, so each filing points back to its index. A filing machine built
-  without inputs records none. The folder index names no input (see
-  [Unextractable Record](#unextractable-record)).
+- The `inputs` of the instance, the label file, and the folder index name the daily index that
+  listed the filing, with its key and SHA-256, so each filing points back to its index. A filing
+  machine built without inputs records none (see [Unextractable Record](#unextractable-record)).
 - The daily index is stored so that detection can run again without the SEC.
 - A new fetch of `submissions` replaces the old file. The raw store holds the latest company data
   only. The same holds for a replaced Notes file.

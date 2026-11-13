@@ -246,6 +246,17 @@ impl<S: RawSource> RawDocument<S> {
         Self::from_response_with_context(key, response, context, run)
     }
 
+    /// Returns this document with `inputs` added to the inputs its metadata records.
+    ///
+    /// The key and the bytes stay as they are. If `inputs` is empty, the document is unchanged.
+    #[must_use]
+    pub fn with_added_inputs(self, inputs: Vec<InputDocument>) -> Self {
+        Self {
+            metadata: self.metadata.with_added_inputs(inputs),
+            ..self
+        }
+    }
+
     /// Creates a [`RawDocument`] of the raw body of `response` with the metadata `context`.
     fn from_response_with_context(
         key: DocumentKey,
