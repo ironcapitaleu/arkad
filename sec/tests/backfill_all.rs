@@ -243,13 +243,15 @@ async fn should_fail_the_older_period_when_the_list_is_not_in_order() {
 async fn should_run_no_catch_up_date_when_until_is_before_the_cut_over_date() {
     let root = temporary_root();
     let sec_client = sec_client(&["2026_09"]);
+    let periods = ["2026_09"];
+    let until = date("2026-09-01");
 
     let expected_result = (json!([]), Ok(()));
 
     let summary = Extraction::backfill()
         .all()
-        .periods(["2026_09"])
-        .until(date("2026-09-01"))
+        .periods(periods)
+        .until(until)
         .sec_client(sec_client)
         .repositories(repositories(&root))
         .run(|_, _| {})
