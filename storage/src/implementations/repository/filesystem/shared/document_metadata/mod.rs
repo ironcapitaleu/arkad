@@ -355,63 +355,46 @@ mod tests {
     }
 
     #[test]
-    fn should_write_the_produced_at_with_fractional_seconds_in_the_stored_format() {
+    fn should_write_all_nine_digits_when_the_produced_at_has_nanoseconds() {
         let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.123456789Z");
 
-        let expected_result = serde_json::json!({
-            "metadata_version": 1,
-            "document_type": "sample_document",
-            "document_type_version": 1,
-            "media_type": "application/json",
-            "bytes": 2,
-            "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-            "produced_at": "2026-09-22T20:05:30.123456789Z",
-            "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
-            "ingestion_mode": "backfill",
-            "producer": { "name": "Sample State", "crate_version": "0.1.0", "commit": "63c1f59" },
-            "inputs": [{
-                "key": "sec/companyfacts/CIK0000320193.json",
-                "sha256": "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b",
-            }],
-            "context": {
-                "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
-            },
-        });
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.123456789Z");
 
         let result = serde_json::to_value(metadata)
-            .expect("Given metadata of owned fields, serialization should always succeed");
+            .expect("Given metadata of owned fields, serialization should always succeed")
+            ["produced_at"]
+            .take();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_read_the_produced_at_with_fractional_seconds_when_the_metadata_holds_the_stored_format()
-     {
-        let stored_metadata = r#"{
-  "metadata_version": 1,
-  "document_type": "sample_document",
-  "document_type_version": 1,
-  "media_type": "application/json",
-  "bytes": 2,
-  "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-  "produced_at": "2026-09-22T20:05:30.123456789Z",
-  "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
-  "ingestion_mode": "backfill",
-  "producer": { "name": "Sample State", "crate_version": "0.1.0", "commit": "63c1f59" },
-  "inputs": [{
-    "key": "sec/companyfacts/CIK0000320193.json",
-    "sha256": "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
-  }],
-  "context": { "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json" }
-}"#;
+    fn should_pad_the_fraction_to_whole_microseconds_when_the_produced_at_has_trailing_zeros() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.1234Z");
+
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.123400Z");
+
+        let result = serde_json::to_value(metadata)
+            .expect("Given metadata of owned fields, serialization should always succeed")
+            ["produced_at"]
+            .take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_nanoseconds_when_the_stored_produced_at_has_fractional_seconds() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["produced_at"] = "2026-09-22T20:05:30.123456789Z".into();
 
         let expected_result = NaiveDate::from_ymd_opt(2026, 9, 22)
             .and_then(|date| date.and_hms_nano_opt(20, 5, 30, 123_456_789))
             .expect("Given a hardcoded valid date and time, creating it should always succeed")
             .and_utc();
 
-        let result = serde_json::from_str::<DocumentMetadata<SampleContext>>(stored_metadata)
-            .expect("Given JSON with every field, deserialization should always succeed")
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .expect("Given stored metadata with every field, deserialization should always succeed")
             .produced_at();
 
         assert_eq!(result, expected_result);
