@@ -300,11 +300,109 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::fixtures::sample_server::{closing_server, impatient_client, stalled_server};
+    use crate::tests::fixtures::data::notes_archive::SAMPLE_NOTES_ZIP;
+    use crate::tests::fixtures::sample_server::{
+        closing_server, gzip, gzip_response, impatient_client, stalled_server,
+    };
 
     /// A response head that promises a body of 100 bytes and sends none of it.
     const STALLED_HEAD: &[u8] =
         b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n";
+
+    /// The content type of a Notes file.
+    const ZIP_CONTENT_TYPE: &str = "application/zip";
+
+    /// Sends `response` from a local server and builds an [`SecResponse<ZipBody>`] from the
+    /// answer, with a client that asks for gzip.
+    async fn zip_response_from_server(
+        response: Vec<u8>,
+    ) -> Result<SecResponse<ZipBody>, InvalidSecResponse> {
+        let address = closing_server(response).await;
+        let inner = impatient_client()
+            .get(format!("http://{address}/"))
+            .send()
+            .await
+            .expect("The server sends a full response head, so the request always gets a response");
+        SecResponse::<ZipBody>::from_inner(inner).await
+    }
+
+    #[tokio::test]
+    async fn should_return_a_failed_body_read_when_a_gzip_body_ends_early() {
+        let gzip_body = gzip(SAMPLE_NOTES_ZIP);
+        let cut_gzip_body = &gzip_body[..gzip_body.len() / 2];
+        // `Content-Length` matches the cut body, so only the gzip decoder sees that it ends early.
+        let response = gzip_response(ZIP_CONTENT_TYPE, cut_gzip_body);
+
+        let expected_result = true;
+
+        let reason = zip_response_from_server(response)
+            .await
+            .expect_err("The gzip stream ends before its trailer, so the decoder always fails")
+            .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
+        let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_a_failed_body_read_when_the_gzip_checksum_does_not_match() {
+        let mut gzip_body = gzip(SAMPLE_NOTES_ZIP);
+        // The gzip trailer is the CRC-32 of the decoded body, then its length, 4 bytes each.
+        let crc_start = gzip_body.len() - 8;
+        gzip_body[crc_start] ^= 0xFF;
+        let response = gzip_response(ZIP_CONTENT_TYPE, &gzip_body);
+
+        let expected_result = true;
+
+        let reason = zip_response_from_server(response)
+            .await
+            .expect_err("The CRC-32 in the trailer is wrong, so the decoder always fails")
+            .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
+        let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_a_failed_body_read_when_the_gzip_length_does_not_match() {
+        let mut gzip_body = gzip(SAMPLE_NOTES_ZIP);
+        // The last 4 bytes of the gzip trailer are the length of the decoded body.
+        let length_start = gzip_body.len() - 4;
+        gzip_body[length_start] ^= 0xFF;
+        let response = gzip_response(ZIP_CONTENT_TYPE, &gzip_body);
+
+        let expected_result = true;
+
+        let reason = zip_response_from_server(response)
+            .await
+            .expect_err("The length in the trailer is wrong, so the decoder always fails")
+            .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
+        let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_a_failed_body_read_when_the_connection_closes_in_a_gzip_body() {
+        let gzip_body = gzip(SAMPLE_NOTES_ZIP);
+        let mut response = gzip_response(ZIP_CONTENT_TYPE, &gzip_body);
+        // `Content-Length` states the whole gzip body, and the server sends half of it.
+        response.truncate(response.len() - gzip_body.len() / 2);
+
+        let expected_result = true;
+
+        let reason = zip_response_from_server(response)
+            .await
+            .expect_err("The server closes before the promised gzip body, so the read always fails")
+            .reason;
+        // The details come from `reqwest`, so the test checks only the variant.
+        let result = matches!(reason, ErrorReason::FailedBodyRead { .. });
+
+        assert_eq!(result, expected_result);
+    }
 
     #[tokio::test]
     async fn should_return_a_failed_body_read_when_the_connection_closes_in_the_body() {

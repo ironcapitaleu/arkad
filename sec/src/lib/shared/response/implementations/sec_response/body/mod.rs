@@ -96,6 +96,12 @@ pub trait FileBody: ResponseBody<Content = [u8]> {
 
 /// Checks that the body length matches the `Content-Length` header, if the header is present.
 ///
+/// A gzip body has no such header here. Its `Content-Length` states the gzip length, so `reqwest`
+/// removes it, with `Content-Encoding`, when it decodes the body. Two other checks cover a gzip
+/// body before this one runs. `hyper` checks the gzip length on the wire. The gzip decoder checks
+/// the CRC-32 and the length in the gzip trailer. If either check fails, reading the body fails
+/// with [`ErrorReason::FailedBodyRead`].
+///
 /// # Errors
 ///
 /// Returns an [`InvalidSecResponse`] with [`ErrorReason::InvalidContentLength`] if the header
