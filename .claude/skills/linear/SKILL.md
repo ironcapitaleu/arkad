@@ -3,11 +3,11 @@ name: linear
 description: >
   This skill should be used when the user asks to "create a linear issue", "add a ticket",
   "make a linear ticket", "create a SPIKE", "create a FEATURE ticket", "list my issues",
-  "search linear", "update a ticket", or needs to interact with Linear in any way
-  (creating, reading, updating, or searching issues).
-version: 0.1.0
+  "search linear", "update a ticket", "comment on a ticket", or needs to interact with Linear in
+  any way (creating, reading, updating, searching, or commenting on issues).
+version: 0.2.0
 argument-hint: "[create|list|search|get|update] [details]"
-allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue, mcp__linear__list_issue_labels]
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue, mcp__linear__list_issue_labels, mcp__Linear__list_comments, mcp__Linear__save_comment]
 ---
 
 # Linear Issue Management Skill
@@ -750,6 +750,21 @@ When presenting issues to the user, show: identifier, title, status, assignee, a
 
 Use `mcp__linear__update_issue` to change status, assignee, priority, or description.
 Always confirm with the user before making changes.
+
+## Workflow: Comments
+
+- **Read comments:** Use `mcp__Linear__list_comments` with the issue identifier, for example
+  `STA-430`. `get_issue` does not return the comments of an issue.
+- **Post a comment:** Use `mcp__Linear__save_comment` with the issue identifier and the body, and
+  no `id`.
+- **Edit a comment:** Use `mcp__Linear__save_comment` with the `id` of the comment and the new
+  body. Use this for the one current state-of-play comment (see "For the returning developer").
+
+A comment needs no confirmation from the user. It adds to the ticket and changes no text of
+another person. A change to the issue itself still needs one (see "Workflow: Updating an Issue").
+
+The name of a Linear tool depends on the Linear server of the session. If a session offers a
+comment tool under another name, use that tool.
 
 ## Label IDs
 
