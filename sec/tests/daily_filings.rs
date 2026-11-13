@@ -1,8 +1,8 @@
 //! # `daily_filings` Tests
 //!
 //! Runs the `Extraction` facade that the `daily_filings` binary calls: offline against a fake SEC,
-//! and for one date live. The live run takes its last date from the clock of the binary. The binary
-//! is its own crate root, so this test compiles that module as a private module.
+//! and for one date live. The live run takes its last date from `new_york_clock.rs` of the binary.
+//! The binary is its own crate root, so this test compiles that module as a private module.
 //!
 //! ## External Dependencies
 //!
