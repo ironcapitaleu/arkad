@@ -90,13 +90,15 @@ The full table is in "The Steps at the Same Time" of `sec/design/pipeline/ingest
 
 ## Consequences
 
-- At best, a run takes the time of its longer step, about half the time of the sequence. In 2 of
-  the 3 measured runs, it took about as long as the sequence run.
+- At best, a run takes the time of its longer step, about half the time of the sequence. Parallel
+  runs 1 and 2 took 95.9 s and 93.3 s, close to the 94.8 s and 99.2 s of the two faster sequence
+  runs.
 - The catch-up starts before the run knows that every Notes file exists. The run finds a gap only
   at the end, as a failed run. An operator must rerun on a non-zero exit code.
 - In the case of a refused download of the newest period, the Notes summary lists that period as
   `unpublished`, while the run fails. The Notes summary does not know the cut-over date.
-- The run sends one `HEAD` request more than the sequence, before any retries.
+- The run sends one `HEAD` request more than the sequence. Each retry of a filing machine repeats
+  the requests of that filing.
 
 ## Triggers to Revisit
 
