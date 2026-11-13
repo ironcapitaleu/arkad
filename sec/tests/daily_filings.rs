@@ -1,16 +1,12 @@
 //! # `daily_filings` Tests
 //!
 //! Runs the `Extraction` facade that the `daily_filings` binary calls: offline against a fake SEC,
-//! and for one date live. The live run takes its last date from `new_york_clock.rs` of the binary.
-//! The binary is its own crate root, so this test compiles that file as a private module.
+//! and for one date live.
 //!
 //! ## External Dependencies
 //!
 //! - `www.sec.gov` and `data.sec.gov`: the daily index of [`live::DATE`], and the folders and the
 //!   `submissions` files of its filings
-
-#[path = "../src/bin/shared/new_york_clock.rs"]
-mod new_york_clock;
 
 /// Runs the facade offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
@@ -1061,7 +1057,7 @@ mod run_loop {
 
 /// Runs the facade for one past date against the live SEC, as the binary does.
 mod live {
-    use chrono::{NaiveDate, Utc};
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
     use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
@@ -1072,8 +1068,6 @@ mod live {
     use serde_json::json;
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
-
-    use crate::new_york_clock::previous_day_in_new_york;
 
     /// A past weekday with few filings, so the test stays short: the Friday after Thanksgiving
     /// 2025. A run of it took 10 s on 2026-11-01.
@@ -1122,7 +1116,8 @@ mod live {
         let summary = Extraction::incremental()
             .daily_filings()
             .dates([date])
-            .as_of(previous_day_in_new_york(Utc::now()))
+            // The first date of a run is never pending, so `as_of` does not change this run.
+            .as_of(date)
             .sec_client(sec_client())
             .repositories(repositories(&root))
             .run(|_, _| {})
