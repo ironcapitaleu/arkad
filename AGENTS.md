@@ -77,9 +77,9 @@ between options, run this test before you write the code:
 | The choice rests on a measurement that can go out of date | The choice follows from the code or from a rule of this file |
 
 If a row of the left column holds, write the ADR, even if a row of the right column also holds.
-The test covers decisions about the code and the systems it runs on. A guideline edit that sets
-how agents or people work, and not how the code works, needs no ADR. This file or the skill is its
-record.
+The test covers decisions about the code and the systems it runs on. A guideline edit needs no
+ADR if it sets how agents or people work, or how code is written, such as names or import order.
+This file or the skill that holds the rule is its record.
 
 - If the test says ADR, write the ADR in the PR that first acts on the decision. A decision from a
   ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. Set its status to
