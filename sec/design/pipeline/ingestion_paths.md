@@ -1112,7 +1112,7 @@ a row whose form parses with `Form::from_sec_str` and is in `SELECTED_FORMS`, an
 
 Decided in STA-372:
 
-- The input of `SelectFilings` is the `Option<StoredDailyIndex>` of the `StoreDailyIndex` output.
+- The input of `SelectFilings` is the `Option<StoredFormIndex>` of the `StoreDailyIndex` output.
   `None` gives an empty list.
 - The state reads the index bytes with `String::from_utf8_lossy`. Six real indexes from 2020 to
   2026 hold no byte outside ASCII, so the call copies nothing. A replaced byte can only sit in a
@@ -2042,6 +2042,7 @@ documents:
 | Company Facts JSON | `RawCompanyFacts` | `raw_company_facts` | `sec/companyfacts/CIK##########.json` |
 | Notes ZIP | `RawNotesArchive` | `raw_notes_archive` | `sec/notes/<file name>`, for example `sec/notes/2010q1_notes_1.zip` |
 | Daily index | `RawDailyIndex` | `raw_daily_index` | `sec/daily-index/form.YYYYMMDD.idx` |
+| Full index | `RawFullIndex` | `raw_full_index` | `sec/full-index/YYYY/QTRn/form.idx`. A later run replaces the file of the current quarter |
 | XBRL instance | `RawXbrlInstance` | `raw_xbrl_instance` | `sec/filings/CIK##########/<accession>/instance.xml` |
 | Label file | `RawXbrlLabels` | `raw_xbrl_labels` | `sec/filings/CIK##########/<accession>/lab.xml` |
 | Folder index | `RawFilingIndex` | `raw_filing_index` | `sec/filings/CIK##########/<accession>/index.json` |

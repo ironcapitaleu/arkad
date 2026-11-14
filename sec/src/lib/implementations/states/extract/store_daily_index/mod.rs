@@ -30,6 +30,7 @@ use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawDailyIndex;
 use crate::shared::run_fields::RunFields;
+use crate::shared::stored_form_index::StoredFormIndex;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -38,7 +39,7 @@ pub mod data;
 
 pub use constants::{DAILY_INDEX_KEY_PREFIX, STATE_NAME};
 pub use context::StoreDailyIndexContext;
-pub use data::{StoreDailyIndexInput, StoreDailyIndexOutput, StoredDailyIndex};
+pub use data::{StoreDailyIndexInput, StoreDailyIndexOutput};
 
 /// Writes the downloaded daily index of one day to the store.
 ///
@@ -111,7 +112,7 @@ impl<R: RawRepository<RawDailyIndex>> State for StoreDailyIndex<R> {
                 ingestion_mode: self.context.ingestion_mode,
             },
         );
-        let index = StoredDailyIndex {
+        let index = StoredFormIndex {
             key,
             sha256: document.metadata().sha256().clone(),
             text: response.body_bytes(),
@@ -341,7 +342,7 @@ mod tests {
         let root = temporary_root();
         let mut state = sample_state(filesystem_repository(root.path()));
 
-        let expected_result = Some(&StoreDailyIndexOutput::new(StoredDailyIndex {
+        let expected_result = Some(&StoreDailyIndexOutput::new(StoredFormIndex {
             key: sample_key(),
             sha256: storage::Sha256Digest::of(SAMPLE_INDEX),
             text: Bytes::from_static(SAMPLE_INDEX),

@@ -69,9 +69,7 @@ use crate::implementations::states::extract::daily_index::builder::{
 use crate::implementations::states::extract::download_daily_index::DownloadDailyIndex;
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::select_filings::SelectFilings;
-use crate::implementations::states::extract::store_daily_index::{
-    StoreDailyIndex, StoredDailyIndex,
-};
+use crate::implementations::states::extract::store_daily_index::StoreDailyIndex;
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
 use crate::prelude::*;
 use crate::shared::filing_ref::FilingRef;
@@ -82,6 +80,7 @@ use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawDailyIndex;
 use crate::shared::request::implementations::sec_request::DailyIndex;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
+use crate::shared::stored_form_index::StoredFormIndex;
 use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
 /// Input and output data for the [`DetectFilingsSuperState`].
@@ -408,7 +407,7 @@ impl<R: RawRepository<RawDailyIndex> + 'static, C: SecClientTrait + 'static> Int
                         .input_data()
                         .index
                         .as_ref()
-                        .map(StoredDailyIndex::input_document),
+                        .map(StoredFormIndex::input_document),
                 });
             }
         })

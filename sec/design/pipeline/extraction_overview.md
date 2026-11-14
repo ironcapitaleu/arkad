@@ -151,6 +151,7 @@ flowchart TB
 | -------- | ------------- | --- |
 | Notes ZIP | `raw_notes_archive` | `sec/notes/<SEC file name>` |
 | Daily index | `raw_daily_index` | `sec/daily-index/form.YYYYMMDD.idx` |
+| Full index | `raw_full_index` | `sec/full-index/YYYY/QTRn/form.idx` |
 | Folder index | `raw_filing_index` | `sec/filings/CIK##########/<accession number>/index.json` |
 | XBRL instance | `raw_xbrl_instance` | `sec/filings/CIK##########/<accession number>/instance.xml` |
 | Label file | `raw_xbrl_labels` | `sec/filings/CIK##########/<accession number>/lab.xml` |

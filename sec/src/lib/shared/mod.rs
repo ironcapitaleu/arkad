@@ -16,7 +16,7 @@
 //! - [`index_date`]: Provides [`IndexDate`](index_date::IndexDate), the date of one EDGAR daily index, and the parts of its URL.
 //! - [`notes_archive_ref`]: Provides [`NotesArchiveRef`](notes_archive_ref::NotesArchiveRef), the period, key, size, and SHA-256 digest of one stored Notes file.
 //! - [`notes_period`]: Provides [`NotesPeriod`](notes_period::NotesPeriod), the period of one SEC Financial Statement and Notes file, and its file name.
-//! - [`quarter`]: Provides [`Quarter`](quarter::Quarter), one calendar quarter of one year, which names the folder of an EDGAR full index.
+//! - [`quarter`]: Provides [`Quarter`](quarter::Quarter), one calendar quarter of one year, which names the folder of an EDGAR daily index or full index.
 //! - [`raw_document`]: Provides [`RawDocument`](raw_document::RawDocument), one SEC file as the store keeps it.
 //! - [`raw_repository`]: Provides [`RawRepository`](raw_repository::RawRepository), the bound on a repository of raw documents that a state context can hold.
 //! - [`raw_source`]: Provides [`RawSource`](raw_source::RawSource), the trait that names the SEC file a raw document holds, and one implementation per file.
@@ -24,6 +24,7 @@
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
 //! - [`run_fields`]: Provides [`RunFields`](run_fields::RunFields), the metadata fields that name the run that produced a stored document.
+//! - [`stored_form_index`]: Provides [`StoredFormIndex`](stored_form_index::StoredFormIndex), the key, the SHA-256, and the text of one stored daily index or full index.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
 //!
 //! ## Usage
@@ -58,5 +59,6 @@ pub mod request;
 pub mod response;
 pub mod run_fields;
 pub mod status_code;
+pub mod stored_form_index;
 pub mod url;
 pub mod user_agent;

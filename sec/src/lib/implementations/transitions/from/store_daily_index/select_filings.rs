@@ -53,7 +53,7 @@ mod tests {
 
     use super::*;
     use crate::implementations::states::extract::store_daily_index::{
-        StoreDailyIndexContext, StoreDailyIndexInput, StoredDailyIndex,
+        StoreDailyIndexContext, StoreDailyIndexInput,
     };
     use crate::shared::content_type::ContentType;
     use crate::shared::headers::Headers;
@@ -61,6 +61,7 @@ mod tests {
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
     use crate::shared::status_code::StatusCode;
+    use crate::shared::stored_form_index::StoredFormIndex;
     use crate::shared::url::Url;
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_write_repository::FakeDailyIndexRepository;
@@ -117,7 +118,7 @@ mod tests {
         );
 
         let expected_result = Ok(SelectFilings::new(
-            SelectFilingsInput::new(Some(StoredDailyIndex {
+            SelectFilingsInput::new(Some(StoredFormIndex {
                 key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                     .expect("Given a hardcoded valid relative path, the key should always build"),
                 sha256: storage::Sha256Digest::of(INDEX_BODY),

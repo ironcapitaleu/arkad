@@ -170,12 +170,7 @@ fn parse(date: &str) -> Option<NaiveDate> {
 
 /// Returns the first day of the quarter after `date`, or `None` if that day is after `today`.
 fn first_day_of_next_quarter(date: NaiveDate, today: NaiveDate) -> Option<IndexDate> {
-    let next_quarter_month = date.month0() / 3 * 3 + 4;
-    let next_quarter_start = if next_quarter_month > 12 {
-        NaiveDate::from_ymd_opt(date.year() + 1, 1, 1)
-    } else {
-        NaiveDate::from_ymd_opt(date.year(), next_quarter_month, 1)
-    }?;
+    let next_quarter_start = Quarter::of(date).next().first_day()?;
     (next_quarter_start <= today).then_some(IndexDate(next_quarter_start))
 }
 
