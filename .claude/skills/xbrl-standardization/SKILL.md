@@ -6,7 +6,7 @@ description: >
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.4
+version: 0.3.5
 ---
 
 # XBRL Standardization
@@ -20,8 +20,8 @@ accounting background, such as the accounting identities and the fiscal periods,
 
 ## Identity Checks
 
-The standard concepts rest on the elements of FASB Concepts Statement 8, Chapter 4 (formerly
-SFAC 6). Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", and the checks in
+The standard concepts rest on the elements of FASB Concepts Statement 8, Chapter 4.
+Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", and the checks in
 "Roll-Up Tree", "Checks the Tree Gives". The weakest confidence of the inputs of a failed check
 tells what the failure means:
 

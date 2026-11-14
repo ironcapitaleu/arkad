@@ -7,7 +7,7 @@ description: >
   reports of the SEC and of EU issuers, restatements, and which values add over periods. Also use
   when the user asks "does this balance", "how does IFRS treat X", "is this a restatement", "what
   is Q4", or "which period is this".
-version: 0.2.1
+version: 0.2.2
 ---
 
 # Accounting
@@ -23,18 +23,17 @@ between the statements, periods, and reporting calendars. It covers US GAAP and 
 | --- | --- | --- |
 | Standard setter | FASB | IASB |
 | Standards | Accounting Standards Codification (ASC) | IFRS and IAS standards |
-| Elements | Concepts Statement 8, Chapter 4 (2021): ten elements. It replaced SFAC 6 | Conceptual Framework (2018): five elements |
+| Elements | Concepts Statement 8, Chapter 4 (2021): ten elements | Conceptual Framework (2018): five elements |
 | Used by | US domestic SEC filers | EU listed groups, most other countries, and foreign issuers at the SEC |
 
 The ten US GAAP elements are assets, liabilities, equity, investments by owners, distributions to
-owners, comprehensive income, revenue, expenses, gains, and losses. SFAC 6 (1985) defined them.
-Concepts Statement 8, Chapter 4 (December 2021) replaced SFAC 6. It keeps the ten elements. It
-changes the definitions of assets and liabilities: for example, it drops "probable" and "past
-transactions or events". It also drops "ongoing major or central operations" from revenues and
-expenses, and "peripheral or incidental" from gains and losses. E84 counts interest, rent,
-royalties, and fees as revenues from "other activities".
-`references/concepts-statement-8-chapter-4-elements.md` quotes the definitions of Chapter 4. The five IFRS elements are assets, liabilities, equity, income,
-and expenses. IFRS income includes gains, and IFRS expenses include losses.
+owners, comprehensive income, revenue, expenses, gains, and losses. Concepts Statement 8, Chapter
+4 (December 2021) defines them. An asset is a present right of an entity to an economic benefit. A
+liability is a present obligation of an entity to transfer an economic benefit. Revenues and
+expenses include those from "other activities", such as interest, rent, royalties, and fees (E84).
+`references/concepts-statement-8-chapter-4-elements.md` quotes the definitions of Chapter 4.
+
+The five IFRS elements are assets, liabilities, equity, income, and expenses. IFRS income includes gains, and IFRS expenses include losses.
 
 ## Identities
 
@@ -144,8 +143,7 @@ published by that date.
 
 ## Staleness Check
 
-Standards change. A standard setter can replace a document, as FASB replaced SFAC 6 with Concepts
-Statement 8, Chapter 4. Each reference file names its `source`, `last-verified`, and
+Standards change. A standard setter can replace a document. Each reference file names its `source`, `last-verified`, and
 `update-frequency` in its header.
 
 1. When the skill loads, read the header of each reference file the task uses.
@@ -161,7 +159,7 @@ Statement 8, Chapter 4. Each reference file names its `source`, `last-verified`,
    - add `superseded-by` to the header, update the file from the new document, and rename the
      file and its links,
    - update every statement of this skill that names the old document,
-   - search the repository for the old name, for example `git grep -n "SFAC 6"`, and list the
+   - search the repository for the old name, for example `git grep -n "<old name>"`, and list the
      hits for a follow-up ticket.
 5. Store the text of a standard as the standard writes it. Never rewrite it from memory.
 

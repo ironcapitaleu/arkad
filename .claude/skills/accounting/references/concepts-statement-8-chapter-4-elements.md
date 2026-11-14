@@ -7,8 +7,7 @@ update-frequency: annually
 # Concepts Statement 8, Chapter 4 — Elements of Financial Statements
 
 Source: FASB Statement of Financial Accounting Concepts No. 8, "Conceptual Framework for Financial
-Reporting", Chapter 4, "Elements of Financial Statements" (December 2021). It replaced FASB
-Concepts Statement No. 6 (SFAC 6, 1985).
+Reporting", Chapter 4, "Elements of Financial Statements" (December 2021).
 
 The definitions below quote the paragraphs of Chapter 4 as FASB wrote them. The file leaves out
 footnote references. The paragraph numbers are those of Chapter 4.
