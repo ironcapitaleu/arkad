@@ -24,9 +24,9 @@ Status: proposed. The decisions below wait for review.
 
 ## Relation to the Deferred Read Surface
 
-The design of the storage traits defers the whole read surface (see
+The consolidated design of the storage traits defers the whole read surface (see
 [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md),
-"Design", deferred item 1). The deferral waits for a concrete consumer. The listing
+"Consolidated Design", deferred item 1). The deferral waits for a concrete consumer. The listing
 now has five, see [Consumers](#consumers). So the listing reopens item 1, but only for the listing:
 
 - `completeness`, `ownership_tree`, and `query` stay deferred. They wait for a screener or API
@@ -37,7 +37,7 @@ The listing is not a `RawStore::scan(filter)`, a stream of `RawFiling` values wi
 
 - `scan` would return the bytes. The raw store holds about 30 GB today. A stream of bytes reads all of
   them, also for a caller that needs only keys.
-- The code has no `RawStore`. Each document type has its own repository
+- The `storage` crate has no `RawStore`. Each document type has its own repository
   behind the neutral `ReadRepository` and `WriteRepository` ports. A listing on those ports serves
   every repository, not only the raw tier.
 - A replay driver that needs the bytes lists the keys, then calls `get` for each key. That
