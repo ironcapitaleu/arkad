@@ -18,7 +18,6 @@ use storage::implementations::repository::filesystem::{
 };
 
 use crate::shared::content_type::ContentType;
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::{RawFileSource, RawSource};
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::{FileBody, SecResponse};
@@ -475,8 +474,8 @@ impl<S: RawFileSource> RawDocument<S> {
 }
 
 impl<S: RawSource> Document for RawDocument<S> {
-    type DocumentType = SecDocumentType;
-    const DOCUMENT_TYPE: SecDocumentType = S::DOCUMENT_TYPE;
+    type DocumentType = &'static str;
+    const DOCUMENT_TYPE: &'static str = S::DOCUMENT_TYPE;
     const DOCUMENT_TYPE_VERSION: u32 = S::DOCUMENT_TYPE_VERSION;
     type Context = RawDocumentMetadataContext;
 

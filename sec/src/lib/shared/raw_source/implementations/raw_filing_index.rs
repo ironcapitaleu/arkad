@@ -3,7 +3,6 @@
 //! Provides [`RawFilingIndex`], the [`RawSource`] marker for the folder `index.json` of one
 //! filing.
 
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::RawSource;
 
 /// Marks the folder `index.json` of one filing, as the SEC returns it. The file lists the files of
@@ -12,7 +11,7 @@ use crate::shared::raw_source::traits::RawSource;
 pub struct RawFilingIndex;
 
 impl RawSource for RawFilingIndex {
-    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawFilingIndex;
+    const DOCUMENT_TYPE: &'static str = "raw_filing_index";
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
@@ -30,7 +29,7 @@ mod tests {
 
     #[test]
     fn should_name_the_raw_filing_index_document_type_for_raw_filing_index() {
-        let expected_result = SecDocumentType::RawFilingIndex;
+        let expected_result = "raw_filing_index";
 
         let result = RawFilingIndex::DOCUMENT_TYPE;
 

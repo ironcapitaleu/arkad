@@ -2,7 +2,6 @@
 //!
 //! Provides [`RawFullIndex`], the [`RawSource`] marker for the EDGAR full index of one quarter.
 
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 
 /// Marks the EDGAR full index `form.idx` of one quarter, as the SEC returns it.
@@ -10,7 +9,7 @@ use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 pub struct RawFullIndex;
 
 impl RawSource for RawFullIndex {
-    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawFullIndex;
+    const DOCUMENT_TYPE: &'static str = "raw_full_index";
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
@@ -36,7 +35,7 @@ mod tests {
 
     #[test]
     fn should_name_the_raw_full_index_document_type_for_raw_full_index() {
-        let expected_result = SecDocumentType::RawFullIndex;
+        let expected_result = "raw_full_index";
 
         let result = RawFullIndex::DOCUMENT_TYPE;
 

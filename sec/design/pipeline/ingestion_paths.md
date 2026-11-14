@@ -2051,7 +2051,8 @@ A filing that only Notes delivered keeps the Notes form of its lossy facts.
 ## Raw Store
 
 All documents use `FilesystemRepository` and `RawDocument<S>`. Each source gets its own
-`RawSource` marker and `SecDocumentType` variant. Every marker in this table exists. The XBRL
+`RawSource` marker, which holds the document type text as `DOCUMENT_TYPE`
+([ADR 0008](../../../docs/adr/0008-raw-source-document-type-text.md)). Every marker in this table exists. The XBRL
 instance and the label file arrive as `XmlBody`, and `RawDocument::from_file` builds their
 documents:
 
@@ -2201,7 +2202,7 @@ Backfill:
 4. FEATURE: `SecRequestType::FetchNotesFile` and the builder `notes_file().period(p)`.
 5. FEATURE: `SecResponse<ZipBody>` and the Notes request through
    `SecClient::execute_sec_request`, with the transport checks of layer 1.
-6. FEATURE: `RawNotesArchive`, its `SecDocumentType` variant, and the constructors of
+6. FEATURE: `RawNotesArchive`, its document type, and the constructors of
    `RawDocument` and `RawDocumentMetadataContext` from `SecResponse<ZipBody>`.
 7. FEATURE: the states `ValidateNotesPeriod` and `PrepareNotesRequest`.
 8. FEATURE: the state `DownloadNotesArchive`.

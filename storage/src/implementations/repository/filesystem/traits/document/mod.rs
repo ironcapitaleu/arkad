@@ -16,15 +16,16 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 /// A document is a key, the bytes stored under it, and the metadata stored beside them. Each
 /// document type is its own Rust type and implements this trait.
 ///
-/// The crate that owns a document type defines an enum of its document types and sets
-/// [`Document::DocumentType`] to it. [`Document::DOCUMENT_TYPE`] names the variant of this type,
-/// and [`Document::DOCUMENT_TYPE_VERSION`] the version of its [`Document::Context`].
+/// The crate that owns a document type sets [`Document::DocumentType`] to a type with a
+/// `Display` text, such as an enum of its document types or `&'static str`.
+/// [`Document::DOCUMENT_TYPE`] names this document type, and [`Document::DOCUMENT_TYPE_VERSION`]
+/// the version of its [`Document::Context`].
 /// [`DocumentMetadataBuilder::build`] stores both, so a reader can tell a file of another document
 /// type or version apart.
 ///
 /// # Associated Types
 ///
-/// - `DocumentType`: The enum of document types in the crate that owns this document type.
+/// - `DocumentType`: The type whose `Display` text names a document type.
 /// - `Context`: The metadata fields that only this document type has.
 ///
 /// # Examples
@@ -98,13 +99,13 @@ use crate::implementations::repository::filesystem::shared::document_metadata::D
 ///
 /// [`DocumentMetadataBuilder::build`]: crate::implementations::repository::filesystem::DocumentMetadataBuilder::build
 pub trait Document: Send + Sized {
-    /// The enum of document types in the crate that owns this document type.
+    /// The type whose `Display` text names a document type.
     ///
     /// The store writes its `Display` text as `document_type`. The text must be unique across every
     /// crate that stores documents, because the store cannot tell two equal texts apart.
     type DocumentType: fmt::Display;
 
-    /// The variant of [`Document::DocumentType`] that names this document type.
+    /// The value of [`Document::DocumentType`] that names this document type.
     const DOCUMENT_TYPE: Self::DocumentType;
 
     /// The version of [`Document::Context`].

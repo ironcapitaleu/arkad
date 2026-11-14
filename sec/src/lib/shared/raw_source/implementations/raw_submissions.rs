@@ -2,7 +2,6 @@
 //!
 //! Provides [`RawSubmissions`], the [`RawSource`] marker for the `submissions` JSON of one company.
 
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::RawSource;
 
 /// Marks the `submissions` JSON of one company, as the SEC returns it.
@@ -10,7 +9,7 @@ use crate::shared::raw_source::traits::RawSource;
 pub struct RawSubmissions;
 
 impl RawSource for RawSubmissions {
-    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawSubmissions;
+    const DOCUMENT_TYPE: &'static str = "raw_submissions";
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
@@ -28,7 +27,7 @@ mod tests {
 
     #[test]
     fn should_name_the_raw_submissions_document_type_for_raw_submissions() {
-        let expected_result = SecDocumentType::RawSubmissions;
+        let expected_result = "raw_submissions";
 
         let result = RawSubmissions::DOCUMENT_TYPE;
 
