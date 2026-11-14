@@ -6,8 +6,8 @@ planned Postgres tiers. Other documents hold the detail. This one links them and
 Gold is the company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). A
 **metadata store** holds the knowledge graph of companies and identifiers, the canonical concepts,
 and an entry for each source store ([`hybrid_data_model.md`](./hybrid_data_model.md) §3, §5, and
-[`ontology_guardrails.md`](./ontology_guardrails.md)). Each **source store** holds the facts of one
-data source, such as the SEC, with the provenance of each fact (§8.2). The raw store and silver
+[`ontology_guardrails.md`](./ontology_guardrails.md)). Each **source store** holds the records of one
+data source, such as the SEC facts, with the provenance of each record (§8.2). The raw store and silver
 feed the source stores. The code holds the raw store. The other tiers are in
 [Planned](#planned-silver-graph-and-facts).
 
@@ -63,7 +63,7 @@ None of this section has code. It follows
   Postgres transaction. The backend lives in `storage-postgres`. If the ledger holds a unit, a
   rerun skips it.
 - The graph tier and the fact tier share one Supabase Postgres database (ADR 0001). The graph tier
-  holds the metadata store. The fact tier holds the source stores, or a shared canonical tier next
-  to them (ADR 0007, "Open Questions").
+  holds the metadata store. The fact tier holds the facts of the source stores, or a shared
+  canonical tier next to them (ADR 0007, "Open Questions").
 - Read methods beyond `get` and `list`, such as the queries of the screener and the API, wait for
   a consumer that needs them.

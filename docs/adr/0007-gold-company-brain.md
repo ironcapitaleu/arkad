@@ -37,7 +37,8 @@ and 24.1% without it. These are vendor figures on Snowflake's data. Nobody check
 Terms:
 
 - **Data source**: an outside publisher of company data, such as the SEC or GLEIF.
-- **Source store**: the store of one data source. It holds the facts of that source.
+- **Source store**: the store of one data source. It holds the records of that source as the
+  source publishes them, such as the SEC facts or the GLEIF LEI records.
 - **Metadata store**: the store that describes the companies, the concepts, and the source stores.
 - **Company brain**: the metadata store over the source stores, in gold.
 
@@ -48,15 +49,16 @@ Terms:
 2. **The metadata store describes the data and holds no fact values.** It holds the knowledge graph
    of companies and their identifiers (§5) and the canonical concepts (§3), each with its
    definition and how to compute it from source facts. For each source store, it records which
-   companies, concepts, and periods the store holds, and how to read them. A claim of the graph,
-   such as a GLEIF parent link (§5.2), is metadata. The load derives it from the records of its
-   source store, and it sits in the metadata store with its source and date. Only the load and the
-   verdicts of the review queue write the metadata store. Unlike the Snowflake context layer, it
+   companies the store holds, for facts also which concepts and periods, and how to read them. A claim of the graph,
+   such as a GLEIF parent link (§5.2), is metadata. The load derives each claim from the records
+   of the source store of its source, such as the GLEIF store. The claim sits in the metadata store
+   with its source and date. Only two writes change the metadata store: the load, and a verdict on
+   an item of the review queue. Unlike the Snowflake context layer, it
    does not learn from usage, such as the queries that reach the `/v1` API.
-3. **Each source store holds the facts of its data source, with the provenance of each fact.** The
-   SEC store holds the SEC facts. The GLEIF store holds the LEI records as GLEIF publishes them.
-   The provenance of a fact (§8.2) stays next to the fact and names its silver unit and raw
-   document by key. This decision covers the facts as each source reports them. Where the
+3. **Each source store holds the records of its data source, with the provenance of each
+   record.** The SEC store holds the SEC facts. The GLEIF store holds the LEI records as GLEIF
+   publishes them. The provenance of a record (§8.2) stays next to it and names its silver unit and
+   raw document by key. This decision covers the records as each source publishes them. Where the
    canonical facts live is open (Open Questions).
 4. **A query starts in the metadata store.** It resolves a company, an identifier, or a concept,
    and finds the stores that hold the facts.
