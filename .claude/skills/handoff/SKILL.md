@@ -209,8 +209,9 @@ names it in its second line.
 If an earlier marked comment of the same kind exists, read it again. Edit it, and set the new time
 in its marker. Post a new comment instead if the session cannot edit a comment, or if the old one
 holds text that no handoff wrote. A new comment that replaces an earlier one names it in its second
-line. Never replace a state-of-play comment with a short update comment. If a state-of-play comment exists, the second line of the short update names it.
-The short update also says which points of that comment are out of date.
+line. Never replace a state-of-play comment with a short update comment. If a state-of-play
+comment exists, the second line of the short update names it. The short update also says which
+points of that comment are out of date.
 
 - For the Linear destination, the state-of-play comment holds one more list: "Stale on this
   ticket".
