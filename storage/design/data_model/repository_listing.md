@@ -7,10 +7,10 @@ document adds a listing: a repository gives a stream of the documents it holds, 
 as bytes. It records the trait, the filesystem sketch, the ordering and consistency rules, and how
 each consumer uses the listing.
 
-Status: the code implements features 1, 2, and 4 of [Feature Tickets](#feature-tickets): the
-trait and its fake, the filesystem listing, and the cut-over date. Features 3, 5, and 6 have no
-code. The decision in [Bookmark or Full Index](#bookmark-or-full-index) waits for review by the
-lead.
+Status: the code implements features 1 and 4 of [Feature Tickets](#feature-tickets), and the code
+of feature 2. The measurement of feature 2 is not done, see [Limits](#limits). Features 3, 5, and 6
+have no code. The lead must still review the decision in
+[Bookmark or Full Index](#bookmark-or-full-index).
 
 ## Reading Guide
 
@@ -560,7 +560,8 @@ ids A4 and A5 are the assumptions of "Cut-Over Between the Paths" in
 
 ### The Listing
 
-Status: proposed. See [The Trait](#the-trait) and [Filesystem Sketch](#filesystem-sketch).
+Status: implemented by features 1 and 2. See [The Trait](#the-trait) and
+[Filesystem Sketch](#filesystem-sketch).
 
 Assumptions:
 
