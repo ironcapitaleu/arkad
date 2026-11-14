@@ -30,8 +30,8 @@ has two parallel, non-integrated models and one raw-document store:
 
 - `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
   identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
-- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42
-  variants), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
+- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElementKind` (36
+  standard concepts, nested by statement), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
 - The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
   unit struct; the entire **Load SuperState is an empty file**.
@@ -40,10 +40,10 @@ What to carry forward vs. change (detail in §10):
 
 | Existing artifact | Verdict |
 | --- | --- |
-| `xbrl::CanonicalElement` (the standard concepts) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
+| `xbrl::CanonicalElementKind` (the standard concepts) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
 | `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
-| `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
+| `us_gaap::mappings` (tag → CanonicalElementKind) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
 | `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (internal key, §4), resolved at load time |
 | `sec::CompanyData/CompanyFact/Observation` | **Replace** — superseded by the canonical model |
 
@@ -64,14 +64,14 @@ flowchart TB
   end
   subgraph SEC["SEC Source Store"]
     SECraw["Raw observations, as filed\n(CIK, accession, form 10-K/10-Q,\nus-gaap:* native tags, taxonomy yr)"]
-    SECcan["Canonical facts\n(company_id, CanonicalElement, value, unit,\nperiod, confidence, source_ref)"]
+    SECcan["Canonical facts\n(company_id, CanonicalElementKind, value, unit,\nperiod, confidence, source_ref)"]
   end
   subgraph ESEF["ESEF Source Store (not built)"]
     ESEFraw["Raw observations, as filed\n(ifrs-full:* tags, ESEF filing meta)"]
-    ESEFcan["Canonical facts\n(company_id, CanonicalElement, value, unit,\nperiod, confidence, source_ref)"]
+    ESEFcan["Canonical facts\n(company_id, CanonicalElementKind, value, unit,\nperiod, confidence, source_ref)"]
   end
-  SECraw -- "SEC adapter: us-gaap tag → CanonicalElement" --> SECcan
-  ESEFraw -- "ESEF adapter: ifrs-full tag → CanonicalElement" --> ESEFcan
+  SECraw -- "SEC adapter: us-gaap tag → CanonicalElementKind" --> SECcan
+  ESEFraw -- "ESEF adapter: ifrs-full tag → CanonicalElementKind" --> ESEFcan
   KG -- "per company: key (CIK), rank" --> SEC
   KG -- "per company: key (LEI), rank" --> ESEF
 ```
@@ -91,8 +91,8 @@ three regulators has its records in three source stores, each with its own canon
 metadata store lists all three for that company.
 
 **What resolves and what stays as filed:** an observation becomes a canonical fact only if it
-resolves to a `CanonicalElement` at a known `Confidence`. An observation with no canonical meaning,
-such as a `us-gaap` disclosure tag with no mapping to a `CanonicalElement`, stays in the source
+resolves to a `CanonicalElementKind` at a known `Confidence`. An observation with no canonical meaning,
+such as a `us-gaap` disclosure tag with no mapping to a `CanonicalElementKind`, stays in the source
 store as filed. A caller can query it there. This meets the requirement to connect to and query
 regulator-specific data.
 
@@ -137,10 +137,10 @@ gold design.
 
 ## 3. Universal Canonical Concept Model
 
-The universal vocabulary is the **`CanonicalElement`** set: 13 Level-1 roots and
-~29 Level-2 sub-elements, listed in `xbrl/src/core/elements.rs`. The roots hold 8 of the ten
-elements of Concepts Statement 8, plus totals such as `NetIncome`. Investments by owners and
-distributions to owners have no root. Concepts Statement 8 is a
+The universal vocabulary is the **`CanonicalElementKind`** set: the lines of the roll-up trees
+of the three statements and the disclosures, listed in `xbrl/src/core/elements/`. Its top lines
+rest on the elements of Concepts Statement 8, Chapter 4, plus totals such as `NetIncome`.
+`xbrl/DESIGN.md`, "Roll-Up Tree", gives each tree. Concepts Statement 8 is a
 US document, but its ten elements are **definitional, not standard-specific** — IFRS's
 Conceptual Framework defines assets, liabilities, equity, income, and expenses in
 substantially the same terms. So the roots are a legitimate *cross-standard* canonical
@@ -148,16 +148,15 @@ layer; US-GAAP and IFRS are two **dialects** that resolve into it.
 
 ### 3.1 Standard-neutrality — how divergences are handled
 
-- **Roots always map.** Assets/Liabilities/Equity/Revenue/Expenses/Gains/Losses/
-  NetIncome/OCI/ComprehensiveIncome/{Operating,Investing,Financing}CashFlow hold under both
-  US GAAP and IFRS.
-- **Level-2 sub-elements may diverge** (e.g. IFRS bars LIFO inventory; development costs may
+- **Top lines always map.** Assets/Liabilities/Equity/Revenue/NetIncome/OCI/
+  ComprehensiveIncome/{Operating,Investing,Financing}CashFlow hold under both US GAAP and IFRS.
+- **Lower lines may diverge** (e.g. IFRS bars LIFO inventory; development costs may
   be capitalized under IFRS but expensed under US GAAP; statement groupings differ). Rule:
-  where a dialect concept has no faithful canonical sub-element, it is **not** force-fitted —
+  where a dialect concept has no faithful canonical line, it is **not** force-fitted —
   it stays a raw adapter observation (queryable) and, if material, motivates a new
-  `CanonicalElement` variant added deliberately (via the accounting checklist), never an
+  `CanonicalElementKind` variant added deliberately (via the accounting checklist), never an
   overload of an existing one.
-- **Invariant:** never map two different concepts to the same `CanonicalElement` for the
+- **Invariant:** never map two different concepts to the same `CanonicalElementKind` for the
   same period/dimension.
 
 ### 3.2 Universal validation (accounting identities)
@@ -172,11 +171,11 @@ The core enforces the five identities as data-quality checks (`xbrl::Invariant`)
 
 Identity #1 failing is always a system bug, never valid company data. Balance-sheet
 elements are **Instant**; flow elements are **Duration** — this classification is intrinsic
-to the `CanonicalElement`, not to any regulator.
+to the `CanonicalElementKind`, not to any regulator.
 
 ### 3.3 Resolution & confidence (the adapter mechanism, made universal)
 
-Each adapter resolves a raw tag → `CanonicalElement` via the 4-tier ladder, tagging the
+Each adapter resolves a raw tag → `CanonicalElementKind` via the 4-tier ladder, tagging the
 resulting fact with its `Confidence`:
 
 | Tier | Confidence | Mechanism |
@@ -238,7 +237,7 @@ extensible.
 | --- | --- | --- | --- |
 | `Company` | **core — axiomatic** | `company_id` (§4) | *the* non-negotiable node; entity_name, country, status |
 | `Identifier` | **core — axiomatic** | `(scheme, value)` e.g. `(LEI, …)`, `(CIK, …)` | identity records attached to `Company`; each verifiable against its issuing registry (GLEIF, EDGAR) |
-| `Concept` | core — ours by construction | `CanonicalElement` | our own vocabulary — axiomatic because *we* define it (enables "which concepts expected/missing") |
+| `Concept` | core — ours by construction | `CanonicalElementKind` | our own vocabulary — axiomatic because *we* define it (enables "which concepts expected/missing") |
 | `Period` | shared dimension | `(kind, key)` e.g. `FY2024`, `Q3-2024` | deterministic calendar construct (Instant/Duration) — verifiable by arithmetic, safe to share |
 | `Regulator`/`DataSource` | adapter-bridge | `code` (SEC, FCA, BaFin, ESMA) | |
 | `Filing` | adapter | `regulator + native_id` (SEC: accession) | form, filed_date, period_end, taxonomy version |
@@ -321,7 +320,7 @@ graph LR
   subgraph Adapter["SEC adapter (+ shared dimensions)"]
     R["Regulator (SEC/FCA/…)"]
     F["Filing (native id: accession)"]
-    K["Concept (CanonicalElement)"]
+    K["Concept (CanonicalElementKind)"]
     P["Period"]
   end
   subgraph Claims["Claim layer (source-attributed)"]
@@ -385,7 +384,7 @@ logical model. ADR 0007, "Open Questions", leaves the gold tables to the gold de
 | Column | Type | From | Notes |
 | --- | --- | --- | --- |
 | `company_id` | string | internal key (§4) | partition/cluster key |
-| `canonical_element` | enum | `CanonicalElement` | universal concept |
+| `canonical_element` | enum | `CanonicalElementKind` | universal concept |
 | `value` | decimal | `StandardizedFact.value` | exact decimal, as reported |
 | `unit` | string | `Unit` | ISO 4217 currency, `shares`, `pure`, … |
 | `period_kind` | enum | `Period` | Instant / Duration |
@@ -452,7 +451,7 @@ and a caller joins it to the metadata store by `company_id` and `source_ref`:
    `taxonomy_version`, `native_tag` (e.g. `us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax`),
    `value`, `unit`, `period`, `dimensions`. This is the replay source and the "SEC-specific
    query" surface.
-2. **Resolution map** — dialect tag → `CanonicalElement` with priority-ordered aliases
+2. **Resolution map** — dialect tag → `CanonicalElementKind` with priority-ordered aliases
    (today's `us_gaap/mappings.rs`, reframed as the SEC adapter's map). The adapter resolves
    raw observations into the canonical facts of the same source store (§6).
 3. **Filing metadata → graph** — creates the `Filing` node + `HAS_FILING`/`FILED_UNDER`/
@@ -589,7 +588,7 @@ Today: `ParseCompanyFacts → CompanyData`; `CreateFinancialStatements → place
 flowchart LR
   A["Extract (SEC adapter)\nfetch EDGAR company facts"] --> B["Parse → AsIsFact[] + Filing[]\n(every namespace, CIK, accession)"]
   B --> B2["Persist raw store (SEC adapter)"]
-  B --> C["Resolve → StandardizedFact[]\n(CanonicalElement + Confidence + rule)"]
+  B --> C["Resolve → StandardizedFact[]\n(CanonicalElementKind + Confidence + rule)"]
   C --> D["CreateFinancialStatements\n→ FactSet(s) (was placeholder)"]
   D --> L["Load / StoreData (new)"]
   L --> G["Graph: upsert Company(LEI)/Filing/Period/Concept + edges"]
@@ -603,14 +602,14 @@ flowchart LR
   placeholder and emits `FactSet`s (the intermediate representation — no extra DTO needed).
 - **Load/`StoreData`** is the dual-writer: raw store (adapter) → graph → canonical facts.
 - `sec::CompanyData/Observation/ConceptDefinition` are **retired** in favor of
-  `xbrl::FactSet/StandardizedFact/CanonicalElement`; this SPIKE is the trigger for that
+  `xbrl::FactSet/StandardizedFact/CanonicalElementKind`; this SPIKE is the trigger for that
   sec→xbrl migration flagged in the ticket's Additional Notes.
 
 ## 10. Migration From the Current (Immature) Skeleton
 
 | Step | Action |
 | --- | --- |
-| 1 | Promote `xbrl::core` (CanonicalElement, StandardizedFact, FactSet, Confidence, Invariant, Period, Unit) to the **standard-neutral core**; decouple `CanonicalElement` from the `us_gaap` module namespace. |
+| 1 | Promote `xbrl::core` (CanonicalElementKind, StandardizedFact, FactSet, Confidence, Invariant, Period, Unit) to the **standard-neutral core**; decouple `CanonicalElementKind` from the `us_gaap` module namespace. |
 | 2 | Reframe `xbrl::us_gaap` as the **SEC/US-GAAP adapter** (raw parse + resolution map + filing metadata). Keep `adapter::edgar::company_facts::parse`. |
 | 3 | Add `Lei` domain concept + the internal `CompanyId` key type under `shared/`; add CIK→LEI translation to the SEC adapter. |
 | 4 | Implement the resolution engine (`xbrl::core::graph` TODO stub) — the 4-tier ladder + calc-linkbase derivation. |
@@ -885,7 +884,7 @@ native graph tooling up front.
 
 ### 14.D Implementation order (identical under both options)
 
-1. Build **canonical core types** (`CanonicalElement`, `CanonicalFact`/`StandardizedFact`,
+1. Build **canonical core types** (`CanonicalElementKind`, `CanonicalFact`/`StandardizedFact`,
    `FactSet`, `Lei`/`CompanyId`, `Invariant`) — storage-agnostic domain layer.
 2. Build the **SEC adapter** (raw parse + resolution map + CIK→LEI).
 3. Implement **`Load`** behind the storage ports (**§14.F**). Option A or B, or a later split,
@@ -949,8 +948,8 @@ property of §12a a compile-time check.
 
 ## 15. Open Questions / Risks
 
-- **Cross-standard concept coverage:** the Level-2 canonical set is US-GAAP-shaped; IFRS
-  onboarding will surface concepts needing deliberate new `CanonicalElement` variants.
+- **Cross-standard concept coverage:** the lower lines of the canonical set are US-GAAP-shaped; IFRS
+  onboarding will surface concepts needing deliberate new `CanonicalElementKind` variants.
 - **Dimensional explosion:** segment/geography dimensions multiply fact rows; the
   `dimension_sig` grain must be indexed carefully.
 - **LEI coverage** for smaller/foreign filers — CIK fallback must be first-class.

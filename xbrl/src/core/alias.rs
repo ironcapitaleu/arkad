@@ -310,7 +310,7 @@ mod tests {
     use super::*;
     use crate::core::concept::NamespaceFamily;
     use crate::core::dedup::{more_precise, newest_filing};
-    use crate::core::elements::CanonicalElement;
+    use crate::core::elements::{BalanceSheetConcept, IncomeStatementConcept};
     use crate::core::fact::{Decimals, FilingSource};
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
@@ -329,7 +329,7 @@ mod tests {
 
     fn revenue_list(concepts: Vec<ConceptName>) -> ConceptAliases {
         ConceptAliases {
-            element: CanonicalElement::Revenue,
+            element: IncomeStatementConcept::Revenue.element(),
             rule: RuleId::from_str("aaa/alias/revenue@1").expect(
                 "Given a hardcoded rule ID in the documented form, the parse should always succeed",
             ),
@@ -348,7 +348,7 @@ mod tests {
     /// `ParentEquity` as parts next to `MinorityInterest`.
     fn equity_plugin() -> FakeTaxonomy {
         let equity = ConceptAliases {
-            element: CanonicalElement::Equity,
+            element: BalanceSheetConcept::Equity.element(),
             rule: rule_of("us-gaap/alias/equity@1"),
             concepts: vec![concept_of(
                 "us-gaap",
@@ -525,7 +525,7 @@ mod tests {
             entity: quarter.context.entity.clone(),
             key: quarter.key(),
             ranks: vec![1],
-            standard_concept: Some(CanonicalElement::Revenue),
+            standard_concept: Some(IncomeStatementConcept::Revenue.element()),
         }];
 
         let result = resolve_aliases(&copies, &registry).findings;
@@ -577,7 +577,7 @@ mod tests {
             entity: quarter.context.entity.clone(),
             key: quarter.key(),
             ranks: vec![2],
-            standard_concept: Some(CanonicalElement::Revenue),
+            standard_concept: Some(IncomeStatementConcept::Revenue.element()),
         }];
 
         let result = resolve_aliases(&copies, &registry).findings;
@@ -857,7 +857,7 @@ mod tests {
             entity: equity.context.entity.clone(),
             key: equity.key(),
             ranks: vec![1],
-            standard_concept: Some(CanonicalElement::Equity),
+            standard_concept: Some(BalanceSheetConcept::Equity.element()),
         }];
 
         let result = resolve_aliases(&copies, &registry).findings;
@@ -1001,7 +1001,7 @@ mod tests {
             entity: quarter.context.entity.clone(),
             key: quarter.key(),
             ranks: vec![1],
-            standard_concept: Some(CanonicalElement::Revenue),
+            standard_concept: Some(IncomeStatementConcept::Revenue.element()),
         }];
 
         let result = resolve_aliases(&copies, &registry).findings;

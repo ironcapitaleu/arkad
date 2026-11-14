@@ -6,20 +6,20 @@ update-frequency: on-design-change
 
 # Resolution Tiers
 
-The xbrl crate maps raw US GAAP concepts to CanonicalElements through four tiers of increasing complexity and decreasing confidence.
+The xbrl crate maps raw US GAAP concepts to standard concepts (`CanonicalElementKind`) through four tiers of increasing complexity and decreasing confidence.
 
 ## Tier 1: Exact Match (Confidence::Exact)
 
 The concept is the first concept of the alias list of a plug-in.
 
-Example: `Assets` → CanonicalElement::Assets
+Example: `Assets` → `BalanceSheetConcept::Assets`
 
 ## Tier 2: Synonym/Alias (Confidence::Synonym)
 
 The concept is a later concept of the alias list, a part that the filing reports with no other
 part (the part rule, `PartAliases`), or an ESEF anchor (planned `ifrs` plug-in).
 
-Example: `RevenueFromContractWithCustomerExcludingAssessedTax` → CanonicalElement::Revenue (alias defined in REQUIRED_CONCEPTS for Revenue)
+Example: `RevenueFromContractWithCustomerExcludingAssessedTax` → `IncomeStatementConcept::Revenue` (alias defined in REQUIRED_CONCEPTS for Revenue)
 
 Alias priority: first match wins. Order aliases from most common/current to least.
 
@@ -29,7 +29,7 @@ Historical context: FASB taxonomy evolves concept names over time. Apple reporte
 - 2017-2018: `Revenues`
 - 2018+: `RevenueFromContractWithCustomerExcludingAssessedTax`
 
-All three map to CanonicalElement::Revenue.
+All three map to `IncomeStatementConcept::Revenue`.
 
 ## Tier 3: Derived (Confidence::Derived)
 

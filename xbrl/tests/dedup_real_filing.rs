@@ -29,7 +29,10 @@ use xbrl::core::candidate::SeriesKey;
 use xbrl::core::concept::{ConceptName, NamespaceFamily};
 use xbrl::core::confidence::Confidence;
 use xbrl::core::dedup::{Series, more_precise, newest_filing};
-use xbrl::core::elements::CanonicalElement;
+use xbrl::core::elements::{
+    BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, IncomeStatementConcept,
+    PerShareConcept,
+};
 use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, FactValue, TaxonomyVersion};
 use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::finding::Finding;
@@ -80,7 +83,7 @@ fn revenue_ranks(facts: &[AsIsFact]) -> Vec<(u16, String, FactValue)> {
 
 /// Runs the dedup rules on `facts`, and returns the count of standardized facts per standard
 /// concept.
-fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElement, usize> {
+fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usize> {
     let mut counts = BTreeMap::new();
     for fact in newest_filing(&candidates_of(facts).candidates).facts {
         *counts.entry(fact.concept).or_insert(0) += 1;
@@ -92,28 +95,28 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElement, usize> 
 ///
 /// Equity has 3 facts, and interest expense has 1, because a conflict blocks the 2026 quarter.
 /// Every other concept has 2. Facts with dimensions give no standardized fact.
-fn expected_standardized_counts() -> BTreeMap<CanonicalElement, usize> {
+fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
-        (CanonicalElement::Assets, 2),
-        (CanonicalElement::Equity, 3),
-        (CanonicalElement::Revenue, 2),
-        (CanonicalElement::NetIncome, 2),
-        (CanonicalElement::OperatingCashFlow, 2),
-        (CanonicalElement::InvestingCashFlow, 2),
-        (CanonicalElement::FinancingCashFlow, 2),
-        (CanonicalElement::CurrentAssets, 2),
-        (CanonicalElement::CashAndEquivalents, 2),
-        (CanonicalElement::Goodwill, 2),
-        (CanonicalElement::CurrentLiabilities, 2),
-        (CanonicalElement::NonCurrentLiabilities, 2),
-        (CanonicalElement::RetainedEarnings, 2),
-        (CanonicalElement::OperatingIncome, 2),
-        (CanonicalElement::InterestExpense, 1),
-        (CanonicalElement::EarningsPerShareBasic, 2),
-        (CanonicalElement::EarningsPerShareDiluted, 2),
-        (CanonicalElement::DepreciationAmortization, 2),
-        (CanonicalElement::CapitalExpenditures, 2),
-        (CanonicalElement::ShareBasedCompensation, 2),
+        (BalanceSheetConcept::Assets.element(), 2),
+        (BalanceSheetConcept::Equity.element(), 3),
+        (IncomeStatementConcept::Revenue.element(), 2),
+        (IncomeStatementConcept::NetIncome.element(), 2),
+        (CashFlowConcept::OperatingCashFlow.element(), 2),
+        (CashFlowConcept::InvestingCashFlow.element(), 2),
+        (CashFlowConcept::FinancingCashFlow.element(), 2),
+        (BalanceSheetConcept::CurrentAssets.element(), 2),
+        (BalanceSheetConcept::CashAndEquivalents.element(), 2),
+        (BalanceSheetConcept::Goodwill.element(), 2),
+        (BalanceSheetConcept::CurrentLiabilities.element(), 2),
+        (BalanceSheetConcept::NonCurrentLiabilities.element(), 2),
+        (BalanceSheetConcept::RetainedEarnings.element(), 2),
+        (IncomeStatementConcept::OperatingIncome.element(), 2),
+        (IncomeStatementConcept::InterestExpense.element(), 1),
+        (PerShareConcept::EarningsPerShareBasic.element(), 2),
+        (PerShareConcept::EarningsPerShareDiluted.element(), 2),
+        (CashFlowConcept::DepreciationAmortization.element(), 2),
+        (CashFlowConcept::CapitalExpenditures.element(), 2),
+        (CashFlowConcept::ShareBasedCompensation.element(), 2),
     ])
 }
 
@@ -143,7 +146,7 @@ fn fedex_freight() -> EntityId {
 fn revenue_quarter(period_end: NaiveDate) -> SeriesKey {
     SeriesKey {
         entity: fedex_freight(),
-        concept: CanonicalElement::Revenue,
+        concept: IncomeStatementConcept::Revenue.element(),
         period_end,
         quarters: 1,
         unit: usd(),
@@ -253,7 +256,7 @@ fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_qua
             copy_rank: 0,
         },
         ranks: vec![1],
-        standard_concept: Some(CanonicalElement::Revenue),
+        standard_concept: Some(IncomeStatementConcept::Revenue.element()),
     });
 
     let result = candidates_of(&facts).findings.into_iter().find(|finding| {
@@ -315,7 +318,7 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     } = newest_filing(&candidates_of(&facts).candidates);
     let result: Vec<(NaiveDate, u16, BigDecimal, Confidence)> = standardized
         .into_iter()
-        .filter(|fact| fact.concept == CanonicalElement::Revenue)
+        .filter(|fact| fact.concept == IncomeStatementConcept::Revenue.element())
         .map(|fact| {
             (
                 fact.period.end(),
@@ -343,7 +346,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
     let result: Vec<SeriesKey> = newest_filing(&candidates_of(&facts).candidates)
         .blocked
         .into_iter()
-        .filter(|key| key.concept == CanonicalElement::Revenue)
+        .filter(|key| key.concept == IncomeStatementConcept::Revenue.element())
         .collect();
 
     assert_eq!(result, expected_result);
@@ -379,77 +382,89 @@ fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_
     // For revenue, net income, equity, cash, and interest expense, the filer reports a part and no
     // other part.
     let expected_result = BTreeSet::from([
-        (CanonicalElement::Assets, rule("us-gaap/alias/assets@1")),
-        (CanonicalElement::Equity, rule("us-gaap/part/equity@1")),
-        (CanonicalElement::Revenue, rule("us-gaap/part/revenue@1")),
         (
-            CanonicalElement::NetIncome,
+            BalanceSheetConcept::Assets.element(),
+            rule("us-gaap/alias/assets@1"),
+        ),
+        (
+            BalanceSheetConcept::Equity.element(),
+            rule("us-gaap/part/equity@1"),
+        ),
+        (
+            IncomeStatementConcept::Revenue.element(),
+            rule("us-gaap/part/revenue@1"),
+        ),
+        (
+            IncomeStatementConcept::NetIncome.element(),
             rule("us-gaap/part/net-income@1"),
         ),
         (
-            CanonicalElement::OperatingCashFlow,
+            CashFlowConcept::OperatingCashFlow.element(),
             rule("us-gaap/alias/operating-cash-flow@1"),
         ),
         (
-            CanonicalElement::InvestingCashFlow,
+            CashFlowConcept::InvestingCashFlow.element(),
             rule("us-gaap/alias/investing-cash-flow@1"),
         ),
         (
-            CanonicalElement::FinancingCashFlow,
+            CashFlowConcept::FinancingCashFlow.element(),
             rule("us-gaap/alias/financing-cash-flow@1"),
         ),
         (
-            CanonicalElement::CurrentAssets,
+            BalanceSheetConcept::CurrentAssets.element(),
             rule("us-gaap/alias/current-assets@1"),
         ),
         (
-            CanonicalElement::CashAndEquivalents,
+            BalanceSheetConcept::CashAndEquivalents.element(),
             rule("us-gaap/part/cash-and-equivalents@1"),
         ),
-        (CanonicalElement::Goodwill, rule("us-gaap/alias/goodwill@1")),
         (
-            CanonicalElement::CurrentLiabilities,
+            BalanceSheetConcept::Goodwill.element(),
+            rule("us-gaap/alias/goodwill@1"),
+        ),
+        (
+            BalanceSheetConcept::CurrentLiabilities.element(),
             rule("us-gaap/alias/current-liabilities@1"),
         ),
         (
-            CanonicalElement::NonCurrentLiabilities,
+            BalanceSheetConcept::NonCurrentLiabilities.element(),
             rule("us-gaap/alias/non-current-liabilities@1"),
         ),
         (
-            CanonicalElement::RetainedEarnings,
+            BalanceSheetConcept::RetainedEarnings.element(),
             rule("us-gaap/alias/retained-earnings@1"),
         ),
         (
-            CanonicalElement::OperatingIncome,
+            IncomeStatementConcept::OperatingIncome.element(),
             rule("us-gaap/alias/operating-income@1"),
         ),
         (
-            CanonicalElement::InterestExpense,
+            IncomeStatementConcept::InterestExpense.element(),
             rule("us-gaap/part/interest-expense@1"),
         ),
         (
-            CanonicalElement::EarningsPerShareBasic,
+            PerShareConcept::EarningsPerShareBasic.element(),
             rule("us-gaap/alias/earnings-per-share-basic@1"),
         ),
         (
-            CanonicalElement::EarningsPerShareDiluted,
+            PerShareConcept::EarningsPerShareDiluted.element(),
             rule("us-gaap/alias/earnings-per-share-diluted@1"),
         ),
         (
-            CanonicalElement::DepreciationAmortization,
+            CashFlowConcept::DepreciationAmortization.element(),
             rule("us-gaap/alias/depreciation-amortization@1"),
         ),
         (
-            CanonicalElement::CapitalExpenditures,
+            CashFlowConcept::CapitalExpenditures.element(),
             rule("us-gaap/alias/capital-expenditures@1"),
         ),
         (
-            CanonicalElement::ShareBasedCompensation,
+            CashFlowConcept::ShareBasedCompensation.element(),
             rule("us-gaap/alias/share-based-compensation@1"),
         ),
     ]);
 
-    let result: BTreeSet<(CanonicalElement, RuleId)> =
+    let result: BTreeSet<(CanonicalElementKind, RuleId)> =
         newest_filing(&candidates_of(&facts).candidates)
             .facts
             .into_iter()

@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use super::elements::CanonicalElement;
+use super::elements::CanonicalElementKind;
 use super::entity_name::EntityName;
 use super::period::Period;
 use super::standardized::StandardizedFact;
@@ -19,7 +19,7 @@ pub struct FactSet {
     /// The period these facts cover.
     period: Period,
     /// The standardized facts, keyed by standard concept.
-    facts: HashMap<CanonicalElement, StandardizedFact>,
+    facts: HashMap<CanonicalElementKind, StandardizedFact>,
 }
 
 impl FactSet {
@@ -47,7 +47,7 @@ impl FactSet {
 
     /// Returns the standardized facts, keyed by standard concept.
     #[must_use]
-    pub const fn facts(&self) -> &HashMap<CanonicalElement, StandardizedFact> {
+    pub const fn facts(&self) -> &HashMap<CanonicalElementKind, StandardizedFact> {
         &self.facts
     }
 
@@ -61,7 +61,7 @@ impl FactSet {
 
     /// Returns the standardized fact of a standard concept, if the set holds one.
     #[must_use]
-    pub fn get(&self, element: CanonicalElement) -> Option<&StandardizedFact> {
+    pub fn get(&self, element: CanonicalElementKind) -> Option<&StandardizedFact> {
         self.facts.get(&element)
     }
 }
@@ -76,6 +76,7 @@ mod tests {
 
     use super::*;
     use crate::core::confidence::Confidence;
+    use crate::core::elements::IncomeStatementConcept;
     use crate::core::fact::Dimensions;
     use crate::core::filing::EntityId;
     use crate::core::period::Duration;
@@ -93,7 +94,7 @@ mod tests {
         StandardizedFact {
             entity: EntityId::new("cik", "0000320193")
                 .expect("Given a hardcoded scheme and ID, the creation should always succeed"),
-            concept: CanonicalElement::Revenue,
+            concept: IncomeStatementConcept::Revenue.element(),
             period: fiscal_year_2024(),
             unit: Unit::from_str("USD")
                 .expect("Given a hardcoded unit with one measure, the parse should always succeed"),
@@ -130,7 +131,9 @@ mod tests {
         let expected_result = Some(revenue("391036000000"));
 
         fact_set.insert(later);
-        let result = fact_set.get(CanonicalElement::Revenue).cloned();
+        let result = fact_set
+            .get(IncomeStatementConcept::Revenue.element())
+            .cloned();
 
         assert_eq!(result, expected_result);
     }

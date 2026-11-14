@@ -168,7 +168,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::CanonicalElement;
+    use crate::core::elements::IncomeStatementConcept;
     use crate::core::period::Duration;
     use crate::core::period_identity::derive_q4;
     use crate::tests::fixtures::sample_fact::{date, filing as sample_filing, standardized};
@@ -213,7 +213,7 @@ mod tests {
         Finding::SuspiciousPeriod {
             entity: fact.entity.clone(),
             key: fact.inputs[0].clone(),
-            standard_concept: CanonicalElement::Revenue,
+            standard_concept: IncomeStatementConcept::Revenue.element(),
             signals: signals.to_vec(),
             confirmed_by: confirmed_by.map(|filing| filing.id.clone()),
         }

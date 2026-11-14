@@ -224,7 +224,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::CanonicalElement;
+    use crate::core::elements::IncomeStatementConcept;
     use crate::core::fact::Dimensions;
     use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, filing, standardized};
@@ -709,7 +709,7 @@ mod tests {
     #[test]
     fn should_derive_nothing_when_the_nine_months_are_another_concept() {
         let mut first_nine_months = standardized(nine_months(), "296105000000");
-        first_nine_months.concept = CanonicalElement::CostOfRevenue;
+        first_nine_months.concept = IncomeStatementConcept::CostOfRevenue.element();
         let facts = series(vec![
             standardized(fiscal_year(), "391035000000"),
             first_nine_months,

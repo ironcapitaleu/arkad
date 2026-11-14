@@ -83,6 +83,8 @@ pub enum InvalidValueReason {
     NoMatchingRow(&'static str),
     /// No element of the kind, for example `context`, has the input as its ID.
     NoMatchingElement(&'static str),
+    /// No item of the kind, for example `standard concept`, has the input as its name.
+    NoMatchingName(&'static str),
     /// The source cut the named field of the row that the input keys, so the field is not complete.
     Truncated(&'static str),
 }
@@ -112,6 +114,7 @@ impl fmt::Display for InvalidValueReason {
             Self::NoMatchingElement(element) => {
                 write!(f, "No {element} element has the value as its ID")
             }
+            Self::NoMatchingName(kind) => write!(f, "No {kind} has the value as its name"),
             Self::Truncated(field) => write!(f, "The source cut {field}"),
         }
     }
@@ -162,6 +165,21 @@ mod tests {
         );
 
         let expected_result = "[InvalidValue] Invalid 'Measure', Reason: 'The value holds the separator /', Input: 'USD/shares'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_kind_when_no_item_has_the_name() {
+        let error = InvalidValue::new(
+            "CanonicalElementKind",
+            InvalidValueReason::NoMatchingName("standard concept"),
+            "Expenses",
+        );
+
+        let expected_result = "[InvalidValue] Invalid 'CanonicalElementKind', Reason: 'No standard concept has the value as its name', Input: 'Expenses'";
 
         let result = error.to_string();
 

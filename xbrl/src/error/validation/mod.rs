@@ -6,7 +6,7 @@ use std::fmt;
 
 use thiserror::Error;
 
-use crate::core::elements::CanonicalElement;
+use crate::core::elements::CanonicalElementKind;
 
 pub mod imprecise_rollup;
 pub mod incomplete_data;
@@ -41,7 +41,7 @@ pub enum ValidationErrorKind {
     )]
     ImpreciseRollup {
         /// The parent element whose total is mismatched.
-        parent: CanonicalElement,
+        parent: CanonicalElementKind,
         /// The value reported by the company for the parent.
         parent_value: i64,
         /// The sum computed from the children.
@@ -55,7 +55,7 @@ pub enum ValidationErrorKind {
 
 /// A list of missing canonical elements with a stable `Display` implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MissingElements(pub Vec<CanonicalElement>);
+pub struct MissingElements(pub Vec<CanonicalElementKind>);
 
 impl fmt::Display for MissingElements {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

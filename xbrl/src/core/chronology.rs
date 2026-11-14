@@ -11,7 +11,7 @@ use chrono::{Datelike, Months, NaiveDate};
 
 use super::candidate::SeriesKey;
 use super::dedup::Series;
-use super::elements::CanonicalElement;
+use super::elements::CanonicalElementKind;
 use super::fact::Dimensions;
 use super::filing::{EntityId, Filing};
 use super::finding::{Finding, GapReason};
@@ -122,7 +122,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Timeline {
     entity: EntityId,
-    concept: CanonicalElement,
+    concept: CanonicalElementKind,
     unit: Unit,
     dimensions: Dimensions,
 }
@@ -512,6 +512,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::elements::IncomeStatementConcept;
     use crate::core::finding::PeriodSignal;
     use crate::core::standardized::StandardizedFact;
     use crate::tests::fixtures::sample_fact::{date, fact, filing, source, standardized};
@@ -576,7 +577,7 @@ mod tests {
             entity: value(date(2024, 3, 30), 1).entity,
             key: fact(&filing, "Revenues", "1").key(),
             ranks: vec![1],
-            standard_concept: Some(CanonicalElement::Revenue),
+            standard_concept: Some(IncomeStatementConcept::Revenue.element()),
         }
     }
 
@@ -974,7 +975,7 @@ mod tests {
             Finding::SuspiciousPeriod {
                 entity: suspicious.entity.clone(),
                 key: suspicious.inputs[0].clone(),
-                standard_concept: CanonicalElement::Revenue,
+                standard_concept: IncomeStatementConcept::Revenue.element(),
                 signals: vec![PeriodSignal::StartBeforeEarliestYear],
                 confirmed_by: None,
             },

@@ -33,7 +33,7 @@ The finding of a failed check carries the weakest confidence of its inputs.
 
 ## Resolution Procedure
 
-When mapping a US GAAP concept to a CanonicalElement:
+When mapping a US GAAP concept to a standard concept (`CanonicalElementKind`):
 
 1. If the concept is the first concept of the alias list of a plug-in (`REQUIRED_CONCEPTS` or
    `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
@@ -50,7 +50,7 @@ of its own tier and its inputs.
 ## Adding New Concepts — Checklist
 
 1. Identify the US GAAP concept name(s) from SEC filings or FASB taxonomy
-2. Determine which CanonicalElement it maps to (see the elements in the `accounting` skill)
+2. Determine which standard concept it maps to (see the elements in the `accounting` skill)
 3. Research historical name variants (taxonomy versions change concept names over time)
 4. Add to `REQUIRED_CONCEPTS` or `OPTIONAL_CONCEPTS` in `xbrl/src/us_gaap/mappings.rs`
 5. Order aliases by priority (most common/current first)
@@ -94,7 +94,7 @@ Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` a
 
 ## Critical Invariants
 
-- Never map two different financial concepts to the same CanonicalElement for the same period
+- Never map two different financial concepts to the same standard concept for the same period
 - Maintain traceability: every StandardizedFact must record its `rule` and its `inputs`
 
 ## Authoritative Sources
@@ -140,7 +140,7 @@ Before using calculation linkbase relationships, check the `taxonomy-year` heade
 
 > "The FASB taxonomy reference is from {year}. A newer version may be available at xbrl.fasb.org/us-gaap/. Should I verify and update the references?"
 
-For `references/canonical-elements.md`: if you notice CanonicalElement enum members in the source code that are not in the reference file, flag the mismatch to the user.
+For `references/canonical-elements.md`: if you notice standard concepts in `xbrl/src/core/elements/` that are not in the reference file, flag the mismatch to the user.
 
 ## Update Logic
 

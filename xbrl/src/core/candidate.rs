@@ -7,7 +7,7 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 
 use super::confidence::Confidence;
-use super::elements::CanonicalElement;
+use super::elements::CanonicalElementKind;
 use super::fact::{Decimals, Dimensions, FactKey, FilingSource};
 use super::filing::EntityId;
 use super::period::Period;
@@ -27,7 +27,7 @@ pub struct Candidate {
     /// The entity the value is about.
     pub entity: EntityId,
     /// The standard concept.
-    pub concept: CanonicalElement,
+    pub concept: CanonicalElementKind,
     /// The instant or duration the value covers.
     pub period: Period,
     /// The unit.
@@ -85,7 +85,7 @@ pub struct SeriesKey {
     /// The entity.
     pub entity: EntityId,
     /// The standard concept.
-    pub concept: CanonicalElement,
+    pub concept: CanonicalElementKind,
     /// The exact end of the period.
     pub period_end: NaiveDate,
     /// The length in quarters.
