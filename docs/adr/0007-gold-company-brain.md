@@ -49,7 +49,8 @@ Terms:
 2. **The metadata store describes the data and holds no fact values.** It holds the knowledge graph
    of companies and their identifiers (§5) and the canonical concepts (§3), each with its
    definition and how to compute it from source facts. For each source store, it records which
-   companies the store holds, for facts also which concepts and periods, and how to read them. A claim of the graph,
+   companies the store holds and how to read them. For a store of facts, it also records the
+   concepts and the periods. A claim of the graph,
    such as a GLEIF parent link (§5.2), is metadata. The load derives each claim from the records
    of the source store of its source, such as the GLEIF store. The claim sits in the metadata store
    with its source and date. Only two writes change the metadata store: the load, and a verdict on
@@ -81,8 +82,8 @@ No option was measured.
   says where each fact lives. It is the split of the Snowflake context layer: metadata in one
   place, data rows in their stores.
 - B is the hub-and-spoke model of `hybrid_data_model.md` §2. It mixes the facts of all sources in
-  one tier, and only the provenance of a fact names its source. A covers the facts as each source
-  reports them. For the canonical facts, B stays possible until the first open question is answered.
+  one tier, and only the provenance of a fact names its source. A covers the records as each source
+  publishes them. For the canonical facts, B stays possible until the first open question is answered.
 - C answers the screener queries, but no query of gold answers where a value comes from.
 
 ## Consequences
@@ -91,7 +92,7 @@ No option was measured.
   queries alone.
 - A new data source adds a source store and its entries in the metadata store. The other source
   stores do not change.
-- Provenance stays with each fact. A numeric row with text provenance took about 418 bytes in
+- Provenance stays with each record. A numeric row with text provenance took about 418 bytes in
   Postgres (ADR 0001, Amendment 1). A key to the silver unit and the raw document, in place of a
   copy of each provenance field, keeps the row smaller.
 - The decision names no engine. ADR 0001 picks the engines.
@@ -100,7 +101,8 @@ No option was measured.
 
 - Where the canonical facts that join data sources live (§6): in each source store, or in a shared
   fact tier that the metadata store describes. The owner decides.
-- The gold tables and their write rule. The gold design fixes them.
+- The gold tables and their write rule, and the tier of the records that are not facts, such as
+  the GLEIF LEI records. The gold design fixes them.
 - How a source store and its entries in the metadata store stay in step on a load. The gold design
   fixes it.
 

@@ -64,6 +64,7 @@ None of this section has code. It follows
   rerun skips it.
 - The graph tier and the fact tier share one Supabase Postgres database (ADR 0001). The graph tier
   holds the metadata store. The fact tier holds the facts of the source stores, or a shared
-  canonical tier next to them (ADR 0007, "Open Questions").
+  canonical tier next to them (ADR 0007, "Open Questions"). The gold design places the records
+  that are not facts, such as the GLEIF LEI records.
 - Read methods beyond `get` and `list`, such as the queries of the screener and the API, wait for
   a consumer that needs them.
