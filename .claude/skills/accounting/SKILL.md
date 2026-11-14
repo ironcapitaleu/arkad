@@ -155,8 +155,8 @@ Standards change. A standard setter can replace a document. Each reference file 
    superseded, and do not check again.
 3. If the source still holds, set `last-verified` to today in a PR of its own, not in the PR of
    the task. If you cannot reach the source, tell the user the file is stale, and go on.
-4. If a newer document replaced the source, tell the user, and add `superseded-by` to the header.
-   Propose to:
+4. If a newer document replaced the source, tell the user. In a PR of its own, set
+   `superseded-by` in the header to the name of the new document. Propose to:
    - update the file from the new document, set `source` and `last-verified`, remove
      `superseded-by`, and rename the file and its links,
    - update every statement of this skill that names the old document,
