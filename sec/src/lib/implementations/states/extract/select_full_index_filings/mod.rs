@@ -54,6 +54,7 @@ impl SelectFullIndexFilings {
     /// use bytes::Bytes;
     /// use chrono::NaiveDate;
     /// use sec::implementations::states::extract::select_full_index_filings::*;
+    /// use sec::shared::quarter::Quarter;
     /// use sec::shared::stored_form_index::StoredFormIndex;
     /// use state_maschine::prelude::State as SMState;
     /// use storage::Sha256Digest;
@@ -70,7 +71,7 @@ impl SelectFullIndexFilings {
     ///     .expect("Given a hardcoded calendar date, the date should always build");
     /// let state = SelectFullIndexFilings::new(
     ///     SelectFullIndexFilingsInput::new(index),
-    ///     SelectFullIndexFilingsContext::new(Uuid::nil(), day, day),
+    ///     SelectFullIndexFilingsContext::new(Uuid::nil(), Quarter::of(day), day, day),
     /// );
     ///
     /// let expected_result = false;
@@ -116,18 +117,22 @@ impl State for SelectFullIndexFilings {
     /// # Errors
     ///
     /// Returns [`StateError::InvalidFiledDateRange`] if the first date filed of the context comes
-    /// after its last date filed, or if the two dates are in different quarters. One full index
-    /// lists one quarter, so such a range selects no filing or misses filings.
+    /// after its last date filed, or if a date is outside the quarter of the context. One full
+    /// index lists one quarter, so such a range selects no filing or misses filings.
     ///
     /// Returns [`StateError::InvalidFullIndex`] if [`parse_form_index`] rejects the index text.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        let (first, last) = (self.context.first_filed_date, self.context.last_filed_date);
-        if first > last || Quarter::of(first) != Quarter::of(last) {
-            return Err(InvalidFiledDateRange::new(STATE_NAME, first, last).into());
+        let (quarter, first, last) = (
+            self.context.quarter,
+            self.context.first_filed_date,
+            self.context.last_filed_date,
+        );
+        if first > last || Quarter::of(first) != quarter || Quarter::of(last) != quarter {
+            return Err(InvalidFiledDateRange::new(STATE_NAME, quarter, first, last).into());
         }
         let rows = parse_form_index(&String::from_utf8_lossy(&self.input.index.text))
             .map_err(|e| InvalidFullIndex::from_domain_error(STATE_NAME, e))?;
-        let dates = self.context.first_filed_date..=self.context.last_filed_date;
+        let dates = first..=last;
         self.output = Some(SelectFilingsOutput::new(select_filings_filed_in(
             &rows, &dates,
         )));
@@ -219,6 +224,11 @@ mod tests {
             .expect("Given a hardcoded calendar date, the date should always build")
     }
 
+    /// Returns the quarter 2026 Q3, the quarter of the fixture.
+    fn q3() -> Quarter {
+        Quarter::of(date(2026, 7, 1))
+    }
+
     fn test_state(text: &'static str, first: NaiveDate, last: NaiveDate) -> SelectFullIndexFilings {
         let index = StoredFormIndex {
             key: DocumentKey::new("sec/full-index/2026/QTR3/form.idx")
@@ -228,7 +238,7 @@ mod tests {
         };
         SelectFullIndexFilings::new(
             SelectFullIndexFilingsInput::new(index),
-            SelectFullIndexFilingsContext::new(Uuid::nil(), first, last),
+            SelectFullIndexFilingsContext::new(Uuid::nil(), q3(), first, last),
         )
     }
 
@@ -310,7 +320,7 @@ mod tests {
         );
 
         let expected_result = Err(StateError::InvalidFiledDateRange(
-            InvalidFiledDateRange::new(STATE_NAME, date(2026, 9, 30), date(2026, 9, 29)),
+            InvalidFiledDateRange::new(STATE_NAME, q3(), date(2026, 9, 30), date(2026, 9, 29)),
         ));
 
         let result = state.compute_output_data_async().await;
@@ -327,7 +337,25 @@ mod tests {
         );
 
         let expected_result = Err(StateError::InvalidFiledDateRange(
-            InvalidFiledDateRange::new(STATE_NAME, date(2026, 9, 30), date(2026, 10, 1)),
+            InvalidFiledDateRange::new(STATE_NAME, q3(), date(2026, 9, 30), date(2026, 10, 1)),
+        ));
+
+        let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_filed_date_range_when_the_dates_are_outside_the_quarter_of_the_index()
+     {
+        let mut state = test_state(
+            SAMPLE_FULL_INDEX_2026_Q3,
+            date(2026, 10, 1),
+            date(2026, 10, 2),
+        );
+
+        let expected_result = Err(StateError::InvalidFiledDateRange(
+            InvalidFiledDateRange::new(STATE_NAME, q3(), date(2026, 10, 1), date(2026, 10, 2)),
         ));
 
         let result = state.compute_output_data_async().await;

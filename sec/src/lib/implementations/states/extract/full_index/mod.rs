@@ -504,6 +504,8 @@ mod tests {
     use tempfile::TempDir;
 
     use super::*;
+    use crate::error::state_machine::state::InvalidFiledDateRange;
+    use crate::error::{State as StateError, StateMachine as StateMachineError};
     use crate::implementations::states::extract::execute_sec_request::constants::STATE_NAME as EXECUTE_SEC_REQUEST;
     use crate::implementations::states::extract::select_full_index_filings::constants::STATE_NAME as SELECT_FULL_INDEX_FILINGS;
     use crate::shared::raw_document::RawDocument;
@@ -647,7 +649,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_fail_in_select_full_index_filings_when_the_last_date_filed_is_in_the_next_quarter()
+    async fn should_return_invalid_filed_date_range_when_the_last_date_filed_is_in_the_next_quarter()
      {
         let super_state = super_state_for(
             sec_client(200, SAMPLE_FULL_INDEX_2026_Q4.as_bytes()),
@@ -657,13 +659,20 @@ mod tests {
             date(2027, 1, 1),
         );
 
-        let expected_result = Some(SELECT_FULL_INDEX_FILINGS.to_string());
+        let expected_result = Some(StateMachineError::State(StateError::InvalidFiledDateRange(
+            InvalidFiledDateRange::new(
+                SELECT_FULL_INDEX_FILINGS,
+                Quarter::of(date(2026, 12, 31)),
+                date(2026, 12, 31),
+                date(2027, 1, 1),
+            ),
+        )));
 
         let result = super_state
             .run_to_detected_filings(|_| {})
             .await
             .err()
-            .map(|error| error.state_name);
+            .map(|error| *error.source);
 
         assert_eq!(result, expected_result);
     }
