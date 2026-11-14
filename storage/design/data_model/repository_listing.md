@@ -7,7 +7,10 @@ document adds a listing: a repository gives a stream of the documents it holds, 
 as bytes. It records the trait, the filesystem sketch, the ordering and consistency rules, and how
 each consumer uses the listing.
 
-Status: proposed. The decisions below wait for review.
+Status: the code implements features 1, 2, and 4 of [Feature Tickets](#feature-tickets): the
+trait and its fake, the filesystem listing, and the cut-over date. Features 3, 5, and 6 have no
+code. The decision in [Bookmark or Full Index](#bookmark-or-full-index) waits for review by the
+lead.
 
 ## Reading Guide
 
