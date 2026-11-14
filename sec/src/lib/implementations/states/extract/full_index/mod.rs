@@ -22,7 +22,6 @@
 //!     DetectQuarterFilingsSuperState, DetectQuarterFilingsSuperStateContext,
 //! };
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
-//! use sec::shared::quarter::Quarter;
 //! use sec::shared::raw_document::RawDocument;
 //! use sec::shared::raw_source::RawFullIndex;
 //! use storage::implementations::repository::filesystem::{FilesystemRepository, IngestionMode};
@@ -45,7 +44,7 @@
 //!     first_filed_date,
 //!     last_filed_date,
 //! );
-//! let detected = DetectQuarterFilingsSuperState::new(Quarter::of(first_filed_date), context)
+//! let detected = DetectQuarterFilingsSuperState::new(context)
 //!     .run_to_detected_filings(|_item| {})
 //!     .await
 //!     .expect("The live SEC download should succeed");
@@ -84,8 +83,8 @@ use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
 /// Input and output data for the [`DetectQuarterFilingsSuperState`].
 ///
-/// A placeholder with unit update semantics: the super-state delegates all real data handling to
-/// its current inner state, so it carries no data of its own.
+/// A placeholder with unit updates. The current inner state holds all the data, so the
+/// super-state holds none.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct DetectQuarterFilingsSuperStateData;
 
@@ -178,12 +177,14 @@ impl<R: RawRepository<RawFullIndex>, C: SecClientTrait>
     DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, R, C>
 {
     /// Creates a new [`DetectQuarterFilingsSuperState`] at its entry state, the
-    /// [`PrepareSecRequest`] of the full index of `quarter`.
+    /// [`PrepareSecRequest`] of the full index of the quarter of the first date filed of
+    /// `context`.
+    ///
+    /// The quarter comes from the context, so the downloaded file always holds the first date
+    /// filed. A last date filed in a later quarter fails the run in [`SelectFullIndexFilings`].
     #[must_use]
-    pub const fn new(
-        quarter: Quarter,
-        context: DetectQuarterFilingsSuperStateContext<R, C>,
-    ) -> Self {
+    pub fn new(context: DetectQuarterFilingsSuperStateContext<R, C>) -> Self {
+        let quarter = Quarter::of(context.first_filed_date);
         Self {
             current_state: PrepareSecRequest::new(
                 PrepareSecRequestInput::new(quarter),
@@ -526,21 +527,39 @@ mod tests {
         RoutingSecClient::new().route(QTR4_URL, status, "application/octet-stream", body)
     }
 
-    /// Returns the super-state for 2026 Q4 that keeps the dates filed from 2026-10-01 to
-    /// 2026-10-01.
+    /// Returns the super-state that keeps the dates filed from 2026-10-01 to 2026-10-01, with the
+    /// ingestion mode `incremental`.
     fn super_state<R: RawRepository<RawFullIndex>>(
         sec_client: RoutingSecClient,
         repository: R,
     ) -> DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, R, RoutingSecClient> {
+        super_state_for(
+            sec_client,
+            repository,
+            IngestionMode::Incremental,
+            date(2026, 10, 1),
+            date(2026, 10, 1),
+        )
+    }
+
+    /// Returns the super-state that keeps the dates filed from `first` to `last`, with
+    /// `ingestion_mode`.
+    fn super_state_for<R: RawRepository<RawFullIndex>>(
+        sec_client: RoutingSecClient,
+        repository: R,
+        ingestion_mode: IngestionMode,
+        first: NaiveDate,
+        last: NaiveDate,
+    ) -> DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, R, RoutingSecClient> {
         let context = DetectQuarterFilingsSuperStateContext::new(
             sec_client,
             SAMPLE_EXECUTION_ID,
-            IngestionMode::Incremental,
+            ingestion_mode,
             repository,
-            date(2026, 10, 1),
-            date(2026, 10, 1),
+            first,
+            last,
         );
-        DetectQuarterFilingsSuperState::new(Quarter::of(date(2026, 10, 1)), context)
+        DetectQuarterFilingsSuperState::new(context)
     }
 
     async fn detected<R: RawRepository<RawFullIndex> + 'static>(
@@ -601,6 +620,55 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_keep_the_filings_of_the_last_date_filed_when_the_range_spans_two_days() {
+        let super_state = super_state_for(
+            sec_client(200, SAMPLE_FULL_INDEX_2026_Q4.as_bytes()),
+            FakeFullIndexRepository::new(),
+            IngestionMode::Incremental,
+            date(2026, 10, 1),
+            date(2026, 10, 2),
+        );
+
+        let expected_result = vec![
+            "0001437749-26-031727".to_string(),
+            "0000940944-26-000042".to_string(),
+            "0000063754-26-000329".to_string(),
+            "0001493152-26-045181".to_string(),
+        ];
+
+        let result: Vec<String> = detected(super_state)
+            .await
+            .filings
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_fail_in_select_full_index_filings_when_the_last_date_filed_is_in_the_next_quarter()
+     {
+        let super_state = super_state_for(
+            sec_client(200, SAMPLE_FULL_INDEX_2026_Q4.as_bytes()),
+            FakeFullIndexRepository::new(),
+            IngestionMode::Incremental,
+            date(2026, 12, 31),
+            date(2027, 1, 1),
+        );
+
+        let expected_result = Some(SELECT_FULL_INDEX_FILINGS.to_string());
+
+        let result = super_state
+            .run_to_detected_filings(|_| {})
+            .await
+            .err()
+            .map(|error| error.state_name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_the_stored_full_index_as_the_input_document_of_the_filings() {
         let super_state = super_state(
             sec_client(200, SAMPLE_FULL_INDEX_2026_Q4.as_bytes()),
@@ -644,12 +712,15 @@ mod tests {
     #[tokio::test]
     async fn should_record_the_ingestion_mode_of_the_context_when_storing_the_full_index() {
         let repository = FakeFullIndexRepository::new();
-        let super_state = super_state(
+        let super_state = super_state_for(
             sec_client(200, SAMPLE_FULL_INDEX_2026_Q4.as_bytes()),
             repository.clone(),
+            IngestionMode::Backfill,
+            date(2026, 10, 1),
+            date(2026, 10, 1),
         );
 
-        let expected_result = vec![IngestionMode::Incremental];
+        let expected_result = vec![IngestionMode::Backfill];
 
         detected(super_state).await;
         let result: Vec<IngestionMode> = repository

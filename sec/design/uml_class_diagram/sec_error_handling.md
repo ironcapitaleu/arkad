@@ -25,6 +25,8 @@ classDiagram
         +InvalidNotesPeriod(InvalidNotesPeriod)
         +InvalidIndexDate(InvalidIndexDate)
         +InvalidDailyIndex(InvalidDailyIndex)
+        +InvalidFullIndex(InvalidFullIndex)
+        +InvalidFiledDateRange(InvalidFiledDateRange)
         +FailedRequestExecution(FailedRequestExecution)
         +MissingDailyIndex(MissingDailyIndex)
         +FailedDocumentSelection(FailedDocumentSelection)
@@ -71,6 +73,21 @@ classDiagram
         %% State-level wrapper for a daily index that does not parse into rows
         +String state_name
         +FormIndexError daily_index_error
+    }
+
+    class InvalidFullIndex{
+        << struct >>
+        %% State-level wrapper for a full index that does not parse into rows
+        +String state_name
+        +FormIndexError full_index_error
+    }
+
+    class InvalidFiledDateRange{
+        << struct >>
+        %% State-level leaf error for a range of dates filed that one full index cannot cover
+        +String state_name
+        +NaiveDate first_filed_date
+        +NaiveDate last_filed_date
     }
 
     class FailedRequestExecution{
@@ -272,6 +289,8 @@ classDiagram
     State <|-- InvalidNotesPeriod
     State <|-- InvalidIndexDate
     State <|-- InvalidDailyIndex
+    State <|-- InvalidFullIndex
+    State <|-- InvalidFiledDateRange
     State <|-- FailedRequestExecution
     State <|-- MissingDailyIndex
     State <|-- FailedDocumentSelection
@@ -291,6 +310,7 @@ classDiagram
     InvalidIndexDate --> IndexDateError
     IndexDateError --> InvalidIndexDateReason
     InvalidDailyIndex --> FormIndexError
+    InvalidFullIndex --> FormIndexError
     FormIndexError --> InvalidFormIndexLineReason
     FormIndexError --> CikError
     FailedDocumentSelection --> FilingDocumentsError

@@ -21,10 +21,11 @@ use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
 use crate::error::State as StateError;
-use crate::error::state_machine::state::InvalidFullIndex;
+use crate::error::state_machine::state::{InvalidFiledDateRange, InvalidFullIndex};
 use crate::implementations::states::extract::select_filings::SelectFilingsOutput;
 use crate::shared::filing_ref::select_filings_filed_in;
 use crate::shared::form_index_row::parse_form_index;
+use crate::shared::quarter::Quarter;
 use crate::traits::error::FromDomainError;
 use crate::traits::state_machine::state::State;
 
@@ -114,13 +115,15 @@ impl State for SelectFullIndexFilings {
     ///
     /// # Errors
     ///
-    /// Returns [`StateError::InvalidContext`] if the first date filed of the context comes after
-    /// its last date filed. Such a range selects no filing, and a run would report success.
+    /// Returns [`StateError::InvalidFiledDateRange`] if the first date filed of the context comes
+    /// after its last date filed, or if the two dates are in different quarters. One full index
+    /// lists one quarter, so such a range selects no filing or misses filings.
     ///
     /// Returns [`StateError::InvalidFullIndex`] if [`parse_form_index`] rejects the index text.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
-        if self.context.first_filed_date > self.context.last_filed_date {
-            return Err(StateError::InvalidContext);
+        let (first, last) = (self.context.first_filed_date, self.context.last_filed_date);
+        if first > last || Quarter::of(first) != Quarter::of(last) {
+            return Err(InvalidFiledDateRange::new(STATE_NAME, first, last).into());
         }
         let rows = parse_form_index(&String::from_utf8_lossy(&self.input.index.text))
             .map_err(|e| InvalidFullIndex::from_domain_error(STATE_NAME, e))?;
@@ -299,14 +302,33 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_invalid_context_when_the_first_filed_date_is_after_the_last() {
+    async fn should_return_invalid_filed_date_range_when_the_first_filed_date_is_after_the_last() {
         let mut state = test_state(
             SAMPLE_FULL_INDEX_2026_Q3,
             date(2026, 9, 30),
             date(2026, 9, 29),
         );
 
-        let expected_result = Err(StateError::InvalidContext);
+        let expected_result = Err(StateError::InvalidFiledDateRange(
+            InvalidFiledDateRange::new(STATE_NAME, date(2026, 9, 30), date(2026, 9, 29)),
+        ));
+
+        let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_filed_date_range_when_the_dates_are_in_two_quarters() {
+        let mut state = test_state(
+            SAMPLE_FULL_INDEX_2026_Q3,
+            date(2026, 9, 30),
+            date(2026, 10, 1),
+        );
+
+        let expected_result = Err(StateError::InvalidFiledDateRange(
+            InvalidFiledDateRange::new(STATE_NAME, date(2026, 9, 30), date(2026, 10, 1)),
+        ));
 
         let result = state.compute_output_data_async().await;
 
