@@ -317,6 +317,17 @@ mod tests {
     }
 
     #[test]
+    fn should_return_the_last_data_received_when_the_day_has_one_digit() {
+        let text = b"Last Data Received:    October 1, 2026\n---\n";
+
+        let expected_result = NaiveDate::from_ymd_opt(2026, 10, 1);
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_none_when_the_header_has_no_last_data_received_line() {
         let text = b"Form Type   Company Name\n---\n";
 

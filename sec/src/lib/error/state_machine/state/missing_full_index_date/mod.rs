@@ -11,8 +11,8 @@ use super::State as StateError;
 /// Error for a date that the full index of its quarter does not cover yet, tagged with the state
 /// it occurred in.
 ///
-/// The full index has no rows for such a date. Without this error, the date counts as a day
-/// without filings, and no later read of the full index happens.
+/// The full index has no rows for such a date. The catch-up raises this error after
+/// `Select Full Index Filings` succeeds, and names that state, because the state read the header.
 #[derive(Error, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
     "[MissingFullIndexDate] The full index does not cover the date yet, Date: '{date}', Last Data Received: '{last_data_received}'"

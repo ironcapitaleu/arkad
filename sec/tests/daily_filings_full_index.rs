@@ -374,3 +374,54 @@ async fn should_name_the_date_and_the_last_data_received_when_a_date_is_pending(
 
     assert_eq!(result, expected_result);
 }
+
+/// A full index of 2026 Q4 with no `Last Data Received` line, and one row of 2026-11-13.
+const FULL_INDEX_WITHOUT_LAST_DATA_RECEIVED: &[u8] = b"Description:           Master Index of EDGAR Dissemination Feed by Form Type
+Form Type   Company Name                                                  CIK         Date Filed  File Name
+--------------------------------------------------------------------------------------------------------------------------------
+10-Q             DARDEN RESTAURANTS INC                                        940944      2026-11-13  edgar/data/940944/0000940944-26-000042.txt
+";
+
+/// A full index of 2026 Q4 whose header names 2026-11-12, with one row of 2026-11-13.
+const FULL_INDEX_WITH_A_ROW_AFTER_LAST_DATA_RECEIVED: &[u8] = b"Description:           Master Index of EDGAR Dissemination Feed by Form Type
+Last Data Received:    November 12, 2026
+Form Type   Company Name                                                  CIK         Date Filed  File Name
+--------------------------------------------------------------------------------------------------------------------------------
+10-Q             DARDEN RESTAURANTS INC                                        940944      2026-11-13  edgar/data/940944/0000940944-26-000042.txt
+";
+
+/// Returns a client that answers the full index of 2026 Q4 with `body`.
+fn sec_client_with_q4(body: &'static [u8]) -> RoutingSecClient {
+    RoutingSecClient::new().route(
+        FULL_INDEX_URL_OF_2026_Q4,
+        200,
+        "application/octet-stream",
+        body,
+    )
+}
+
+#[tokio::test]
+async fn should_count_a_date_without_rows_as_empty_when_the_header_names_no_date() {
+    let dates = [date("2026-11-12"), date("2026-11-14")];
+    let as_of = date("2026-11-30");
+    let sec_client = sec_client_with_q4(FULL_INDEX_WITHOUT_LAST_DATA_RECEIVED);
+
+    let expected_result = vec!["empty", "empty"];
+
+    let result = detections(&dates, as_of, &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_process_a_date_after_the_last_data_received_when_the_full_index_lists_its_rows() {
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let as_of = date("2026-11-30");
+    let sec_client = sec_client_with_q4(FULL_INDEX_WITH_A_ROW_AFTER_LAST_DATA_RECEIVED);
+
+    let expected_result = vec!["empty", "processed"];
+
+    let result = detections(&dates, as_of, &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}

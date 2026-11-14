@@ -343,9 +343,12 @@ the filings of each date as `run` does. Its rules for a quarter:
   the pending rule of the daily index, applied to the first date of the quarter.
 - Every other failure fails each date of the quarter.
 - The header line `Last Data Received` names the last date that the full index covers, for
-  example `November 12, 2026`. A later date has no rows yet. It fails with
+  example `November 12, 2026`. A later date without rows fails with
   `MissingFullIndexDate`, or is pending under the pending rule of the daily index: the date is
-  recent and is not the first date of the run.
+  recent and is not the first date of the run. A date after the header that has rows is
+  processed. The header of a closed quarter names its last calendar day, also on a weekend, so a
+  closed quarter leaves no date after its header ([ADR 0003](../../../docs/adr/0003-full-index-source.md),
+  Amendment 1).
 - A date up to `Last Data Received` without rows in the full index counts as empty: a day without
   filings. If the header names no date, every date without rows counts as empty.
 

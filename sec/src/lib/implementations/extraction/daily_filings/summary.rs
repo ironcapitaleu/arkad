@@ -84,9 +84,8 @@ pub struct FailedDailyRun {
     pub dates: usize,
 }
 
-/// Returns `true` if the detection of `date` failed only because its daily index does not exist
-/// yet, or the full index of its quarter does not cover it yet, and a later run reads `date`
-/// again.
+/// Returns `true` if `date` failed only because its daily index or its full index does not cover
+/// it yet. A later run reads `date` again.
 ///
 /// That holds if `error` is a `MissingDailyIndex` or a `MissingFullIndexDate`, `date` is not
 /// `first_date`, and `date` is on or

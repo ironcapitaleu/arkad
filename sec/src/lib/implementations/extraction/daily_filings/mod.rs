@@ -400,10 +400,11 @@ where
     /// dates of the run in that quarter, and stores the full index in `full_index`. Then, for each
     /// of those dates, it runs the filings with that date filed and their companies, as
     /// [`run`](Self::run) does. Each filing records the stored full index as the input of its
-    /// files. A date without a filing in the full index counts as a day without filings.
+    /// files. A date up to the header line `Last Data Received` without a filing in the full index
+    /// counts as a day without filings.
     ///
-    /// A date after the header line `Last Data Received` of the full index has no rows yet, so it
-    /// fails with a [`MissingFullIndexDate`]. It is pending instead under the rule of a missing
+    /// A date after that header line without a filing has no rows yet, so it fails with a
+    /// [`MissingFullIndexDate`]. It is pending instead under the rule of a missing
     /// daily index: the date is recent and is not the first date of the run. Its unit is
     /// [`Unit::Date`].
     ///
@@ -475,20 +476,6 @@ where
             };
             let detected = &quarter_filings.detected;
             for &date in quarter_dates {
-                if let Some(error) = missing_full_index_date(
-                    date,
-                    quarter_filings.last_data_received,
-                    self.incremental.id(),
-                ) {
-                    let (kind, outcome) = if is_pending(&error, date, first_date, self.as_of) {
-                        (ErrorKind::Pending, DateOutcome::Pending(error.clone()))
-                    } else {
-                        (ErrorKind::Failed, DateOutcome::Failed(error.clone()))
-                    };
-                    observer(&Unit::Date(date), RunEvent::Error(&error, kind));
-                    outcomes.push((date, outcome));
-                    continue;
-                }
                 let day = DetectedFilings {
                     filings: detected
                         .filings
@@ -498,6 +485,23 @@ where
                         .collect(),
                     index: detected.index.clone(),
                 };
+                let missing = day.filings.is_empty().then(|| {
+                    missing_full_index_date(
+                        date,
+                        quarter_filings.last_data_received,
+                        self.incremental.id(),
+                    )
+                });
+                if let Some(error) = missing.flatten() {
+                    let (kind, outcome) = if is_pending(&error, date, first_date, self.as_of) {
+                        (ErrorKind::Pending, DateOutcome::Pending(error.clone()))
+                    } else {
+                        (ErrorKind::Failed, DateOutcome::Failed(error.clone()))
+                    };
+                    observer(&Unit::Date(date), RunEvent::Error(&error, kind));
+                    outcomes.push((date, outcome));
+                    continue;
+                }
                 let outcome = DateOutcome::Processed {
                     filings: self.extract_filings(date, &day, &observer).await,
                     companies: self.extract_companies(date, &day.filings, &observer).await,
@@ -639,6 +643,10 @@ where
 /// Returns the error of `date` if the full index of its quarter does not cover it yet: if `date`
 /// comes after `last_data_received`. Returns `None` if the full index covers `date`, or if its
 /// header names no date.
+///
+/// The run builds this error after [`SelectFullIndexFilings`](crate::implementations::states::extract::select_full_index_filings::SelectFullIndexFilings)
+/// succeeds, so it can take the path of a detection error through [`is_pending`]. The state name
+/// names the state that read the header.
 fn missing_full_index_date(
     date: NaiveDate,
     last_data_received: Option<NaiveDate>,
@@ -756,6 +764,53 @@ mod tests {
             NaiveDate::from_ymd_opt(2026, 9, 8)
                 .expect("Given a hardcoded calendar date, the date should always build"),
         )
+    }
+
+    fn calendar_date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day)
+            .expect("Given a hardcoded calendar date, the date should always build")
+    }
+
+    #[test]
+    fn should_return_no_error_when_the_date_is_the_last_data_received() {
+        let date = calendar_date(2026, 11, 12);
+        let last_data_received = Some(calendar_date(2026, 11, 12));
+
+        let expected_result = None;
+
+        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_error_when_the_header_names_no_date() {
+        let date = calendar_date(2026, 11, 13);
+        let last_data_received = None;
+
+        let expected_result = None;
+
+        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_date_and_the_last_data_received_when_the_date_comes_after_it() {
+        let date = calendar_date(2026, 11, 13);
+        let last_data_received = Some(calendar_date(2026, 11, 12));
+
+        let expected_result = Some(
+            "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Full Index Filings', Caused by: [MissingFullIndexDate] The full index does not cover the date yet, Date: '2026-11-13', Last Data Received: '2026-11-12'"
+                .to_string(),
+        );
+
+        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

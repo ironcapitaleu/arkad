@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-14 |
+| Status | Accepted by the project lead on 2026-11-14. Amendment 1: Proposed. The project lead confirms |
 | Date | 2026-11-13 |
 | Deciders | The project lead |
 
@@ -36,6 +36,26 @@ count takes an accession number once.
    filed in its range, and the store check skips each stored filing. In the measured range, a
    daily index listed a filing at most 4 days after its date filed in `form.idx`, apart from the
    20-F below. 7 days leave room above that.
+
+## Amendment 1: The Catch-Up Reads `Last Data Received`
+
+Date: 2026-11-14.
+
+**Reason.** The last consequence below names a gap: a date without rows in `form.idx` can be a day
+without filings or a day that the SEC has not added yet. The catch-up counted both as a day without
+filings. So a recent date that the SEC had not added yet lost its filings without an alert.
+
+**Decision.** The catch-up reads the header line `Last Data Received` of `form.idx`. A date after
+that date, without rows, is pending if it is recent and is not the first date of the run, and fails
+otherwise. A date up to that date without rows counts as a day without filings. If the header
+names no date, every date without rows counts as a day without filings, as before.
+
+**Consequences.**
+
+- The header of a closed quarter names the last calendar day of the quarter, also if that day is
+  a weekend. Measured on 2026-11-14: `2024/QTR1` names March 31, 2024, a Sunday. `2023/QTR3` names
+  September 30, 2023, a Saturday. So a closed quarter never leaves a date after its header.
+- A header that the parser cannot read turns the check off without an alert.
 
 ## Options Considered
 
