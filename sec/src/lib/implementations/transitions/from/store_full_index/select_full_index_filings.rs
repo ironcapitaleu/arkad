@@ -4,7 +4,7 @@
 //! [`StoreFullIndex`] and the first and the last date filed to keep.
 //!
 //! It moves the stored index from the output of the source state into the input of the next
-//! state, and the `execution_id` from its context. The repository drops here.
+//! state, and the `execution_id` and the quarter from its context. The repository drops here.
 //!
 //! # Errors
 //!
@@ -43,6 +43,7 @@ impl<R> TryFrom<(StoreFullIndex<R>, NaiveDate, NaiveDate)> for SelectFullIndexFi
             SelectFullIndexFilingsInput::new(output_data.index),
             SelectFullIndexFilingsContext::new(
                 context.execution_id,
+                context.request_input,
                 first_filed_date,
                 last_filed_date,
             ),
@@ -116,12 +117,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_move_the_stored_index_the_execution_id_and_the_dates_when_source_has_output() {
+    async fn should_move_the_stored_index_the_execution_id_the_quarter_and_the_dates_when_source_has_output()
+     {
         let mut state = store_full_index();
         state.compute_output_data_async().await.expect(
             "Given a fake repository that accepts every write, the store should always succeed",
         );
-        let first_filed_date = date(2026, 9, 24);
+        let first_filed_date = date(2026, 10, 1);
         let last_filed_date = date(2026, 11, 12);
 
         let expected_result = Ok(SelectFullIndexFilings::new(
@@ -133,7 +135,8 @@ mod tests {
             }),
             SelectFullIndexFilingsContext::new(
                 SAMPLE_EXECUTION_ID,
-                date(2026, 9, 24),
+                Quarter::of(date(2026, 10, 1)),
+                date(2026, 10, 1),
                 date(2026, 11, 12),
             ),
         ));
@@ -146,7 +149,7 @@ mod tests {
     #[test]
     fn should_return_missing_output_when_source_has_no_output() {
         let state = store_full_index();
-        let first_filed_date = date(2026, 9, 24);
+        let first_filed_date = date(2026, 10, 1);
         let last_filed_date = date(2026, 11, 12);
 
         let expected_result = Err(TransitionError::MissingOutput(

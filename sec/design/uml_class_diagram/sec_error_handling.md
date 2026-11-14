@@ -84,8 +84,9 @@ classDiagram
 
     class InvalidFiledDateRange{
         << struct >>
-        %% State-level leaf error for a range of dates filed that one full index cannot cover
+        %% State-level leaf error for dates filed out of order or outside the quarter of the full index
         +String state_name
+        +Quarter quarter
         +NaiveDate first_filed_date
         +NaiveDate last_filed_date
     }
