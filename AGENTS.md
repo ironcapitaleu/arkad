@@ -68,14 +68,15 @@ An ADR records one decision that later work must follow, with the facts behind i
 `docs/adr/` as `NNNN-<short-description>.md`.
 
 **Check for an ADR when you make a decision, not when a person asks.** When a task makes you choose
-between options, run this test before you write the code:
+between options, run this test before you write the code. If a person questions a choice, run the
+test again:
 
 | Write an ADR if one of these holds | Keep it in the design doc, the ticket, or the PR |
 | ---------------------------------- | ------------------------------------------------ |
 | Another ticket, crate, or run must follow the choice | The choice stays inside one module |
 | A reversal costs a migration, stored data, or a public interface | A reversal is one PR |
 | The choice rests on a measurement that can go out of date | The choice follows from the code or from a rule of this file |
-| The code does not show why one option won, and the options were close or a person questioned the choice | The code shows why one option won, for example in a comment |
+| The code does not show why one option won, and the options were close or a person questioned the choice (a review agent does not count) | The code shows why one option won, for example in a comment |
 
 If a row of the left column holds, write the ADR, even if a row of the right column also holds.
 The test covers decisions about the code and the systems it runs on. A guideline edit needs no
@@ -83,10 +84,9 @@ ADR if it sets how agents or people work, or how code is written, such as names 
 This file or the skill that holds the rule is its record.
 
 - If the test says ADR, write the ADR in the PR that first acts on the decision. A decision from a
-  ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. If a
-  person questions a choice that is already on `main`, write the ADR in the PR where the question
-  comes up. Set its status to
-  "Proposed" and say who confirms it. An agent never accepts an ADR.
+  ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. If the
+  choice is already on `main`, write the ADR in the PR where a person questions it.
+- Set the status of a new ADR to "Proposed" and say who confirms it. An agent never accepts an ADR.
 - If the test is unclear, name the decision and both options in the PR description, and ask the
   owner.
 - A design doc explains how the code works. An ADR explains why one option won. Link from the
