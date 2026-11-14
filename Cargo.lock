@@ -1871,6 +1871,7 @@ dependencies = [
  "bytes",
  "chrono",
  "chrono-tz",
+ "fastrand",
  "flate2",
  "futures-core",
  "futures-util",
