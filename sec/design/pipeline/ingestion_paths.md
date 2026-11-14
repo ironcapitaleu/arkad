@@ -661,7 +661,8 @@ quarter) or a month (year and month).
   ended 24 months or more before `through`, counts as merged. For every later quarter, it sends one
   `HEAD` request for the quarterly file (`NotesFileProbe`), at most 8 per run. On 200, the list
   holds the quarter. On 404, it holds the three months. A transient failure, such as 503, gets the
-  retries of the downloads (`retry_while` in `extraction/retry.rs`), and `on_retry` gets the
+  retries of the downloads: the retry per request of the client, then `retry_while` in
+  `extraction/retry.rs`. `on_retry` gets the
   quarter and the error. Any other answer, 403 included, fails the run with `FailedNotesProbe`. A
   403 can mean that the SEC refused the request, so `FailedSecRequest::is_not_found` counts only
   404. The months of the quarter that has not ended follow, up to the month of `through`.
@@ -1656,13 +1657,22 @@ Each machine ends in one of four outcomes:
   failed. Cloud Run retries the job. The retry is safe, because every write is idempotent.
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
-- The detection of a date, a filing machine, and a `submissions` machine that fail with a
-  transient SEC failure run again, up to 3 times in all, once more after each of the
-  `DEFAULT_RETRY_DELAYS` of 10 s and 60 s. A Notes period of `backfill().notes()` does the same.
-  The retry covers a failure that lasts at most about 70 s. A longer one fails the machine, and
-  the Cloud Run retry of the job covers it. The retry lives in `extraction/retry.rs` of the
-  facade, not in `SecClient`. The `submissions` and Company Facts runs outside `daily_filings`
-  do not retry.
+- A transient SEC failure gets two levels of retry.
+  [ADR 0011](../../../docs/adr/0011-request-retry-policy.md) records the policy.
+  - **Per request.** Every binary sends through a `RetryingSecClient`
+    (`shared/http_client/implementations/retrying_sec_client.rs`). Its default `RetryPolicy` sends
+    one request up to 3 times, with waits of 1 s and 2 s, each cut by jitter to between half and
+    all of it. Each attempt takes its own permit of the rate limiter. A request of several files,
+    such as the instance and the label file, retries each file on its own. All runs get this
+    level, the `submissions` and Company Facts runs too.
+  - **Per run.** The detection of a date, a filing machine, and a `submissions` machine that still
+    fail with a transient SEC failure run once more, after the `DEFAULT_RETRY_DELAYS` of 60 s. A
+    Notes period of `backfill().notes()` does the same. The retry lives in `extraction/retry.rs`
+    of the facade. The `submissions` and Company Facts runs outside `daily_filings` do not have
+    this level.
+  - One request is sent at most 6 times: 3 attempts in each of 2 runs of its machine. The waits
+    add up to at most 66 s: 3 s, 60 s, and 3 s. A failure that lasts longer fails the machine,
+    and the Cloud Run retry of the job covers it.
 - `FailedSecRequest::is_transient` decides which failures are transient: a 502, a 503, a 504, a
   429, a failed or timed-out request, and a failed or timed-out read of the body. Every other status, an
   invalid body, and a selection error are permanent. Like `is_absent_file`, it looks through

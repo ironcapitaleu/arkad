@@ -417,9 +417,9 @@ flowchart TB
     classDef fail fill:#f8cecc,stroke:#b85450
 
     D["Next date of the run"]:::step --> DI{"Daily index<br/>exists?"}
-    DI -- "transient failure" --> RD["Retry after 10 s, then 60 s"]:::fail
+    DI -- "transient failure" --> RD["Retry after 60 s"]:::fail
     RD -- "retry" --> DI
-    RD -- "third attempt fails" --> FD["Date failed"]:::fail
+    RD -- "second attempt fails" --> FD["Date failed"]:::fail
     FD --> D
     DI -- "yes" --> SD["Store the daily index<br/>select the filings"]:::step
     DI -- "no, a later index exists" --> E["No filings"]:::skip
@@ -429,9 +429,9 @@ flowchart TB
     R -- "intact instance, label file intact or not listed" --> S1["Already stored,<br/>no request"]:::skip
     R -- "folder index without instance" --> S2["Unextractable,<br/>no request"]:::skip
     R -- "nothing" --> X["Fetch and store index.json,<br/>select files, fetch and store<br/>instance and label file"]:::step
-    X -- "transient failure" --> RT["Retry after 10 s, then 60 s"]:::fail
+    X -- "transient failure" --> RT["Retry after 60 s"]:::fail
     RT -- "retry" --> X
-    RT -- "third attempt fails" --> C
+    RT -- "second attempt fails" --> C
     S1 --> C["For each distinct CIK, at most 8 at once:<br/>fetch and store submissions"]:::step
     S2 --> C
     X --> C
@@ -440,7 +440,9 @@ flowchart TB
 ```
 
 All machines of one run share one `execution_id`. The dates run one after another. A `submissions`
-machine and the detection of a date retry the same way as a filing. A transient failure is a
+machine and the detection of a date retry the same way as a filing. Before that, the client
+sends each request up to 3 times within about 3 s, so the diagram shows only the retry of the
+machine. A transient failure is a
 502, a 503, a 504, a 429, a failed or timed-out request, or a failed or timed-out read of the
 body. A Notes
 period of `backfill` retries too, and downloads the whole file again.
