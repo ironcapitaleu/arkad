@@ -3,10 +3,11 @@
 //! Canonical name constants and concept definition arrays mapping
 //! XBRL taxonomy concept names to canonical financial elements.
 //!
-//! Which concepts a list can hold: `xbrl/DESIGN.md`, "`us_gaap`".
+//! An alias list holds only concepts that equal the whole standard concept, such as the names of
+//! one total across releases. It holds no wider concept and no part of the total.
 //!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
-//! canonical element, as `xbrl/DESIGN.md`, "`us_gaap`", describes.
+//! canonical element, at version 1, for example `us-gaap/alias/operating-cash-flow@1`.
 //!
 //! ## Two-Tier Validation
 //! - **Required**: Structural backbone concepts every public company reports.
@@ -78,7 +79,7 @@ impl ConceptDefinition {
 /// The parts of a standard concept that stand for the whole when a filing reports no other part.
 ///
 /// A part counts only if no concept of the alias list resolves, and only if the filing reports
-/// none of the other parts in the period. `xbrl/DESIGN.md`, "`us_gaap`", gives the rule.
+/// none of the other parts in the period.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartDefinition {
     /// The standard concept the parts stand for.
