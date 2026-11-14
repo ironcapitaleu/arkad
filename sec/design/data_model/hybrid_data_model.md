@@ -876,11 +876,9 @@ the system of record. The storage-abstraction trait (§14.D.3) keeps the pipelin
 ### 14.F Storage abstraction — trait design
 
 The trait layer that makes §14.D.3 real. Full design (traits, error model, fakes, crate topology,
-review checklist) lives in `storage_traits_design.md`; its **Consolidated Design (2026-08-10)** is
-the current contract STA-139 scaffolds (STA-145 froze an earlier v1, since refined). **The summary
-below reflects that earlier v1 shape** — read `persist` for `ingest`, `Backend` for the base
-`Storage`, `SecRepository` for the composing `Repository`, and `ErrorKind` for `StorageError`; see
-the consolidated design for the current names.
+review checklist) lives in `storage_traits_design.md`; its "Design" section is the contract. The
+summary below uses the names `ingest`, `Storage`, a composing `Repository`, and `StorageError`.
+Read `persist`, `Backend`, `SecRepository`, and `ErrorKind`.
 
 **Design pattern.** This applies the **Repository pattern** to decouple the pipeline from the
 physical database backend — swapping stores is a new impl behind the same interface, never a
@@ -933,7 +931,7 @@ of §8.
 `Load` context, exactly as `SecClient` is today.
 
 **Crate topology.** The persistence ports + `StorageError` + ingest DTOs + feature-gated fakes
-live in a new backend-agnostic **`storage`** crate (no `sqlx`; renamed from `domain` — the domain
+live in a new backend-agnostic **`storage`** crate (no `sqlx`; the domain
 vocabulary itself stays in `xbrl`, which `storage` depends on); a **`storage-postgres`** crate
 holds the concrete `PostgresRepository`; only the composition root names Postgres. Makes §12a's
 language-agnostic / reversible-storage property enforceable by the compiler.

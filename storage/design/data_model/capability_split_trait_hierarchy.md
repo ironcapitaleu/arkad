@@ -40,8 +40,8 @@ trait side. The read side is a new trait, not a rework of the write side.
 
 ### `WriteRepository`
 
-`WriteRepository` is the current `Repository`, renamed. The method and the associated type are
-unchanged, so the write contract stays exact.
+`WriteRepository` holds the write contract: the method `persist` and the associated type
+`Record`.
 
 ```rust
 #[async_trait]
@@ -324,9 +324,8 @@ Each capability gets its own fake, so a consumer test wires only the trait it ex
 live in each crate's `#[cfg(test)]` fixtures, the house convention. A second consumer that needs the
 same fake is the trigger to promote it to a shared testkit, not before.
 
-- **`FakeWriteRepository<Rec>`** — the current `FakeRepository<Rec>`, renamed. It records every
-  persisted record and returns `Ok`. It exposes the recorded records for assertions. This is the
-  write fake unchanged.
+- **`FakeWriteRepository<Rec>`** — records every persisted record and returns `Ok`. It exposes the
+  recorded records for assertions.
 - **`FakeReadRepository<Key, Rec>`** — seeded with key-to-record entries. Its `get` returns the
   seeded record, or `Ok(None)` for an unknown key. A test can seed it to return a `ReadError`, so
   the read failure paths have a target.
@@ -357,7 +356,7 @@ the consumer depends on, and a write path cannot leak into it.
 - [`capability_split_ports.md`](./capability_split_ports.md) — the STA-157 findings this design
   builds on: the two approaches, the queue mapping, and the recommendation.
 - [`../../../sec/design/data_model/storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md)
-  — the authoritative storage trait design (the Consolidated Design section): the neutral
+  — the authoritative storage trait design (the Design section): the neutral
   `Repository` facade, the `Backend` store base, `SecRepository`, and the error model.
 - [`../../../sec/design/uml_class_diagram/sec_error_handling.md`](../../../sec/design/uml_class_diagram/sec_error_handling.md)
   — the `sec` error hierarchy that the `storage` error hierarchy mirrors.

@@ -1,24 +1,14 @@
 # Storage Abstraction — Trait Design
 
-> Context: STA-130 SPIKE. **Decision (2026-08-08): no physical deployment option is chosen at
-> this stage — deliberately.** The team decision is to abstract physical storage completely behind
-> the `storage` crate's ports (this doc); the physical choice (Option A, B, or any mixture —
-> `hybrid_data_model.md` §14) is deferred until a measured trigger forces it.
+> **No physical deployment option is chosen.** The `storage` crate's ports (this doc) abstract
+> physical storage completely. The physical choice (Option A, B, or any mixture —
+> `hybrid_data_model.md` §14) waits until a measured trigger forces it.
 >
-> **Status (2026-08-10): the [Consolidated Design](#consolidated-design-current--2026-08-10) section
-> below is current and authoritative** — the shape STA-139 scaffolds. STA-145 froze an earlier v1
-> (composing `Repository` with a baked-in `type Raw/Graph/Facts` triad, `ingest`, `StorageError`);
-> a subsequent design pass refined it — **neutral `Repository` + `persist`, a `Backend` store base,
-> `SecRepository` owning the triad, `ErrorKind` as a value-type hierarchy leaf.** The detailed
-> sections after the consolidated view (transaction ownership, mixture-of-engines, the write
-> contract) keep their rationale — read `persist` for `ingest`, `Backend` for the base `Storage`,
-> and `SecRepository` for the composing `Repository`; the [frozen v1 trait block](#traits-frozen--sta-145)
-> is retained for history and marked superseded.
+> The [Design](#design) section holds the shape of the ports. The sections after it give the
+> rationale. They use the names `ingest`, `Storage`, `StorageError`, and a composing `Repository`.
+> Read `persist`, `Backend`, `ErrorKind`, and `SecRepository`.
 
-## Consolidated Design (current — 2026-08-10)
-
-The authoritative shape. The sections below this one predate it and are retained for their
-rationale (read the mapping in the status note above).
+## Design
 
 ### Naming & structure
 
@@ -26,7 +16,7 @@ rationale (read the mapping in the status note above).
 | --- | --- |
 | **crate** | `storage` — owns the word, so no trait is named `Storage` |
 | **facade** | `Repository` — *neutral*: `type Record` + `persist`, backend-blind |
-| **write method** | `persist(record)` (was `ingest`) |
+| **write method** | `persist(record)` |
 | **write-unit** | `Repository::Record` associated type; `sec` binds `type Record = FilingRecord` |
 | **store base** | `Backend` — `kind() -> BackendKind` only (identity; errors are operation-classed, lifecycle off-trait) |
 | **the three ports** | `RawStore` / `GraphStore` / `FactStore`, each `: Backend` |
@@ -327,197 +317,6 @@ reach for the pattern — is fully honored either way.
 `Repository` *has* three stores; it does not *inherit* their methods. Reach a tier via its accessor:
 `store.graph().ownership_tree(root)`, `store.raw().scan(filter)` — reading like `client.inner()`.
 
-## Traits (FROZEN — STA-145)
-
-> **⚠️ Superseded (2026-08-10) by the [Consolidated Design](#consolidated-design-current--2026-08-10)
-> above.** This v1 block is retained for history. What changed: `Repository` lost its baked-in
-> `type Raw/Graph/Facts` triad and became a neutral `type Record` + `persist` facade; the triad
-> moved to `sec::SecRepository`; the base `Storage` trait was renamed `Backend` (`backend()` →
-> `kind()`); `ingest` → `persist`; `IngestionUnit` → `FilingRecord` (in `sec`); `StorageError`
-> (boxed-source) → `error::ErrorKind` (Clone/Eq/Ord value type). The **rationale** below —
-> transaction ownership, mixture-of-engines, the write contract, the anti-leak checklist — still
-> holds; substitute the new names when reading.
-
-> **The signatures below are the frozen contract STA-139 scaffolds verbatim.** Structure
-> (composition via associated types, the `type Error` → `StorageError` currency, no `dyn`, the crate
-> split) *and* the per-trait method inventory are now settled. The method-inventory question is
-> closed as follows:
->
-> - **Base `Storage` = `type Error` + `backend()` only.** `health()` / `migrate()` are **not** on the
->   trait — they are composition-root lifecycle concerns called on the concrete type at startup
->   (see [Startup / lifecycle](#lifecycle)). Should a *generic* lifecycle surface ever be needed, add
->   a `Lifecycle: Storage` trait then — not before a consumer exists (YAGNI).
-> - **Write path is frozen and live:** `Repository::ingest` (the only path the ETL calls),
->   `RawStore::append` + `RawStore::scan` (replay/rebuild), and the three tier `upsert`s.
-> - **Reads (`completeness` / `ownership_tree` / `query`) are frozen *as vocabulary* but implemented
->   lazily** — their return DTOs are named here so the trait shape is stable, but only the fakes get
->   real bodies now; the Postgres impls stay `todo!()` until a screener/API read consumer is cut.
->   The **implementation status** column below is the honest record of what STA-139 fills in vs. what
->   waits.
->
-> | Method | Kind | STA-139 implements? |
-> | --- | --- | --- |
-> | `Repository::ingest` | write (live) | **yes** — the ETL write path |
-> | `RawStore::append` / `scan` | write / replay | **yes** — replay feeds rebuilds |
-> | `GraphStore::upsert`, `FactStore::upsert` | write | **yes** |
-> | `GraphStore::completeness` / `ownership_tree`, `FactStore::query` | read | frozen signature; **fakes only** — Postgres `todo!()` until a read consumer exists |
-> | `Storage::backend` | identity | **yes** (trivial) |
-
-```rust
-use async_trait::async_trait;
-use futures::stream::BoxStream;
-
-use crate::error::StorageError; // the ONE currency error (an enum with classification + source)
-
-/// Backend identity for logs/metrics/diagnostics.
-pub enum BackendKind { Postgres, Iceberg, Graph, DataLake, Fake }
-
-// ---- Base: universal to ANY store, whatever the data kind ----
-// The `where StorageError: From<Self::Error>` lives HERE so every capability op and
-// `Repository::ingest` gets the `?`-conversion into the currency for free.
-// No `#[async_trait]`: the base has only the sync `backend()` — the async surface lives on the
-// data traits (RawStore/GraphStore/FactStore), each of which carries its own `#[async_trait]`.
-pub trait Storage: Send + Sync
-where
-    StorageError: From<Self::Error>,
-{
-    /// Impl-specific, rich error. Bounded above to convert into `StorageError`.
-    type Error;
-
-    /// Backend identity for logs/metrics/diagnostics. The base carries identity + the error
-    /// currency ONLY (see below); it is not a lifecycle or data-op surface.
-    fn backend(&self) -> BackendKind;
-
-    // Deliberately NOTHING else here (STA-145 freeze). Lifecycle (health/migrate) is a
-    // composition-root concern on the concrete type (§Startup); data ops and any
-    // transaction/unit-of-work seam NEVER live on the base. A generic `Lifecycle: Storage`
-    // trait is added later only if a generic bring-up consumer actually needs one.
-}
-
-// ---- Data-kind traits: each IS-A Storage. Concrete domain types; error is Self::Error. ----
-
-/// Verbatim filings — durable system of record (§8). Append + replay.
-#[async_trait]
-pub trait RawStore: Storage {
-    async fn append(&self, raw: &RawFiling) -> Result<(), Self::Error>;
-    /// Replay source for rebuilding any materialization (§14.E).
-    fn scan(&self, filter: RawScan) -> BoxStream<'_, Result<RawFiling, Self::Error>>;
-}
-
-/// Knowledge graph — nodes/edges + the two §5.4 read shapes.
-#[async_trait]
-pub trait GraphStore: Storage {
-    async fn upsert(&self, delta: &GraphDelta) -> Result<(), Self::Error>;
-    async fn completeness(&self, c: &CompanyId, fy: FiscalYear)   // 1-hop anti-join (§5.4a)
-        -> Result<CompletenessReport, Self::Error>;
-    async fn ownership_tree(&self, root: &CompanyId)              // multi-hop traversal (§5.4b)
-        -> Result<OwnershipTree, Self::Error>;
-}
-
-/// Canonical facts — the transactional/analytical tier (§6). May later split behind the
-/// scenes into a write-optimized landing store + a read-optimized scan store (Iceberg,
-/// compacted on a schedule — §12b.3); callers never learn there are two engines.
-#[async_trait]
-pub trait FactStore: Storage {
-    /// `FactSet` carries no identity (it is `entity`/`period`/`facts` — see `xbrl`), so the
-    /// resolved `CompanyId` is passed alongside it; this is why identity also lives on
-    /// `IngestionUnit`, not inside `FactSet`.
-    ///
-    /// **Upsert-by-full-grain, never "replace the period's value" (STA-145 freeze).** The key
-    /// includes `source_ref`, so a 10-K/A restatement *coexists* with the original rather than
-    /// overwriting it — provenance is preserved and "which value wins" is a read-time selection
-    /// (`hybrid_data_model.md` §2.1 multi-adapter rule, §6). No impl may collapse the grain.
-    async fn upsert(&self, company: &CompanyId, facts: &FactSet) -> Result<(), Self::Error>;
-    async fn query(&self, c: &CompanyId, q: FactQuery)
-        -> Result<Vec<CanonicalFact>, Self::Error>;
-}
-
-// ---- Composing trait: HAS-A each store via associated types; owns the atomic write. ----
-// `ingest` returns the CURRENCY error (the convergence point), not a per-store Self::Error.
-#[async_trait]
-pub trait Repository: Send + Sync {
-    type Raw:   RawStore;
-    type Graph: GraphStore;
-    type Facts: FactStore;
-
-    fn raw(&self)   -> &Self::Raw;    // mirrors SecClient::inner()
-    fn graph(&self) -> &Self::Graph;
-    fn facts(&self) -> &Self::Facts;
-
-    /// The live write path. **Grain (STA-145 freeze): one `IngestionUnit` per filing** — the unit
-    /// of ingestion is a single filing's raw + graph-delta + facts, persisted as one unit. Impl
-    /// owns atomicity.
-    async fn ingest(&self, unit: IngestionUnit) -> Result<(), StorageError>;
-}
-```
-
-A default-ish `ingest` body composes the tiers, and every `?` converts via the base bound:
-
-```rust
-async fn ingest(&self, unit: IngestionUnit) -> Result<(), StorageError> {
-    self.raw().append(&unit.raw).await?;                    // <Self::Raw as Storage>::Error   -> StorageError
-    self.graph().upsert(&unit.graph).await?;                // <Self::Graph as Storage>::Error -> StorageError
-    self.facts().upsert(&unit.company, &unit.facts).await?; // <Self::Facts as Storage>::Error -> StorageError
-    Ok(())
-}
-```
-
-> ⚠️ **This composed body realizes only the *weak* contract** — each tier-call acquires its own
-> connection and commits independently, so a mid-unit failure leaves earlier tiers committed. It is
-> the correct shape for a mixed-engine `Repository` (and for fakes), and **wrong for a co-located
-> one**: `PostgresRepository` must NOT implement `ingest` this way — see
-> [Transaction ownership](#tx-ownership).
-
-> Note the return-type split: **capability ops return the rich `Self::Error`** (caller gets native
-> detail, or converts to the currency at will); **`Repository::ingest` returns `StorageError`**
-> because it unifies three different store errors and is where cross-cutting logic (retry, logging)
-> reads classification.
-
-## `StorageError` — the currency
-
-A concrete enum that **classifies without discarding**: the `From<ImplError>` impl decides the
-variant; the original backend error rides along as `source()`.
-
-Naming and messages follow the project error conventions (AGENTS.md § "Error Naming Conventions" /
-"Error Display Format"): Adjective-First / Failed-First variant names, each `#[error]` prefixed with
-its `[VariantName]` and chained with `Caused by: {0}` (leaf variants use `Reason:` or nothing).
-
-```rust
-#[derive(Debug, thiserror::Error)]
-pub enum StorageError {
-    /// Transient — safe to retry (connection drop, serialization failure, timeout).
-    #[error("[UnavailableStorage] Storage backend is temporarily unavailable, Caused by: {0}")]
-    UnavailableStorage(#[source] Box<dyn std::error::Error + Send + Sync>),
-
-    /// Write conflicts with existing data (unique violation, already-exists).
-    #[error("[ConflictingWrite] Write conflicts with existing data, Caused by: {0}")]
-    ConflictingWrite(#[source] Box<dyn std::error::Error + Send + Sync>),
-
-    /// Requested item not present (leaf — no inner error to chain).
-    #[error("[MissingRecord] Requested record not found")]
-    MissingRecord,
-
-    /// Data integrity / invariant violated (check constraint, balance sheet identity).
-    #[error("[FailedIntegrityCheck] Data integrity or invariant violated, Caused by: {0}")]
-    FailedIntegrityCheck(#[source] Box<dyn std::error::Error + Send + Sync>),
-
-    /// Uncategorized backend failure.
-    #[error("[FailedBackendOperation] Backend operation failed, Caused by: {0}")]
-    FailedBackendOperation(#[source] Box<dyn std::error::Error + Send + Sync>),
-}
-
-impl StorageError {
-    /// The one decision the ETL loop needs: retry vs dead-letter.
-    #[must_use]
-    pub const fn is_retryable(&self) -> bool { matches!(self, Self::UnavailableStorage(_)) }
-}
-```
-
-Each backend impls `From<ItsError> for StorageError`, mapping (e.g.) a Postgres serialization
-failure → `UnavailableStorage`, a unique-violation → `ConflictingWrite`, a check-constraint →
-`FailedIntegrityCheck`. Fakes take the trivial route: `type Error = StorageError` (the reflexive
-`From<StorageError>` satisfies the bound with zero boilerplate).
-
 ## Mixture of engines — the general case, not a special case {#mixture}
 
 Because `Repository` composes three *independent* associated types, each tier can be a different
@@ -552,7 +351,7 @@ visibility that only Postgres provides.
 
 ### Transaction ownership — the facade holds the tx, never the tier stores {#tx-ownership}
 
-> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that `persist` writes the raw store only.
+> **Note:** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that `persist` writes the raw store only.
 > A load step per silver unit then writes the graph and fact tiers in one Postgres transaction. The
 > co-located rule below applies to that load step. The mixed-engine path and its §8 reconciliation
 > job have no use in the MVP. A failed load leaves no ledger row, so the next run loads the unit
@@ -717,11 +516,6 @@ Only the composition root ever names Postgres; `sec` / `state_maschine` / `xbrl`
 `storage` traits. This only holds if the Postgres impl is a *separate crate* — otherwise `sec`'s
 dep graph pulls in sqlx transitively and the boundary rots.
 
-> **Naming note (2026-08-08 revision).** This crate was called `domain` in earlier drafts. Renamed
-> `storage`: it holds the persistence *ports*, not the domain vocabulary — that stays in `xbrl`,
-> which `storage` depends on. The `storage` / `storage-postgres` pair also reads as one family
-> (cf. `sqlx` / `sqlx-postgres`).
-
 ## DI wiring (same as SecClient — concrete, no `dyn`)
 
 Inject the concrete `Repository` type into the `Load` state's **context**, exactly as `SecClient` is
@@ -734,10 +528,10 @@ output to producing `FactSet`s that feed the `IngestionUnit` — the "retire `se
 > **See also** `load_superstate_design.md` — the Load `SuperState` designed against these ports
 > (sub-states, the `FinancialStatementRepository` / `LeiResolver` ports, adapters, and UML).
 
-### Load-port reconciliation (STA-145 — pinned)
+### Load-port reconciliation
 
-`load_superstate_design.md` names two Load-facing ports; STA-145 pins how they line up with the
-frozen storage traits so the two docs cannot drift:
+`load_superstate_design.md` names two Load-facing ports. They line up with the storage traits as
+follows:
 
 - **`FinancialStatementRepository` is the Load-*facing* port, not a second storage trait.** It speaks
   the **application** domain (`FinancialStatements`), keeping the Load state thin. Its concrete
@@ -768,7 +562,7 @@ adapter internal of one of them.
 
 ## Payoff of the base trait — generic over `impl Storage`
 
-The base trait earns its place on **two** things, both frozen: the `type Error` +
+The base trait earns its place on **two** things: the `type Error` +
 `StorageError: From<Self::Error>` bound (so every capability op and `ingest` gets `?`-conversion into
 the one currency for free) and `backend()` identity. No `dyn`, so anything written against
 `impl Storage` is a generic function called per concrete store, blind to data kind:
@@ -781,8 +575,8 @@ fn describe<S: Storage>(s: &S) -> BackendKind { s.backend() }
 
 ### Startup / lifecycle lives at the composition root, not on the trait {#lifecycle}
 
-Bring-up (schema migrate + health check) is **not** a trait method (STA-145 freeze — it is off the
-base). The composition root knows the concrete `PostgresRepository`, so it calls that type's own
+Bring-up (schema migrate + health check) is **not** a trait method — it is off the
+base. The composition root knows the concrete `PostgresRepository`, so it calls that type's own
 inherent `migrate()` / `health()` at startup:
 
 ```rust
@@ -797,7 +591,7 @@ the base would force every fake and every future engine (a graph DB, Iceberg) to
 caller benefit. If a *generic* fleet bring-up consumer ever materializes, introduce a
 `Lifecycle: Storage` trait then — the base stays minimal until then.
 
-## Revised implementation order (collapses handoff steps 1 & 3)
+## Implementation order
 
 1. **`storage` crate: ports + `StorageError` + ingest DTOs + feature-gated fakes** — the DI
    contract. (DTOs and traits are one ticket: the DTOs are the traits' vocabulary; the domain
@@ -808,7 +602,7 @@ caller benefit. If a *generic* fleet bring-up consumer ever materializes, introd
 
 ## Deferred — update semantics: bulk vs incremental (orthogonal axis)
 
-Out of scope for the first trait cut; **noted here so it isn't lost.** This is a *second axis*,
+This is a *second axis*,
 orthogonal to the raw/graph/facts split — it crosses all three tiers, it is not another store kind
 (cf. `hybrid_data_model.md` §12 Batch vs Incremental).
 
@@ -823,36 +617,32 @@ Maps onto the live-vs-replay split (incremental = live `ingest`; bulk = the §14
 path). Likely a separate write-facade (`BulkLoad`) later, rather than doubling every capability
 method. **To be designed when a backfill/migration consumer actually exists.**
 
-## Resolved by STA-145 (the frozen decisions)
-
-The open questions from earlier drafts are now closed. Each resolution is baked into the frozen
-signatures above; recorded here so the reasoning survives.
+## Decisions
 
 - **Method inventory — CLOSED.** `ingest` is the **only** live-write entry point the ETL calls.
   The per-tier `append` / `upsert` (+ `RawStore::scan`) exist for standalone replay/rebuild, not for
-  the pipeline to sequence. The full frozen inventory and per-method implementation status are the
-  table under [Traits](#traits-frozen--sta-145).
+  the pipeline to sequence.
 - **`health()` / `migrate()` on the base — CLOSED: no.** Base `Storage` = `type Error` + `backend()`
   only. Lifecycle is a composition-root concern on the concrete type (§Startup). A `Lifecycle: Storage`
   trait is a *later* addition, gated on a real generic-bring-up consumer.
-- **Unit-of-ingestion grain — CLOSED: one `IngestionUnit` per filing.** Frozen on
+- **Unit-of-ingestion grain — CLOSED: one `IngestionUnit` per filing.** Fixed on
   `Repository::ingest`.
 - **Reads now or later — CLOSED: declare now, implement lazily.** Read signatures
-  (`completeness` / `ownership_tree` / `query`) are frozen *as vocabulary* so the trait shape is
-  stable; only the fakes get real bodies in STA-139, Postgres reads stay `todo!()` until a
+  (`completeness` / `ownership_tree` / `query`) are fixed *as vocabulary* so the trait shape is
+  stable; only the fakes get real bodies, Postgres reads stay `todo!()` until a
   screener/API consumer is cut. `RawStore::scan` is the exception — it is implemented now because
   replay/rebuild needs it.
 - **`FactStore` write/read split — CLOSED: one trait now.** The future Postgres-landing +
   Iceberg-scan split (§12b.3) stays hidden behind it; callers never learn there are two engines.
 - **Restatement invariant — CLOSED: upsert-by-full-grain.** `FactStore::upsert` keys on the full
   grain incl. `source_ref`; a 10-K/A coexists with the original, "which value wins" is a read-time
-  selection. Frozen as a doc-comment on the method so no impl collapses the grain.
+  selection. Fixed as a doc-comment on the method so no impl collapses the grain.
 - **Identity on the ingest DTO — CLOSED.** Because `xbrl::FactSet` carries no `CompanyId`, the
   resolved identity lives on `IngestionUnit.company` and is passed to `FactStore::upsert(company, …)`.
 
 ### Still deferred (with the trigger that re-opens each)
 
-These are *not* part of the frozen v1 — they wait for a concrete consumer, by design:
+These wait for a concrete consumer, by design:
 
 - **Read-side query surface, fully shaped** → when a **screener/API** consumer exists. Its return
   DTOs (`CompletenessReport`, `OwnershipTree`, richer `FactQuery`) are named now but will be
@@ -861,87 +651,3 @@ These are *not* part of the frozen v1 — they wait for a concrete consumer, by 
   (see "Deferred — update semantics" above). Orthogonal to the raw/graph/facts split.
 - **`Lifecycle: Storage` trait** → when a **generic** fleet-bring-up consumer needs migrate/health
   behind `impl Storage` rather than on the concrete root.
-
-## Revision note — what changed from the first draft
-
-- **`Repository` (composition via associated types)** replaces `FinancialDataStore: RawStore +
-  GraphStore + FactStore` (inheritance). Reason: has-a makes the engine *mixture* the natural case;
-  is-a forced co-location. Matches the `SecClient` / `InnerClient` house pattern.
-- **Per-store `type Error`** (rich, impl-specific) bounded `StorageError: From<Self::Error>` on the
-  base `Storage`, replacing the single naked `StorageError` everywhere. Keeps the house `type Error`
-  pattern *and* uniform retryability; `?` works because the bound is `From`-shaped.
-- **`StorageError` carries `source()`** (boxed) and classifies — no backend detail discarded.
-- **No `dyn` anywhere** — was `Arc<dyn FinancialDataStore>` injection + `&[&dyn Storage]` bring-up;
-  now concrete/generic, consistent with the non-object-safe `State` trait. Anything written against
-  `impl Storage` (metrics/diagnostics) is a generic fn called per tier. (Startup migrate/health is a
-  concrete-type call at the root — see the STA-145 entry below.)
-- **Crate topology + feature-gated fakes** spelled out as the consequence of the ports-crate
-  decision.
-- **(2026-08-08)** Crate renamed **`domain` → `storage`**; domain vocabulary (`FactSet`,
-  `CanonicalFact`, `CompanyId`, …) stays in `xbrl`, which `storage` depends on — see the naming
-  note under Crate topology.
-- **(2026-08-08)** New **Transaction ownership** subsection (§tx-ownership): the composing facade
-  owns atomicity; a co-located impl must not build `ingest` from its own capability-trait methods.
-- **(2026-08-08)** Header decision updated: **no physical deployment chosen** — abstraction-first;
-  the physical choice is deferred behind these ports until a measured trigger forces it.
-- **(2026-08-10, STA-145 — signatures FROZEN)** The trait inventory is closed and the doc is the
-  contract STA-139 scaffolds verbatim. Specifically:
-  - Base `Storage` **loses `health()` / `migrate()`** — now `type Error` + `backend()` only;
-    lifecycle moved to the composition root on the concrete impl (§Startup). Review checklist +
-    fakes + the base-trait payoff section updated to match.
-  - `FactStore::upsert` **takes `company: &CompanyId`** (since `xbrl::FactSet` carries no identity)
-    and gained the **restatement / upsert-by-full-grain** doc-comment.
-  - `IngestionUnit` **carries `company: CompanyId`**; `ingest`'s composed body updated.
-  - `GraphDelta` **fleshed out to the §5 three-ring model** (Company + Identifier nodes, structural
-    vs. **claim edges with the claim envelope**, append-only).
-  - Grain frozen: **one `IngestionUnit` per filing**.
-  - "Open questions" replaced by **"Resolved by STA-145"** + an explicit **deferred-with-trigger**
-    list (read surface, `BulkLoad`, `Lifecycle` trait).
-  - **Load-port reconciliation** pinned: `FinancialStatementRepository` = Load-facing port whose
-    adapter *contains* the storage `Repository`; `LeiResolver` stays a distinct Load port.
-- **(2026-08-10)** `StorageError` **realigned to the project error conventions** (AGENTS.md): variant
-  names are now Adjective-First / Failed-First (`Unavailable`→`UnavailableStorage`,
-  `Conflict`→`ConflictingWrite`, `NotFound`→`MissingRecord`, `Integrity`→`FailedIntegrityCheck`,
-  `Backend`→`FailedBackendOperation`), and each `#[error(...)]` carries its `[VariantName]` prefix +
-  `Caused by: {0}` chaining (matching `xbrl`/`sec` error types). The earlier bare-name, lowercase
-  messages would have violated conventions once STA-139 scaffolded them verbatim.
-- **(2026-08-10) — Consolidated Design pass (supersedes the frozen v1 above).** Added the
-  [Consolidated Design](#consolidated-design-current--2026-08-10) section as the authoritative shape.
-  Substantive changes from the STA-145 freeze:
-  - **`Repository` is now neutral** — `type Record` + `persist` only; backend-blind. The
-    `type Raw/Graph/Facts` triad + accessors moved out of the port.
-  - **`SecRepository<R,G,F>` (in `sec`)** composes the triad and owns SEC-specific raw schema/mapping;
-    `Repository` and `Backend` meet only inside `persist`. Future `EsefRepository` shares the
-    canonical graph/facts tiers.
-  - **`ingest` → `persist`**, **`IngestionUnit` → `FilingRecord`** (in `sec`), **base `Storage` →
-    `Backend`** with **`backend()` → `kind()`**.
-  - **`StorageError` → `error::ErrorKind`** — a `Clone`/`Eq`/`Ord`/`Hash` **value type** carrying
-    `Reason` strings (no boxed source), matching the `sec` error hierarchy; up/down-cast (`From` /
-    `TryFrom` / `DowncastNotPossible`) happens at the `sec` seam where it becomes a `State` leaf.
-  - **`BackendKind`** gained `Memory` / `FileSystem` (in-memory & filesystem backends are first-class).
-  - **Fakes** are per-crate `#[cfg(test)]` in each crate's `tests/fixtures/` (house convention),
-    reversing the earlier "feature-gated fakes in `storage`" note; promote to a shared testkit only
-    on a second consumer.
-  - Deferred to STA-139: read surface + CQRS split, `RawStore` payload genericity, `completeness`
-    placement, retry/DLQ (decorator + reconciliation + poison-only DLQ, driver-level).
-- **(2026-08-10) — error model reworked to mirror the `sec` error hierarchy.** Replaced the flat
-  `ErrorKind` with an **operation-classed** hierarchy built exactly like `sec/src/lib/error/`:
-  `ErrorKind` (top union) = `Read(ReadError)` / `Write(WriteError)`; a shared `BackendError`
-  (`Unavailable`/`Failed`, `is_retryable()`) embedded in each; module-per-level, markers inline vs
-  rich leaves in their own module, `From` upcast / `TryFrom` downcast, `DowncastNotPossible` sentinel
-  on the top, full `implements_*` test suite per level. **Methods return the narrow class** —
-  `persist -> WriteError`, future `query -> ReadError` — so illegal states are unrepresentable; the
-  union `ErrorKind` is what the retry decorator + `sec` seam consume. This **drops `Backend::type
-  Error`** (stores return the classes directly; the value-type/`reason`-string decision already
-  flattened rich detail, making the associated error moot). Built write-side first; `ReadError`
-  arrives with the STA-139 read methods.
-- **(2026-11-05) — `BackendError` wraps a value-type cause.** Each variant now holds a
-  `BackendCause` in place of `reason`: a `reason` string, or a wrapped
-  `FailedFilesystemOperation`. A wrapped error prints after `Caused by:` with no quotes, and
-  `source()` returns it. Only a value-type error can become a `BackendCause` variant. A Postgres
-  backend flattens `sqlx::Error` to a `reason`, as above.
-- **(2026-11-06) — pass-through layers (supersedes the print and `source()` rule of 2026-11-05).**
-  A layer that adds no fact prints no segment.
-  `ErrorKind::Read`, `ErrorKind::Write`, `ReadError::Backend`, and `WriteError::Backend` use
-  `#[error(transparent)]`. A `BackendError` with a wrapped cause passes it through. A
-  `BackendError` with a reason stays a leaf.

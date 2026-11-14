@@ -24,25 +24,24 @@ Status: proposed. The decisions below wait for review.
 
 ## Relation to the Deferred Read Surface
 
-The consolidated design of the storage traits deferred the whole read surface (see
+The design of the storage traits defers the whole read surface (see
 [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md),
-"Consolidated Design", deferred item 1). The deferral waits for a concrete consumer. The listing
+"Design", deferred item 1). The deferral waits for a concrete consumer. The listing
 now has five, see [Consumers](#consumers). So the listing reopens item 1, but only for the listing:
 
 - `completeness`, `ownership_tree`, and `query` stay deferred. They wait for a screener or API
   consumer, as before.
 - The CQRS split stays deferred. The listing is one more read capability next to `get`.
 
-The frozen v1 design had `RawStore::scan(filter)`, a stream of `RawFiling` values with their bytes
-(see "Traits (FROZEN)" in the same document). The listing does not bring `scan` back:
+The listing is not a `RawStore::scan(filter)`, a stream of `RawFiling` values with their bytes:
 
-- `scan` returned the bytes. The raw store holds about 30 GB today. A stream of bytes reads all of
+- `scan` would return the bytes. The raw store holds about 30 GB today. A stream of bytes reads all of
   them, also for a caller that needs only keys.
-- `RawStore` does not exist in the consolidated design. Each document type has its own repository
+- The code has no `RawStore`. Each document type has its own repository
   behind the neutral `ReadRepository` and `WriteRepository` ports. A listing on those ports serves
   every repository, not only the raw tier.
 - A replay driver that needs the bytes lists the keys, then calls `get` for each key. That
-  composition gives what `scan` gave, and `get` keeps its size and SHA-256 check.
+  composition gives what `scan` would give, and `get` keeps its size and SHA-256 check.
 
 ## The Trait
 

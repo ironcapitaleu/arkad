@@ -58,7 +58,7 @@ flowchart TB
     classDef reused fill:#d9ead3,stroke:#38761d
     classDef new fill:#fff2cc,stroke:#bf9000
 
-    subgraph CF["ExtractCompanyFactsSuperState (exists, renamed)"]
+    subgraph CF["ExtractCompanyFactsSuperState (exists)"]
         direction LR
         CF1["ValidateCikFormat"]:::reused --> CF2["PrepareSecRequest"]:::reused --> CF3["ExecuteSecRequest"]:::reused --> CF4["StoreSecResponse&lt;CompanyFacts&gt;"]:::reused
     end
