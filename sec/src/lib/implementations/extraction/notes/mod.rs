@@ -46,7 +46,7 @@ use summary::{Fetch, is_absent_file};
 
 pub mod published_periods;
 pub mod stored_cut_over_date;
-mod summary;
+pub(super) mod summary;
 
 pub use published_periods::{FailedNotesProbe, published_periods};
 pub use stored_cut_over_date::{MissingStoredCutOverDate, stored_cut_over_date};

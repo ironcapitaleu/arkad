@@ -15,6 +15,7 @@ use serde::{Serialize, Serializer};
 use crate::prelude::{StateMachineStream, StreamError, StreamItem};
 use crate::shared::cik::Cik;
 use crate::shared::financial::accession_number::AccessionNumber;
+use crate::shared::quarter::Quarter;
 
 /// One event of a batch run: a successful stream item, or an error and its kind.
 #[derive(Debug, Clone, Copy)]
@@ -72,6 +73,9 @@ pub enum Unit {
     Cik(String),
     /// A date of the new-filing path, and the detection of its filings.
     Date(NaiveDate),
+    /// A quarter of the catch-up, and the detection of its filings in the full index, for
+    /// example `2026/QTR4`.
+    Quarter(Quarter),
     /// A filing of a date of the new-filing path.
     #[serde(untagged)]
     Filing {
@@ -96,6 +100,7 @@ impl Display for Unit {
         match self {
             Self::Period(period) => write!(f, "{period}"),
             Self::Date(date) => write!(f, "{date}"),
+            Self::Quarter(quarter) => write!(f, "{quarter}"),
             Self::Filing {
                 date,
                 accession_number,
@@ -219,6 +224,29 @@ mod tests {
 
         let result = serde_json::to_value(units)
             .expect("Given units of dates and plain strings, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_an_object_with_the_quarter_key_when_the_unit_is_a_quarter() {
+        let unit = Unit::Quarter(Quarter::of(date()));
+
+        let expected_result = serde_json::json!({ "quarter": "2026/QTR4" });
+
+        let result = serde_json::to_value(unit)
+            .expect("Given a quarter, serialization should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_year_and_the_folder_when_the_unit_is_a_quarter() {
+        let unit = Unit::Quarter(Quarter::of(date()));
+
+        let expected_result = "2026/QTR4";
+
+        let result = unit.to_string();
 
         assert_eq!(result, expected_result);
     }

@@ -77,6 +77,7 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
             labels: raw_writer(),
             submissions: raw_writer(),
         },
+        full_index: raw_writer(),
     };
     let backfill = Extraction::backfill();
     let execution_id = backfill.id();

@@ -11,7 +11,8 @@
 //! the forms and keeps one row per accession number.
 //!
 //! Both files have the same layout. The date filed has the form `YYYYMMDD` in the daily index and
-//! `YYYY-MM-DD` in the full index. The parser reads both.
+//! `YYYY-MM-DD` in the full index. The parser reads both. [`last_data_received`] reads the last
+//! date that a form index covers from its header.
 //!
 //! ## Modules
 //!
@@ -54,6 +55,13 @@ const FULL_FILED_DATE_SEPARATOR_POSITIONS: [usize; 2] = [4, 7];
 
 /// The extension of the file name field, as in `edgar/data/320193/0000320193-26-000106.txt`.
 const FILE_NAME_EXTENSION: &str = ".txt";
+
+/// The label of the header line that names the last date the index covers.
+const LAST_DATA_RECEIVED_LABEL: &str = "Last Data Received:";
+
+/// The format of the date of the header line `Last Data Received`. When parsing, `%B` also
+/// accepts the short month name of the daily index.
+const LAST_DATA_RECEIVED_FORMAT: &str = "%B %d, %Y";
 
 /// One row of an EDGAR form index, daily or full: the form text, the CIK, the date filed, and the
 /// accession number.
@@ -106,6 +114,38 @@ pub fn parse_form_index(text: &str) -> Result<Vec<FormIndexRow>, FormIndexError>
         .filter(|(_, line)| !line.trim().is_empty())
         .map(|(index, line)| FormIndexRow::from_line(index + 1, line))
         .collect()
+}
+
+/// Returns the date of the header line `Last Data Received` of a form index, or `None` if the
+/// header has no such line or its date does not parse.
+///
+/// The full index of a quarter lists the dates filed up to this date. A later date has no rows
+/// yet. The date has the form `November 12, 2026` in the full index and `Sep 30, 2026` in the
+/// daily index. Reads the header lines only, up to the first line that starts with `---`.
+///
+/// # Examples
+///
+/// ```
+/// use chrono::NaiveDate;
+/// use sec::shared::form_index_row::last_data_received;
+///
+/// let text = b"Last Data Received:    November 12, 2026\nForm Type   Company Name\n---\n";
+///
+/// let expected_result = NaiveDate::from_ymd_opt(2026, 11, 12);
+///
+/// let result = last_data_received(text);
+///
+/// assert_eq!(result, expected_result);
+/// ```
+#[must_use]
+pub fn last_data_received(text: &[u8]) -> Option<NaiveDate> {
+    text.split(|byte| *byte == b'\n')
+        .map(String::from_utf8_lossy)
+        .take_while(|line| !line.starts_with(HEADER_END_PREFIX))
+        .find_map(|line| {
+            let date = line.strip_prefix(LAST_DATA_RECEIVED_LABEL)?.trim();
+            NaiveDate::parse_from_str(date, LAST_DATA_RECEIVED_FORMAT).ok()
+        })
 }
 
 impl FormIndexRow {
@@ -252,6 +292,72 @@ mod tests {
             "{form_text:<17}{:<62}{cik:<12}{filed_date:<12}{file_name}",
             "ACME CORP"
         )
+    }
+
+    #[test]
+    fn should_return_the_last_data_received_for_sample_full_index() {
+        let text = SAMPLE_FULL_INDEX_2026_Q3.as_bytes();
+
+        let expected_result = NaiveDate::from_ymd_opt(2026, 9, 30);
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_last_data_received_for_sample_daily_index() {
+        let text = SAMPLE_DAILY_INDEX.as_bytes();
+
+        let expected_result = NaiveDate::from_ymd_opt(2026, 10, 27);
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_last_data_received_when_the_day_has_one_digit() {
+        let text = b"Last Data Received:    October 1, 2026\n---\n";
+
+        let expected_result = NaiveDate::from_ymd_opt(2026, 10, 1);
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_the_header_has_no_last_data_received_line() {
+        let text = b"Form Type   Company Name\n---\n";
+
+        let expected_result = None;
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_the_last_data_received_line_comes_after_the_header() {
+        let text = b"---\nLast Data Received:    November 12, 2026\n";
+
+        let expected_result = None;
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_the_date_of_last_data_received_does_not_parse() {
+        let text = b"Last Data Received:    2026-11-12\n---\n";
+
+        let expected_result = None;
+
+        let result = last_data_received(text);
+
+        assert_eq!(result, expected_result);
     }
 
     /// Parses an index with one header line of dashes and the given row line.

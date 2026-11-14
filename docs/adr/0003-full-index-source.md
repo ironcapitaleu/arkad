@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The lead confirms |
+| Status | Accepted by the project lead on 2026-11-14. Amendment 1: Proposed. The project lead confirms |
 | Date | 2026-11-13 |
 | Deciders | The project lead |
 
@@ -32,6 +32,30 @@ count takes an accession number once.
 3. **One parser reads the daily index and `form.idx`.** Both files have the same fixed-width
    layout. Only the date filed differs: `20260930` in the daily index and `2026-09-30` in
    `form.idx`.
+4. **The catch-up starts 7 days before the cut-over date.** It selects the filings with a date
+   filed in its range, and the store check skips each stored filing. In the measured range, a
+   daily index listed a filing at most 4 days after its date filed in `form.idx`, apart from the
+   20-F below. 7 days leave room above that.
+
+## Amendment 1: The Catch-Up Reads `Last Data Received`
+
+Date: 2026-11-14.
+
+**Reason.** The last consequence below, and the last open question, name a gap: a date without rows in `form.idx` can be a day
+without filings or a day that the SEC has not added yet. The catch-up counted both as a day without
+filings. So a recent date that the SEC had not added yet lost its filings without an alert.
+
+**Decision.** The catch-up reads the header line `Last Data Received` of `form.idx`. A date after
+that date, without rows, is pending if it is recent and is not the first date of the run, and fails
+otherwise. A date up to that date without rows counts as a day without filings. If the header
+names no date, every date without rows counts as a day without filings, as before.
+
+**Consequences.**
+
+- The header of a closed quarter names the last calendar day of the quarter, also if that day is
+  a weekend. Measured on 2026-11-14: `2024/QTR1` names March 31, 2024, a Sunday. `2023/QTR3` names
+  September 30, 2023, a Saturday. So a closed quarter never leaves a date after its header.
+- A header that the parser cannot read turns the check off without an alert.
 
 ## Options Considered
 
@@ -85,12 +109,10 @@ Reasons for `form.idx`:
 
 ## Open Questions
 
-- The catch-up filters by date filed, so it needs a rule for a filing with a date filed before
-  the start of its range. Two options: start the range some days before the cut-over date and
-  let the store check skip the stored filings, or select the quarter minus the stored filings, as
-  `daily_filings` does. The change that makes the catch-up read `form.idx` picks one.
-- Both options cover only a date filed in a quarter that the run reads. A filing that the SEC
-  sent again with a date filed in an earlier quarter, as the 20-F, stays open.
+- Decision 4 starts the range 7 days early. It does not select the quarter minus the stored
+  filings, because no code lists the stored filings yet. If a measurement shows a lag above 7 days, that selection replaces decision 4.
+- No rule yet covers a filing that the SEC sent again with a date filed in an earlier quarter, as
+  the 20-F.
 - For `daily_filings`, one download of 47 MB per run can cost too much. `form.gz` holds the same
   rows in 4.8 MB. No measurement of the daily run exists yet.
 - The header line `Last Data Received` names the last date of the file. No code reads it yet. It
