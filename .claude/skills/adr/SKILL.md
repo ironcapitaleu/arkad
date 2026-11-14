@@ -122,9 +122,9 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
 - An agent sets the status "Proposed". Only the decider named in the ADR accepts it.
 - Never rewrite the decision of an accepted ADR. Amend it or supersede it.
 - Every count, size, and time has a date and a source.
-- An ADR links each Linear item it names, and the link text names the item: a ticket by its ID, a
-  comment by its ticket ID and comment ID, and a document by "Linear document" and its title. If
-  the link breaks, the text still names the item.
+- If an ADR links a Linear item, the link text names the item: a ticket by its ID, a comment by its
+  ticket ID and comment ID, and a document by "Linear document" and its title. If the link breaks,
+  the text still names the item.
 - A link never replaces a fact. Copy each fact the decision rests on into the ADR, because a person
   can delete a ticket or a document.
 - State what the decision does not cover. A reader must not take a gap for a covered case.
