@@ -43,22 +43,26 @@ Terms:
 
 Read on 2026-11-14 on `main` at `83f585d`.
 
-| Option | Edits per new source | Guard against a shared text | `storage` trait changed |
-| ------ | -------------------- | --------------------------- | ----------------------- |
-| **A (chosen):** text constant on the marker, and a uniqueness test | Marker, test list | Test | No |
+| Option | Edits per new source | Guard against a shared text | Trait changed |
+| ------ | -------------------- | --------------------------- | ------------- |
+| **A (chosen):** text constant on the marker, and a uniqueness test | Marker, test list | Test | `RawSource` (8 markers in `sec`) |
 | B: keep the enum, and a uniqueness test | Marker, variant, `Display` arm, test list | Test | No |
 | C: no change | Marker, variant, `Display` arm | Review | No |
-| D: `Document` takes `const DOCUMENT_TYPE: &'static str` and no associated type | Marker, test list | Test | Yes |
+| D: `Document` takes `const DOCUMENT_TYPE: &'static str` and no associated type | Marker, test list | Test | `Document` (17 implementors) |
 
-- A gives one name per source in code and changes no trait.
+- A gives one name per source in code. It changes the type of `RawSource::DOCUMENT_TYPE`. An
+  extension cannot hold this change, because the goal is to delete the enum that the constant
+  names. All 8 implementors of `RawSource` are markers in `sec`, and each changes with the trait.
 - B keeps two names that must agree. Its test must compare the texts, not the variants, because
   two variants can share one `Display` text.
 - C has no guard across sources.
 - D modifies `Document` and all 17 of its implementors, including 12 doctests. A works
   without it, so the Open-Closed Principle in `AGENTS.md` rules it out.
 
-No option stops a shared text at compile time. The test sees only the markers that it lists,
-because Rust cannot list every implementor of a trait.
+No option stops a shared text that the list omits, because Rust cannot list every implementor of
+a trait. A `const` assertion over the same list moves the check from test time to compile time,
+with the same coverage. It needs a `const fn` that compares the bytes by hand. The test names the
+shared text in its failure message, so the test is the chosen guard.
 
 ## Consequences
 
