@@ -388,7 +388,8 @@ The other line of each open step has a name in the layout:
   `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
   The layout always shows it at the end of the income statement. It is no statement of its own.
 - The cascade has no `Expenses`, `Gains`, or `Losses`. Concepts Statement 8 (formerly SFAC 6)
-  defines these elements, but no filer presents their totals, so these concepts leave the enum (see "Verdict on the 39 Concepts").
+  defines these elements, but no filer presents their totals, so these concepts leave the enum.
+  See "Verdict on the 39 Concepts".
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
   interest expense. Many filers use it for a total that includes interest. The other line of
   `pretax-income` holds the same amount without that doubt.
@@ -803,8 +804,7 @@ parse.
   confidence `Derived` and the rule ID in `rule`.
 - `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. For a group,
   `concepts` holds the parent first, then the start of a step, then the other members in the order
-  of the tables of "Roll-Up Tree", and `reason` holds the name of the group, such as
-  `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
+  of the tables of "Roll-Up Tree". `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
   `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`.
 
 #### Worked Example
