@@ -16,7 +16,7 @@ have no code. The lead must still review the decision in
 
 | Section | Content | Decision |
 | ------- | ------- | -------- |
-| [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | How the listing relates to the other read methods, and why it returns no bytes | Yes |
+| [Relation to the Other Read Methods](#relation-to-the-other-read-methods) | How the listing relates to the other read methods, and why it returns no bytes | Yes |
 | [The Trait](#the-trait) | `ListRepository`, the filter, the entry, the error | Yes |
 | [Filesystem Sketch](#filesystem-sketch) | The walk, orphans, temporary files, cost, limits | Yes |
 | [Ordering and Consistency](#ordering-and-consistency) | Sort order, what a listing sees during a write | Yes |
@@ -25,7 +25,7 @@ have no code. The lead must still review the decision in
 | [Assumptions and Triggers](#assumptions-and-triggers) | What each decision assumes, and what reopens it | No |
 | [Feature Tickets](#feature-tickets) | The work that follows | No |
 
-## Relation to the Deferred Read Surface
+## Relation to the Other Read Methods
 
 Read methods beyond `get` and `list` wait for a concrete consumer (see
 [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md#planned-silver-graph-and-facts),
@@ -679,7 +679,7 @@ and the object API projection does not, add a backend that lists through the obj
 - [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md): the read and write
   traits that `ListRepository` stands next to.
 - [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md): the
-  storage overview and the deferred read surface.
+  storage overview and the planned read methods.
 - [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md): "Cut-Over Between the
   Paths", "Path Independence", "Window", "Unextractable Record", and "Handover to Transform".
 - [`extraction_overview.md`](../../../sec/design/pipeline/extraction_overview.md): "Integrity and

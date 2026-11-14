@@ -850,9 +850,9 @@ native graph tooling up front.
 1. Build **canonical core types** (`CanonicalElement`, `CanonicalFact`/`StandardizedFact`,
    `FactSet`, `Lei`/`CompanyId`, `Invariant`) — storage-agnostic domain layer.
 2. Build the **SEC adapter** (raw parse + resolution map + CIK→LEI).
-3. Implement **`Load`** to call `Repository::ingest` behind the storage-abstraction traits
-   (**§14.F**), so Option A or B — or a later split — is a matter of swapping the `Repository`
-   impl / its associated tier stores, not rewriting the pipeline.
+3. Implement **`Load`** behind the storage ports (**§14.F**). It writes the rows of one silver
+   unit in one Postgres transaction. Option A or B, or a later split, swaps the backend behind the
+   ports. The pipeline does not change.
 4. Persist raw first (system of record), then materialize graph + canonical facts.
 
 > **Note:** under either option, an **Iceberg lakehouse is the expected long-term home for

@@ -100,7 +100,7 @@ fake and every engine.
 **What:** Separate the write model from the read model when they differ significantly. Writes update
 the source of truth; reads can come from views/Redis/Elasticsearch shaped for querying.
 
-**arkad:** A strong fit (this is `hybrid_data_model.md` §12b: population-vs-query asymmetry). The
+**arkad:** Partial (this is `hybrid_data_model.md` §12b: population-vs-query asymmetry). The
 ports split by capability: `WriteRepository` writes, `ReadRepository` and `ListRepository` read. The
 **raw store is the source of truth**. Silver, graph, and facts are **read-optimized projections**,
 and a replay of raw rebuilds them.
@@ -156,7 +156,7 @@ Mapping the pieces:
 | Enforce the boundary | **Clean Architecture** | `storage` crate (no driver) ← planned `storage-postgres` crate |
 | Wire it | **Dependency Injection** | the repository is a generic field of a state context |
 | Atomic multi-tier write | **Unit of Work** | planned: one Postgres transaction per silver unit (atomicity inside the adapter) |
-| Reads ≠ writes | **CQRS** | write ports vs read ports; raw = SoT, silver/graph/facts = projections |
+| Reads ≠ writes | **Capability split** (CQRS-flavored) | write ports vs read ports; raw = SoT, silver/graph/facts = projections |
 | Domain stays SQL-free | **Data Mapper** | `RawDocument`/`FactSet` have no persistence logic |
 | Query the read side | **Repository** | `ReadRepository::get`, `ListRepository::list` |
 
@@ -164,7 +164,7 @@ Mapping the pieces:
 collection of one aggregate root, read-modify-write, symmetric reads/writes. Our workload is
 ETL + analytics + graph: three heterogeneous tiers, write-derived bundles (not mutated aggregates),
 and deeply asymmetric reads/writes. Repository fits the *read side* and lends a familiar name; the
-*whole* is better described as ports-and-adapters + CQRS over SoT/projections. We reach for the
+*whole* is better described as ports-and-adapters + a capability split over SoT/projections. We reach for the
 pattern that fits the use case, and name the parts honestly.
 
 See `design_patterns_demo.py` for a runnable, ~200-line Python model of exactly this combination.
