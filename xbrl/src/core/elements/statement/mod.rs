@@ -25,9 +25,7 @@ pub use income_statement::IncomeStatementConcept;
 /// Returns every group of the roll-up tree.
 ///
 /// The groups of the balance sheet come first, then those of the income statement, then those of
-/// the cash flow statement. Each statement keeps the order of its table in `xbrl/DESIGN.md`,
-/// "Roll-Up Tree". `xbrl/DESIGN.md`, "Derivation From a Closed Group", visits the groups in this
-/// order.
+/// the cash flow statement. Each statement lists its groups from the top of the statement down.
 ///
 /// The list holds a group only if its parent, its start if it is a step, and at least one child
 /// are standard concepts. So a placement can name a group that the list does not hold, such as

@@ -76,8 +76,8 @@ impl Placed for BalanceSheetConcept {
     }
 }
 
-/// The groups whose parent is a balance sheet concept, in the order of the table of
-/// `xbrl/DESIGN.md`, "Balance Sheet".
+/// The groups whose parent is a balance sheet concept, from the top of
+/// the statement down.
 pub const GROUPS: &[Group] = &[
     Group {
         name: ASSETS,

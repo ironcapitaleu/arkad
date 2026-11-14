@@ -61,8 +61,8 @@ impl Placed for IncomeStatementConcept {
     }
 }
 
-/// The groups whose parent is an income statement concept, in the order of the table of
-/// `xbrl/DESIGN.md`, "Income Statement".
+/// The groups whose parent is an income statement concept, from the top of
+/// the statement down.
 pub const GROUPS: &[Group] = &[
     Group {
         name: GROSS_PROFIT,

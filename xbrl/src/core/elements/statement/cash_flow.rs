@@ -55,8 +55,8 @@ impl Placed for CashFlowConcept {
     }
 }
 
-/// The groups whose parent is a cash flow concept, in the order of the table of
-/// `xbrl/DESIGN.md`, "Cash Flow Statement".
+/// The groups whose parent is a cash flow concept, from the top of
+/// the statement down.
 ///
 /// `operating-cash-flow` starts from `NetIncome` of the income statement, because the indirect
 /// method starts from net income.

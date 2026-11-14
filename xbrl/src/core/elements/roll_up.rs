@@ -4,7 +4,7 @@
 //! the [`Group`] that sums children into a parent.
 //!
 //! Each statement module holds the placements of its concepts and the groups whose parent it
-//! holds. `xbrl/DESIGN.md`, "Roll-Up Tree", gives the tables.
+//! holds.
 
 use super::CanonicalElementKind;
 

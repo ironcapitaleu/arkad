@@ -57,8 +57,7 @@ pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept
 /// It never stores the label of `Display`, such as `Net Income`. `Serialize` writes the name, and
 /// [`FromStr`] parses it back.
 ///
-/// `Ord` sorts by statement first, then by concept in the order of the tables of
-/// `xbrl/DESIGN.md`, "Roll-Up Tree".
+/// `Ord` sorts by statement first, then by the order of the variants in the enum of the concept.
 ///
 /// # Examples
 ///
@@ -84,7 +83,7 @@ pub enum CanonicalElementKind {
 
 /// One standard concept of an innermost enum, such as [`BalanceSheetConcept`].
 pub trait Concept: Copy + Eq + 'static {
-    /// Every variant, in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree".
+    /// Every variant, in the order of the enum.
     const ALL: &'static [Self];
 
     /// Returns the name in silver, such as `NetIncome`: the name of the variant.
