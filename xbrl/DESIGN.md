@@ -806,7 +806,8 @@ parse.
 - `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. For a group,
   `concepts` holds the parent first, then the start of a step, then the other members in the order
   of the tables of "Roll-Up Tree". `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
-  `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`.
+  `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`. `confidence` holds the weakest
+  confidence of the inputs of the check (see "Layer 3").
 
 #### Worked Example
 
@@ -1413,7 +1414,7 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/dedup/newest-filing@1`: a dedup rule.
 
 `core/identity/balance-sheet@1` had the name `core/sfac6/balance-sheet@1` until 2026-11-14, when
-the owner renamed it. The rule keeps version 1. Before the MVP, the standardized layer is built
+the owner renamed it. The rule keeps version 1. Before the MVP, we build the standardized layer
 again from the as-is layer, so the rename needs no replay.
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
@@ -1522,7 +1523,7 @@ The weakest confidence of the inputs of a failed check tells what the failure me
 
 - All inputs `Exact`: the filing is inconsistent.
 - At least one input `Synonym`, and none weaker: check the alias list first, then the filing.
-- At least one input `Derived` or `Computed`: the derivation has a bug.
+- At least one input `Derived` or `Computed`: check the derivation first, then the filing.
 
 The finding of a failed check carries the weakest confidence of its inputs.
 

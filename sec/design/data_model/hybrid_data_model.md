@@ -30,7 +30,7 @@ has two parallel, non-integrated models and one raw-document store:
 
 - `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
   identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
-- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42 element-rooted
+- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42
   variants), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
 - The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
@@ -40,7 +40,7 @@ What to carry forward vs. change (detail in §10):
 
 | Existing artifact | Verdict |
 | --- | --- |
-| `xbrl::CanonicalElement` (element vocabulary) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
+| `xbrl::CanonicalElement` (the ten elements) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
 | `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
@@ -80,7 +80,7 @@ worth of raw data all resolving into **one** canonical fact history.
 **What resolves vs. what stays in the adapter:** only observations that resolve to a
 `CanonicalElement` (at a known `Confidence`) are promoted to the core. Anything regulator-
 specific that has no canonical meaning (e.g. a bespoke `us-gaap` disclosure tag with no
-element mapping) **remains in the adapter, fully queryable**, but is not forced into the
+mapping to a `CanonicalElement`) **remains in the adapter, fully queryable**, but is not forced into the
 universal model. This is precisely the "connect to and query regulator-specific data"
 requirement.
 
@@ -114,7 +114,7 @@ posture to relationship claims (§5.2).
 
 ## 3. Universal Canonical Concept Model
 
-The universal vocabulary is the **element-rooted `CanonicalElement`** set (13 Level-1 roots +
+The universal vocabulary is the **`CanonicalElement`** set, rooted in the ten elements, (13 Level-1 roots +
 ~29 Level-2 sub-elements; already enumerated in `xbrl/src/core/elements.rs`). Concepts Statement 8 is a
 US document, but its ten elements are **definitional, not standard-specific** — IFRS's
 Conceptual Framework defines assets, liabilities, equity, income, and expenses in

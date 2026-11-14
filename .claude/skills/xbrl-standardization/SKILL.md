@@ -27,7 +27,7 @@ tells what the failure means:
 
 - All inputs `Exact`: the filing is inconsistent.
 - At least one input `Synonym`, and none weaker: check the alias list first, then the filing.
-- At least one input `Derived` or `Computed`: the derivation has a bug.
+- At least one input `Derived` or `Computed`: check the derivation first, then the filing.
 
 The finding of a failed check carries the weakest confidence of its inputs.
 
