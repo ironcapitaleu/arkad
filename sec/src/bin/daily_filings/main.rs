@@ -7,6 +7,8 @@ mod dates;
 mod batch_log;
 #[path = "../shared/json_log.rs"]
 mod json_log;
+#[path = "../shared/new_york_clock.rs"]
+mod new_york_clock;
 #[path = "../shared/sec_client.rs"]
 mod sec_client;
 // This binary uses only the generic writer, so the Company Facts and Notes items would fire
@@ -14,8 +16,6 @@ mod sec_client;
 #[allow(dead_code)]
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
-#[path = "../shared/yesterday.rs"]
-mod yesterday;
 
 use std::env;
 use std::error::Error;
@@ -32,8 +32,8 @@ use batch_log::{
 use constants::{FROM_ENV_VAR, TO_ENV_VAR};
 use dates::run_dates;
 use json_log::init_logger;
+use new_york_clock::previous_day_in_new_york;
 use storage_root::raw_writer;
-use yesterday::new_york_yesterday;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -80,7 +80,7 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let summary = incremental
         .daily_filings()
         .dates(dates.iter().copied())
-        .yesterday(new_york_yesterday(now))
+        .as_of(previous_day_in_new_york(now))
         .sec_client(sec_client)
         .repositories(repositories)
         .run(move |unit, event| match event {

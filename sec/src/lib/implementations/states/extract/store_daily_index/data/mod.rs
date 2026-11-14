@@ -12,4 +12,4 @@ pub mod input;
 pub mod output;
 
 pub use input::StoreDailyIndexInput;
-pub use output::{StoreDailyIndexOutput, StoredDailyIndex};
+pub use output::StoreDailyIndexOutput;

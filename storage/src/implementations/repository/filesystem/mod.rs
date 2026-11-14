@@ -49,8 +49,8 @@ pub use implementations::builder::{FilesystemRepositoryBuilder, NoAccess, NoRoot
 pub use implementations::constants::METADATA_SUFFIX;
 pub use shared::document_key::{DocumentKey, InvalidDocumentKey};
 pub use shared::document_metadata::{
-    DocumentMetadata, DocumentMetadataBuilder, IngestionMode, InputDocument, METADATA_VERSION,
-    NoDocumentType, Producer,
+    DocumentMetadata, DocumentMetadataBuilder, IngestionMode, InputDocument, InvalidMediaType,
+    InvalidMediaTypeReason, METADATA_VERSION, MediaType, NoDocumentType, Producer,
 };
 pub use shared::key_prefix::KeyPrefix;
 pub use shared::listed_document::ListedDocument;

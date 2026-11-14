@@ -2,53 +2,45 @@
 //!
 //! Provides [`AllRunSummary`], the outcome of both steps of one backfill pipeline run.
 
+use std::time::Duration;
+
 use chrono::NaiveDate;
-use serde_json::{Value, json};
 use thiserror::Error;
 
-use super::FailedCikRead;
-use crate::implementations::extraction::notes::{MissingCutOverDate, NotesRunSummary};
-use crate::implementations::extraction::submissions::SubmissionsRunSummary;
+use crate::implementations::extraction::daily_filings::DailyRunSummary;
+use crate::implementations::extraction::notes::NotesRunSummary;
 
-/// The read of the CIKs of one stored Notes file: the number of distinct CIKs, or the error.
-#[derive(Debug)]
-pub(super) struct CikRead {
-    /// The period of the Notes file, for example `2024q1`.
-    pub(super) period: String,
-    /// The number of distinct CIKs in the file, or the error of the read.
-    pub(super) result: Result<usize, FailedCikRead>,
-}
-
-/// Error indicating a backfill pipeline run in which a Notes period, the CIK read of a stored
-/// Notes file, or a `submissions` CIK failed.
+/// Error indicating a backfill pipeline run in which a Notes period or a part of the catch-up
+/// failed.
 #[derive(Debug, Error, PartialEq, Eq)]
 #[error(
-    "[FailedAllBackfill] Failed: {failed_periods} of {periods} Notes periods, {unreadable_files} of {stored_files} stored Notes files, {failed_ciks} of {ciks} submissions CIKs"
+    "[FailedAllBackfill] Failed: {failed_periods} of {periods} Notes periods, {catch_up_failures} dates, filings, or submissions files in {catch_up_dates} catch-up dates"
 )]
 pub struct FailedAllBackfill {
-    /// The number of Notes periods that failed. An unpublished period does not count.
+    /// The number of Notes periods that failed. An unpublished period counts only if the `HEAD`
+    /// request found the newest period and the run stored no period that ends on or after the
+    /// cut-over date.
     pub failed_periods: usize,
     /// The number of Notes periods in the run.
     pub periods: usize,
-    /// The number of stored Notes files whose CIKs the run could not read.
-    pub unreadable_files: usize,
-    /// The number of stored Notes files.
-    pub stored_files: usize,
-    /// The number of CIKs whose `submissions` file the run could not store.
-    pub failed_ciks: usize,
-    /// The number of distinct CIKs in the readable Notes files.
-    pub ciks: usize,
+    /// The number of failed dates, filings, and `submissions` files of the catch-up.
+    pub catch_up_failures: usize,
+    /// The number of dates of the catch-up.
+    pub catch_up_dates: usize,
 }
 
 /// The outcome of both steps of one backfill pipeline run.
 ///
-/// The Notes step gives a [`NotesRunSummary`]. The `submissions` step gives the read of each
-/// stored Notes file and a [`SubmissionsRunSummary`].
+/// The Notes step gives a [`NotesRunSummary`]. The catch-up gives a [`DailyRunSummary`].
 #[derive(Debug)]
 pub struct AllRunSummary {
     pub(super) notes: NotesRunSummary,
-    pub(super) cik_reads: Vec<CikRead>,
-    pub(super) submissions: SubmissionsRunSummary,
+    pub(super) notes_duration: Duration,
+    pub(super) cut_over_date: NaiveDate,
+    pub(super) newest_published: bool,
+    pub(super) catch_up_dates: Vec<NaiveDate>,
+    pub(super) catch_up: DailyRunSummary,
+    pub(super) catch_up_duration: Duration,
 }
 
 impl AllRunSummary {
@@ -58,66 +50,79 @@ impl AllRunSummary {
         &self.notes
     }
 
-    /// Returns the summary of the `submissions` CIKs.
+    /// Returns the time that the Notes step took.
     #[must_use]
-    pub const fn submissions(&self) -> &SubmissionsRunSummary {
-        &self.submissions
+    pub const fn notes_duration(&self) -> Duration {
+        self.notes_duration
     }
 
-    /// Returns `Ok` if no Notes period, no CIK read, and no `submissions` CIK failed.
+    /// Returns the cut-over date: the last day of the newest published Notes period. The catch-up
+    /// starts [`CATCH_UP_LOOKBACK_DAYS`](super::CATCH_UP_LOOKBACK_DAYS) days before it.
+    #[must_use]
+    pub const fn cut_over_date(&self) -> NaiveDate {
+        self.cut_over_date
+    }
+
+    /// Returns the dates of the catch-up, oldest first.
+    #[must_use]
+    pub fn catch_up_dates(&self) -> &[NaiveDate] {
+        &self.catch_up_dates
+    }
+
+    /// Returns the summary of the catch-up.
+    #[must_use]
+    pub const fn catch_up(&self) -> &DailyRunSummary {
+        &self.catch_up
+    }
+
+    /// Returns the time that the catch-up took.
+    #[must_use]
+    pub const fn catch_up_duration(&self) -> Duration {
+        self.catch_up_duration
+    }
+
+    /// Returns `Ok` if no Notes period and no part of the catch-up failed.
     ///
     /// # Errors
     ///
-    /// Returns [`FailedAllBackfill`] if at least one of them failed.
+    /// Returns [`FailedAllBackfill`] if at least one of them failed. A pending date and an
+    /// unextractable filing do not count as failed. An unpublished Notes period does not count
+    /// either, unless the `HEAD` request found the newest period and no stored period ends on or
+    /// after the cut-over date. In that case the catch-up starts after the newest stored period,
+    /// and the days between are in neither path.
     pub fn result(&self) -> Result<(), FailedAllBackfill> {
-        let failed_periods = self.notes.failure_count();
-        let unreadable_files = self.unreadable_file_count();
-        let failed_ciks = self.submissions.failure_count();
-        if failed_periods + unreadable_files + failed_ciks == 0 {
+        let unpublished_periods = self.notes.unpublished_count();
+        let failed_periods = if self.misses_cut_over_period() {
+            self.notes.failure_count() + unpublished_periods
+        } else {
+            self.notes.failure_count()
+        };
+        let catch_up_failures = self
+            .catch_up
+            .result()
+            .err()
+            .map_or(0, |failed| failed.failures);
+        if failed_periods + catch_up_failures == 0 {
             return Ok(());
         }
         Err(FailedAllBackfill {
             failed_periods,
-            periods: self.notes.success_count() + failed_periods + self.notes.unpublished_count(),
-            unreadable_files,
-            stored_files: self.cik_reads.len(),
-            failed_ciks,
-            ciks: self.submissions.success_count() + failed_ciks,
+            periods: self.notes.success_count() + self.notes.failure_count() + unpublished_periods,
+            catch_up_failures,
+            catch_up_dates: self.catch_up_dates.len(),
         })
     }
 
-    /// Returns the cut-over date of the Notes step, as [`NotesRunSummary::cut_over_date`] does.
-    ///
-    /// The `submissions` step does not change it.
-    ///
-    /// # Errors
-    ///
-    /// Returns the [`MissingCutOverDate`] of the Notes step.
-    pub fn cut_over_date(&self) -> Result<NaiveDate, MissingCutOverDate> {
-        self.notes.cut_over_date()
-    }
-
-    /// Returns the number of stored Notes files whose CIKs the run could not read.
-    #[must_use]
-    pub fn unreadable_file_count(&self) -> usize {
-        self.cik_reads
-            .iter()
-            .filter(|read| read.result.is_err())
-            .count()
-    }
-
-    /// Returns one JSON entry per stored Notes file, in the order of the periods.
-    ///
-    /// A read file lists its number of distinct CIKs. An unreadable file lists the error.
-    #[must_use]
-    pub fn cik_read_entries(&self) -> Vec<Value> {
-        self.cik_reads
-            .iter()
-            .map(|read| match &read.result {
-                Ok(ciks) => json!({ "period": read.period, "ciks": ciks }),
-                Err(error) => json!({ "period": read.period, "error": error.to_string() }),
-            })
-            .collect()
+    /// Returns `true` if the `HEAD` request found the newest period, and no stored Notes period
+    /// ends on or after the cut-over date.
+    fn misses_cut_over_period(&self) -> bool {
+        self.newest_published
+            && self
+                .notes
+                .stored_archives()
+                .map(|archive| archive.period().last_day())
+                .max()
+                .is_none_or(|newest| newest < self.cut_over_date)
     }
 }
 
@@ -130,15 +135,13 @@ mod tests {
     #[test]
     fn should_format_the_counts_when_displaying_failed_all_backfill() {
         let error = FailedAllBackfill {
-            failed_periods: 0,
-            periods: 2,
-            unreadable_files: 1,
-            stored_files: 2,
-            failed_ciks: 3,
-            ciks: 6587,
+            failed_periods: 1,
+            periods: 3,
+            catch_up_failures: 2,
+            catch_up_dates: 14,
         };
 
-        let expected_result = "[FailedAllBackfill] Failed: 0 of 2 Notes periods, 1 of 2 stored Notes files, 3 of 6587 submissions CIKs";
+        let expected_result = "[FailedAllBackfill] Failed: 1 of 3 Notes periods, 2 dates, filings, or submissions files in 14 catch-up dates";
 
         let result = error.to_string();
 

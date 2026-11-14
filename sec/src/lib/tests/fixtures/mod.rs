@@ -5,11 +5,12 @@
 //! ## Modules
 //!
 //! - [`sample_http_client`]: Fake HTTP and SEC clients.
+//! - [`sample_input_document`]: Sample input lists for the metadata `inputs` of stored documents.
 //! - [`sample_rate_limiter`]: Fake rate limiters that never block, count turns, or hold callers.
 //! - [`sample_request`]: Fake inner and SEC requests.
 //! - [`sample_response`]: Fake inner and SEC responses.
-//! - `sample_server`: Local TCP servers that stop sending or close the connection. It compiles
-//!   under `#[cfg(test)]` only.
+//! - [`sample_server`]: Local TCP servers that stop sending, close the connection, or send a gzip
+//!   body.
 //! - [`sample_sec_state`]: A minimal sample [`State`](crate::traits::state_machine::state::State).
 //! - [`sample_sec_super_state`]: A sample super-state wrapping [`sample_sec_state`].
 //! - [`sample_streaming_super_state`]: A multi-state super-state for streaming tests.
@@ -17,12 +18,10 @@
 //! - [`data`]: Raw file fixtures (e.g. captured SEC responses).
 
 pub mod sample_http_client;
+pub mod sample_input_document;
 pub mod sample_rate_limiter;
 pub mod sample_request;
 pub mod sample_response;
-// The servers need the `net` and `io-util` features of `tokio`. Only the dev-dependency of `sec`
-// asks for them, so the servers compile under `#[cfg(test)]`, not under `test-fixtures`.
-#[cfg(test)]
 pub mod sample_server;
 
 pub mod sample_sec_state;

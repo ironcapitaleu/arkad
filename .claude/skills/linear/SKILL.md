@@ -3,11 +3,11 @@ name: linear
 description: >
   This skill should be used when the user asks to "create a linear issue", "add a ticket",
   "make a linear ticket", "create a SPIKE", "create a FEATURE ticket", "list my issues",
-  "search linear", "update a ticket", or needs to interact with Linear in any way
-  (creating, reading, updating, or searching issues).
-version: 0.1.0
-argument-hint: "[create|list|search|get|update] [details]"
-allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__linear__create_issue, mcp__linear__get_issue, mcp__linear__list_issues, mcp__linear__list_teams, mcp__linear__list_projects, mcp__linear__search_issues, mcp__linear__update_issue, mcp__linear__list_issue_labels]
+  "search linear", "update a ticket", "comment on a ticket", or needs to interact with Linear in
+  any way (creating, reading, updating, searching, or commenting on issues).
+version: 0.4.0
+argument-hint: "[create|list|search|get|update|comment] [details]"
+allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__Linear__save_issue, mcp__Linear__get_issue, mcp__Linear__list_issues, mcp__Linear__list_teams, mcp__Linear__list_projects, mcp__Linear__list_issue_labels, mcp__Linear__list_comments, mcp__Linear__save_comment]
 ---
 
 # Linear Issue Management Skill
@@ -668,6 +668,14 @@ Before finalizing a Definition of Done, verify:
 - [ ] FEATURE/REFACTOR/IMPLEMENTATION Definitions of Done end with the guidelines link (correct phrasing per type)
 - [ ] Items reference specific code names in backticks where applicable
 
+## Tool Names
+
+The name of a Linear tool depends on the Linear server of the session. This skill names the tools
+of the claude.ai Linear connector, `mcp__Linear__*`. If a session offers a tool under another name,
+use the tool that does the same job. For example, another server can create an issue with
+`mcp__linear__create_issue` and update it with `mcp__linear__update_issue`, where this skill uses
+`mcp__Linear__save_issue` for both.
+
 ## Workflow: Creating an Issue
 
 ### Step 1: Gather Information
@@ -725,12 +733,12 @@ that cannot be reviewed in one sitting will not be reviewed properly.
 
 ### Step 3: Create the Issue
 
-Use `mcp__linear__create_issue` with:
-- `teamId`: `2f641ff7-6c29-4aa7-9bc5-659ff838e4ad`
+Use `mcp__Linear__save_issue` without an `id`. Pass:
+- `team`: `2f641ff7-6c29-4aa7-9bc5-659ff838e4ad`
 - `title`: formatted as `[LABEL] Title` (or just `Title` for basic)
 - `description`: filled template
 - `priority`: user-selected (default 2)
-- `labelIds`: match the label to existing IDs (see Label IDs section). Never pass the `IMPLEMENTATION` group. Omit if the label ID is not yet captured.
+- `labels`: match the label to existing IDs (see Label IDs section). Never pass the `IMPLEMENTATION` group. Omit if the label ID is not yet captured.
 
 ### Step 4: Confirm
 
@@ -738,18 +746,35 @@ Show the user the created issue URL and summary.
 
 ## Workflow: Reading / Searching Issues
 
-- **List issues:** Use `mcp__linear__list_issues` with team filter
-- **Search:** Use `mcp__linear__search_issues` with keywords
-- **Get details:** Use `mcp__linear__get_issue` with the issue ID
-- **List teams:** Use `mcp__linear__list_teams` to discover team IDs when needed
-- **List projects:** Use `mcp__linear__list_projects` to discover project IDs for filtering
+- **List issues:** Use `mcp__Linear__list_issues` with `team`
+- **Search:** Use `mcp__Linear__list_issues` with the keywords in `query`
+- **Get details:** Use `mcp__Linear__get_issue` with the issue ID
+- **List teams:** Use `mcp__Linear__list_teams` to discover team IDs when needed
+- **List projects:** Use `mcp__Linear__list_projects` to discover project IDs for filtering
 
 When presenting issues to the user, show: identifier, title, status, assignee, and URL.
 
 ## Workflow: Updating an Issue
 
-Use `mcp__linear__update_issue` to change status, assignee, priority, or description.
+To change the status, assignee, priority, or description, use `mcp__Linear__save_issue` with the
+`id` of the issue and `state`, `assignee`, `priority`, or `description`.
 Always confirm with the user before making changes.
+
+## Workflow: Comments
+
+- **Read comments:** Use `mcp__Linear__list_comments` with the issue identifier, for example
+  `STA-430`. `get_issue` does not return the comments of an issue.
+- **Post a comment:** Use `mcp__Linear__save_comment` with the issue identifier and the body, and
+  no `id`.
+- **Edit a comment:** Use `mcp__Linear__save_comment` with the `id` of the comment and the new
+  body. Use this for the one current state-of-play comment (see "For the returning developer").
+
+A new comment needs no confirmation from the user. It adds to the ticket and changes no text of
+another person. Edit a comment without confirmation in two cases. Either this session posted it,
+or it starts with a handoff marker line and a handoff wrote all of its text (see the `handoff`
+skill). The Linear server posts as the user, so the author of a comment does not show who wrote
+it. Before you edit any other comment, ask the user, or post a new comment. A change to the issue
+itself still needs confirmation (see "Workflow: Updating an Issue").
 
 ## Label IDs
 
@@ -773,7 +798,7 @@ most one label from this group.
 
 An `[IMPLEMENTATION]` ticket keeps its title prefix and takes the label from this group that fits
 the work, for example `CI/CD` for a pipeline change. If no label in the group fits, give it no label
-from the group. To check the current labels and groups, call `mcp__linear__list_issue_labels` with
+from the group. To check the current labels and groups, call `mcp__Linear__list_issue_labels` with
 `includeGroups: true`.
 
 ## Conventions

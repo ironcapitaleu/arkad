@@ -5,22 +5,19 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
-use xbrl::core::filing::FilingId;
-use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
 
 use super::CompanyPath;
-use super::wire;
 use crate::error::{ApiError, Problem};
+use crate::shared::accession_number::AccessionNumber;
+use crate::shared::fiscal_period::FiscalPeriod;
 
 /// One filing of a company.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Filing {
     /// The accession number of the filing.
-    #[serde(rename = "accession_number", serialize_with = "wire::filing_id")]
-    #[schema(value_type = String, example = "0000320193-24-000123")]
-    pub filing_id: FilingId,
+    pub accession_number: AccessionNumber,
     /// The form type of the filing.
     #[schema(value_type = String, example = "10-K")]
     pub form: Form,
@@ -33,9 +30,7 @@ pub struct Filing {
     /// The fiscal year that the filing reports on.
     #[schema(value_type = u16, example = 2024)]
     pub fiscal_year: FiscalYear,
-    /// The fiscal period that the filing reports on: `fy`, `q1`, `q2`, `q3`, or `q4`.
-    #[serde(serialize_with = "wire::fiscal_period")]
-    #[schema(value_type = String, example = "fy")]
+    /// The fiscal period that the filing reports on.
     pub fiscal_period: FiscalPeriod,
     /// The folder of the filing on SEC EDGAR.
     #[schema(example = "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/")]

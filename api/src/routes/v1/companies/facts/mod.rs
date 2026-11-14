@@ -2,48 +2,37 @@
 //!
 //! Provides the [`list_facts`] handler of `GET /v1/companies/{company_id}/facts`.
 
-use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
-use xbrl::core::confidence::Confidence;
-use xbrl::core::elements::CanonicalElement;
-use xbrl::core::filing::FilingId;
-use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
 use xbrl::core::form::Form;
-use xbrl::core::period::Period;
-use xbrl::core::unit::Unit;
 
 use super::CompanyPath;
-use super::wire::{self, PeriodJson};
 use crate::error::{ApiError, Problem};
+use crate::shared::accession_number::AccessionNumber;
+use crate::shared::concept_id::ConceptId;
+use crate::shared::confidence::Confidence;
+use crate::shared::exact_decimal::ExactDecimal;
+use crate::shared::fiscal_period::FiscalPeriod;
+use crate::shared::period::Period;
+use crate::shared::unit::Unit;
 
 /// One value of one concept for one period.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Fact {
     /// The concept, from `GET /v1/concepts`.
-    #[serde(serialize_with = "wire::concept")]
-    #[schema(value_type = String, example = "revenue")]
-    pub concept: CanonicalElement,
+    pub concept: ConceptId,
     /// The exact decimal value in whole units of `unit`, as a string.
-    #[serde(serialize_with = "wire::decimal")]
-    #[schema(value_type = String, example = "391035000000")]
-    pub value: BigDecimal,
+    pub value: ExactDecimal,
     /// An ISO 4217 currency code, `shares`, `usd_per_share`, or `pure` for a ratio.
-    #[serde(serialize_with = "wire::unit")]
-    #[schema(value_type = String, example = "USD")]
     pub unit: Unit,
     /// The fiscal year of the value.
     #[schema(value_type = u16, example = 2024)]
     pub fiscal_year: FiscalYear,
-    /// The fiscal period of the value: `fy`, `q1`, `q2`, `q3`, or `q4`.
-    #[serde(serialize_with = "wire::fiscal_period")]
-    #[schema(value_type = String, example = "fy")]
+    /// The fiscal period of the value.
     pub fiscal_period: FiscalPeriod,
     /// The period that the value covers.
-    #[serde(serialize_with = "wire::period")]
-    #[schema(value_type = PeriodJson)]
     pub period: Period,
     /// `null` for a consolidated total. With `include=segments`, the axis and the member.
     #[schema(required = true, value_type = Option<Object>)]
@@ -60,9 +49,7 @@ pub struct Fact {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct FactSource {
     /// The accession number of the filing.
-    #[serde(rename = "accession_number", serialize_with = "wire::filing_id")]
-    #[schema(value_type = String, example = "0000320193-24-000123")]
-    pub filing_id: FilingId,
+    pub accession_number: AccessionNumber,
     /// The form type of the filing.
     #[schema(value_type = String, example = "10-K")]
     pub form: Form,
@@ -78,8 +65,6 @@ pub struct FactSource {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Lineage {
     /// The resolution tier that produced the value.
-    #[serde(serialize_with = "wire::confidence")]
-    #[schema(schema_with = wire::confidence_schema)]
     pub confidence: Confidence,
     /// The concept that the filing used.
     #[schema(example = "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax")]
@@ -112,9 +97,7 @@ pub struct FactQuery {
     /// One or more concepts from `GET /v1/concepts`, separated by commas. At most 20.
     #[param(example = "revenue,net_income")]
     pub concept: String,
-    /// One fiscal period: `fy`, `q1`, `q2`, `q3`, or `q4`. Default: all.
-    #[serde(default, deserialize_with = "wire::optional_fiscal_period")]
-    #[param(value_type = Option<String>, example = "fy")]
+    /// One fiscal period. Default: all.
     pub fiscal_period: Option<FiscalPeriod>,
     /// The first fiscal year, inclusive.
     #[param(example = 2020)]
@@ -155,7 +138,14 @@ pub async fn list_facts() -> ApiError {
 mod tests {
     use std::str::FromStr;
 
+    use bigdecimal::BigDecimal;
     use pretty_assertions::assert_eq;
+    use serde_json::json;
+    use xbrl::core::elements::CanonicalElement;
+    use xbrl::core::filing::FilingId;
+    use xbrl::core::fiscal_period::FiscalPeriod as DomainFiscalPeriod;
+    use xbrl::core::period::Period as DomainPeriod;
+    use xbrl::core::unit::Unit as DomainUnit;
 
     use super::*;
 
@@ -171,25 +161,30 @@ mod tests {
         implements_auto_traits::<FactQuery>();
     }
 
-    #[test]
-    fn should_omit_the_lineage_key_when_the_fact_has_no_lineage() {
+    fn revenue_fact_without_lineage() -> Result<Fact, ApiError> {
+        let concept = CanonicalElement::Revenue;
+        let value = BigDecimal::from_str("391035000000")
+            .expect("Given a hardcoded integer text, parsing it should always succeed");
+        let unit = DomainUnit::from_str("USD")
+            .expect("Given the hardcoded unit 'USD', parsing it should always succeed");
+        let fiscal_period = DomainFiscalPeriod::new("FY")
+            .expect("Given the hardcoded period 'FY', the creation should always succeed");
+        let period = DomainPeriod::Instant {
+            end: NaiveDate::from_ymd_opt(2024, 9, 28)
+                .expect("Given a valid hardcoded date, building it should always succeed"),
+        };
+        let filing_id = FilingId::new("sec", "0000320193-24-000123")
+            .expect("Given a hardcoded source and ID, the creation should always succeed");
         let fact = Fact {
-            concept: CanonicalElement::Revenue,
-            value: BigDecimal::from_str("391035000000")
-                .expect("Given a hardcoded integer text, parsing it should always succeed"),
-            unit: Unit::from_str("USD")
-                .expect("Given the hardcoded unit 'USD', parsing it should always succeed"),
+            concept: concept.try_into()?,
+            value: value.into(),
+            unit: unit.into(),
             fiscal_year: FiscalYear::new(2024),
-            fiscal_period: FiscalPeriod::new("FY")
-                .expect("Given the hardcoded period 'FY', the creation should always succeed"),
-            period: Period::Instant {
-                end: NaiveDate::from_ymd_opt(2024, 9, 28)
-                    .expect("Given a valid hardcoded date, building it should always succeed"),
-            },
+            fiscal_period: fiscal_period.try_into()?,
+            period: period.try_into()?,
             segment: None,
             source: FactSource {
-                filing_id: FilingId::new("sec", "0000320193-24-000123")
-                    .expect("Given a hardcoded source and ID, the creation should always succeed"),
+                accession_number: filing_id.into(),
                 form: Form::new("10-K")
                     .expect("Given the hardcoded form '10-K', the creation should always succeed"),
                 filed_at: NaiveDate::from_ymd_opt(2024, 11, 1)
@@ -199,15 +194,49 @@ mod tests {
             },
             lineage: None,
         };
+        Ok(fact)
+    }
+
+    #[test]
+    fn should_write_the_contract_json_for_a_fact_of_domain_values() -> Result<(), ApiError> {
+        let fact = revenue_fact_without_lineage()?;
+
+        let expected_result = json!({
+            "concept": "revenue",
+            "value": "391035000000",
+            "unit": "USD",
+            "fiscal_year": 2024,
+            "fiscal_period": "fy",
+            "period": { "kind": "instant", "end": "2024-09-28" },
+            "segment": null,
+            "source": {
+                "accession_number": "0000320193-24-000123",
+                "form": "10-K",
+                "filed_at": "2024-11-01",
+                "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/",
+            },
+        });
+
+        let result = serde_json::to_value(fact)
+            .expect("Given a fact of contract types, serializing it should always succeed");
+
+        assert_eq!(result, expected_result);
+        Ok(())
+    }
+
+    #[test]
+    fn should_omit_the_lineage_key_when_the_fact_has_no_lineage() -> Result<(), ApiError> {
+        let fact = revenue_fact_without_lineage()?;
 
         let expected_result = false;
 
         let result = serde_json::to_value(fact)
-            .expect("Given a fact with a mapped concept, serializing it should always succeed")
+            .expect("Given a fact of contract types, serializing it should always succeed")
             .as_object()
             .expect("Given a struct, serde should always serialize it as a JSON object")
             .contains_key("lineage");
 
         assert_eq!(result, expected_result);
+        Ok(())
     }
 }

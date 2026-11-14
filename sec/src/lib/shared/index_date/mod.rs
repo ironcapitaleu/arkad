@@ -9,7 +9,7 @@
 //!
 //! ## Modules
 //!
-//! - [`constants`]: The [`FIRST_INDEX_DATE`] and the quarter folders.
+//! - [`constants`]: The [`FIRST_INDEX_DATE`].
 //! - [`index_date_error`]: The [`IndexDateError`] returned when validation fails, and its
 //!   [`InvalidIndexDateReason`].
 //! - [`listing`]: The parser for the dates in the listing of a quarter folder.
@@ -19,7 +19,7 @@ use std::fmt::{self, Display, Formatter};
 use chrono::{Datelike, NaiveDate, Utc};
 use serde::{Serialize, Serializer};
 
-use constants::QUARTER_FOLDERS;
+use crate::shared::quarter::Quarter;
 
 pub mod constants;
 pub mod index_date_error;
@@ -101,7 +101,7 @@ impl IndexDate {
     /// ```
     #[must_use]
     pub fn quarter(&self) -> &'static str {
-        QUARTER_FOLDERS[self.0.month0() as usize / 3]
+        Quarter::of(self.0).folder()
     }
 
     /// Returns the date in the ISO 8601 basic format `YYYYMMDD`, the date part of the file name.
@@ -170,12 +170,7 @@ fn parse(date: &str) -> Option<NaiveDate> {
 
 /// Returns the first day of the quarter after `date`, or `None` if that day is after `today`.
 fn first_day_of_next_quarter(date: NaiveDate, today: NaiveDate) -> Option<IndexDate> {
-    let next_quarter_month = date.month0() / 3 * 3 + 4;
-    let next_quarter_start = if next_quarter_month > 12 {
-        NaiveDate::from_ymd_opt(date.year() + 1, 1, 1)
-    } else {
-        NaiveDate::from_ymd_opt(date.year(), next_quarter_month, 1)
-    }?;
+    let next_quarter_start = Quarter::of(date).next().first_day()?;
     (next_quarter_start <= today).then_some(IndexDate(next_quarter_start))
 }
 

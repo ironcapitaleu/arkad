@@ -8,6 +8,8 @@
 //! file per period. Before it downloads a period, the run reads the stored file of the period. If
 //! the file passes the size and SHA-256 check, the run skips the download.
 //!
+//! [`stored_cut_over_date`](fn@stored_cut_over_date) reads the cut-over date from the keys of the stored Notes files.
+//!
 //! [`run`]: NotesBatchBuilder::run
 
 use std::panic;
@@ -43,9 +45,11 @@ use crate::traits::state_machine::stream::IntoStateMachineStream;
 use summary::{Fetch, is_absent_file};
 
 pub mod published_periods;
-mod summary;
+pub mod stored_cut_over_date;
+pub(super) mod summary;
 
 pub use published_periods::{FailedNotesProbe, published_periods};
+pub use stored_cut_over_date::{MissingStoredCutOverDate, stored_cut_over_date};
 pub use summary::{FailedBackfill, MissingCutOverDate, NotesRunSummary};
 
 /// The number of Notes files that a batch run downloads at once without a call to

@@ -8,15 +8,15 @@
 //! Each [`build`] returns the concrete super-state. The Notes source also runs a batch of periods
 //! with [`BackfillNotes::periods`]. The Company Facts and the `submissions` sources run a batch of
 //! CIKs with [`BackfillCompanyFacts::ciks`] and [`BackfillSubmissions::ciks`]. The new-filing path
-//! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods,
-//! then the `submissions` file of each CIK of the stored Notes files.
+//! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods
+//! and, at the same time, the new-filing path from the cut-over date.
 //!
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
 //! ## Modules
 //!
-//! - [`all`]: The pipeline of a backfill run: the Notes periods, then the `submissions` file of
-//!   each distinct CIK of the stored Notes files.
+//! - [`all`]: The pipeline of a backfill run: the Notes periods and, at the same time, the
+//!   new-filing path from the cut-over date.
 //! - [`company_facts`]: The Company Facts source of a backfill run, and its batch run over many
 //!   CIKs.
 //! - [`daily_filings`]: The new-filing path of an incremental run over many dates.
@@ -136,12 +136,12 @@
 //!     labels: writer(),
 //!     submissions: writer(),
 //! };
-//! let yesterday = NaiveDate::from_ymd_opt(2026, 10, 31).expect("a valid date");
-//! let dates = vec![NaiveDate::from_ymd_opt(2026, 10, 28).expect("a valid date"), yesterday];
+//! let as_of = NaiveDate::from_ymd_opt(2026, 10, 31).expect("a valid date");
+//! let dates = vec![NaiveDate::from_ymd_opt(2026, 10, 28).expect("a valid date"), as_of];
 //! let summary = Extraction::incremental()
 //!     .daily_filings()
 //!     .dates(dates)
-//!     .yesterday(yesterday)
+//!     .as_of(as_of)
 //!     .sec_client(SecClient::default())
 //!     .repositories(repositories)
 //!     .run(|unit, event| {
@@ -207,8 +207,8 @@ pub mod run_event;
 pub mod submissions;
 
 pub use all::{
-    AllBatchBuilder, AllRunSummary, BackfillAll, BackfillClient, BackfillRepositories,
-    FailedAllBackfill, FailedCikRead,
+    AllBatchBuilder, AllClient, AllRunSummary, BackfillAll, BackfillRepositories,
+    CATCH_UP_LOOKBACK_DAYS, FailedAllBackfill, FailedCutOverDate, NoUntil,
 };
 pub use company_facts::{
     BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary,
@@ -220,7 +220,8 @@ pub use daily_filings::{
 };
 pub use notes::{
     BackfillNotes, DEFAULT_FILES_IN_FLIGHT, FailedBackfill, FailedNotesProbe, MAX_UNPUBLISHED,
-    MissingCutOverDate, NotesBatchBuilder, NotesRunSummary, published_periods,
+    MissingCutOverDate, MissingStoredCutOverDate, NotesBatchBuilder, NotesRunSummary,
+    published_periods, stored_cut_over_date,
 };
 pub use retry::DEFAULT_RETRY_DELAYS;
 pub use run_event::{ErrorKind, RunEvent, Unit};

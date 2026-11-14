@@ -1,20 +1,12 @@
 //! # `daily_filings` Tests
 //!
-//! Runs the tests of the modules of the `daily_filings` binary, and the run of the `Extraction`
-//! facade that the binary calls: offline against a fake SEC, and for one date live. The binary is
-//! its own crate root, so this test compiles its modules as private modules.
+//! Runs the `Extraction` facade that the `daily_filings` binary calls: offline against a fake SEC,
+//! and for one date live.
 //!
 //! ## External Dependencies
 //!
 //! - `www.sec.gov` and `data.sec.gov`: the daily index of [`live::DATE`], and the folders and the
 //!   `submissions` files of its filings
-
-#[path = "../src/bin/daily_filings/constants.rs"]
-mod constants;
-#[path = "../src/bin/daily_filings/dates.rs"]
-mod dates;
-#[path = "../src/bin/shared/yesterday.rs"]
-mod yesterday;
 
 /// Runs the facade offline, with a fake SEC client and stores in a temp dir.
 mod run_loop {
@@ -134,7 +126,7 @@ mod run_loop {
         }
     }
 
-    /// Runs `dates` with the stores under `root`, yesterday on 2026-10-28, and no wait between
+    /// Runs `dates` with the stores under `root`, `as_of` on 2026-10-28, and no wait between
     /// attempts, and passes each event to `observer`.
     async fn run_observed(
         root: &TempDir,
@@ -146,7 +138,7 @@ mod run_loop {
             .execution_id(Uuid::from_u128(7))
             .daily_filings()
             .dates(dates.iter().copied())
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client.clone())
             .repositories(repositories(root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
@@ -800,6 +792,51 @@ mod run_loop {
     }
 
     #[tokio::test]
+    async fn should_name_the_same_daily_index_as_the_input_of_the_folder_index_and_the_instance() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_files = [
+            "sec/filings/CIK0000003545/0000003545-26-000047/index.json.meta.json",
+            "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml.meta.json",
+        ];
+
+        let expected_result = json!([
+            [{
+                "key": "sec/daily-index/form.20261026.idx",
+                "sha256": "83ca0d88935c90c2780df7f3e0ff306903d79779102d891ccb17146987888964",
+            }],
+            [{
+                "key": "sec/daily-index/form.20261026.idx",
+                "sha256": "83ca0d88935c90c2780df7f3e0ff306903d79779102d891ccb17146987888964",
+            }],
+        ]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result: Value = metadata_files
+            .iter()
+            .map(|file| stored_metadata(&root, file)["inputs"].clone())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_name_no_input_for_the_stored_submissions_of_a_run() {
+        let root = temporary_root();
+        let dates = [date("2026-10-26")];
+        let sec_client = sec_client();
+        let metadata_file = "sec/submissions/CIK0000003545.json.meta.json";
+
+        let expected_result = json!([]);
+
+        run_offline_in(&root, &dates, &sec_client).await;
+        let result = stored_metadata(&root, metadata_file)["inputs"].clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_record_the_incremental_ingestion_mode_for_every_document_type_of_a_run() {
         let root = temporary_root();
         let dates = [date("2026-10-26")];
@@ -882,7 +919,7 @@ mod run_loop {
         Extraction::incremental()
             .daily_filings()
             .dates(dates)
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client)
             .repositories(repositories(&root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
@@ -930,7 +967,7 @@ mod run_loop {
         Extraction::incremental()
             .daily_filings()
             .dates(dates)
-            .yesterday(date("2026-10-28"))
+            .as_of(date("2026-10-28"))
             .sec_client(sec_client)
             .repositories(repositories(&root))
             .retry_delays([Duration::ZERO, Duration::ZERO])
@@ -1020,7 +1057,7 @@ mod run_loop {
 
 /// Runs the facade for one past date against the live SEC, as the binary does.
 mod live {
-    use chrono::{NaiveDate, Utc};
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
     use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
     use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
@@ -1031,8 +1068,6 @@ mod live {
     use serde_json::json;
     use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
     use tempfile::TempDir;
-
-    use crate::yesterday::new_york_yesterday;
 
     /// A past weekday with few filings, so the test stays short: the Friday after Thanksgiving
     /// 2025. A run of it took 10 s on 2026-11-01.
@@ -1081,7 +1116,8 @@ mod live {
         let summary = Extraction::incremental()
             .daily_filings()
             .dates([date])
-            .yesterday(new_york_yesterday(Utc::now()))
+            // The first date of a run is never pending, so `as_of` does not change this run.
+            .as_of(date)
             .sec_client(sec_client())
             .repositories(repositories(&root))
             .run(|_, _| {})

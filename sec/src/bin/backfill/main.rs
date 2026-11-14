@@ -1,4 +1,3 @@
-mod run;
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
 // client and the store the same way.
@@ -8,6 +7,8 @@ mod batch_log;
 mod files_in_flight;
 #[path = "../shared/json_log.rs"]
 mod json_log;
+#[path = "../shared/new_york_clock.rs"]
+mod new_york_clock;
 #[path = "../shared/notes_periods.rs"]
 mod notes_periods;
 #[path = "../shared/sec_client.rs"]
@@ -17,18 +18,17 @@ mod sec_client;
 #[allow(dead_code)]
 #[path = "../shared/storage_root.rs"]
 mod storage_root;
-#[path = "../shared/yesterday.rs"]
-mod yesterday;
 
-use std::cell::Cell;
 use std::env;
 use std::error::Error;
+use std::fmt::Display;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
 use chrono::{NaiveDate, Utc};
 use sec::implementations::extraction::{
-    DailyFilingsRepositories, Extraction, FailedNotesProbe, NotesRunSummary, RunEvent,
+    BackfillRepositories, DailyFilingsRepositories, Extraction, FailedNotesProbe, NotesRunSummary,
+    RunEvent,
 };
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
@@ -41,10 +41,9 @@ use batch_log::{
 };
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use json_log::init_logger;
+use new_york_clock::previous_day_in_new_york;
 use notes_periods::notes_periods;
-use run::{BackfillInputs, run};
 use storage_root::{raw_notes_archive_writer, raw_writer};
-use yesterday::new_york_yesterday;
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -63,90 +62,85 @@ async fn main() -> ExitCode {
 /// # Errors
 ///
 /// Returns the first error that stops the batch.
-// `main` awaits this future on its own thread, so the future never needs `Send`. The `Cell` of the
-// catch-up start is not `Sync`.
-#[expect(clippy::future_not_send)]
 async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     let sec_client = startup_sec_client()?;
     let files_in_flight = files_in_flight_from_env()?;
     let notes_repository = raw_notes_archive_writer();
     // Every writer shares the root of `ARKAD_STORAGE_ROOT`, so one call creates it.
     startup_create_root(&notes_repository)?;
-    let daily_repositories = DailyFilingsRepositories {
-        daily_index: raw_writer(),
-        filing_index: raw_writer(),
-        instance: raw_writer(),
-        labels: raw_writer(),
-        submissions: raw_writer(),
+    let repositories = BackfillRepositories {
+        notes: notes_repository,
+        daily_filings: DailyFilingsRepositories {
+            daily_index: raw_writer(),
+            filing_index: raw_writer(),
+            instance: raw_writer(),
+            labels: raw_writer(),
+            submissions: raw_writer(),
+        },
+        full_index: raw_writer(),
     };
     let backfill = Extraction::backfill();
     let execution_id = backfill.id();
     let now = Utc::now();
-    let yesterday = new_york_yesterday(now);
+    let last_date = previous_day_in_new_york(now);
     let periods = notes_periods_of_run(&sec_client, now.date_naive()).await?;
-    let inputs = BackfillInputs {
-        backfill,
-        periods,
-        files_in_flight,
-        yesterday,
-        sec_client,
-        notes_repository,
-        daily_repositories,
-    };
     let start = Instant::now();
-    let catch_up_start = Cell::new(start);
 
-    let catch_up = run(
-        inputs,
-        move |unit, event| match event {
+    let summary = backfill
+        .all()
+        .periods(periods)
+        .until(last_date)
+        .sec_client(sec_client)
+        .repositories(repositories)
+        .in_flight(files_in_flight)
+        .run(move |unit, event| match event {
             RunEvent::Item(item) => log_item(execution_id, unit, item),
             RunEvent::Error(error, kind) => log_error(execution_id, unit, error, kind),
-        },
-        |past| {
-            log_notes_summary(execution_id, files_in_flight, past, start.elapsed());
-            catch_up_start.set(Instant::now());
-        },
-    )
-    .await
-    .inspect_err(|error| {
-        tracing::error!(
-            event = %BatchEvent::Failed,
-            message = %error,
-            context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
-        );
-    })?;
+        })
+        .await
+        .inspect_err(|error| log_failed(execution_id, error))?;
 
+    log_notes_summary(
+        execution_id,
+        files_in_flight,
+        summary.notes(),
+        summary.notes_duration(),
+    );
     let (message, mut context) = daily_summary(
         execution_id,
-        &catch_up.dates,
-        &catch_up.summary,
-        catch_up_start.get().elapsed(),
+        summary.catch_up_dates(),
+        summary.catch_up(),
+        summary.catch_up_duration(),
     );
     context["step"] = serde_json::json!("catch_up");
     log_summary(
-        &catch_up.summary.result(),
+        &summary.catch_up().result(),
         BatchEvent::StepComplete,
         BatchEvent::StepFailed,
         &message,
         &context,
     );
-    // `cut_over_date()` already failed on a failed Notes period, so only the catch-up can fail here.
-    catch_up.summary.result().inspect_err(|error| {
-        tracing::error!(
-            event = %BatchEvent::Failed,
-            message = %error,
-            context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
-        );
-    })?;
+    summary
+        .result()
+        .inspect_err(|error| log_failed(execution_id, error))?;
     tracing::info!(
         event = %BatchEvent::Complete,
-        message = %format!("Ran the Notes periods and every date up to {yesterday} in {:.2?}", start.elapsed()),
+        message = %format!("Ran the Notes periods and every date up to {last_date} in {:.2?}", start.elapsed()),
         context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
     );
     Ok(())
 }
 
-/// Logs the summary of the Notes periods, before the catch-up starts.
+/// Logs `error` as the failure of the batch.
+fn log_failed(execution_id: Uuid, error: &impl Display) {
+    tracing::error!(
+        event = %BatchEvent::Failed,
+        message = %error,
+        context = %serde_json::json!({ "execution_id": execution_id.to_string() }),
+    );
+}
+
+/// Logs the summary of the Notes periods.
 fn log_notes_summary(
     execution_id: Uuid,
     files_in_flight: usize,

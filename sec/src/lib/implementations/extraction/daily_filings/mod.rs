@@ -16,23 +16,32 @@ use std::time::Duration;
 use chrono::NaiveDate;
 use futures_util::StreamExt;
 use storage::implementations::repository::filesystem::{
-    Document, FilesystemRepository, InputDocument, Read, Write,
+    Document, FilesystemRepository, IngestionMode, InputDocument, Read, Write,
 };
 use storage::traits::repository::ReadRepository;
+use uuid::Uuid;
 
 use super::Incremental;
 use super::retry::{DEFAULT_RETRY_DELAYS, with_retry};
 use super::run_event::{ErrorKind, RunEvent, Unit};
+use crate::error::StateMachine;
+use crate::error::state_machine::state::MissingFullIndexDate;
 use crate::implementations::states::extract::daily_index::builder::NoSecClient;
 use crate::implementations::states::extract::daily_index::{
     DetectFilingsSuperState, DetectedFilings,
 };
 use crate::implementations::states::extract::filing::ExtractFilingSuperState;
+use crate::implementations::states::extract::full_index::{
+    DetectQuarterFilingsSuperState, DetectQuarterFilingsSuperStateContext,
+};
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use crate::implementations::states::extract::select_full_index_filings::constants::STATE_NAME as SELECT_FULL_INDEX_FILINGS;
 use crate::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
-use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
+use crate::prelude::{
+    IntoStateMachineStream, StateMachineStream, StreamError, StreamEvent, StreamItem,
+};
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FolderIndex;
 use crate::shared::filing_documents_ref::{filing_index_key, instance_key, labels_key};
@@ -40,15 +49,18 @@ use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::quarter::Quarter;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::{
-    RawDailyIndex, RawFilingIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+    RawDailyIndex, RawFilingIndex, RawFullIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
 };
-use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
+use crate::shared::request::implementations::sec_request::{
+    FilingDocumentSet, FilingIndex, FullIndex,
+};
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
     CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_missing_instance, is_pending,
-    is_unextractable,
+    is_pending_quarter, is_unextractable,
 };
 
 mod summary;
@@ -58,12 +70,13 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// The number of filing machines, and of `submissions` machines, that one date runs at once
 /// without a call to [`DailyFilingsBuilder::in_flight`].
 ///
-/// The rate limiter of the SEC client caps the requests, so a higher value does not make a run
-/// faster.
-pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 4;
+/// With 8 machines, the `daily_filings` binary reached the cap of the rate limiter of the SEC
+/// client. The catch-up of `backfill().all()` was not measured with 8.
+pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 8;
 
-/// The number of dates, yesterday and the days before it, whose missing daily index counts as
-/// pending. A pending date does not fail the run, because a later run reads it again.
+/// The number of days that the pending rule counts back from
+/// [`as_of`](DailyFilingsBuilder::as_of), `as_of` included. A pending date does not fail the run,
+/// because a later run reads it again.
 pub const PENDING_DAYS: u64 = 3;
 
 /// The SEC client that every machine of a run accepts.
@@ -90,6 +103,7 @@ impl<C> DailyClient for C where
 }
 
 type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyIndex>>;
+type FullIndexRepository = FilesystemRepository<Write, RawDocument<RawFullIndex>>;
 type FilingIndexRepository = FilesystemRepository<Write, RawDocument<RawFilingIndex>>;
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
 type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
@@ -113,9 +127,9 @@ pub struct DailyFilingsRepositories {
     pub submissions: SubmissionsRepository,
 }
 
-/// Marks a [`DailyFilingsBuilder`] that holds no `yesterday` yet.
+/// Marks a [`DailyFilingsBuilder`] that holds no `as_of` date yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct NoYesterday;
+pub struct NoAsOf;
 
 /// Marks a [`DailyFilingsBuilder`] that holds no stores yet.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -124,7 +138,7 @@ pub struct NoRepositories;
 /// The new-filing path of an incremental run, before the choice of the dates.
 ///
 /// Every super-state of the run carries the `execution_id` of its [`Incremental`] handle and
-/// [`IngestionMode::Incremental`](storage::implementations::repository::filesystem::IngestionMode::Incremental).
+/// [`IngestionMode::Incremental`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IncrementalDailyFilings {
     incremental: Incremental,
@@ -138,20 +152,20 @@ impl IncrementalDailyFilings {
 
     /// Returns the builder of a run over `dates`. The run reads them oldest first, once each.
     ///
-    /// The pending rule never applies to the oldest date. The builder still needs yesterday, an
-    /// SEC client, and the stores.
+    /// The pending rule never applies to the oldest date. The builder still needs the `as_of`
+    /// date, an SEC client, and the stores.
     #[must_use]
     pub fn dates(
         self,
         dates: impl IntoIterator<Item = NaiveDate>,
-    ) -> DailyFilingsBuilder<NoYesterday, NoSecClient, NoRepositories> {
+    ) -> DailyFilingsBuilder<NoAsOf, NoSecClient, NoRepositories> {
         let mut dates: Vec<NaiveDate> = dates.into_iter().collect();
         dates.sort_unstable();
         dates.dedup();
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates,
-            yesterday: NoYesterday,
+            as_of: NoAsOf,
             sec_client: NoSecClient,
             repositories: NoRepositories,
             in_flight: DEFAULT_MACHINES_IN_FLIGHT,
@@ -162,7 +176,7 @@ impl IncrementalDailyFilings {
 
 /// Builds and runs the new-filing path over many dates.
 ///
-/// Set [`yesterday`](Self::yesterday), [`sec_client`](Self::sec_client), and
+/// Set [`as_of`](Self::as_of), [`sec_client`](Self::sec_client), and
 /// [`repositories`](Self::repositories), in any order. [`in_flight`](Self::in_flight) and
 /// [`retry_delays`](Self::retry_delays) are optional. Then call [`run`](Self::run).
 ///
@@ -173,11 +187,11 @@ impl IncrementalDailyFilings {
 /// use sec::implementations::extraction::Extraction;
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
-/// let yesterday = NaiveDate::MIN;
+/// let as_of = NaiveDate::MIN;
 /// let _run = Extraction::incremental()
 ///     .daily_filings()
-///     .dates([yesterday])
-///     .yesterday(yesterday)
+///     .dates([as_of])
+///     .as_of(as_of)
 ///     .sec_client(SecClient::default())
 ///     .run(|_, _| {});
 /// ```
@@ -192,20 +206,20 @@ impl IncrementalDailyFilings {
 ///     let _run = Extraction::incremental()
 ///         .daily_filings()
 ///         .dates([NaiveDate::MIN])
-///         .yesterday(NaiveDate::MIN)
+///         .as_of(NaiveDate::MIN)
 ///         .repositories(repositories)
 ///         .run(|_, _| {});
 /// }
 /// ```
 ///
-/// And `run` needs yesterday:
+/// And `run` needs the `as_of` date:
 ///
 /// ```compile_fail,E0599
 /// use chrono::NaiveDate;
 /// use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
-/// fn run_without_yesterday(repositories: DailyFilingsRepositories) {
+/// fn run_without_as_of(repositories: DailyFilingsRepositories) {
 ///     let _run = Extraction::incremental()
 ///         .daily_filings()
 ///         .dates([NaiveDate::MIN])
@@ -215,24 +229,29 @@ impl IncrementalDailyFilings {
 /// }
 /// ```
 #[derive(Debug, Clone)]
-pub struct DailyFilingsBuilder<Y, C, R> {
+pub struct DailyFilingsBuilder<A, C, R> {
     incremental: Incremental,
     dates: Vec<NaiveDate>,
-    yesterday: Y,
+    as_of: A,
     sec_client: C,
     repositories: R,
     in_flight: usize,
     retry_delays: Vec<Duration>,
 }
 
-impl<C, R> DailyFilingsBuilder<NoYesterday, C, R> {
-    /// Sets yesterday in New York, the last date that the pending rule covers.
+impl<C, R> DailyFilingsBuilder<NoAsOf, C, R> {
+    /// Sets `as_of`, the date that the pending rule counts back from.
+    ///
+    /// A missing daily index counts as pending if its date is not the first date of the run, and
+    /// is on or after the date [`PENDING_DAYS`] - 1 days before `as_of`. A date after `as_of` also
+    /// counts. A pending date does not fail the run. The binaries pass the day before today in New
+    /// York.
     #[must_use]
-    pub fn yesterday(self, yesterday: NaiveDate) -> DailyFilingsBuilder<NaiveDate, C, R> {
+    pub fn as_of(self, as_of: NaiveDate) -> DailyFilingsBuilder<NaiveDate, C, R> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
-            yesterday,
+            as_of,
             sec_client: self.sec_client,
             repositories: self.repositories,
             in_flight: self.in_flight,
@@ -241,14 +260,14 @@ impl<C, R> DailyFilingsBuilder<NoYesterday, C, R> {
     }
 }
 
-impl<Y, R> DailyFilingsBuilder<Y, NoSecClient, R> {
+impl<A, R> DailyFilingsBuilder<A, NoSecClient, R> {
     /// Sets the SEC client of every machine of the run.
     #[must_use]
-    pub fn sec_client<C: DailyClient>(self, sec_client: C) -> DailyFilingsBuilder<Y, C, R> {
+    pub fn sec_client<C: DailyClient>(self, sec_client: C) -> DailyFilingsBuilder<A, C, R> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
-            yesterday: self.yesterday,
+            as_of: self.as_of,
             sec_client,
             repositories: self.repositories,
             in_flight: self.in_flight,
@@ -257,18 +276,18 @@ impl<Y, R> DailyFilingsBuilder<Y, NoSecClient, R> {
     }
 }
 
-impl<Y, C> DailyFilingsBuilder<Y, C, NoRepositories> {
+impl<A, C> DailyFilingsBuilder<A, C, NoRepositories> {
     /// Sets the stores of the daily indexes, the folder indexes and the documents of the filings,
     /// and the `submissions` files.
     #[must_use]
     pub fn repositories(
         self,
         repositories: DailyFilingsRepositories,
-    ) -> DailyFilingsBuilder<Y, C, DailyFilingsRepositories> {
+    ) -> DailyFilingsBuilder<A, C, DailyFilingsRepositories> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
-            yesterday: self.yesterday,
+            as_of: self.as_of,
             sec_client: self.sec_client,
             repositories,
             in_flight: self.in_flight,
@@ -277,7 +296,7 @@ impl<Y, C> DailyFilingsBuilder<Y, C, NoRepositories> {
     }
 }
 
-impl<Y, C, R> DailyFilingsBuilder<Y, C, R> {
+impl<A, C, R> DailyFilingsBuilder<A, C, R> {
     /// Sets the most filing machines, and the most `submissions` machines, that one date runs at
     /// once. The default is [`DEFAULT_MACHINES_IN_FLIGHT`], and `0` counts as `1`.
     #[must_use]
@@ -303,6 +322,8 @@ impl<C> DailyFilingsBuilder<NaiveDate, C, DailyFilingsRepositories>
 where
     C: DailyClient,
     DetectFilingsSuperState<ValidateIndexDate, DailyIndexRepository, C>: IntoStateMachineStream,
+    DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, FullIndexRepository, C>:
+        IntoStateMachineStream,
     ExtractFilingSuperState<
         PrepareSecRequest<FilingIndex>,
         FilingIndexRepository,
@@ -357,7 +378,7 @@ where
                         .extract_companies(date, &detected.filings, &observer)
                         .await,
                 },
-                Err(error) if is_pending(&error, date, first_date, self.yesterday) => {
+                Err(error) if is_pending(&error, date, first_date, self.as_of) => {
                     observer(&unit, RunEvent::Error(&error, ErrorKind::Pending));
                     DateOutcome::Pending(error)
                 }
@@ -371,9 +392,128 @@ where
         DailyRunSummary(outcomes)
     }
 
+    /// Runs the new-filing path for the dates of the builder, as [`run`](Self::run) does, but
+    /// detects their filings in the full index of each quarter that the dates touch, not in one
+    /// daily index per date.
+    ///
+    /// For each quarter, oldest first, the run runs one [`DetectQuarterFilingsSuperState`] for the
+    /// dates of the run in that quarter, and stores the full index in `full_index`. Then, for each
+    /// of those dates, it runs the filings with that date filed and their companies, as
+    /// [`run`](Self::run) does. Each filing records the stored full index as the input of its
+    /// files. A date up to the header line `Last Data Received` without a filing in the full index
+    /// counts as a day without filings.
+    ///
+    /// A date after that header line without a filing has no rows yet, so it fails with a
+    /// [`MissingFullIndexDate`]. It is pending instead under the rule of a missing
+    /// daily index: the date is recent and is not the first date of the run. Its unit is
+    /// [`Unit::Date`].
+    ///
+    /// The detection of a quarter that fails with a transient SEC failure runs again after each
+    /// retry delay. If it still fails, each date of the quarter fails. A quarter whose full index
+    /// answers 403 or 404 is pending instead, if its first date in the run is recent and is not
+    /// the first date of the run.
+    ///
+    /// Calls `observer` as [`run`](Self::run) does. The unit of the detection of a quarter is
+    /// [`Unit::Quarter`].
+    pub async fn run_from_full_index(
+        self,
+        full_index: FullIndexRepository,
+        observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
+    ) -> DailyRunSummary {
+        let Some(&first_date) = self.dates.first() else {
+            return DailyRunSummary(Vec::new());
+        };
+        let mut outcomes = Vec::with_capacity(self.dates.len());
+        for quarter_dates in self
+            .dates
+            .chunk_by(|a, b| Quarter::of(*a) == Quarter::of(*b))
+        {
+            let (Some(&quarter_first_date), Some(&quarter_last_date)) =
+                (quarter_dates.first(), quarter_dates.last())
+            else {
+                continue;
+            };
+            let quarter = Quarter::of(quarter_first_date);
+            let unit = Unit::Quarter(quarter);
+            let detection = with_retry(
+                &self.retry_delays,
+                || {
+                    let context = DetectQuarterFilingsSuperStateContext::new(
+                        self.sec_client.clone(),
+                        self.incremental.id(),
+                        IngestionMode::Incremental,
+                        full_index.clone(),
+                        quarter_first_date,
+                        quarter_last_date,
+                    );
+                    DetectQuarterFilingsSuperState::new(context)
+                        .run_to_quarter_filings(|item| observer(&unit, RunEvent::Item(item)))
+                },
+                |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
+            )
+            .await;
+            let quarter_filings = match detection {
+                Ok(detected) => detected,
+                Err(error) => {
+                    let pending =
+                        is_pending_quarter(&error, quarter_first_date, first_date, self.as_of);
+                    let kind = if pending {
+                        ErrorKind::Pending
+                    } else {
+                        ErrorKind::Failed
+                    };
+                    observer(&unit, RunEvent::Error(&error, kind));
+                    outcomes.extend(quarter_dates.iter().map(|&date| {
+                        let outcome = if pending {
+                            DateOutcome::Pending(error.clone())
+                        } else {
+                            DateOutcome::Failed(error.clone())
+                        };
+                        (date, outcome)
+                    }));
+                    continue;
+                }
+            };
+            let detected = &quarter_filings.detected;
+            for &date in quarter_dates {
+                let day = DetectedFilings {
+                    filings: detected
+                        .filings
+                        .iter()
+                        .filter(|filing| filing.filed_date() == date)
+                        .cloned()
+                        .collect(),
+                    index: detected.index.clone(),
+                };
+                if day.filings.is_empty()
+                    && let Some(error) = missing_full_index_date(
+                        date,
+                        quarter_filings.last_data_received,
+                        self.incremental.id(),
+                    )
+                {
+                    let (kind, outcome) = if is_pending(&error, date, first_date, self.as_of) {
+                        (ErrorKind::Pending, DateOutcome::Pending(error.clone()))
+                    } else {
+                        (ErrorKind::Failed, DateOutcome::Failed(error.clone()))
+                    };
+                    observer(&Unit::Date(date), RunEvent::Error(&error, kind));
+                    outcomes.push((date, outcome));
+                    continue;
+                }
+                let outcome = DateOutcome::Processed {
+                    filings: self.extract_filings(date, &day, &observer).await,
+                    companies: self.extract_companies(date, &day.filings, &observer).await,
+                };
+                outcomes.push((date, outcome));
+            }
+        }
+        DailyRunSummary(outcomes)
+    }
+
     /// Runs one filing machine per detected filing, at most [`in_flight`](Self::in_flight) at
-    /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
-    /// its files.
+    /// once, in the order of the filings. Each machine records the index of `detected`, daily or full, as
+    /// the input of its files.
     ///
     /// A filing runs no machine if its stored instance passes the size and SHA-256 check and its
     /// label file passes it or is not listed, or if its stored folder index lists no XBRL instance
@@ -499,6 +639,29 @@ where
     }
 }
 
+/// Returns the error of `date` if the full index of its quarter does not cover it yet: if `date`
+/// comes after `last_data_received`. Returns `None` if the full index covers `date`, or if its
+/// header names no date.
+///
+/// The run builds this error after [`SelectFullIndexFilings`](crate::implementations::states::extract::select_full_index_filings::SelectFullIndexFilings)
+/// succeeds, so it can take the path of a detection error through [`is_pending`]. The state name
+/// names the state that read the header.
+fn missing_full_index_date(
+    date: NaiveDate,
+    last_data_received: Option<NaiveDate>,
+    execution_id: Uuid,
+) -> Option<StreamError> {
+    let last_data_received = last_data_received.filter(|last| date > *last)?;
+    let error = MissingFullIndexDate::new(SELECT_FULL_INDEX_FILINGS, date, last_data_received);
+    Some(StreamError {
+        event: StreamEvent::StateFailed,
+        execution_id,
+        state_name: SELECT_FULL_INDEX_FILINGS.to_string(),
+        data: serde_json::Value::Null,
+        source: Box::new(StateMachine::State(error.into())),
+    })
+}
+
 /// The readers of the stored files that let the run skip a filing before any request.
 struct StoreReaders {
     instance: InstanceReader,
@@ -600,6 +763,53 @@ mod tests {
             NaiveDate::from_ymd_opt(2026, 9, 8)
                 .expect("Given a hardcoded calendar date, the date should always build"),
         )
+    }
+
+    fn calendar_date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day)
+            .expect("Given a hardcoded calendar date, the date should always build")
+    }
+
+    #[test]
+    fn should_return_no_error_when_the_date_is_the_last_data_received() {
+        let date = calendar_date(2026, 11, 12);
+        let last_data_received = Some(calendar_date(2026, 11, 12));
+
+        let expected_result = None;
+
+        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_error_when_the_header_names_no_date() {
+        let date = calendar_date(2026, 11, 13);
+        let last_data_received = None;
+
+        let expected_result = None;
+
+        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_date_and_the_last_data_received_when_the_date_comes_after_it() {
+        let date = calendar_date(2026, 11, 13);
+        let last_data_received = Some(calendar_date(2026, 11, 12));
+
+        let expected_result = Some(
+            "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Full Index Filings', Caused by: [MissingFullIndexDate] The full index does not cover the date yet, Date: '2026-11-13', Last Data Received: '2026-11-12'"
+                .to_string(),
+        );
+
+        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

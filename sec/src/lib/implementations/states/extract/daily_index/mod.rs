@@ -69,9 +69,7 @@ use crate::implementations::states::extract::daily_index::builder::{
 use crate::implementations::states::extract::download_daily_index::DownloadDailyIndex;
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::select_filings::SelectFilings;
-use crate::implementations::states::extract::store_daily_index::{
-    StoreDailyIndex, StoredDailyIndex,
-};
+use crate::implementations::states::extract::store_daily_index::StoreDailyIndex;
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
 use crate::prelude::*;
 use crate::shared::filing_ref::FilingRef;
@@ -82,6 +80,7 @@ use crate::shared::raw_repository::RawRepository;
 use crate::shared::raw_source::RawDailyIndex;
 use crate::shared::request::implementations::sec_request::DailyIndex;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
+use crate::shared::stored_form_index::StoredFormIndex;
 use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
 
 /// Input and output data for the [`DetectFilingsSuperState`].
@@ -105,12 +104,14 @@ impl StateData for DetectFilingsSuperStateData {
     }
 }
 
-/// The filings that detection selected, and the stored daily index they came from.
+/// The filings that detection selected, and the stored index they came from: a daily index, or
+/// the full index of a quarter.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DetectedFilings {
     /// The selected filings, one per accession number, in index order.
     pub filings: Vec<FilingRef>,
-    /// The stored daily index as an [`InputDocument`], or `None` if the day had no filings.
+    /// The stored index as an [`InputDocument`], or `None` if the day had no filings and no daily
+    /// index exists.
     pub index: Option<InputDocument>,
 }
 
@@ -408,7 +409,7 @@ impl<R: RawRepository<RawDailyIndex> + 'static, C: SecClientTrait + 'static> Int
                         .input_data()
                         .index
                         .as_ref()
-                        .map(StoredDailyIndex::input_document),
+                        .map(StoredFormIndex::input_document),
                 });
             }
         })

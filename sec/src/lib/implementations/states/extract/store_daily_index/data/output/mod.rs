@@ -2,63 +2,29 @@
 //!
 //! Provides the [`StoreDailyIndexOutput`] produced by the
 //! [`StoreDailyIndex`](crate::implementations::states::extract::store_daily_index::StoreDailyIndex)
-//! state, the [`StoredDailyIndex`] it holds, and the output's updater and builder.
+//! state, and the output's updater and builder. The output holds a
+//! [`StoredFormIndex`].
 
 use std::fmt;
 
-use bytes::Bytes;
-use serde::ser::SerializeStruct;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
-use storage::Sha256Digest;
-use storage::implementations::repository::filesystem::{DocumentKey, InputDocument};
 
 use crate::error::State as StateError;
+use crate::shared::stored_form_index::StoredFormIndex;
 use crate::traits::state_machine::state::StateData;
-
-/// The key, the SHA-256, and the text of one stored daily index.
-///
-/// The text shares the body buffer of the downloaded response, so it holds the bytes exactly as
-/// the SEC sent them.
-#[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
-pub struct StoredDailyIndex {
-    /// The key the index is stored under.
-    pub key: DocumentKey,
-    /// The SHA-256 digest of the stored bytes.
-    pub sha256: Sha256Digest,
-    /// The text of the index, as the SEC sent it.
-    pub text: Bytes,
-}
-
-impl StoredDailyIndex {
-    /// Returns the index as an [`InputDocument`], for the metadata of a document made from it.
-    #[must_use]
-    pub fn input_document(&self) -> InputDocument {
-        InputDocument::new(self.key.clone(), self.sha256.clone())
-    }
-}
-
-/// Serializes the key and the size of the text, without the text.
-impl Serialize for StoredDailyIndex {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let mut state = serializer.serialize_struct("StoredDailyIndex", 2)?;
-        state.serialize_field("key", &self.key)?;
-        state.serialize_field("size_in_bytes", &self.text.len())?;
-        state.end()
-    }
-}
 
 /// Output data of the [`StoreDailyIndex`](super::super::StoreDailyIndex) state.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct StoreDailyIndexOutput {
     /// The stored daily index, or `None` if the day had no filings.
-    pub index: Option<StoredDailyIndex>,
+    pub index: Option<StoredFormIndex>,
 }
 
 impl StoreDailyIndexOutput {
     /// Creates a new [`StoreDailyIndexOutput`] from a stored daily index.
     #[must_use]
-    pub const fn new(index: StoredDailyIndex) -> Self {
+    pub const fn new(index: StoredFormIndex) -> Self {
         Self { index: Some(index) }
     }
 
@@ -118,7 +84,7 @@ impl fmt::Display for StoreDailyIndexOutput {
 #[derive(Debug)]
 pub struct StoreDailyIndexOutputUpdater {
     /// The new stored index. `Some(None)` marks a day without filings.
-    pub index: Option<Option<StoredDailyIndex>>,
+    pub index: Option<Option<StoredFormIndex>>,
 }
 
 impl StoreDailyIndexOutputUpdater {
@@ -147,7 +113,7 @@ impl StoreDailyIndexOutputUpdaterBuilder {
     /// Sets the stored index. `None` marks a day without filings.
     #[must_use]
     #[allow(clippy::missing_const_for_fn)]
-    pub fn index(mut self, index: Option<StoredDailyIndex>) -> Self {
+    pub fn index(mut self, index: Option<StoredFormIndex>) -> Self {
         self.updater.index = Some(index);
         self
     }
@@ -169,13 +135,15 @@ impl Default for StoreDailyIndexOutputUpdaterBuilder {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
+    use bytes::Bytes;
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::StateData as SMStateData;
+    use storage::implementations::repository::filesystem::DocumentKey;
 
     use super::*;
 
-    fn stored_index(text: &'static [u8]) -> StoredDailyIndex {
-        StoredDailyIndex {
+    fn stored_index(text: &'static [u8]) -> StoredFormIndex {
+        StoredFormIndex {
             key: DocumentKey::new("sec/daily-index/form.20261027.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),
             sha256: storage::Sha256Digest::of(text),

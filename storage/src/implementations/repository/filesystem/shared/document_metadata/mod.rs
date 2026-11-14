@@ -9,6 +9,7 @@
 //! - [`ingestion_mode`]: The [`IngestionMode`] of the run that produced a document.
 //! - [`input_document`]: The [`InputDocument`] pointing at a document that another document came
 //!   from.
+//! - [`media_type`]: The [`MediaType`] of the document bytes.
 //! - [`producer`]: The [`Producer`] naming the code that wrote a document.
 
 use chrono::{DateTime, Utc};
@@ -21,6 +22,7 @@ pub mod builder;
 pub mod constants;
 pub mod ingestion_mode;
 pub mod input_document;
+pub mod media_type;
 pub mod producer;
 
 pub use builder::{
@@ -30,6 +32,7 @@ pub use builder::{
 pub use constants::METADATA_VERSION;
 pub use ingestion_mode::IngestionMode;
 pub use input_document::InputDocument;
+pub use media_type::{InvalidMediaType, InvalidMediaTypeReason, MediaType};
 pub use producer::Producer;
 
 /// Describes one stored document: the fields every document type shares, and the context of its
@@ -52,7 +55,7 @@ pub struct DocumentMetadata<C> {
     metadata_version: u32,
     document_type: String,
     document_type_version: u32,
-    media_type: String,
+    media_type: MediaType,
     #[serde(rename = "bytes")]
     size_in_bytes: u64,
     sha256: Sha256Digest,
@@ -78,7 +81,7 @@ impl DocumentMetadata<NoContext> {
     /// # use chrono::{DateTime, Utc};
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
-    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, Producer,
+    /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
     /// # };
     /// # use uuid::Uuid;
     /// #
@@ -124,7 +127,7 @@ impl DocumentMetadata<NoContext> {
     /// let bytes = b"{}";
     /// let metadata = DocumentMetadata::builder()
     ///     .document_type::<Summary>()
-    ///     .media_type("application/json")
+    ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
     ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
@@ -173,7 +176,7 @@ impl<C> DocumentMetadata<C> {
 
     /// Returns the media type of the document bytes, for example `application/json`.
     #[must_use]
-    pub fn media_type(&self) -> &str {
+    pub const fn media_type(&self) -> &MediaType {
         &self.media_type
     }
 
@@ -224,6 +227,16 @@ impl<C> DocumentMetadata<C> {
     pub const fn context(&self) -> &C {
         &self.context
     }
+
+    /// Returns this metadata with `inputs` added after the inputs it already holds.
+    ///
+    /// The other fields stay as they are. The digest covers the document bytes only, so it stays
+    /// valid.
+    #[must_use]
+    pub fn with_added_inputs(mut self, inputs: Vec<InputDocument>) -> Self {
+        self.inputs.extend(inputs);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -231,10 +244,13 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::fixtures::sample_document::{SampleContext, sample_metadata};
+    use crate::tests::fixtures::sample_document::{
+        SampleContext, sample_metadata, sample_metadata_of,
+    };
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -295,6 +311,53 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    fn input_of(key: &str, sha256: Sha256Digest) -> InputDocument {
+        InputDocument::new(
+            crate::implementations::repository::filesystem::DocumentKey::new(key)
+                .expect("Given a hardcoded valid relative path, the key should always build"),
+            sha256,
+        )
+    }
+
+    #[test]
+    fn should_keep_the_held_inputs_first_when_adding_inputs() {
+        let metadata = sample_metadata();
+        let added = vec![input_of(
+            "sec/daily-index/form.20260909.idx",
+            Sha256Digest::of(b"index"),
+        )];
+
+        let expected_result = vec![
+            input_of(
+                "sec/companyfacts/CIK0000320193.json",
+                "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
+                    .parse()
+                    .expect(
+                        "Given 64 hardcoded lowercase hex characters, parsing should always succeed",
+                    ),
+            ),
+            input_of(
+                "sec/daily-index/form.20260909.idx",
+                Sha256Digest::of(b"index"),
+            ),
+        ];
+
+        let result = metadata.with_added_inputs(added).inputs().to_vec();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_leave_the_metadata_unchanged_when_adding_no_inputs() {
+        let metadata = sample_metadata();
+
+        let expected_result = sample_metadata();
+
+        let result = metadata.with_added_inputs(Vec::new());
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_take_the_document_type_version_from_the_document_when_creating_metadata() {
         let metadata = sample_metadata();
@@ -349,6 +412,52 @@ mod tests {
     }
 
     #[test]
+    fn should_write_all_nine_digits_when_the_produced_at_has_nanoseconds() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.123456789Z");
+
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.123456789Z");
+
+        let result = serde_json::to_value(metadata)
+            .expect("Given metadata of owned fields, serialization should always succeed")
+            ["produced_at"]
+            .take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_pad_the_fraction_to_whole_microseconds_when_the_produced_at_has_trailing_zeros() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.1234Z");
+
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.123400Z");
+
+        let result = serde_json::to_value(metadata)
+            .expect("Given metadata of owned fields, serialization should always succeed")
+            ["produced_at"]
+            .take();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_nanoseconds_when_the_stored_produced_at_has_fractional_seconds() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["produced_at"] = "2026-09-22T20:05:30.123456789Z".into();
+
+        let expected_result = NaiveDate::from_ymd_opt(2026, 9, 22)
+            .and_then(|date| date.and_hms_nano_opt(20, 5, 30, 123_456_789))
+            .expect("Given a hardcoded valid date and time, creating it should always succeed")
+            .and_utc();
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .expect("Given stored metadata with every field, deserialization should always succeed")
+            .produced_at();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_to_read_metadata_without_the_ingestion_mode_key() {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
@@ -373,6 +482,25 @@ mod tests {
         let expected_result = true;
 
         let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored).is_err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_read_metadata_when_the_media_type_is_malformed() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["media_type"] = "unknown".into();
+
+        let expected_result = true;
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .err()
+            .is_some_and(|error| {
+                error
+                    .to_string()
+                    .starts_with("[InvalidMediaType] Media type 'unknown'")
+            });
 
         assert_eq!(result, expected_result);
     }

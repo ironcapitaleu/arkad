@@ -55,8 +55,9 @@ cargo run --features tracing-logging --bin stream_etl
 # facade. It exits with an error if a CIK failed.
 cargo run --features tracing-logging --example stream_extract
 
-# First load: every Notes period up to last month, then the new filings of each date from the
-# cut-over date to yesterday. It exits with an error if a period, a date, or a filing failed.
+# First load: every Notes period up to last month and, at the same time, the new filings of each
+# date from the cut-over date to yesterday. It exits with an error if a period, a date, or a filing
+# failed.
 cargo run --features tracing-logging --bin backfill
 
 # Deprecated example: the Notes periods alone, as the binary notes_backfill ran them.
@@ -73,7 +74,7 @@ Each binary also builds an `SecClient` at startup. `ARKAD_SEC_USER_AGENT` sets t
 
 ### Container Images
 
-The `Dockerfile` at the repository root builds one image per binary: `backfill` and `daily_filings`. A shared build stage compiles both binaries once, as static musl binaries with `cargo zigbuild`. Each final stage holds one binary on `gcr.io/distroless/static-debian13`, and its entrypoint runs that binary. No image holds an example. [ADR 0002](../docs/adr/0002-static-binaries.md) records the decision.
+The `Dockerfile` at the repository root builds one image per binary: `backfill` and `daily_filings`. A shared build stage compiles both binaries once, as static musl binaries with `cargo zigbuild`. Each final stage holds one binary on `gcr.io/distroless/static-debian13`, and its entrypoint runs that binary. No image holds an example. [Ingestion Paths](design/pipeline/ingestion_paths.md#deployment) describes the images.
 
 Build each image from the repository root:
 

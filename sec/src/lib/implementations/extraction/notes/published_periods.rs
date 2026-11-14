@@ -18,6 +18,7 @@ use super::super::retry::retry_while;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::notes_period::NotesPeriod;
+use crate::shared::notes_period::constants::FIRST_YEAR;
 use crate::shared::request::implementations::sec_request::SecRequest;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipHeadBody};
 
@@ -56,7 +57,7 @@ pub struct FailedNotesProbe {
 ///
 /// A request that fails with a transient SEC failure runs again after each wait of
 /// `retry_delays`, as the downloads do, and `on_retry` gets the quarter and the error. The list is
-/// empty if `through` comes before 2009.
+/// empty if `through` comes before [`FIRST_YEAR`].
 ///
 /// # Errors
 ///
@@ -74,7 +75,7 @@ where
 {
     let through_month = (through.year(), through.month());
     let mut periods = Vec::new();
-    for year in 2009..=through.year() {
+    for year in i32::from(FIRST_YEAR.number())..=through.year() {
         for quarter in 1..=4 {
             let months = (quarter * 3 - 2..=quarter * 3).map(|month| (year, month));
             if (year, quarter * 3) > through_month {
@@ -113,7 +114,7 @@ fn is_merged(quarter: NotesPeriod, through: NaiveDate) -> bool {
 /// # Errors
 ///
 /// Returns a [`FailedNotesProbe`] if the last request fails with any answer other than 404.
-async fn is_published<C>(
+pub(in crate::implementations::extraction) async fn is_published<C>(
     sec_client: &C,
     quarter: NotesPeriod,
     retry_delays: &[Duration],

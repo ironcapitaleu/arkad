@@ -1,12 +1,15 @@
 //! # State Errors
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
-//! Notes period validation, index date validation, daily index parsing, SEC request execution, a missing daily index,
+//! Notes period validation, index date validation, daily index and full index parsing, SEC request execution, a missing daily index,
 //! the selection of filing documents, document writes, data completeness, and input/context/output handling.
 //!
-//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`FailedRequestExecution`],
+//! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
 //! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
-//! [`MissingDailyIndex`] carries the failing state's name and the date. The rest are plain markers.
+//! [`MissingDailyIndex`] carries the failing state's name and the date. [`MissingFullIndexDate`]
+//! carries the failing state's name, the date, and the last date of the full index.
+//! [`InvalidFiledDateRange`]
+//! carries the failing state's name, the quarter, and both dates. The rest are plain markers.
 //! [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
 //! ## Modules
@@ -15,9 +18,12 @@
 //! - [`invalid_notes_period`]: The [`InvalidNotesPeriod`] error wrapping a Notes period validation failure.
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`invalid_daily_index`]: The [`InvalidDailyIndex`] error wrapping a daily index that does not parse.
+//! - [`invalid_full_index`]: The [`InvalidFullIndex`] error wrapping a full index that does not parse.
+//! - [`invalid_filed_date_range`]: The [`InvalidFiledDateRange`] error for dates filed out of order or outside the quarter of the full index.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
 //! - [`failed_document_selection`]: The [`FailedDocumentSelection`] error for a folder index that names no single XBRL instance or label file.
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
+//! - [`missing_full_index_date`]: The [`MissingFullIndexDate`] error for a date that the full index does not cover yet.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
@@ -39,15 +45,21 @@ pub mod invalid_index_date;
 pub use invalid_index_date::InvalidIndexDate;
 pub mod invalid_daily_index;
 pub use invalid_daily_index::InvalidDailyIndex;
+pub mod invalid_full_index;
+pub use invalid_full_index::InvalidFullIndex;
+pub mod invalid_filed_date_range;
+pub use invalid_filed_date_range::InvalidFiledDateRange;
 pub mod missing_daily_index;
 pub use missing_daily_index::MissingDailyIndex;
+pub mod missing_full_index_date;
+pub use missing_full_index_date::MissingFullIndexDate;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring inside a state's own logic.
 ///
 /// Spans the ways a state can fail while computing its output: a wrapped domain error (invalid
-/// CIK, invalid Notes period, invalid index date, invalid daily index, failed request, failed document selection, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
+/// CIK, invalid Notes period, invalid index date, invalid daily index, invalid full index, failed request, failed document selection, rejected write, incomplete facts) or a plain marker for invalid input, context, or a
 /// failed update/computation.
 pub enum State {
     /// Invalid Cik format.
@@ -74,6 +86,19 @@ pub enum State {
     #[error(transparent)]
     InvalidDailyIndex(InvalidDailyIndex),
 
+    /// Invalid full index: the text of the full index of a quarter does not parse into rows.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidFullIndex(InvalidFullIndex),
+
+    /// Invalid filed date range: the dates filed that a full index selection keeps are out of
+    /// order or outside the quarter of the full index.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidFiledDateRange(InvalidFiledDateRange),
+
     /// Indicates that an SEC request execution has failed.
     ///
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
@@ -86,6 +111,12 @@ pub enum State {
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
     #[error(transparent)]
     MissingDailyIndex(MissingDailyIndex),
+
+    /// Indicates that the full index of a quarter does not cover a date yet.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    MissingFullIndexDate(MissingFullIndexDate),
 
     /// Indicates that the folder index of a filing names no single XBRL instance or label file.
     ///

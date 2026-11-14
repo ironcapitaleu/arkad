@@ -10,6 +10,7 @@
 //! - [`company_facts`]: The [`ExtractCompanyFactsSuperState`](company_facts::ExtractCompanyFactsSuperState)
 //!   and its builder.
 //! - [`filing`]: The [`ExtractFilingSuperState`](filing::ExtractFilingSuperState) and its builder.
+//! - [`full_index`]: The [`DetectQuarterFilingsSuperState`](full_index::DetectQuarterFilingsSuperState).
 //! - [`notes`]: The [`ExtractNotesSuperState`](notes::ExtractNotesSuperState) and its builder.
 //! - [`daily_index`]: The [`DetectFilingsSuperState`](daily_index::DetectFilingsSuperState) and its
 //!   builder.
@@ -21,12 +22,14 @@
 //! - [`store_sec_response`]: Writes the response to a request of any stored kind to the store.
 //! - [`store_company_facts`]: The store state of the Company Facts kind.
 //! - [`validate_notes_period`]: Validates the raw period of a Notes file.
+//! - [`store_full_index`]: Writes the full index of one quarter to the store.
 //! - [`store_notes_archive`]: Writes the Notes file to the store.
 //! - [`validate_index_date`]: Validates the raw date of an EDGAR daily index.
 //! - [`download_daily_index`]: Downloads the daily index of one date, with the rule for a missing index.
 //! - [`store_daily_index`]: Writes the daily index to the store.
 //! - [`select_filing_documents`]: Selects the XBRL instance and the label file of one filing from its folder index.
 //! - [`select_filings`]: Selects the filings to fetch from the daily index.
+//! - [`select_full_index_filings`]: Selects the filings of a date range from a stored full index.
 //! - [`store_filing_index`]: Writes the folder `index.json` of one filing to the store.
 //! - [`store_submissions`]: Writes the `submissions` JSON of one company to the store.
 //! - [`store_filing_documents`]: Writes the XBRL instance and the label file of one filing to the store.
@@ -36,14 +39,17 @@ pub mod daily_index;
 pub mod download_daily_index;
 pub mod execute_sec_request;
 pub mod filing;
+pub mod full_index;
 pub mod notes;
 pub mod prepare_sec_request;
 pub mod select_filing_documents;
 pub mod select_filings;
+pub mod select_full_index_filings;
 pub mod store_company_facts;
 pub mod store_daily_index;
 pub mod store_filing_documents;
 pub mod store_filing_index;
+pub mod store_full_index;
 pub mod store_notes_archive;
 pub mod store_sec_response;
 pub mod store_submissions;

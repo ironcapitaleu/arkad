@@ -12,14 +12,14 @@ use xbrl::us_gaap::mappings::{OPTIONAL_CONCEPTS, REQUIRED_CONCEPTS};
 
 use crate::error::{ApiError, Problem};
 use crate::logging::ApiEvent;
-use crate::shared::pascal_case::{InvalidPascalCase, PascalCase};
+use crate::shared::concept_id::ConceptId;
+use crate::shared::pascal_case::InvalidPascalCase;
 
 /// One canonical concept that `xbrl` maps from US-GAAP.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, ToSchema)]
 pub struct Concept {
     /// The stable identifier of the concept.
-    #[schema(example = "net_income")]
-    pub concept: String,
+    pub concept: ConceptId,
     /// The name of the concept for people.
     #[schema(example = "Net Income")]
     pub name: String,
@@ -36,30 +36,10 @@ impl Concept {
     /// `PascalCase`.
     fn from_element(element: CanonicalElement) -> Result<Self, InvalidPascalCase> {
         Ok(Self {
-            concept: concept_id(element)?,
+            concept: element.try_into()?,
             name: element.to_string(),
         })
     }
-}
-
-/// Returns the concept ID of `element`: its serialized variant name in `snake_case`.
-///
-/// For example, `NetIncome` becomes `net_income`.
-///
-/// # Errors
-///
-/// Returns an [`InvalidPascalCase`] if the serialized name of the variant is not in `PascalCase`.
-///
-/// # Panics
-///
-/// Panics if serde does not serialize the unit variant as a string. A derived `Serialize` on a
-/// unit variant always writes a string.
-pub fn concept_id(element: CanonicalElement) -> Result<String, InvalidPascalCase> {
-    let variant = serde_json::to_value(element)
-        .ok()
-        .and_then(|value| value.as_str().map(str::to_owned))
-        .expect("Given a unit variant of an enum, serde should always serialize it as a string");
-    Ok(PascalCase::new(&variant)?.to_snake_case())
 }
 
 /// The body of a `GET /v1/concepts` response.
@@ -141,12 +121,13 @@ mod tests {
     fn should_build_snake_case_concept_and_display_name_for_net_income() {
         let element = CanonicalElement::NetIncome;
 
-        let expected_result = Ok(Concept {
-            concept: "net_income".to_owned(),
-            name: "Net Income".to_owned(),
-        });
+        let expected_result = json!({ "concept": "net_income", "name": "Net Income" });
 
-        let result = Concept::from_element(element);
+        let concept = Concept::from_element(element).expect(
+            "Given a variant with a PascalCase name, building the concept should always succeed",
+        );
+        let result = serde_json::to_value(concept)
+            .expect("Given a struct of strings, serializing it should always succeed");
 
         assert_eq!(result, expected_result);
     }

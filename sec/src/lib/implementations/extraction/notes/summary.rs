@@ -27,8 +27,8 @@ pub(super) enum Fetch {
 /// that failed.
 pub(super) type PeriodOutcome = Result<(Fetch, NotesArchiveRef), StreamError>;
 
-/// Returns `true` if `error` comes from an SEC answer of 403 or 404 for the Notes file.
-pub(super) fn is_absent_file(error: &StreamError) -> bool {
+/// Returns `true` if `error` comes from an SEC answer of 403 or 404 for the requested file.
+pub(in crate::implementations::extraction) fn is_absent_file(error: &StreamError) -> bool {
     matches!(
         &*error.source,
         StateMachine::State(StateError::FailedRequestExecution(failure))

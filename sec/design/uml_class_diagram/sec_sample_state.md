@@ -108,7 +108,12 @@ classDiagram
         %% SEC-specific state errors, see `sec_error_handling.md`
         +InvalidCikFormat(InvalidCikFormat)
         +InvalidNotesPeriod(InvalidNotesPeriod)
+        +InvalidIndexDate(InvalidIndexDate)
+        +InvalidDailyIndex(InvalidDailyIndex)
         +FailedRequestExecution(FailedRequestExecution)
+        +MissingDailyIndex(MissingDailyIndex)
+        +FailedDocumentSelection(FailedDocumentSelection)
+        +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
         +InvalidInput
         +InvalidContext

@@ -3,7 +3,7 @@
 //! URL fragments for SEC endpoints. The company-facts and submissions URLs put a CIK between their
 //! prefix and suffix.
 //! The Notes URL puts a Notes file name after its prefix. The daily-index URLs put the year and the
-//! quarter folder after their prefix. The filing-folder URL puts the CIK and the accession number
+//! quarter folder after their prefix. The full-index URL does the same. The filing-folder URL puts the CIK and the accession number
 //! after its prefix.
 
 /// The company-facts URL prefix, placed before the CIK.
@@ -27,6 +27,12 @@ pub const SEC_DAILY_INDEX_URL_PREFIX: &str = "https://www.sec.gov/Archives/edgar
 
 /// The file name of the listing of a daily-index quarter folder.
 pub const SEC_DAILY_INDEX_LISTING_FILE_NAME: &str = "index.json";
+
+/// The full-index URL prefix, placed before `YYYY/QTRn/`.
+pub const SEC_FULL_INDEX_URL_PREFIX: &str = "https://www.sec.gov/Archives/edgar/full-index/";
+
+/// The file name of the full index of one quarter, with one row per filing, sorted by form.
+pub const SEC_FULL_INDEX_FILE_NAME: &str = "form.idx";
 
 /// The filing-folder URL prefix, placed before `<cik>/<accession number without dashes>/`.
 pub const SEC_FILING_FOLDER_URL_PREFIX: &str = "https://www.sec.gov/Archives/edgar/data/";
