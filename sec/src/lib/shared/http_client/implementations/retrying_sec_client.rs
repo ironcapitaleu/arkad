@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::Serialize;
+use url::Url;
 
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use crate::shared::http_client::{RespondsWith, SecClient};
@@ -85,10 +86,10 @@ pub struct RetryingSecClient<C> {
     on_retry: OnRetry,
 }
 
-/// The function that a [`RetryingSecClient`] calls with the error and the number of each retry,
-/// before the wait.
+/// The function that a [`RetryingSecClient`] calls with the error, the URL, and the number of each
+/// retry, before the wait.
 #[derive(Clone, Copy)]
-struct OnRetry(fn(&FailedSecRequest, u32));
+struct OnRetry(fn(&FailedSecRequest, &Url, u32));
 
 impl<C> RetryingSecClient<C> {
     /// Creates a [`RetryingSecClient`] that sends through `client` under `policy`.
@@ -97,14 +98,15 @@ impl<C> RetryingSecClient<C> {
         Self {
             client,
             policy,
-            on_retry: OnRetry(|_, _| {}),
+            on_retry: OnRetry(|_, _, _| {}),
         }
     }
 
-    /// Returns this client, which calls `on_retry` with the error and the number of each retry,
-    /// counted from 1, before the wait. A binary passes a function that logs the retry.
+    /// Returns this client set to call `on_retry` with the error, the URL of the request, and the
+    /// number of each retry, counted from 1, before the wait. A binary passes a function that logs
+    /// the retry.
     #[must_use]
-    pub const fn with_on_retry(mut self, on_retry: fn(&FailedSecRequest, u32)) -> Self {
+    pub const fn with_on_retry(mut self, on_retry: fn(&FailedSecRequest, &Url, u32)) -> Self {
         self.on_retry = OnRetry(on_retry);
         self
     }
@@ -160,7 +162,7 @@ where
             match self.client.execute_sec_request(request.clone()).await {
                 Err(error) if error.is_transient() && retry + 1 < self.policy.max_attempts => {
                     retry += 1;
-                    (self.on_retry.0)(&error, retry);
+                    (self.on_retry.0)(&error, request.inner.url(), retry);
                     let wait = RetryPolicy::jitter(self.policy.backoff(retry), fastrand::f64());
                     tokio::time::sleep(wait).await;
                 }
@@ -211,6 +213,7 @@ mod tests {
     use std::time::Duration;
 
     use pretty_assertions::assert_eq;
+    use url::Url;
 
     use super::{RetryPolicy, RetryingSecClient};
     use crate::shared::cik::Cik;
@@ -219,6 +222,8 @@ mod tests {
     use crate::shared::request::implementations::sec_request::{CompanyFacts, SecRequest};
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
     use crate::tests::fixtures::sample_rate_limiter::counting::CountingRateLimiter;
+
+    const COMPANY_FACTS_URL: &str = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
 
     /// A policy of 3 attempts without waits.
     const NO_WAIT_POLICY: RetryPolicy = RetryPolicy {
@@ -452,21 +457,25 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    /// The retry numbers that [`record_retry`] received. Only one test uses it.
-    static RECORDED_RETRIES: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+    /// The URLs and the retry numbers that [`record_retry`] received. Only one test uses it.
+    static RECORDED_RETRIES: Mutex<Vec<(String, u32)>> = Mutex::new(Vec::new());
 
-    fn record_retry(_error: &FailedSecRequest, retry: u32) {
+    fn record_retry(_error: &FailedSecRequest, url: &Url, retry: u32) {
         RECORDED_RETRIES
             .lock()
             .expect("Given a lock that no thread poisoned, locking should always succeed")
-            .push(retry);
+            .push((url.to_string(), retry));
     }
 
     #[tokio::test]
-    async fn should_call_on_retry_with_each_retry_number_when_every_attempt_gets_a_503() {
+    async fn should_call_on_retry_with_the_url_and_each_retry_number_when_every_attempt_gets_a_503()
+    {
         let client = retrying_client(503, "text/html", b"").with_on_retry(record_retry);
 
-        let expected_result = vec![1, 2];
+        let expected_result = vec![
+            (COMPANY_FACTS_URL.to_string(), 1),
+            (COMPANY_FACTS_URL.to_string(), 2),
+        ];
 
         let _ = client.execute_sec_request(company_facts_request()).await;
         let result = RECORDED_RETRIES

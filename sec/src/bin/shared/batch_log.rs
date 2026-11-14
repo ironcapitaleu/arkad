@@ -14,6 +14,7 @@ use sec::prelude::{StreamError, StreamItem};
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use serde_json::Value;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
+use url::Url;
 use uuid::Uuid;
 
 use crate::sec_client::{
@@ -84,13 +85,13 @@ pub fn startup_sec_client() -> Result<RunSecClient, Box<dyn Error + Send + Sync>
     Ok(sec_client.with_on_retry(log_request_retry))
 }
 
-/// Logs a request that the SEC client sends again after the transient SEC failure `error`.
-/// `retry` counts the retries of the request from 1.
-fn log_request_retry(error: &FailedSecRequest, retry: u32) {
+/// Logs a request to `url` that the SEC client sends again after the transient SEC failure
+/// `error`. `retry` counts the retries of the request from 1.
+fn log_request_retry(error: &FailedSecRequest, url: &Url, retry: u32) {
     tracing::warn!(
         event = %BatchEvent::RequestRetried,
         message = %error,
-        context = %serde_json::json!({ "retry": retry }),
+        context = %serde_json::json!({ "url": url.as_str(), "retry": retry }),
     );
 }
 

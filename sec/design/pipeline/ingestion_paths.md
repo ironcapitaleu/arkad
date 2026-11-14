@@ -1665,7 +1665,7 @@ Each machine ends in one of four outcomes:
     all of it. Each attempt takes its own permit of the rate limiter. A request of several files,
     such as the instance and the label file, retries each file on its own. All runs get this
     level, the `submissions` and Company Facts runs too. `backfill` and `daily_filings` log each
-    retry as `batch_request_retried`, with the error and the retry number.
+    retry as `batch_request_retried`, with the error, the URL, and the retry number.
   - **Per run.** The detection of a date, a filing machine, and a `submissions` machine that still
     fail with a transient SEC failure run once more, after the `DEFAULT_RETRY_DELAYS` of 60 s. A
     Notes period of `backfill().notes()` does the same. The retry lives in `extraction/retry.rs`

@@ -69,7 +69,7 @@ that the waits of both levels span.
 
 - A cut connection costs one request again, not a rerun of the machine.
 - `backfill` and `daily_filings` log each retry of a request as `batch_request_retried`, with the
-  error and the retry number. So a run log shows a 429 or a 503 even when a later attempt
+  error, the URL, and the retry number. So a run log shows a 429 or a 503 even when a later attempt
   succeeds.
 - A request of several files, such as a filing document set, retries each file on its own.
 - A 503 for a folder that does not exist costs 3 sends in each of 2 runs, so 6 sends, before the
