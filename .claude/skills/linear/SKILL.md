@@ -769,9 +769,10 @@ Always confirm with the user before making changes.
   body. Use this for the one current state-of-play comment (see "For the returning developer").
 
 A new comment needs no confirmation from the user. It adds to the ticket and changes no text of
-another person. Edit a comment without confirmation only if this session posted it. The Linear
-server posts as the user, so the author of a comment does not show who wrote it. Before you edit
-any other comment, ask the user, or post a new comment. A change to the issue itself still needs
+another person. Edit a comment without confirmation only if this session posted it, or if it
+starts with a handoff marker line (see the `handoff` skill). The Linear server posts as the user,
+so the author of a comment does not show who wrote it. Before you edit any other comment, ask the
+user, or post a new comment. A change to the issue itself still needs
 confirmation (see "Workflow: Updating an Issue").
 
 ## Label IDs
