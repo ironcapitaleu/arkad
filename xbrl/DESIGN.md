@@ -502,14 +502,15 @@ impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
 
 ```
 xbrl/src/core/elements/
-  mod.rs                         CanonicalElementKind, Concept, and the call of the middle
+  mod.rs                         CanonicalElementKind, Concept, Placed, and the call of the middle
                                  macro: StatementConcept, DisclosureConcept, the conversions
   macros.rs                      the innermost macro and the middle macro
+  roll_up.rs                     Placement, Weight, Group, GroupKind
   statement/
-    mod.rs                       the statement modules
-    balance_sheet.rs             BalanceSheetConcept
-    income_statement.rs          IncomeStatementConcept
-    cash_flow.rs                 CashFlowConcept
+    mod.rs                       the groups of every statement joined
+    balance_sheet.rs             BalanceSheetConcept, its placements and its groups
+    income_statement.rs          IncomeStatementConcept, its placements and its groups
+    cash_flow.rs                 CashFlowConcept, its placements, its groups, and its starts
   disclosure/
     mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
