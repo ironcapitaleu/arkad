@@ -65,11 +65,12 @@ Terms:
    holds the LEI records as GLEIF publishes them. The provenance of a record (§8.2) stays next to
    it and names its silver unit and raw document by key. No store holds the canonical facts of two
    data sources.
-5. **If several source stores hold facts of the same kind for a company, the metadata store picks
-   one by default, and the caller can name another.** The default follows a preference order per
-   company: the source of the home market of the company first, then the more trusted sources.
-   A caller that names a source reads that source. This is the read-time policy of §2.1. It covers facts. Decision 6 covers the
-   claims of the graph.
+5. **If several source stores hold records of the same kind for a company, the metadata store
+   picks one by default, and the caller can name another.** The default follows a preference order
+   per company: the source of the home market of the company first, then the more trusted sources.
+   A caller that names a source reads that source. This is the read-time policy of §2.1. It covers
+   the records of the source stores, such as facts or a legal address. Decision 6 covers the claims
+   of the graph.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
    "Design Rules" 2 and 3, settle the links between identifiers. The claim resolution spec of
    ADR 0001, "Open Questions", fixes the priority order, the review queue, and the rule for the
@@ -114,8 +115,8 @@ No option was measured.
 ## Open Questions
 
 - The full preference order of Decision 5 after the home market and the trusted sources, who
-  ranks the trust of a source, and the home market of a company that files in two markets, for
-  example the market of the legal address in its LEI record. The owner decides.
+  ranks the trust of a source, and the home market of a company that files in two markets. One
+  candidate is the market of the legal address in its LEI record. The owner decides.
 - Whether the source priority of the claim resolution spec (ADR 0001) and the preference order of
   Decision 5 are one list. The owner and the lead decide.
 - Where the check across source stores runs, and where the confidence from agreement across
@@ -137,6 +138,6 @@ No option was measured.
   Snowflake blog, 2026-06-30, read on 2026-11-14. The quotes and the benchmark figures above come
   from it.
 - `sec/design/pipeline/silver_layer.md`, "Layers", and `sec/design/data_model/hybrid_data_model.md`
-  §3, §4, §5, §6, §7, §8.2, on `main` at `070b916`, read on 2026-11-14.
+  §2, §2.1, §3, §4, §5, §6, §7, §8.2, on `main` at `070b916`, read on 2026-11-14.
 - [ADR 0001](0001-mvp-database.md), Amendment 1: the provenance size of 418 bytes per row,
   measured on 2026-11-08.
