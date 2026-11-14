@@ -61,8 +61,8 @@ Terms:
    the concepts and the periods. A claim of the graph, such as a GLEIF parent link (§5.2), is metadata.
    The load derives each claim from the records of the source store of its source, such as the
    GLEIF store. The claim sits in the metadata store with its source and date. Three writes change the
-   metadata store: the load, a verdict on an item of the review queue, and a person who sets the
-   ranking of Decision 5 in the graph. Unlike the
+   metadata store: the load, a verdict on an item of the review queue, and a hand edit of the
+   ranking or the home market of Decision 5. Unlike the
    Snowflake context layer, it does not learn from usage, such as the queries that reach the `/v1`
    API.
 4. **Each source store holds the records of its data source, with the provenance of each
@@ -74,11 +74,13 @@ Terms:
    picks one by default, and the caller can name another.** The default follows a preference order
    per company: the source of the home market of the company first, then the more trusted sources.
    The home market of each company and the rank of each source store for it sit in the graph of the
-   metadata store, and a person edits them there. The order is a decision per company,
-   not one global list. For example, Alibaba lists in Hong Kong and files with the SEC. At the SEC
-   it files the annual 20-F of a foreign issuer, not the 10-K and 10-Q of a domestic filer, so
-   for Alibaba the Hong Kong source ranks above the SEC. At first the order is set by hand: the
-   trust of a source is a judgment, and a source as well known as the SEC ranks high. A caller
+   metadata store, and a person edits them there. The order is a decision per company, not one
+   global list. For example, Hong Kong is the home market of Alibaba. At the SEC, Alibaba files
+   only the annual 20-F of a foreign issuer, with no quarterly 10-Q. So for Alibaba the Hong Kong
+   source ranks above the SEC, and for Apple the SEC ranks first. Until a person ranks a store for
+   a company, the load gives it a default rank from the home market and the trust of the source. A
+   load never changes a rank that a person set. At first the trust of a source is a judgment set
+   by hand, and a source as well known as the SEC ranks high. A caller
    that names a source reads that source. This is the read-time policy of §2.1. It covers
    the records of the source stores, such as facts or a legal address. Decision 6 covers the claims
    of the graph.
@@ -93,7 +95,7 @@ No option was measured.
 
 | Option | Serves the screener and `/v1` | A query finds which source holds a fact | Adding a data source |
 | ------ | ----------------------------- | --------------------------------------- | -------------------- |
-| **A (chosen):** one metadata store, a knowledge graph of all data sources, over one source store per data source, each with its canonical facts | Yes. A screener across regions reads several source stores | Yes, in the metadata store | A new source store and its entries in the metadata store |
+| **A (chosen):** one metadata store, a knowledge graph of the companies, the concepts, and the data sources, over one source store per data source, each with its canonical facts | Yes. A screener across regions reads several source stores | Yes, in the metadata store | A new source store and its entries in the metadata store |
 | B: a metadata store over one shared canonical fact tier, with provenance per fact | Yes. A screener reads one tier | Yes, in the provenance of each fact | A new adapter and its resolution map. The shared tables do not change |
 | C: gold is a serving store of the graph and the facts, with provenance in silver only | Yes | No, a reader goes to silver | A new adapter and its resolution map |
 
@@ -130,12 +132,13 @@ No option was measured.
   candidate input. It needs several sources and those checks first. The owner decides.
 - How a hand-set ranking keeps who set it and when, since no pull request reviews it. The gold
   design fixes it.
-- How the metadata store sets the home market of a company that files in two markets. One
-  candidate is the market of the legal address in its LEI record. The owner decides.
+- Which rule a person follows to set the home market of a company that lists in two markets. The
+  candidates are the market of its primary listing and the market of the legal address in its LEI
+  record. The owner decides.
 - Which source sets the attributes of a `Company` node (§5.1), such as the name and the country,
   when two source stores disagree, and whether the preference order of Decision 5 decides it. The owner decides.
-- Whether the source priority of the claim resolution spec (ADR 0001) and the preference order of
-  Decision 5 are one list. The owner and the lead decide.
+- Whether the claim resolution spec of ADR 0001 ranks the claims of a company by the per-company
+  order of Decision 5, or keeps a fixed source priority. The owner and the lead decide.
 - Where the check across source stores runs, and where the confidence from agreement across
   sources (§2.1) lives. The gold design fixes it.
 - The gold tables and their write rule, and the tier of the records that are not facts, such as
@@ -149,7 +152,7 @@ No option was measured.
   and the date, 2026-11-14.
 - The owner's decisions on the draft, 2026-11-14, recorded in a
   [comment on STA-512](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-d6de906d): one metadata store, a knowledge graph
-  of all data sources, over one store per data source with its facts and their provenance. The
+  of the companies, the concepts, and the data sources, over one store per data source with its facts and their provenance. The
   canonical facts stay in each source store. The metadata store resolves entities, lists the
   sources of each company with their keys, and picks a source by a hand-set preference order that
   a caller can override.
