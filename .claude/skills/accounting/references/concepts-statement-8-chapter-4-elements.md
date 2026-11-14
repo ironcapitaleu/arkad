@@ -8,16 +8,27 @@ update-frequency: annually
 
 Source: FASB Statement of Financial Accounting Concepts No. 8, "Conceptual Framework for Financial
 Reporting", Chapter 4, "Elements of Financial Statements" (December 2021). It replaced FASB
-Concepts Statement No. 6 (formerly SFAC 6, 1985).
+Concepts Statement No. 6 (SFAC 6, 1985).
 
-The definitions below quote the paragraphs of Chapter 4 as FASB wrote them. Footnote references
-are left out. The paragraph numbers are those of Chapter 4.
+The definitions below quote the paragraphs of Chapter 4 as FASB wrote them. The file leaves out
+footnote references. The paragraph numbers are those of Chapter 4.
 
 ## The Ten Elements
 
-E1 lists the ten elements: assets, liabilities, equity (net assets), investments by owners,
-distributions to owners, comprehensive income, revenues, expenses, gains, and losses. "The
-definitions in this chapter apply to both business entities and not-for-profit entities."
+E1: This chapter defines the following 10 elements of financial statements:
+
+- a. Assets
+- b. Liabilities
+- c. Equity (net assets)
+- d. Investments by owners
+- e. Distributions to owners
+- f. Comprehensive income
+- g. Revenues
+- h. Expenses
+- i. Gains
+- j. Losses.
+
+The definitions in this chapter apply to both business entities and not-for-profit entities.
 
 ### 1. Assets (E16)
 
@@ -97,7 +108,7 @@ contributions received and made.
 
 ## Key Relationships (Identities)
 
-These follow from the definitions above:
+The `accounting` skill relies on these identities:
 
 1. **Assets = Liabilities + Equity** (Balance Sheet)
 2. **Comprehensive Income = Revenues - Expenses + Gains - Losses**

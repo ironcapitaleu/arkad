@@ -30,8 +30,10 @@ The ten US GAAP elements are assets, liabilities, equity, investments by owners,
 owners, comprehensive income, revenue, expenses, gains, and losses. SFAC 6 (1985) defined them.
 Concepts Statement 8, Chapter 4 (December 2021) replaced SFAC 6. It keeps the ten elements. It
 changes the definitions of assets and liabilities: for example, it drops "probable" and "past
-transactions or events". `references/concepts-statement-8-chapter-4-elements.md` quotes the
-definitions of Chapter 4. The five IFRS elements are assets, liabilities, equity, income,
+transactions or events". It also drops "ongoing major or central operations" from revenues and
+expenses, and "peripheral or incidental" from gains and losses. E84 counts interest, rent,
+royalties, and fees as revenues from "other activities".
+`references/concepts-statement-8-chapter-4-elements.md` quotes the definitions of Chapter 4. The five IFRS elements are assets, liabilities, equity, income,
 and expenses. IFRS income includes gains, and IFRS expenses include losses.
 
 ## Identities

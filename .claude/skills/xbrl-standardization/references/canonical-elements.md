@@ -1,6 +1,6 @@
 ---
 source: xbrl/src/core/elements.rs
-last-verified: 2026-11-09
+last-verified: 2026-11-14
 update-frequency: on-code-change
 ---
 
@@ -18,7 +18,7 @@ are those of Chapter 4.
 | Assets | Balance Sheet | Instant | E16 |
 | Liabilities | Balance Sheet | Instant | E37 |
 | Equity | Balance Sheet | Instant | E61 |
-| Revenue | Income Statement | Duration | E80 |
+| Revenue | Income Statement | Duration | E80, see the note below |
 | Expenses | Income Statement | Duration | E81 |
 | Gains | Income Statement | Duration | E82 |
 | Losses | Income Statement | Duration | E83 |
@@ -28,6 +28,10 @@ are those of Chapter 4.
 | OperatingCashFlow | Cash Flow | Duration | Activity |
 | InvestingCashFlow | Cash Flow | Duration | Activity |
 | FinancingCashFlow | Cash Flow | Duration | Activity |
+
+Note: the `Revenue` root is narrower than E80. It holds the revenue line the filer reports. It
+leaves out the revenues from "other activities" of E84, such as interest income. `xbrl/DESIGN.md`,
+"Roll-Up Tree", puts interest income in other non-operating income.
 
 ## Level 2 — Balance Sheet
 
