@@ -438,8 +438,9 @@ no roll-up check.
   are not a side group. A segment value is a standard concept with a member of a segment axis, and
   its own design decides how the tree applies to it.
 
-`SideGroup` is an enum with `#[non_exhaustive]`. A new side group adds a variant and its concepts.
-It changes no placement, no group, and no check of the trees.
+A side group is a variant of `CanonicalElement` with its own concept enum, such as
+`PerShare(PerShareConcept)`. A new side group adds a variant and its concepts (see "Extension
+Model"). It changes no placement, no group, and no check of the trees.
 
 **Changes in equity** get no statement in the MVP. The statement of changes in equity is a roll
 forward per component of equity, such as retained earnings and treasury stock. Filers tag each
@@ -498,8 +499,13 @@ xbrl/src/core/statement/
 - The name in silver stays the name of the inner variant, such as `NetIncome`, not a path such as
   `IncomeStatement.NetIncome`. A test checks that no two inner variants share a name. So the parse
   from the name finds one concept, and every stored name stays valid.
-- The alias lists and the part rules name a `CanonicalElement`. `From` lets a list write
-  `BalanceSheetConcept::Assets.into()`.
+- The alias lists and the part rules name a `CanonicalElement`. They are `const` tables, and
+  `From::from` is no `const fn`. So they write the full path, such as
+  `CanonicalElement::BalanceSheet(BalanceSheetConcept::Assets)`, or call a `const fn` that each
+  concept enum provides. `From` serves code that runs at run time.
+- `Display` and `Serialize` write the name of the inner variant, such as `Assets`, as the name in
+  silver does. A derived `Serialize` writes `{"BalanceSheet":"Assets"}`, so the implementation
+  writes both by hand. `Ord` sorts by statement first, then by concept.
 
 A change touches these places, and no others:
 
@@ -2068,8 +2074,9 @@ pub struct StatementLine {
   value as "Roll-Up Tree" describes.
 - A line of `Line::Standard` points to its standardized fact, so a reader can see its confidence,
   rule, and inputs.
-- The kind fixes the period type: instant for the balance sheet, duration for the rest. The table
-  gives each concept one statement, so `build` rejects a fact of another kind at run time.
+- The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
+  takes the concepts of its statement, and the start of a step from another statement, such as
+  `NetIncome` in the cash flow statement. It rejects every other fact.
 - The layout, the other lines, and the checks all come from the table. A new concept adds a row to
   the table and a variant to the concept enum of its statement.
 - The fields are private, so a `Statement` cannot change its kind after a check. Getters give
@@ -2104,6 +2111,10 @@ impl TryFrom<Statement> for BalanceSheet {
   rejects a concept of another statement, and no list of accessors can drift from the table. If a
   concept moves to another statement, its variant moves to another enum, and each caller that asks
   the old view for it fails to compile.
+- A step can start from a line of another statement. The view gives each such start its own
+  accessor, such as `CashFlowStatement::net_income()`. Today `NetIncome` in the cash flow
+  statement is the only one. A unit test checks that each view has one accessor for each start
+  that the table gives it from another statement.
 - `line` returns `None` if the statement has no line for the concept: a parent with no value, which
   is transparent. A child with no value has a line with `value: None`.
 - `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
@@ -2113,9 +2124,9 @@ impl TryFrom<Statement> for BalanceSheet {
 - `FinancialStatement` holds any of the three. It has `#[non_exhaustive]`, so a later statement,
   such as the changes in equity, adds a variant, a `StatementKind`, and a view. No existing view
   changes.
-- As in the `sec` error hierarchy, each view converts up with `From<BalanceSheet> for
-  FinancialStatement`, and down with `TryFrom<FinancialStatement> for BalanceSheet`. The downward
-  conversion gives the value back if it holds another statement. "Extension Model" lists the
+- Each view converts up with `From<BalanceSheet> for FinancialStatement`, and down with
+  `TryFrom<FinancialStatement> for BalanceSheet`, as the `sec` error hierarchy does. Unlike `sec`,
+  the downward conversion gives the value back if it holds another statement. "Extension Model" lists the
   modules.
 - Side groups need no layout. A reader takes their values from the standardized facts.
 - Silver stores no statement. The gold load builds statements with these types.
