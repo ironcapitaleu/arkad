@@ -75,6 +75,7 @@ between options, run this test before you write the code:
 | Another ticket, crate, or run must follow the choice | The choice stays inside one module |
 | A reversal costs a migration, stored data, or a public interface | A reversal is one PR |
 | The choice rests on a measurement that can go out of date | The choice follows from the code or from a rule of this file |
+| The options were close, or a reviewer or the owner questioned the choice, and the code does not show why one option won | The code shows why one option won |
 
 If a row of the left column holds, write the ADR, even if a row of the right column also holds.
 The test covers decisions about the code and the systems it runs on. A guideline edit needs no
