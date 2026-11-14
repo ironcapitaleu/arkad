@@ -62,7 +62,7 @@ Terms:
    The load derives each claim from the records of the source store of its source, such as the
    GLEIF store. The claim sits in the metadata store with its source and date. Three writes change the
    metadata store: the load, a verdict on an item of the review queue, and a hand edit of the
-   ranking or the home market of Decision 5. Unlike the
+   ranking, the home market, or the trust of a source (Decision 5). Unlike the
    Snowflake context layer, it does not learn from usage, such as the queries that reach the `/v1`
    API.
 4. **Each source store holds the records of its data source, with the provenance of each
@@ -71,19 +71,22 @@ Terms:
    it and names its silver unit and raw document by key. No store holds the canonical facts of two
    data sources.
 5. **If several source stores hold records of the same kind for a company, the metadata store
-   picks one by default, and the caller can name another.** The default follows a preference order
-   per company: the source of the home market of the company first, then the more trusted sources.
-   The home market of each company and the rank of each source store for it sit in the graph of the
-   metadata store, and a person edits them there. The order is a decision per company, not one
-   global list. For example, Hong Kong is the home market of Alibaba. At the SEC, Alibaba files
-   only the annual 20-F of a foreign issuer, with no quarterly 10-Q. So for Alibaba the Hong Kong
-   source ranks above the SEC, and for Apple the SEC ranks first. Until a person ranks a store for
-   a company, the load gives it a default rank from the home market and the trust of the source. A
-   load never changes a rank that a person set. At first the trust of a source is a judgment set
-   by hand, and a source as well known as the SEC ranks high. A caller
-   that names a source reads that source. This is the read-time policy of §2.1. It covers
-   the records of the source stores, such as facts or a legal address. Decision 6 covers the claims
-   of the graph.
+   picks one by default, and the caller can name another.** A caller that names a source reads
+   that source. This is the read-time policy of §2.1. It covers the records of the source stores,
+   such as facts or a legal address. Decision 6 covers the claims of the graph.
+   - **The order is per company.** The source of the home market of the company comes first, then
+     the more trusted sources. Each company has its own order, not one global list.
+   - **Example.** Alibaba lists in Hong Kong and New York. At the SEC it files the annual 20-F of a
+     foreign issuer and furnishes its quarterly results on Form 6-K, without the XBRL facts of a
+     10-Q. If a person sets Hong Kong as its home market, the Hong Kong source ranks above the SEC
+     for Alibaba. For Apple, the SEC ranks first.
+   - **Where it sits.** The home market of each company and the rank of each source store for it sit
+     in the graph. The trust of a source sits on the node of the data source. A person edits all
+     three in the graph. At first the trust is a judgment, and a source as well known as the SEC
+     ranks high.
+   - **Default rank.** Until a person ranks a store for a company, the load gives it a default rank
+     from the home market and the trust of the source. If a company has no home market yet, the
+     default follows the trust alone. A load never changes a rank that a person set.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
    "Design Rules" 2 and 3, settle the links between identifiers. The claim resolution spec of
    ADR 0001, "Open Questions", fixes the priority order, the review queue, and the rule for the
