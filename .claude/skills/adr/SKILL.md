@@ -4,9 +4,11 @@ description: >
   Use when the user asks to "write an ADR", "record this decision", "amend the ADR", "supersede
   the ADR", or asks "does this need an ADR" or "why is the code like this". Also use when a task
   makes you choose between options and the test in AGENTS.md, "Architecture Decision Records",
-  says to write an ADR. Also use when you remove history or a past decision from a document, to
-  check whether the decision needs an ADR first.
-version: 0.2.0
+  says to write an ADR. Also use for an architecture decision that is hard to reverse or has
+  long-term trade-offs for the system or the team. Also use for one that a later engineer will
+  question. Also use when you remove history or a past decision from a document, to check whether
+  the decision needs an ADR first.
+version: 0.3.0
 ---
 
 # ADR Skill
@@ -28,6 +30,8 @@ for when a decision needs an ADR.
 - **Before you remove a past decision from a document**, run the test below on that decision. If
   it passes and no ADR holds it, write the ADR in the same PR. Set `Date` to the date of the
   decision, and name the source of that date.
+- **If a later engineer will question an architecture decision** and the test does not say ADR,
+  ask the owner. Name the decision and the options in the PR description.
 
 To write an ADR:
 
