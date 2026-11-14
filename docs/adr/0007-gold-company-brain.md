@@ -78,15 +78,17 @@ Terms:
      the more trusted sources. Each company has its own order, not one global list.
    - **Example.** Alibaba lists in Hong Kong and New York. At the SEC it files the annual 20-F of a
      foreign issuer and furnishes its quarterly results on Form 6-K, without the XBRL facts of a
-     10-Q. If a person sets Hong Kong as its home market, the Hong Kong source ranks above the SEC
+     10-Q, so the SEC store holds no quarterly facts for Alibaba. If a person sets Hong Kong as its
+     home market, and a Hong Kong source store exists, the Hong Kong source ranks above the SEC
      for Alibaba. For Apple, the SEC ranks first.
    - **Where it sits.** The home market of each company and the rank of each source store for it sit
      in the graph. The trust of a source sits on the node of the data source. A person edits all
      three in the graph. At first the trust is a judgment, and a source as well known as the SEC
-     ranks high.
-   - **Default rank.** Until a person ranks a store for a company, the load gives it a default rank
+     gets a high trust.
+   - **Default rank.** Until a person ranks a store for a company, the store has a default rank
      from the home market and the trust of the source. If a company has no home market yet, the
-     default follows the trust alone. A load never changes a rank that a person set.
+     default follows the trust alone. A default rank follows each change of the home market or the
+     trust. A load never changes a rank that a person set.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
    "Design Rules" 2 and 3, settle the links between identifiers. The claim resolution spec of
    ADR 0001, "Open Questions", fixes the priority order, the review queue, and the rule for the
