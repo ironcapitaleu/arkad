@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-11-14 ([STA-350 comment `8e56fa8a`](https://linear.app/state-machine/issue/STA-350#comment-8e56fa8a)). |
+| Status | Accepted by the project lead on 2026-11-14 ([STA-350 comment `8e56fa8a`](https://linear.app/state-machine/issue/STA-350#comment-8e56fa8a)). |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-350](https://linear.app/state-machine/issue/STA-350) researched the options. Linear document "STA-350 Findings: How Raw Sources Are Named" holds the findings. |
