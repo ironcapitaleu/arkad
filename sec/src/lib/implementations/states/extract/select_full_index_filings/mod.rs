@@ -46,6 +46,38 @@ pub struct SelectFullIndexFilings {
 
 impl SelectFullIndexFilings {
     /// Creates a new [`SelectFullIndexFilings`] state with no output computed yet.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytes::Bytes;
+    /// use chrono::NaiveDate;
+    /// use sec::implementations::states::extract::select_full_index_filings::*;
+    /// use sec::shared::stored_form_index::StoredFormIndex;
+    /// use state_maschine::prelude::State as SMState;
+    /// use storage::Sha256Digest;
+    /// use storage::implementations::repository::filesystem::DocumentKey;
+    /// use uuid::Uuid;
+    ///
+    /// let index = StoredFormIndex {
+    ///     key: DocumentKey::new("sec/full-index/2026/QTR4/form.idx")
+    ///         .expect("Given a hardcoded valid relative path, the key should always build"),
+    ///     sha256: Sha256Digest::of(b"---"),
+    ///     text: Bytes::from_static(b"---"),
+    /// };
+    /// let day = NaiveDate::from_ymd_opt(2026, 10, 1)
+    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let state = SelectFullIndexFilings::new(
+    ///     SelectFullIndexFilingsInput::new(index),
+    ///     SelectFullIndexFilingsContext::new(Uuid::nil(), day, day),
+    /// );
+    ///
+    /// let expected_result = false;
+    ///
+    /// let result = state.has_output_data_been_computed();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(
         input: SelectFullIndexFilingsInput,
@@ -82,8 +114,14 @@ impl State for SelectFullIndexFilings {
     ///
     /// # Errors
     ///
+    /// Returns [`StateError::InvalidContext`] if the first date filed of the context comes after
+    /// its last date filed. Such a range selects no filing, and a run would report success.
+    ///
     /// Returns [`StateError::InvalidFullIndex`] if [`parse_form_index`] rejects the index text.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        if self.context.first_filed_date > self.context.last_filed_date {
+            return Err(StateError::InvalidContext);
+        }
         let rows = parse_form_index(&String::from_utf8_lossy(&self.input.index.text))
             .map_err(|e| InvalidFullIndex::from_domain_error(STATE_NAME, e))?;
         let dates = self.context.first_filed_date..=self.context.last_filed_date;
@@ -240,7 +278,43 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_keep_the_row_of_the_first_date_when_the_range_starts_on_it() {
+    async fn should_keep_index_order_when_the_range_spans_two_days() {
+        let mut state = test_state(
+            SAMPLE_FULL_INDEX_2026_Q3,
+            date(2026, 9, 29),
+            date(2026, 9, 30),
+        );
+
+        let expected_result = vec![
+            "0001493152-26-044953".to_string(),
+            "0001193125-26-409138".to_string(),
+            "0001104659-26-111786".to_string(),
+            "0001170010-26-000104".to_string(),
+            "0001104659-26-112415".to_string(),
+        ];
+
+        let result = selected_accession_numbers(&mut state).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_context_when_the_first_filed_date_is_after_the_last() {
+        let mut state = test_state(
+            SAMPLE_FULL_INDEX_2026_Q3,
+            date(2026, 9, 30),
+            date(2026, 9, 29),
+        );
+
+        let expected_result = Err(StateError::InvalidContext);
+
+        let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_only_the_row_of_the_day_when_the_range_is_one_day() {
         let mut state = test_state(
             SAMPLE_FULL_INDEX_2026_Q3,
             date(2026, 9, 29),

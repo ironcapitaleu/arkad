@@ -31,6 +31,26 @@ pub struct SelectFullIndexFilingsContext {
 
 impl SelectFullIndexFilingsContext {
     /// Creates a new [`SelectFullIndexFilingsContext`] with a retry budget of 0.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use chrono::NaiveDate;
+    /// use sec::implementations::states::extract::select_full_index_filings::SelectFullIndexFilingsContext;
+    /// use uuid::Uuid;
+    ///
+    /// let first = NaiveDate::from_ymd_opt(2026, 9, 1)
+    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let last = NaiveDate::from_ymd_opt(2026, 9, 30)
+    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let context = SelectFullIndexFilingsContext::new(Uuid::nil(), first, last);
+    ///
+    /// let expected_result = 0;
+    ///
+    /// let result = context.max_retries;
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(
         execution_id: Uuid,
@@ -182,6 +202,37 @@ mod tests {
 
         context.update_context(update);
         let result = context.context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_leave_the_context_unchanged_when_update_is_empty() {
+        let mut context =
+            SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+        let update = SelectFullIndexFilingsContextUpdater::builder().build();
+
+        let expected_result =
+            &SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+
+        context.update_context(update);
+        let result = context.context();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_replace_the_retry_budget_when_update_contains_it() {
+        let mut context =
+            SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+        let update = SelectFullIndexFilingsContextUpdater::builder()
+            .max_retries(3)
+            .build();
+
+        let expected_result = 3;
+
+        context.update_context(update);
+        let result = context.max_retries;
 
         assert_eq!(result, expected_result);
     }

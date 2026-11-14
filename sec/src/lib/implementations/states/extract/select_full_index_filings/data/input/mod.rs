@@ -22,6 +22,29 @@ pub struct SelectFullIndexFilingsInput {
 
 impl SelectFullIndexFilingsInput {
     /// Creates a new [`SelectFullIndexFilingsInput`] from a stored full index.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytes::Bytes;
+    /// use sec::implementations::states::extract::select_full_index_filings::SelectFullIndexFilingsInput;
+    /// use sec::shared::stored_form_index::StoredFormIndex;
+    /// use storage::Sha256Digest;
+    /// use storage::implementations::repository::filesystem::DocumentKey;
+    ///
+    /// let index = StoredFormIndex {
+    ///     key: DocumentKey::new("sec/full-index/2026/QTR4/form.idx")
+    ///         .expect("Given a hardcoded valid relative path, the key should always build"),
+    ///     sha256: Sha256Digest::of(b"---"),
+    ///     text: Bytes::from_static(b"---"),
+    /// };
+    ///
+    /// let expected_result = 3;
+    ///
+    /// let result = SelectFullIndexFilingsInput::new(index).index.text.len();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     #[must_use]
     pub const fn new(index: StoredFormIndex) -> Self {
         Self { index }
