@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover. Also posts the stale points of that ticket in a comment.
-version: 0.5.0
+version: 0.6.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -188,10 +188,24 @@ an old measurement, a split of the ticket, a file path or symbol that moved.
 Leave **one** current comment of each kind on the ticket through the `linear` skill, in status
 voice. The two kinds are the state-of-play comment and the short update comment. If an earlier
 handoff left a comment of the same kind and the session can edit a comment, edit that comment.
-Otherwise post a new one. If it replaces an earlier comment, name that comment in its first line.
-Never replace a state-of-play comment with a short update comment. If a state-of-play comment
-exists, the first line of the short update names it and says which of its points are now out of
-date.
+Otherwise post a new one. If it replaces an earlier comment, name that comment in the line after
+the marker. Never replace a state-of-play comment with a short update comment. If a
+state-of-play comment exists, the line after the marker of the short update names it and says
+which of its points are now out of date.
+
+Start each comment with its marker line, so a reader sees at once that this skill posted it. The
+marker is a quote line with the kind of comment and the time of the post in UTC:
+
+```markdown
+> 🤝 **Handoff · State of play** · 2026-11-14 07:55 UTC
+```
+
+```markdown
+> 🤝 **Handoff · Update** · 2026-11-14 07:55 UTC
+```
+
+Find an earlier comment of the same kind by its marker. If you edit a comment, set the new time in
+its marker.
 
 - For the Linear destination, the state-of-play comment holds one more list: "Stale on this
   ticket".
