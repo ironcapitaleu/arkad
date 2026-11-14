@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the lead on 2026-11-14 ([STA-500 comment `dd86cbdf`](https://linear.app/state-machine/issue/STA-500#comment-dd86cbdf)) |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-500](https://linear.app/state-machine/issue/STA-500) acts on the decision. [STA-499](https://linear.app/state-machine/issue/STA-499) made the design |
