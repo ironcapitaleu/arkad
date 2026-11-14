@@ -76,7 +76,7 @@ graph LR
 4. **With SEC data only, each new listing gets its own security.** The security has no identifier
    row. Its `ISSUED_BY` claim comes from the CIK of the filing. If a later `figi_share_class` claim
    names two such securities, they join: the older `security_id` survives, and the other gets a
-   dated `same_as` event.
+   dated `same_as` event. The `ISSUED_BY` claim of such a security ends when its listing ends.
 5. **A listing with no exchange takes the first exchange that a later filing names for its
    ticker.** It has no `ON_EXCHANGE` edge until then.
 6. **A code is a claim on a company.** The SEC gives the SIC to the registrant, not to a security.
@@ -110,7 +110,7 @@ tables stay open (ADR 0007, "Open Questions"), so the columns below are the logi
 | `valid_from` | The start of the record that gives the value |
 | `valid_to` | The start of the next record of the same source and subject with another value. Null while no such record exists |
 | `source` | The data source, for example `sec` |
-| `verifiability` | `Verified` for a registry or a filing, `Reported` for a third party, such as an LEI from SEC N-PORT (`hybrid_data_model.md` §5.2) |
+| `verifiability` | `Verified` for a registry, or for a filing of the subject itself. `Reported` for a value that a third party files about the subject, such as an LEI in a fund's SEC N-PORT filing (`hybrid_data_model.md` §5.2) |
 | `record` | The key of the record in silver: the unit and the filing |
 
 The row sets are `company_identifiers`, `security_identifiers`, `listing_identifiers`, and
@@ -121,6 +121,9 @@ The row sets are `company_identifiers`, `security_identifiers`, `listing_identif
   "Open Questions", fixes which row a reader gets.
 - **A null value ends nothing.** A filing with no ticker keeps the previous ticker valid, as in
   "Company Attributes Over Time" of `silver_layer.md`.
+- **A ticker matches an open listing of the same company and source with the same symbol.** If
+  both exchanges are set and differ, the ticker gives a new listing, and the old listing ends. If
+  the ticker has no exchange, it matches the open listing and changes nothing.
 - **A ticker list ends the listings it omits.** If a filing of a company has a non-empty `tickers`
   list, each open listing of that company and source that the list does not name ends at the start
   of that filing. So `FB` ends at the first filing that lists `META` only. An empty or null list
@@ -153,7 +156,7 @@ stores each fetch as a dated row.
 | Scheme | Level | Source |
 | ------ | ----- | ------ |
 | `cik` | Company | SEC filings |
-| `lei` | Company | SEC N-PORT as a seed, marked unverified. GLEIF as the source of truth |
+| `lei` | Company | SEC N-PORT as a seed, marked `Reported`. GLEIF as the source of truth |
 | `us_ticker` | Listing | `dei:TradingSymbol` of SEC filings |
 | `figi`, `figi_share_class` | Listing, security | OpenFIGI |
 | `sic` | Company, as a code | SEC filings and `submissions` |
@@ -201,6 +204,8 @@ D. The standing rule of the epic MVP Data Pt. 2 holds:
 - Values that a person sets. They are stored apart from the records, and their layer is not part
   of this design.
 - The gold tables: ADR 0007, "Open Questions".
+- How often a filing tags only part of its 12(b) table. The ticker list rule ends each listing that
+  the list omits, so a partial table ends a listing by mistake. Nobody measured it.
 - Ownership and parent links, such as `SUBSIDIARY_OF`: `hybrid_data_model.md` §5.2.
 - Whether bronze can keep a file that holds ISINs, such as the GLEIF and ANNA map from LEI to ISIN:
   ADR 0010, "Open Questions".

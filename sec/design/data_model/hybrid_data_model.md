@@ -207,8 +207,8 @@ and listings as rows of `(scheme, value)` with a source and a validity
 - **Primary key: `company_id`, an opaque internal key.** The load assigns it once and never
   reuses or changes it ([ADR 0001](../../../docs/adr/0001-mvp-database.md), "Design Rules" 4).
   Facts, graph nodes, and provenance key on it.
-- **The company is not the legal entity.** One listed company can span several legal entities over
-  time, each with its own LEI, and one CIK can name several legal entities in turn. So neither the
+- **The company is not the legal entity.** One listed company can span several legal entities
+  over time, each with its own LEI. One CIK can name several legal entities in turn. So neither the
   LEI nor the CIK is the key (Linear document "Entity Resolution: the Company Key, LEI, and Dated
   CIKs: Findings").
 - **`cik` and `lei` are dated identifiers of a company.** Each is a row of `(scheme, value)` with a
@@ -286,9 +286,10 @@ conflict). So every relationship edge carries a uniform **claim envelope** besid
 
 Rules: the load derives each claim from the records of its source on each run
 ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 3). The history of a claim
-lives in the dated records that silver keeps. `valid_from` is the `as_of` of the first record that
-gives the payload, and `valid_to` is the `as_of` of the next record of the same source that gives
-another payload. Claims are
+lives in the dated records that silver keeps. `valid_from` is the start of the first record that
+gives the payload: the `accepted` time of a filing, or `filed` if `accepted` is null. `valid_to` is
+the start of the next record of the same source and subject that gives another payload
+([`identifier_model.md`](./identifier_model.md)). Claims are
 **never destructively merged** — conflicting claims
 coexist; which one "wins" is **read-time policy** (most-recent `as_of`, highest
 verifiability, or "show all with sources"); cross-source **agreement upgrades confidence**,
@@ -300,7 +301,7 @@ for each of these"):
 
 | Element | Check |
 | --- | --- |
-| `Company` | has ≥ 1 `Identifier`; exactly one *primary* id; no orphan companies |
+| `Company` | has one `company_id`; has ≥ 1 `Identifier` row valid at each point in its life; no orphan companies |
 | `Identifier` | validates against its scheme (LEI check digit, CIK format); LEI: GLEIF status current (issued, not lapsed) |
 | `HAS_FILING` / `Filing` | filing exists verbatim in the adapter raw store (§8 drift check) |
 | `COVERS_PERIOD` | period arithmetic consistent (dates ↔ fiscal year; four quarters ≈ FY, §5.4) |
@@ -622,8 +623,8 @@ flowchart LR
   adapter maintains CIK→LEI.
 - **Minimal viable → automated:** (1) static hardcoded map now (mirrors the sample CIKs in
   `cik/constants.rs`); (2) batch cross-reference GLEIF golden-copy × SEC ticker/CIK map;
-  (3) on-demand GLEIF API lookup at ingest with cache. Ambiguous/missing → keep the
-  `company_id`, flag for review, add the LEI later as an identifier row.
+  (3) on-demand GLEIF API lookup at ingest with cache. Ambiguous or missing → resolve
+  by CIK, flag for review, add the LEI later as an identifier row.
 - **SEC pipelines start from `Cik`, and that is fine.** The ETL takes a `Cik` as input;
   identity resolution to `CompanyId` happens **at the Load step** — Extract/Transform stay
   purely SEC-native and are never blocked on LEI availability.

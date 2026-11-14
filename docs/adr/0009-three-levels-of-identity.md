@@ -71,8 +71,8 @@ No option was measured.
   their own.
 - The SEC filings give no key for a security: the share class of a ticker is not in silver. So
   with SEC data only, each new listing gets its own security with no identifier row, and its issuer
-  comes from the CIK of the filing. A `figi_share_class` claim joins two such securities later,
-  with a dated `same_as` event.
+  comes from the CIK of the filing, and ends when its listing ends. A `figi_share_class` claim
+  joins two such securities later, with a dated `same_as` event.
 - With SEC data only, a ticker change gives a new listing. A `figi` claim joins the two listings
   later, with a dated `same_as` event.
 - Prices and a ticker search key on `listing_id`.
