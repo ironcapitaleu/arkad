@@ -60,8 +60,8 @@ None of this section has code. It follows
 - **Transform** reads the raw store and writes silver: Parquet units and the `silver_files` list
   ([`silver_layer.md`](../pipeline/silver_layer.md)).
 - **Load** reads one silver unit and writes its graph rows, its fact rows, and a ledger row in one
-  Postgres transaction. The backend lives in `storage-postgres`. A ledger of loaded units makes a
-  rerun skip.
+  Postgres transaction. The backend lives in `storage-postgres`. If the ledger holds a unit, a
+  rerun skips it.
 - The graph tier and the fact tier share one Supabase Postgres database (ADR 0001).
 - Read methods beyond `get` and `list`, such as the queries of the screener and the API, wait for
   a consumer that needs them.

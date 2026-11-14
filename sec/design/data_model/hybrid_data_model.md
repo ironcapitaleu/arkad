@@ -51,7 +51,7 @@ What to carry forward vs. change (detail in §10):
 
 The model serves one goal: a **company brain** in gold. A metadata store holds the knowledge graph
 of companies and identifiers (§5), the canonical concepts (§3), and the provenance of each fact
-(§8.2). It sits over the source stores: the fact tier (§6), and links to silver and the raw store.
+(§8.2). It sits over the fact tier (§6) and links to silver and the raw store.
 [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision.
 
 ```mermaid

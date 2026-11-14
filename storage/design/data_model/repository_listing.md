@@ -16,7 +16,7 @@ have no code. The lead must still review the decision in
 
 | Section | Content | Decision |
 | ------- | ------- | -------- |
-| [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | Why the listing reopens one item of the deferred read surface, and why the listing is no `scan` | Yes |
+| [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | How the listing relates to the other read methods, and why it returns no bytes | Yes |
 | [The Trait](#the-trait) | `ListRepository`, the filter, the entry, the error | Yes |
 | [Filesystem Sketch](#filesystem-sketch) | The walk, orphans, temporary files, cost, limits | Yes |
 | [Ordering and Consistency](#ordering-and-consistency) | Sort order, what a listing sees during a write | Yes |
@@ -27,24 +27,20 @@ have no code. The lead must still review the decision in
 
 ## Relation to the Deferred Read Surface
 
-Read methods beyond `get` wait for a concrete consumer (see
+Read methods beyond `get` and `list` wait for a concrete consumer (see
 [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md#planned-silver-graph-and-facts),
-"Planned"). The listing has five, see [Consumers](#consumers). So the listing reopens the read
-surface for the listing only:
+"Planned"). The listing has five consumers, see [Consumers](#consumers). It is one more read
+capability next to `get`.
 
-- `completeness`, `ownership_tree`, and `query` stay deferred. They wait for a screener or API
-  consumer.
-- The CQRS split stays deferred. The listing is one more read capability next to `get`.
+The listing returns metadata, never the bytes:
 
-The listing is not a `RawStore::scan(filter)`, a stream of `RawFiling` values with their bytes:
-
-- `scan` would return the bytes. The raw store holds about 30 GB today. A stream of bytes reads all of
-  them, also for a caller that needs only keys.
-- The `storage` crate has no `RawStore`. Each document type has its own repository
-  behind the neutral `ReadRepository` and `WriteRepository` ports. A listing on those ports serves
-  every repository, not only the raw tier.
-- A replay driver that needs the bytes lists the keys, then calls `get` for each key. That
-  composition gives what `scan` would give, and `get` keeps its size and SHA-256 check.
+- The raw store holds about 30 GB today. A stream of bytes reads all of them, also for a caller
+  that needs only keys.
+- Each document type has its own repository behind the neutral `ReadRepository` and
+  `WriteRepository` ports. A listing on those ports serves every repository, not only the raw
+  store.
+- A replay driver that needs the bytes lists the keys, then calls `get` for each key. `get` keeps
+  its size and SHA-256 check.
 
 ## The Trait
 

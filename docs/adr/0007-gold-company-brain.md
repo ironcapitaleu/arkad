@@ -21,6 +21,10 @@ The parts of a larger goal sit in separate documents:
 - `hybrid_data_model.md` §8.2: the provenance of each fact.
 - `ontology_guardrails.md`: how the graph maps onto outside ontologies.
 
+[ADR 0001](0001-mvp-database.md) puts the graph tier and the fact tier in gold. It leaves open how
+provenance reaches gold (Amendment 1, "What Stays Open"). This ADR adds the goal that joins the
+parts, provenance in gold, and the links to silver and the raw store.
+
 No document names the goal that joins them. The gold design is open
 ([ADR 0001](0001-mvp-database.md), Amendment 1, "What Stays Open"). It must know what gold is for
 before it picks tables and what to copy from silver.
@@ -52,12 +56,11 @@ No option was measured.
 | Option | Serves the screener and `/v1` | Answers "where does this value come from" in gold | Databases |
 | ------ | ----------------------------- | ------------------------------------------------- | --------- |
 | **A (chosen):** gold is the company brain | Yes | Yes | One Postgres (ADR 0001) |
-| B: gold is a serving store only | Yes | No, a reader goes to silver | One Postgres |
+| B: gold is a serving store: the graph and the facts, with provenance in silver only | Yes | No, a reader goes to silver | One Postgres |
 
 - A gives one place for the graph, the concepts, the facts, and their provenance, inside the one
   database of ADR 0001.
-- B keeps provenance and the graph out of gold, so no query of gold answers the question of the
-  owner's goal.
+- B keeps provenance out of gold, so no query of gold answers the question of the owner's goal.
 
 ## Consequences
 

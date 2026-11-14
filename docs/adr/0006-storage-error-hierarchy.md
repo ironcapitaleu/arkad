@@ -51,8 +51,9 @@ No option was measured. The facts below follow from the Rust trait rules and the
 - A lets each test compare the error with `assert_eq!`, as `AGENTS.md`, "Testing", requires. A
   value type of `sec` can hold it.
 - B loses `Clone`, `Eq`, and `Hash`, so no `sec` error type can derive them and hold it.
-- C puts the backend type into each caller signature, so a caller names the backend. That breaks
-  the rule of [ADR 0005](0005-storage-ports-crate.md) that only a composition root names a backend.
+- C makes each caller generic over the error. A non-generic `sec` error type cannot hold
+  `R::Error`. Decision 1 already turns each backend error into a value type, so an associated type
+  adds no information.
 
 ## Consequences
 
