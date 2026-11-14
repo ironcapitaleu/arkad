@@ -49,19 +49,21 @@ Terms:
    of companies and their identifiers (§5) and the canonical concepts (§3), each with its
    definition and how to compute it from source facts. For each source store, it records which
    companies, concepts, and periods the store holds, and how to read them. A claim of the graph,
-   such as a GLEIF parent link (§5.2), is metadata. It sits in the metadata store with its source
-   and date. Only the load writes the metadata store. Unlike the Snowflake context layer, it does
-   not learn from usage, such as the queries that reach the `/v1` API.
+   such as a GLEIF parent link (§5.2), is metadata. The load derives it from the records of its
+   source store, and it sits in the metadata store with its source and date. Only the load and the
+   verdicts of the review queue write the metadata store. Unlike the Snowflake context layer, it
+   does not learn from usage, such as the queries that reach the `/v1` API.
 3. **Each source store holds the facts of its data source, with the provenance of each fact.** The
-   SEC store holds the SEC facts, and an ESEF store holds the ESEF facts. The provenance of a fact
-   (§8.2) stays next to the fact and names its silver unit and raw document by key. This decision
-   covers the facts as each source reports them. Where the canonical facts live is open (Open
-   Questions).
+   SEC store holds the SEC facts. The GLEIF store holds the LEI records as GLEIF publishes them.
+   The provenance of a fact (§8.2) stays next to the fact and names its silver unit and raw
+   document by key. This decision covers the facts as each source reports them. Where the
+   canonical facts live is open (Open Questions).
 4. **A query starts in the metadata store.** It resolves a company, an identifier, or a concept,
    and finds the stores that hold the facts.
 5. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
-   "Design Rules" 2 and 3, rank the claims and fill the review queue. The claim resolution spec of
-   ADR 0001, "Open Questions", fixes the priority order and the queue.
+   "Design Rules" 2 and 3, settle the links between identifiers. The claim resolution spec of
+   ADR 0001, "Open Questions", fixes the priority order, the review queue, and the rule for the
+   other claims, such as parent links.
 
 ## Options Considered
 
