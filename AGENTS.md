@@ -75,7 +75,7 @@ between options, run this test before you write the code:
 | Another ticket, crate, or run must follow the choice | The choice stays inside one module |
 | A reversal costs a migration, stored data, or a public interface | A reversal is one PR |
 | The choice rests on a measurement that can go out of date | The choice follows from the code or from a rule of this file |
-| The options were close, or a reviewer or the owner questioned the choice, and the code does not show why one option won | The code shows why one option won |
+| The code does not show why one option won, and the options were close or a person questioned the choice | The code shows why one option won, for example in a comment |
 
 If a row of the left column holds, write the ADR, even if a row of the right column also holds.
 The test covers decisions about the code and the systems it runs on. A guideline edit needs no
@@ -83,7 +83,9 @@ ADR if it sets how agents or people work, or how code is written, such as names 
 This file or the skill that holds the rule is its record.
 
 - If the test says ADR, write the ADR in the PR that first acts on the decision. A decision from a
-  ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. Set its status to
+  ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. If a
+  person questions a choice that is already on `main`, write the ADR in the PR where the question
+  comes up. Set its status to
   "Proposed" and say who confirms it. An agent never accepts an ADR.
 - If the test is unclear, name the decision and both options in the PR description, and ask the
   owner.
