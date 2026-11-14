@@ -13,7 +13,7 @@ Status: proposed. The decisions below wait for review.
 
 | Section | Content | Decision |
 | ------- | ------- | -------- |
-| [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | Why the listing reopens one item of the deferred read surface, and why the frozen `scan` stays dead | Yes |
+| [Relation to the Deferred Read Surface](#relation-to-the-deferred-read-surface) | Why the listing reopens one item of the deferred read surface, and why the listing is no `scan` | Yes |
 | [The Trait](#the-trait) | `ListRepository`, the filter, the entry, the error | Yes |
 | [Filesystem Sketch](#filesystem-sketch) | The walk, orphans, temporary files, cost, limits | Yes |
 | [Ordering and Consistency](#ordering-and-consistency) | Sort order, what a listing sees during a write | Yes |
@@ -27,10 +27,10 @@ Status: proposed. The decisions below wait for review.
 The consolidated design of the storage traits defers the whole read surface (see
 [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md),
 "Consolidated Design", deferred item 1). The deferral waits for a concrete consumer. The listing
-now has five, see [Consumers](#consumers). So the listing reopens item 1, but only for the listing:
+has five, see [Consumers](#consumers). So the listing reopens item 1, but only for the listing:
 
 - `completeness`, `ownership_tree`, and `query` stay deferred. They wait for a screener or API
-  consumer, as before.
+  consumer.
 - The CQRS split stays deferred. The listing is one more read capability next to `get`.
 
 The listing is not a `RawStore::scan(filter)`, a stream of `RawFiling` values with their bytes:
@@ -679,7 +679,7 @@ and the object API projection does not, add a backend that lists through the obj
 - [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md): the read and write
   traits that `ListRepository` stands next to.
 - [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md): the
-  deferred read surface and the frozen `scan`.
+  deferred read surface.
 - [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md): "Cut-Over Between the
   Paths", "Path Independence", "Window", "Unextractable Record", and "Handover to Transform".
 - [`extraction_overview.md`](../../../sec/design/pipeline/extraction_overview.md): "Integrity and
