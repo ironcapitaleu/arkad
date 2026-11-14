@@ -5,7 +5,7 @@
 
 use crate::core::elements::IncomeStatementConcept;
 use crate::core::elements::Placed;
-use crate::core::elements::roll_up::{Group, GroupKind, GroupName, Placement, Weight};
+use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
 
 innermost_concepts! {
     /// A standard concept of the cash flow statement. Each value is a duration.
@@ -33,44 +33,17 @@ innermost_concepts! {
     }
 }
 
-/// A group whose parent is a cash flow concept.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum CashFlowGroup {
-    /// The group whose parent is `NetChangeInCash`.
-    NetChangeInCash,
-    /// The group whose parent is `OperatingCashFlow`.
-    OperatingCashFlow,
-    /// The group whose parent is `InvestingCashFlow`.
-    InvestingCashFlow,
-    /// The group whose parent is `FinancingCashFlow`.
-    FinancingCashFlow,
-}
-
-impl CashFlowGroup {
-    /// Every group, in the order of the variants.
-    pub const ALL: &'static [Self] = &[
-        Self::NetChangeInCash,
-        Self::OperatingCashFlow,
-        Self::InvestingCashFlow,
-        Self::FinancingCashFlow,
-    ];
-
-    /// Returns the name of the group in rule IDs and findings, such as `net-change-in-cash`.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::NetChangeInCash => "net-change-in-cash",
-            Self::OperatingCashFlow => "operating-cash-flow",
-            Self::InvestingCashFlow => "investing-cash-flow",
-            Self::FinancingCashFlow => "financing-cash-flow",
-        }
-    }
-
-    /// Returns the [`GroupName`] that holds this group.
-    #[must_use]
-    pub const fn name(self) -> GroupName {
-        GroupName::CashFlow(self)
+group_names! {
+    /// A group whose parent is a cash flow concept.
+    pub enum CashFlowGroup in CashFlow {
+        /// The group whose parent is `NetChangeInCash`.
+        NetChangeInCash => "net-change-in-cash",
+        /// The group whose parent is [`CashFlowConcept::OperatingCashFlow`].
+        OperatingCashFlow => "operating-cash-flow",
+        /// The group whose parent is [`CashFlowConcept::InvestingCashFlow`].
+        InvestingCashFlow => "investing-cash-flow",
+        /// The group whose parent is [`CashFlowConcept::FinancingCashFlow`].
+        FinancingCashFlow => "financing-cash-flow",
     }
 }
 

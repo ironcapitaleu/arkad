@@ -56,7 +56,7 @@ Date: 2026-11-14.
 
 **Reason.** A group had a text name, such as `"financing-cash-flow"`. The text repeated 45 times
 in 4 files, and a typo compiled. Only the placement tests caught it. The later slices build rule IDs
-(`core/roll-up/<group>@1`) and findings on the group, so the type of the name binds them. The
+(`core/roll-up/<group>@1`) and findings from the group name, so they depend on its type. The
 project lead asked for a typed name in the review of ironcapitaleu/arkad#554.
 
 **Decision.**
@@ -71,12 +71,15 @@ project lead asked for a typed name in the review of ironcapitaleu/arkad#554.
 
 **Consequences.**
 
-- A typo in a group name fails to compile, and a `match` over the groups of a statement is
-  exhaustive.
-- A new group adds a variant and an arm of `as_str()` in the module of its parent, next to its
-  entry in `GROUPS`. No shared file changes.
+- A typo in a group name fails to compile. Inside `xbrl`, a `match` over the groups of a
+  statement is exhaustive. Outside `xbrl`, it needs a `_` arm, because each group enum is
+  `#[non_exhaustive]`.
+- A macro defines each group enum, its `ALL`, and `as_str()` from one list, as
+  `innermost_concepts!` does for the concepts. A new group adds the variant and its text to that
+  list in the module of its parent, next to its entry in `GROUPS`. No shared file changes.
 - A test pins the text of every group name, and a test checks that the 15 names are distinct.
 
+## Options Considered
 
 No option was measured. The facts below follow from the Rust type rules and from the tables of
 `xbrl/DESIGN.md`, "Roll-Up Tree".

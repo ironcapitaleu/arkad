@@ -4,7 +4,7 @@
 //! [`GROUPS`], the groups whose parent is a balance sheet concept.
 
 use crate::core::elements::Placed;
-use crate::core::elements::roll_up::{Group, GroupKind, GroupName, Placement, Weight};
+use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
 
 innermost_concepts! {
     /// A standard concept of the balance sheet. Each value is an instant.
@@ -44,56 +44,23 @@ innermost_concepts! {
     }
 }
 
-/// A group whose parent is a balance sheet concept.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BalanceSheetGroup {
-    /// The group whose parent is `Assets`.
-    Assets,
-    /// The group whose parent is `CurrentAssets`.
-    CurrentAssets,
-    /// The group whose parent is `NonCurrentAssets`.
-    NonCurrentAssets,
-    /// The group whose parent is `LiabilitiesAndEquity`.
-    LiabilitiesAndEquity,
-    /// The group whose parent is `Liabilities`.
-    Liabilities,
-    /// The group whose parent is `NonCurrentLiabilities`.
-    NonCurrentLiabilities,
-    /// The group whose parent is `EquityAttributableToParent`.
-    EquityAttributableToParent,
-}
-
-impl BalanceSheetGroup {
-    /// Every group, in the order of the variants.
-    pub const ALL: &'static [Self] = &[
-        Self::Assets,
-        Self::CurrentAssets,
-        Self::NonCurrentAssets,
-        Self::LiabilitiesAndEquity,
-        Self::Liabilities,
-        Self::NonCurrentLiabilities,
-        Self::EquityAttributableToParent,
-    ];
-
-    /// Returns the name of the group in rule IDs and findings, such as `assets`.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Assets => "assets",
-            Self::CurrentAssets => "current-assets",
-            Self::NonCurrentAssets => "non-current-assets",
-            Self::LiabilitiesAndEquity => "liabilities-and-equity",
-            Self::Liabilities => "liabilities",
-            Self::NonCurrentLiabilities => "non-current-liabilities",
-            Self::EquityAttributableToParent => "equity-attributable-to-parent",
-        }
-    }
-
-    /// Returns the [`GroupName`] that holds this group.
-    #[must_use]
-    pub const fn name(self) -> GroupName {
-        GroupName::BalanceSheet(self)
+group_names! {
+    /// A group whose parent is a balance sheet concept.
+    pub enum BalanceSheetGroup in BalanceSheet {
+        /// The group whose parent is [`BalanceSheetConcept::Assets`].
+        Assets => "assets",
+        /// The group whose parent is [`BalanceSheetConcept::CurrentAssets`].
+        CurrentAssets => "current-assets",
+        /// The group whose parent is [`BalanceSheetConcept::NonCurrentAssets`].
+        NonCurrentAssets => "non-current-assets",
+        /// The group whose parent is `LiabilitiesAndEquity`.
+        LiabilitiesAndEquity => "liabilities-and-equity",
+        /// The group whose parent is [`BalanceSheetConcept::Liabilities`].
+        Liabilities => "liabilities",
+        /// The group whose parent is [`BalanceSheetConcept::NonCurrentLiabilities`].
+        NonCurrentLiabilities => "non-current-liabilities",
+        /// The group whose parent is `EquityAttributableToParent`.
+        EquityAttributableToParent => "equity-attributable-to-parent",
     }
 }
 

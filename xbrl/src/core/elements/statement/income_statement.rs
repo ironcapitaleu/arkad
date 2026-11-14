@@ -7,7 +7,7 @@
 //! is the start of the next step.
 
 use crate::core::elements::Placed;
-use crate::core::elements::roll_up::{Group, GroupKind, GroupName, Placement, Weight};
+use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
 
 innermost_concepts! {
     /// A standard concept of the income statement, comprehensive income included. Each value is
@@ -38,44 +38,17 @@ innermost_concepts! {
     }
 }
 
-/// A group whose parent is an income statement concept.
-#[non_exhaustive]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum IncomeStatementGroup {
-    /// The group whose parent is `GrossProfit`.
-    GrossProfit,
-    /// The group whose parent is `OperatingExpenses`.
-    OperatingExpenses,
-    /// The group whose parent is `PretaxIncome`.
-    PretaxIncome,
-    /// The group whose parent is `ComprehensiveIncome`.
-    ComprehensiveIncome,
-}
-
-impl IncomeStatementGroup {
-    /// Every group, in the order of the variants.
-    pub const ALL: &'static [Self] = &[
-        Self::GrossProfit,
-        Self::OperatingExpenses,
-        Self::PretaxIncome,
-        Self::ComprehensiveIncome,
-    ];
-
-    /// Returns the name of the group in rule IDs and findings, such as `gross-profit`.
-    #[must_use]
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::GrossProfit => "gross-profit",
-            Self::OperatingExpenses => "operating-expenses",
-            Self::PretaxIncome => "pretax-income",
-            Self::ComprehensiveIncome => "comprehensive-income",
-        }
-    }
-
-    /// Returns the [`GroupName`] that holds this group.
-    #[must_use]
-    pub const fn name(self) -> GroupName {
-        GroupName::IncomeStatement(self)
+group_names! {
+    /// A group whose parent is an income statement concept.
+    pub enum IncomeStatementGroup in IncomeStatement {
+        /// The group whose parent is [`IncomeStatementConcept::GrossProfit`].
+        GrossProfit => "gross-profit",
+        /// The group whose parent is `OperatingExpenses`.
+        OperatingExpenses => "operating-expenses",
+        /// The group whose parent is `PretaxIncome`.
+        PretaxIncome => "pretax-income",
+        /// The group whose parent is [`IncomeStatementConcept::ComprehensiveIncome`].
+        ComprehensiveIncome => "comprehensive-income",
     }
 }
 
