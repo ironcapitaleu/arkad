@@ -100,8 +100,8 @@ fake and every engine.
 **What:** Separate the write model from the read model when they differ significantly. Writes update
 the source of truth; reads can come from views/Redis/Elasticsearch shaped for querying.
 
-**arkad:** Partial (this is `hybrid_data_model.md` §12b: population-vs-query asymmetry). The
-ports split by capability: `WriteRepository` writes, `ReadRepository` and `ListRepository` read. The
+**arkad:** Partial (this is `hybrid_data_model.md` §12b: population-vs-query asymmetry). Reads and
+writes share one record type, so no separate read model exists. The ports split by capability: `WriteRepository` writes, `ReadRepository` and `ListRepository` read. The
 **raw store is the source of truth**. Silver, graph, and facts are **read-optimized projections**,
 and a replay of raw rebuilds them.
 

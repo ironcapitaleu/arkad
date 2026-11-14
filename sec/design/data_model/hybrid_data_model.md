@@ -53,7 +53,9 @@ The model serves one goal: a **company brain** in gold. A metadata store holds t
 of companies and identifiers (§5), the canonical concepts (§3), and an entry for each source store.
 Each source store holds the facts of one data source, such as the SEC (§7), with the provenance of
 each fact (§8.2). A query starts in the metadata store and reads the facts from the source stores.
-[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision.
+[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision. The diagram below
+shows the canonical facts in one shared store. ADR 0007 leaves open whether they sit there or in
+each source store.
 
 ```mermaid
 flowchart TB
@@ -719,7 +721,7 @@ ETL binary (Rust) ──writes──▶ raw SoT ──projects──▶ [ graph 
   cross-store read consistency (may read a fact whose graph node hasn't projected yet) — more
   powerful for traversal endpoints, more complex.
 
-**Net:** the trait-based, CQRS-shaped design lets you **start with Option A behind the REST API
+**Net:** the trait-based design, split by capability, lets you **start with Option A behind the REST API
 and evolve the backing stores without changing the API surface** — the strongest practical
 argument against over-committing the physical store on day one.
 
@@ -850,9 +852,9 @@ native graph tooling up front.
 1. Build **canonical core types** (`CanonicalElement`, `CanonicalFact`/`StandardizedFact`,
    `FactSet`, `Lei`/`CompanyId`, `Invariant`) — storage-agnostic domain layer.
 2. Build the **SEC adapter** (raw parse + resolution map + CIK→LEI).
-3. Implement **`Load`** behind the storage ports (**§14.F**). It writes the rows of one silver
-   unit in one Postgres transaction. Option A or B, or a later split, swaps the backend behind the
-   ports. The pipeline does not change.
+3. Implement **`Load`** behind the storage ports (**§14.F**). Option A or B, or a later split,
+   swaps the backend behind the ports. The pipeline does not change. Under Option A, Load writes
+   the rows of one silver unit in one Postgres transaction (ADR 0001, Amendment 1).
 4. Persist raw first (system of record), then materialize graph + canonical facts.
 
 > **Note:** under either option, an **Iceberg lakehouse is the expected long-term home for
