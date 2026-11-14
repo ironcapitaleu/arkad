@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The lead confirms |
+| Status | Accepted by the project lead on 2026-11-14 |
 | Date | 2026-11-13 |
 | Deciders | The project lead |
 
