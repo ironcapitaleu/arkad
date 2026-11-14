@@ -108,7 +108,7 @@ tables stay open (ADR 0007, "Open Questions"), so the columns below are the logi
 | `company_id`, `security_id`, or `listing_id` | The subject, one column per row set |
 | `scheme`, `value` | The identifier, or the code for a classification row |
 | `valid_from` | The start of the record that gives the value |
-| `valid_to` | The start of the next record of the same source and subject with another value, or the end that a rule below or Rule 4 sets, such as the ticker list rule. Null while neither exists |
+| `valid_to` | The start of the next record of the same source and subject with another value, or the end that the ticker list rule or Rule 4 sets. Null while neither exists |
 | `source` | The data source, for example `sec` |
 | `verifiability` | `Verified` for a registry, or for a filing of the subject or of its issuer. `Reported` for a value that a third party files about the subject, such as an LEI in a fund's SEC N-PORT filing (`hybrid_data_model.md` §5.2) |
 | `record` | The key of the record in silver: the unit and the filing |
@@ -123,8 +123,10 @@ The row sets are `company_identifiers`, `security_identifiers`, `listing_identif
   "Company Attributes Over Time" of `silver_layer.md`.
 - **A ticker matches an open listing of the same company and source with the same symbol and
   exchange.** A ticker with no exchange matches each open listing with its symbol, and changes
-  nothing. An open listing with no exchange matches a ticker with its symbol, and takes its
-  exchange (Rule 5). A ticker that matches no open listing gives a new listing. So one symbol on
+  nothing. An open listing with no exchange matches a ticker with its symbol, and takes the
+  exchange of that ticker (Rule 5). If several tickers of one filing match it, it takes the
+  exchange whose MIC sorts first, and each other ticker gives a new listing. A ticker that
+  matches no open listing gives a new listing. So one symbol on
   two exchanges gives two listings.
 - **A ticker list ends the listings it omits.** If a filing of a company has a non-empty `tickers`
   list, each open listing of that company and source that no ticker of the list matches ends at the start
