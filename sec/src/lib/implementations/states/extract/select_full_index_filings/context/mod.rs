@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn should_display_the_dates_filed_for_select_full_index_filings_context() {
+    fn should_display_the_quarter_and_the_dates_filed_for_select_full_index_filings_context() {
         let context = SelectFullIndexFilingsContext::new(
             Uuid::nil(),
             Quarter::of(date(2026, 10, 1)),
