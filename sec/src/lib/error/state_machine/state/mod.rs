@@ -6,7 +6,9 @@
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
 //! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
-//! [`MissingDailyIndex`] carries the failing state's name and the date. [`InvalidFiledDateRange`]
+//! [`MissingDailyIndex`] carries the failing state's name and the date. [`MissingFullIndexDate`]
+//! carries the failing state's name, the date, and the last date of the full index.
+//! [`InvalidFiledDateRange`]
 //! carries the failing state's name, the quarter, and both dates. The rest are plain markers.
 //! [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
@@ -21,6 +23,7 @@
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
 //! - [`failed_document_selection`]: The [`FailedDocumentSelection`] error for a folder index that names no single XBRL instance or label file.
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
+//! - [`missing_full_index_date`]: The [`MissingFullIndexDate`] error for a date that the full index does not cover yet.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
@@ -48,6 +51,8 @@ pub mod invalid_filed_date_range;
 pub use invalid_filed_date_range::InvalidFiledDateRange;
 pub mod missing_daily_index;
 pub use missing_daily_index::MissingDailyIndex;
+pub mod missing_full_index_date;
+pub use missing_full_index_date::MissingFullIndexDate;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -106,6 +111,12 @@ pub enum State {
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
     #[error(transparent)]
     MissingDailyIndex(MissingDailyIndex),
+
+    /// Indicates that the full index of a quarter does not cover a date yet.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    MissingFullIndexDate(MissingFullIndexDate),
 
     /// Indicates that the folder index of a filing names no single XBRL instance or label file.
     ///

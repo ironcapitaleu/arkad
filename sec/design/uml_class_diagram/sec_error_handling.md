@@ -29,6 +29,7 @@ classDiagram
         +InvalidFiledDateRange(InvalidFiledDateRange)
         +FailedRequestExecution(FailedRequestExecution)
         +MissingDailyIndex(MissingDailyIndex)
+        +MissingFullIndexDate(MissingFullIndexDate)
         +FailedDocumentSelection(FailedDocumentSelection)
         +FailedDocumentWrite(FailedDocumentWrite)
         +IncompleteCompanyFacts(IncompleteCompanyFacts)
@@ -103,6 +104,14 @@ classDiagram
         %% State-level leaf error for a daily index the SEC did not send
         +String state_name
         +IndexDate index_date
+    }
+
+    class MissingFullIndexDate{
+        << struct >>
+        %% State-level leaf error for a date that the full index does not cover yet
+        +String state_name
+        +NaiveDate date
+        +NaiveDate last_data_received
     }
 
     class FailedDocumentSelection{
@@ -294,6 +303,7 @@ classDiagram
     State <|-- InvalidFiledDateRange
     State <|-- FailedRequestExecution
     State <|-- MissingDailyIndex
+    State <|-- MissingFullIndexDate
     State <|-- FailedDocumentSelection
     State <|-- FailedDocumentWrite
     State <|-- IncompleteCompanyFacts

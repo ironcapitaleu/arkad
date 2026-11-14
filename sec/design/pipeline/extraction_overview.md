@@ -673,7 +673,6 @@ each gap through the facade calls that exist. A weekly job in the same container
 | One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` fits in one run for about 10 business days by the [Window](ingestion_paths.md#window) estimate, or about 40 at the rate limit alone. Neither is measured |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
 | A replaced full index | The full index of the current quarter changes each night. Each repeat run replaces it, so the `inputs` SHA-256 of each instance from an earlier run names bytes the store no longer holds |
-| The full index has no rows for a date yet | The catch-up counts the date as empty. Only the window of `daily_filings` reads it again. The header line `Last Data Received` can tell the two cases apart, but no code reads it yet |
 
 ## See Also
 

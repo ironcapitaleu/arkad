@@ -320,3 +320,57 @@ async fn should_report_a_retried_and_a_failed_error_with_the_quarter_when_its_fu
 
     assert_eq!(result, expected_result);
 }
+
+#[tokio::test]
+async fn should_count_a_recent_date_as_pending_when_it_comes_after_the_last_data_received() {
+    // The full index of Q4 names 2026-11-12 as its last data received.
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = vec!["empty", "pending"];
+
+    let result = detections(&dates, date("2026-11-14"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_fail_an_old_date_when_it_comes_after_the_last_data_received() {
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = vec!["empty", "failed"];
+
+    let result = detections(&dates, date("2026-11-30"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_fail_the_first_date_when_it_comes_after_the_last_data_received() {
+    let dates = [date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = vec!["failed"];
+
+    let result = detections(&dates, date("2026-11-14"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_name_the_date_and_the_last_data_received_when_a_date_is_pending() {
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = json!(
+        "[StreamError][00000000-0000-0000-0000-000000000007] 'state_failed' in 'Select Full Index Filings', Caused by: [MissingFullIndexDate] The full index does not cover the date yet, Date: '2026-11-13', Last Data Received: '2026-11-12'"
+    );
+
+    let result = run(&temporary_root(), &dates, date("2026-11-14"), &sec_client)
+        .await
+        .entries()[1]["error"]
+        .clone();
+
+    assert_eq!(result, expected_result);
+}

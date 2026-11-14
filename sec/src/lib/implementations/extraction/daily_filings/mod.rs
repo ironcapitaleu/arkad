@@ -19,10 +19,13 @@ use storage::implementations::repository::filesystem::{
     Document, FilesystemRepository, IngestionMode, InputDocument, Read, Write,
 };
 use storage::traits::repository::ReadRepository;
+use uuid::Uuid;
 
 use super::Incremental;
 use super::retry::{DEFAULT_RETRY_DELAYS, with_retry};
 use super::run_event::{ErrorKind, RunEvent, Unit};
+use crate::error::StateMachine;
+use crate::error::state_machine::state::MissingFullIndexDate;
 use crate::implementations::states::extract::daily_index::builder::NoSecClient;
 use crate::implementations::states::extract::daily_index::{
     DetectFilingsSuperState, DetectedFilings,
@@ -32,10 +35,13 @@ use crate::implementations::states::extract::full_index::{
     DetectQuarterFilingsSuperState, DetectQuarterFilingsSuperStateContext,
 };
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use crate::implementations::states::extract::select_full_index_filings::constants::STATE_NAME as SELECT_FULL_INDEX_FILINGS;
 use crate::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
 use crate::implementations::states::extract::validate_index_date::ValidateIndexDate;
-use crate::prelude::{IntoStateMachineStream, StateMachineStream, StreamError, StreamItem};
+use crate::prelude::{
+    IntoStateMachineStream, StateMachineStream, StreamError, StreamEvent, StreamItem,
+};
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FolderIndex;
 use crate::shared::filing_documents_ref::{filing_index_key, instance_key, labels_key};
@@ -395,6 +401,11 @@ where
     /// [`run`](Self::run) does. Each filing records the stored full index as the input of its
     /// files. A date without a filing in the full index counts as a day without filings.
     ///
+    /// A date after the header line `Last Data Received` of the full index has no rows yet, so it
+    /// fails with a [`MissingFullIndexDate`]. It is pending instead under the rule of a missing
+    /// daily index: the date is recent and is not the first date of the run. Its unit is
+    /// [`Unit::Date`].
+    ///
     /// The detection of a quarter that fails with a transient SEC failure runs again after each
     /// retry delay. If it still fails, each date of the quarter fails. A quarter whose full index
     /// answers 403 or 404 is pending instead, if its first date in the run is recent and is not
@@ -434,12 +445,12 @@ where
                         quarter_last_date,
                     );
                     DetectQuarterFilingsSuperState::new(context)
-                        .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
+                        .run_to_quarter_filings(|item| observer(&unit, RunEvent::Item(item)))
                 },
                 |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
             )
             .await;
-            let detected = match detection {
+            let quarter_filings = match detection {
                 Ok(detected) => detected,
                 Err(error) => {
                     let pending =
@@ -461,7 +472,22 @@ where
                     continue;
                 }
             };
+            let detected = &quarter_filings.detected;
             for &date in quarter_dates {
+                if let Some(error) = missing_full_index_date(
+                    date,
+                    quarter_filings.last_data_received,
+                    self.incremental.id(),
+                ) {
+                    let (kind, outcome) = if is_pending(&error, date, first_date, self.as_of) {
+                        (ErrorKind::Pending, DateOutcome::Pending(error.clone()))
+                    } else {
+                        (ErrorKind::Failed, DateOutcome::Failed(error.clone()))
+                    };
+                    observer(&Unit::Date(date), RunEvent::Error(&error, kind));
+                    outcomes.push((date, outcome));
+                    continue;
+                }
                 let day = DetectedFilings {
                     filings: detected
                         .filings
@@ -607,6 +633,25 @@ where
             .collect()
             .await
     }
+}
+
+/// Returns the error of `date` if the full index of its quarter does not cover it yet: if `date`
+/// comes after `last_data_received`. Returns `None` if the full index covers `date`, or if its
+/// header names no date.
+fn missing_full_index_date(
+    date: NaiveDate,
+    last_data_received: Option<NaiveDate>,
+    execution_id: Uuid,
+) -> Option<StreamError> {
+    let last_data_received = last_data_received.filter(|last| date > *last)?;
+    let error = MissingFullIndexDate::new(SELECT_FULL_INDEX_FILINGS, date, last_data_received);
+    Some(StreamError {
+        event: StreamEvent::StateFailed,
+        execution_id,
+        state_name: SELECT_FULL_INDEX_FILINGS.to_string(),
+        data: serde_json::Value::Null,
+        source: Box::new(StateMachine::State(error.into())),
+    })
 }
 
 /// The readers of the stored files that let the run skip a filing before any request.
