@@ -146,6 +146,24 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    #[tokio::test]
+    async fn should_take_the_quarter_from_the_stored_index_when_the_dates_are_in_another_quarter() {
+        let mut state = store_full_index();
+        state.compute_output_data_async().await.expect(
+            "Given a fake repository that accepts every write, the store should always succeed",
+        );
+        let first_filed_date = date(2026, 9, 1);
+        let last_filed_date = date(2026, 9, 30);
+
+        let expected_result = Some(Quarter::of(date(2026, 10, 1)));
+
+        let result = SelectFullIndexFilings::try_from((state, first_filed_date, last_filed_date))
+            .ok()
+            .map(|next| next.into_parts().2.quarter);
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_return_missing_output_when_source_has_no_output() {
         let state = store_full_index();

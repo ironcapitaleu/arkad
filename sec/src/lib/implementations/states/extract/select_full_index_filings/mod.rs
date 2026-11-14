@@ -346,6 +346,24 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_invalid_filed_date_range_when_the_first_filed_date_is_before_the_quarter_of_the_index()
+     {
+        let mut state = test_state(
+            SAMPLE_FULL_INDEX_2026_Q3,
+            date(2026, 6, 30),
+            date(2026, 7, 1),
+        );
+
+        let expected_result = Err(StateError::InvalidFiledDateRange(
+            InvalidFiledDateRange::new(STATE_NAME, q3(), date(2026, 6, 30), date(2026, 7, 1)),
+        ));
+
+        let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_invalid_filed_date_range_when_the_dates_are_outside_the_quarter_of_the_index()
      {
         let mut state = test_state(
