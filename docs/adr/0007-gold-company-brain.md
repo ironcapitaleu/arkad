@@ -53,8 +53,7 @@ Terms:
    (Decision 5). For example, the financial facts of Apple Inc. come from the SEC store, by CIK.
 3. **The metadata store describes the data and holds no fact values.** It holds the knowledge graph
    of companies and their identifiers (§5) and the canonical concepts (§3), each with its
-   definition and how to compute it from source facts. For each source store, it records which
-   companies the store holds and how to read them. For a store of facts, it also records the
+   definition and how to compute it from source facts. For a store of facts, it also records the
    concepts and the periods. A claim of the graph, such as a GLEIF parent link (§5.2), is metadata.
    The load derives each claim from the records of the source store of its source, such as the
    GLEIF store. The claim sits in the metadata store with its source and date. Only two writes
@@ -69,7 +68,7 @@ Terms:
 5. **If several source stores hold facts of the same kind for a company, the metadata store picks
    one by default, and the caller can name another.** The default follows a preference order per
    company: the source of the home market of the company first, then the more trusted sources.
-   A caller that names a source reads that source. This order covers facts. Decision 6 covers the
+   A caller that names a source reads that source. This is the read-time policy of §2.1. It covers facts. Decision 6 covers the
    claims of the graph.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
    "Design Rules" 2 and 3, settle the links between identifiers. The claim resolution spec of
@@ -106,19 +105,21 @@ No option was measured.
 - Provenance stays with each record. A numeric row with text provenance took about 418 bytes in
   Postgres (ADR 0001, Amendment 1). A key to the silver unit and the raw document, in place of a
   copy of each provenance field, keeps the row smaller.
-- `hybrid_data_model.md` §2, §2.1 ("Multi-adapter rule"), and §6 describe one shared canonical
-  fact store. If the lead accepts this ADR, they change.
+- `hybrid_data_model.md` §2 (diagram and "Principle"), §2.1, §6, and §7.1 describe one shared
+  canonical fact store. If the lead accepts this ADR, they change.
 - Agreement and divergence between two source stores for one company, such as a dual filer at the
   SEC and in ESEF, need a check across stores. In B the shared tier holds both rows side by side.
 - The decision names no engine. ADR 0001 picks the engines.
 
 ## Open Questions
 
-- The full preference order of Decision 5 after the home market and the trusted sources, and who
-  ranks the trust of a source. The owner decides.
+- The full preference order of Decision 5 after the home market and the trusted sources, who
+  ranks the trust of a source, and the home market of a company that files in two markets, for
+  example the market of the legal address in its LEI record. The owner decides.
 - Whether the source priority of the claim resolution spec (ADR 0001) and the preference order of
   Decision 5 are one list. The owner and the lead decide.
-- Where the check across source stores runs, and what it writes. The gold design fixes it.
+- Where the check across source stores runs, and where the confidence from agreement across
+  sources (§2.1) lives. The gold design fixes it.
 - The gold tables and their write rule, and the tier of the records that are not facts, such as
   the GLEIF LEI records. The gold design fixes them.
 - How a source store and its entries in the metadata store stay in step on a load. The gold design
@@ -136,6 +137,6 @@ No option was measured.
   Snowflake blog, 2026-06-30, read on 2026-11-14. The quotes and the benchmark figures above come
   from it.
 - `sec/design/pipeline/silver_layer.md`, "Layers", and `sec/design/data_model/hybrid_data_model.md`
-  §3, §5, §6, §7, §8.2, on `main` at `070b916`, read on 2026-11-14.
+  §3, §4, §5, §6, §7, §8.2, on `main` at `070b916`, read on 2026-11-14.
 - [ADR 0001](0001-mvp-database.md), Amendment 1: the provenance size of 418 bytes per row,
   measured on 2026-11-08.

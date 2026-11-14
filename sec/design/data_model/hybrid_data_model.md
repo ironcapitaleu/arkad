@@ -49,13 +49,14 @@ What to carry forward vs. change (detail in §10):
 
 ## 2. Architectural Spine — Universal Core + Regulator Adapters (Hub & Spoke)
 
-The model serves one goal: a **company brain** in gold. A metadata store resolves entities and
-routes a caller to the sources that hold a company, and to the preferred one. It holds the knowledge graph of companies and identifiers (§5), the
+The model serves one goal: a **company brain** in gold. A metadata store resolves entities. For each company,
+it lists the sources that hold data about it and names the preferred one. It holds the knowledge graph of companies and identifiers (§5), the
 canonical concepts (§3), and an entry for each source store. Each source store holds the records of
 one data source, such as the SEC facts (§7) as filed and as canonical facts, with the provenance of each
 record (§8.2). A query starts in the metadata store and finds the stores and the keys to read.
 [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision and waits for the
-lead. The diagram below and §6 show one shared canonical fact store instead.
+lead. The diagram, the "Principle" below, §2.1, §6, and §7.1 show one shared canonical fact store
+instead.
 
 ```mermaid
 flowchart TB
