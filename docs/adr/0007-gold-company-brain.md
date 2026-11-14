@@ -117,6 +117,8 @@ No option was measured.
 - The full preference order of Decision 5 after the home market and the trusted sources, who
   ranks the trust of a source, and the home market of a company that files in two markets. One
   candidate is the market of the legal address in its LEI record. The owner decides.
+- Which source sets the name and the country of a `Company` node (§5.1) when two source stores
+  disagree, and whether the preference order of Decision 5 decides it. The owner decides.
 - Whether the source priority of the claim resolution spec (ADR 0001) and the preference order of
   Decision 5 are one list. The owner and the lead decide.
 - Where the check across source stores runs, and where the confidence from agreement across
