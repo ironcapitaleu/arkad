@@ -64,7 +64,8 @@ pub use summary::{DailyRunSummary, FailedDailyRun};
 /// The number of filing machines, and of `submissions` machines, that one date runs at once
 /// without a call to [`DailyFilingsBuilder::in_flight`].
 ///
-/// With 8 machines, one date runs at the cap of the rate limiter of the SEC client.
+/// With 8 machines, the `daily_filings` binary reached the cap of the rate limiter of the SEC
+/// client. The catch-up of `backfill().all()` was not measured with 8.
 pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 8;
 
 /// The number of days that the pending rule counts back from
