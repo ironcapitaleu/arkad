@@ -500,18 +500,22 @@ xbrl/src/core/statement/
   `IncomeStatement.NetIncome`. A test checks that no two inner variants share a name. So the parse
   from the name finds one concept, and every stored name stays valid.
 - The alias lists and the part rules name a `CanonicalElement`. They are `const` tables, and
-  `From::from` is no `const fn`. So they write the full path, such as
+  `From::from` is not a `const fn`. So they write the full path, such as
   `CanonicalElement::BalanceSheet(BalanceSheetConcept::Assets)`, or call a `const fn` that each
   concept enum provides. `From` serves code that runs at run time.
-- `Display` and `Serialize` write the name of the inner variant, such as `Assets`, as the name in
-  silver does. A derived `Serialize` writes `{"BalanceSheet":"Assets"}`, so the implementation
-  writes both by hand. `Ord` sorts by statement first, then by concept.
+- `Serialize` writes the name of the inner variant, such as `Assets`, as the name in silver does.
+  A derived `Serialize` writes `{"BalanceSheet":"Assets"}`, so the implementation writes it by
+  hand. The `api` crate derives its concept ID from this name.
+- `Display` keeps the label of the inner variant, such as `Net Income`. The `api` crate shows it
+  as the name of a concept.
+- `Ord` sorts by statement first, then by concept.
 
 A change touches these places, and no others:
 
 | Change | Adds | Changes |
 | ------ | ---- | ------- |
 | A concept in an existing statement | a variant of its `…Concept` enum, a row of the roll-up table, an alias list | nothing else |
+| A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
 | A side group, such as debt maturities | a module with its `…Concept` enum, a variant of `CanonicalElement`, alias lists | nothing else |
 | A statement, such as changes in equity | a module in `elements` and one in `statement`, a variant of `CanonicalElement`, `StatementKind`, and `FinancialStatement`, its rows of the table, its view with `From` and `TryFrom` | nothing else |
 
@@ -2111,10 +2115,12 @@ impl TryFrom<Statement> for BalanceSheet {
   rejects a concept of another statement, and no list of accessors can drift from the table. If a
   concept moves to another statement, its variant moves to another enum, and each caller that asks
   the old view for it fails to compile.
-- A step can start from a line of another statement. The view gives each such start its own
-  accessor, such as `CashFlowStatement::net_income()`. Today `NetIncome` in the cash flow
-  statement is the only one. A unit test checks that each view has one accessor for each start
-  that the table gives it from another statement.
+- A step can start from a line of another statement. Today `NetIncome` in the cash flow statement
+  is the only one. Each view lists these starts in a `const`, such as
+  `CashFlowStatement::STARTS`, and gives each one an accessor, such as `net_income()`. A unit test
+  checks that `STARTS` equals the starts that the table gives the statement from another
+  statement. A new start fails the test until it lands in `STARTS`, and that change adds its
+  accessor.
 - `line` returns `None` if the statement has no line for the concept: a parent with no value, which
   is transparent. A child with no value has a line with `value: None`.
 - `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
