@@ -244,10 +244,13 @@ more Tier 3 rule. A concept that belongs to no sum sits in a side group next to 
 A **group** is one sum: a parent and the concepts that add up to it. Each concept has one
 **placement**:
 
-- `Top(statement)`: a total or subtotal on the top level of a statement, such as `Assets` or
+- `Top`: a total or subtotal on the top level of its statement, such as `Assets` or
   `GrossProfit`.
 - `Child { group, weight }`: a member of one group. The weight is `+1` or `−1`.
-- `Side(side_group)`: a value outside every sum, such as `EarningsPerShareBasic`.
+- `Side`: a value outside every sum, such as `EarningsPerShareBasic`.
+
+The statement or side group of a concept is its variant of `CanonicalElement` (see "Extension
+Model").
 
 A group has one of two kinds:
 
@@ -383,7 +386,7 @@ The other line of each open step has a name in the layout:
 
 - The cascade ends with comprehensive income: `ComprehensiveIncome` = `NetIncome` +
   `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
-  The layout always shows it at the end of the income statement, so there are three statements.
+  The layout always shows it at the end of the income statement. It is no statement of its own.
 - The cascade has no `Expenses`, `Gains`, or `Losses`. No filer presents the SFAC 6 totals, so
   these concepts leave the enum (see "Verdict on the 39 Concepts").
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
@@ -444,6 +447,71 @@ column with a member of `StatementEquityComponentsAxis`. In the MVP, tiers 1 and
 with dimensions no candidate. The balance sheet already holds the closing balance of each
 component, and the cash flow statement holds the dividends and repurchases paid. A later design
 adds the roll forward with the dimensions.
+
+#### Extension Model
+
+The concepts and the statements follow the shape of the `sec` error hierarchy in
+`sec/src/lib/error/`. That hierarchy nests `#[non_exhaustive]` enums by level and gives each level
+its own module. Each level converts up with `From` and down with `TryFrom`. A new case adds one
+module and one variant, and its siblings do not change.
+
+`CanonicalElement` nests one level, by statement or side group:
+
+```rust
+#[non_exhaustive]
+pub enum CanonicalElement {
+    BalanceSheet(BalanceSheetConcept),
+    IncomeStatement(IncomeStatementConcept),
+    CashFlow(CashFlowConcept),
+    PerShare(PerShareConcept),
+}
+
+#[non_exhaustive]
+pub enum BalanceSheetConcept { Assets, CurrentAssets, /* … */ }
+
+impl From<BalanceSheetConcept> for CanonicalElement { /* … */ }
+impl TryFrom<CanonicalElement> for BalanceSheetConcept {
+    type Error = CanonicalElement; // gives back a concept of another statement
+    /* … */
+}
+```
+
+```
+xbrl/src/core/elements/
+  mod.rs               CanonicalElement, and the From and TryFrom of each child
+  balance_sheet.rs     BalanceSheetConcept
+  income_statement.rs  IncomeStatementConcept
+  cash_flow.rs         CashFlowConcept
+  per_share.rs         PerShareConcept, a side group
+xbrl/src/core/statement/
+  mod.rs               FinancialStatement, StatementKind, Statement, StatementLine
+  balance_sheet.rs     BalanceSheet view
+  income_statement.rs  IncomeStatement view
+  cash_flow.rs         CashFlowStatement view
+```
+
+- The nesting stops at the statement. A parent in the tree is a sum, not a container. A sum can
+  start from another statement, as `operating-cash-flow` starts from `NetIncome`. A move to a new
+  parent also must not change a type. So the parent and the weight stay in the roll-up table.
+- The statement of a concept comes from its variant of `CanonicalElement`. The table needs no
+  statement column.
+- The name in silver stays the name of the inner variant, such as `NetIncome`, not a path such as
+  `IncomeStatement.NetIncome`. A test checks that no two inner variants share a name. So the parse
+  from the name finds one concept, and every stored name stays valid.
+- The alias lists and the part rules name a `CanonicalElement`. `From` lets a list write
+  `BalanceSheetConcept::Assets.into()`.
+
+A change touches these places, and no others:
+
+| Change | Adds | Changes |
+| ------ | ---- | ------- |
+| A concept in an existing statement | a variant of its `…Concept` enum, a row of the roll-up table, an alias list | nothing else |
+| A side group, such as debt maturities | a module with its `…Concept` enum, a variant of `CanonicalElement`, alias lists | nothing else |
+| A statement, such as changes in equity | a module in `elements` and one in `statement`, a variant of `CanonicalElement`, `StatementKind`, and `FinancialStatement`, its rows of the table, its view with `From` and `TryFrom` | nothing else |
+
+Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
+arrives. These are enums, not traits, so the Open-Closed Principle of `AGENTS.md` allows a new
+variant.
 
 #### Checks the Tree Gives
 
@@ -1392,6 +1460,8 @@ Decided: a static table of weighted edges in `xbrl::core`, the same for every pl
   standard concepts, and Tier 4 reads it.
 - No trait. The table has one implementation, and a plug-in adds no edges. A trait with one
   implementor adds an indirection and no extension.
+- `CanonicalElement` nests by statement, as "Extension Model" describes. The table holds the
+  parent and the weight, because a parent is a sum and not a container.
 - The SFAC 6 identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
   check, `core/sfac6/balance-sheet@1`, next to the table.
 
@@ -2001,7 +2071,9 @@ pub struct StatementLine {
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. The table
   gives each concept one statement, so `build` rejects a fact of another kind at run time.
 - The layout, the other lines, and the checks all come from the table. A new concept adds a row to
-  the table and changes no type.
+  the table and a variant to the concept enum of its statement.
+- The fields are private, so a `Statement` cannot change its kind after a check. Getters give
+  `kind()`, `entity()`, `period_end()`, `quarters()`, and `lines()`.
 
 ### Typed Views
 
@@ -2016,26 +2088,35 @@ pub enum FinancialStatement {
 pub struct BalanceSheet(Statement);
 
 impl BalanceSheet {
-    pub fn assets(&self) -> Option<&StatementLine> { /* … */ }
-    pub fn liabilities(&self) -> Option<&StatementLine> { /* … */ }
-    pub fn equity(&self) -> Option<&StatementLine> { /* … */ }
-    // one accessor per standard concept of the balance sheet
+    pub fn line(&self, concept: BalanceSheetConcept) -> Option<&StatementLine> { /* … */ }
+    pub fn as_statement(&self) -> &Statement { /* … */ }
 }
 
-impl TryFrom<Statement> for BalanceSheet { /* rejects a Statement of another kind */ }
+impl TryFrom<Statement> for BalanceSheet {
+    type Error = Statement; // gives back a Statement of another kind
+    /* … */
+}
 ```
 
 - `BalanceSheet`, `IncomeStatement`, and `CashFlowStatement` each wrap one `Statement` of their
-  kind. They hold no data of their own, so the table stays the only list of lines.
-- Each view has one accessor per standard concept of its statement, such as `assets()` or
-  `net_income()`. An accessor returns the line, so the caller also reaches the fact behind it.
+  kind. They hold no data of their own.
+- `line` takes the concept enum of its statement, such as `BalanceSheetConcept`. So the compiler
+  rejects a concept of another statement, and no list of accessors can drift from the table. If a
+  concept moves to another statement, its variant moves to another enum, and each caller that asks
+  the old view for it fails to compile.
+- `line` returns `None` if the statement has no line for the concept: a parent with no value, which
+  is transparent. A child with no value has a line with `value: None`.
+- `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
+  lines.
 - `TryFrom<Statement>` checks the kind. A function that takes a `&BalanceSheet` cannot receive an
   income statement, so the compiler catches a wrong statement and a wrong period type.
 - `FinancialStatement` holds any of the three. It has `#[non_exhaustive]`, so a later statement,
   such as the changes in equity, adds a variant, a `StatementKind`, and a view. No existing view
   changes.
-- A new standard concept adds one accessor to the view of its statement. A method on a struct is
-  outside the Open-Closed Principle of `AGENTS.md`, which covers traits only.
+- As in the `sec` error hierarchy, each view converts up with `From<BalanceSheet> for
+  FinancialStatement`, and down with `TryFrom<FinancialStatement> for BalanceSheet`. The downward
+  conversion gives the value back if it holds another statement. "Extension Model" lists the
+  modules.
 - Side groups need no layout. A reader takes their values from the standardized facts.
 - Silver stores no statement. The gold load builds statements with these types.
 
@@ -2085,7 +2166,7 @@ resolution: exact, synonym, derived, computed.
 
 1. **CanonicalElement enum** — Decided. See "Roll-Up Tree", "Verdict on the 39 Concepts" and "Concepts to Add"
 2. **Graph structure** — Decided: a static table in `xbrl::core`. See "Graph Structure"
-3. **Financial statement output types** — Decided: one generic `Statement`. See "7) Financial Statement Output Types"
+3. **Financial statement output types** — Decided: a generic `Statement` and a typed view per statement. See "7) Financial Statement Output Types"
 
 The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided above.
 
