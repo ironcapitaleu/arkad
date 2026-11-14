@@ -2,10 +2,10 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-11-14 ([STA-512 comment](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). |
+| Status | Accepted by the lead on 2026-11-14 (STA-512 comment `e112485d`). |
 | Date | 2026-11-14 |
 | Deciders | The project lead. The owner sets the goal. |
-| Ticket | [STA-512](https://linear.app/state-machine/issue/STA-512) |
+| Ticket | STA-512 |
 
 ## Context
 
@@ -153,10 +153,10 @@ No option was measured.
 
 ## Sources
 
-- [STA-512](https://linear.app/state-machine/issue/STA-512), "Definition of Done": the owner's goal
+- STA-512, "Definition of Done": the owner's goal
   and the date, 2026-11-14.
 - The owner's decisions on the draft, 2026-11-14, recorded in a
-  [comment on STA-512](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-d6de906d): one metadata store, a knowledge graph
+  comment `d6de906d` on STA-512: one metadata store, a knowledge graph
   of the companies, the concepts, and the data sources, over one store per data source with its facts and their provenance. The
   canonical facts stay in each source store. The metadata store resolves entities, lists the
   sources of each company with their keys, and picks a source by a hand-set preference order that
