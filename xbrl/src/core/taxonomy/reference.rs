@@ -9,7 +9,7 @@
 use bigdecimal::BigDecimal;
 
 use crate::core::concept::ConceptName;
-use crate::core::elements::CanonicalElement;
+use crate::core::elements::CanonicalElementKind;
 use crate::core::release::TaxonomyReleaseId;
 use crate::core::rule::RuleId;
 
@@ -20,7 +20,7 @@ use crate::core::rule::RuleId;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct ConceptAliases {
     /// The standard concept.
-    pub element: CanonicalElement,
+    pub element: CanonicalElementKind,
     /// The ID of the alias rule, for example `us-gaap/alias/revenue@1`.
     pub rule: RuleId,
     /// The taxonomy concepts in priority order.

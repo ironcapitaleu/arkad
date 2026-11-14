@@ -4,7 +4,7 @@
 
 use serde::Serialize;
 use utoipa::ToSchema;
-use xbrl::core::elements::CanonicalElement;
+use xbrl::core::elements::CanonicalElementKind;
 
 use crate::shared::pascal_case::{InvalidPascalCase, PascalCase};
 use crate::traits::from_domain::FromDomain;
@@ -22,37 +22,26 @@ impl ConceptId {
     }
 }
 
-impl TryFrom<CanonicalElement> for ConceptId {
+impl TryFrom<CanonicalElementKind> for ConceptId {
     type Error = InvalidPascalCase;
 
-    /// Converts a [`CanonicalElement`] into its [`ConceptId`]: the serialized variant name in
-    /// `snake_case`.
+    /// Converts a [`CanonicalElementKind`] into its [`ConceptId`]: the name in silver of the
+    /// concept, from [`CanonicalElementKind::name`], in `snake_case`.
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidPascalCase`] if the serialized name of the variant is not in
-    /// `PascalCase`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if serde does not serialize the unit variant as a string. A derived `Serialize` on
-    /// a unit variant always writes a string.
-    fn try_from(element: CanonicalElement) -> Result<Self, Self::Error> {
-        let variant = serde_json::to_value(element)
-            .ok()
-            .and_then(|value| value.as_str().map(str::to_owned))
-            .expect(
-                "Given a unit variant of an enum, serde should always serialize it as a string",
-            );
-        Ok(Self(PascalCase::new(&variant)?.to_snake_case()))
+    /// Returns an [`InvalidPascalCase`] if the name of the concept is not in `PascalCase`.
+    fn try_from(element: CanonicalElementKind) -> Result<Self, Self::Error> {
+        Ok(Self(PascalCase::new(element.name())?.to_snake_case()))
     }
 }
 
-impl FromDomain<CanonicalElement> for ConceptId {}
+impl FromDomain<CanonicalElementKind> for ConceptId {}
 
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
+    use xbrl::core::elements::IncomeStatementConcept;
 
     use super::*;
 
@@ -65,7 +54,7 @@ mod tests {
 
     #[test]
     fn should_convert_to_snake_case_when_the_element_is_net_income() {
-        let element = CanonicalElement::NetIncome;
+        let element = IncomeStatementConcept::NetIncome.element();
 
         let expected_result = Ok(ConceptId("net_income".to_owned()));
 

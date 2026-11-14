@@ -1,75 +1,89 @@
 ---
-source: xbrl/src/core/elements.rs
+source: xbrl/src/core/elements/
 last-verified: 2026-11-14
 update-frequency: on-code-change
 ---
 
-# Canonical Elements
+# Standard Concepts
 
-These are the 42 CanonicalElement enum variants the system resolves to. Grouped by financial statement and level.
+These are the 36 standard concepts the system resolves to. `CanonicalElementKind` nests them by
+statement and disclosure:
 
-## Level 1 — Roots
+- `CanonicalElementKind::Statement(StatementConcept)`: `BalanceSheetConcept`,
+  `IncomeStatementConcept`, `CashFlowConcept`.
+- `CanonicalElementKind::Disclosure(DisclosureConcept)`: `PerShareConcept`.
 
-The roots are the elements of FASB Concepts Statement 8, Chapter 4. The paragraph numbers below
-are those of Chapter 4.
+A table names a concept as `BalanceSheetConcept::Assets.element()`. Silver stores the variant name,
+such as `Assets`, from `Concept::name()`.
 
-| Element | Statement | Period Type | Chapter 4 Paragraph |
-| --- | --- | --- | --- |
-| Assets | Balance Sheet | Instant | E16 |
-| Liabilities | Balance Sheet | Instant | E37 |
-| Equity | Balance Sheet | Instant | E61 |
-| Revenue | Income Statement | Duration | E80, see the note below |
-| Expenses | Income Statement | Duration | E81 |
-| Gains | Income Statement | Duration | E82 |
-| Losses | Income Statement | Duration | E83 |
-| NetIncome | Income Statement | Duration | Derived |
-| OtherComprehensiveIncome | Comprehensive Income | Duration | Part of E75 |
-| ComprehensiveIncome | Comprehensive Income | Duration | E75 |
-| OperatingCashFlow | Cash Flow | Duration | Activity |
-| InvestingCashFlow | Cash Flow | Duration | Activity |
-| FinancingCashFlow | Cash Flow | Duration | Activity |
+`xbrl/DESIGN.md`, "Roll-Up Tree", gives the place of each concept in the tree of its statement.
+The top lines rest on the elements of FASB Concepts Statement 8, Chapter 4.
 
-Note: the `Revenue` root is narrower than E80. It holds the revenue line the filer reports. It
-leaves out the revenues from "other activities" of E84, such as interest income. `xbrl/DESIGN.md`,
-"Roll-Up Tree", puts interest income in other non-operating income.
+## Balance Sheet (`BalanceSheetConcept`)
 
-## Level 2 — Balance Sheet
+Each value is an instant.
 
-| Element | Parent | Period Type |
-| --- | --- | --- |
-| CurrentAssets | Assets | Instant |
-| NonCurrentAssets | Assets | Instant |
-| CashAndEquivalents | CurrentAssets | Instant |
-| ShortTermInvestments | CurrentAssets | Instant |
-| AccountsReceivable | CurrentAssets | Instant |
-| Inventory | CurrentAssets | Instant |
-| PropertyPlantEquipment | NonCurrentAssets | Instant |
-| Goodwill | NonCurrentAssets | Instant |
-| IntangibleAssets | NonCurrentAssets | Instant |
-| CurrentLiabilities | Liabilities | Instant |
-| NonCurrentLiabilities | Liabilities | Instant |
-| LongTermDebt | NonCurrentLiabilities | Instant |
-| RetainedEarnings | Equity | Instant |
+| Concept |
+| --- |
+| Assets |
+| CurrentAssets |
+| NonCurrentAssets |
+| CashAndEquivalents |
+| ShortTermInvestments |
+| AccountsReceivable |
+| Inventory |
+| PropertyPlantEquipment |
+| Goodwill |
+| IntangibleAssets |
+| Liabilities |
+| Equity |
+| CurrentLiabilities |
+| NonCurrentLiabilities |
+| LongTermDebt |
+| RetainedEarnings |
 
-## Level 2 — Income Statement
+## Income Statement (`IncomeStatementConcept`)
 
-| Element | Parent | Period Type |
-| --- | --- | --- |
-| CostOfRevenue | Expenses | Duration |
-| GrossProfit | Derived | Duration |
-| SellingGeneralAdmin | Expenses | Duration |
-| ResearchDevelopment | Expenses | Duration |
-| InterestExpense | Expenses | Duration |
-| OperatingIncome | Derived | Duration |
-| EarningsPerShareBasic | NetIncome (the part of the parent, `NetIncomeLoss`) | Duration |
-| EarningsPerShareDiluted | NetIncome (the part of the parent, `NetIncomeLoss`) | Duration |
+Each value is a duration. The cascade ends with comprehensive income.
 
-## Level 2 — Cash Flow
+| Concept |
+| --- |
+| Revenue |
+| CostOfRevenue |
+| GrossProfit |
+| SellingGeneralAdmin |
+| ResearchDevelopment |
+| OperatingIncome |
+| InterestExpense |
+| NetIncome |
+| OtherComprehensiveIncome |
+| ComprehensiveIncome |
 
-| Element | Parent | Period Type |
-| --- | --- | --- |
-| DepreciationAmortization | OperatingCashFlow | Duration |
-| CapitalExpenditures | InvestingCashFlow | Duration |
-| DividendsPaid | FinancingCashFlow | Duration |
-| ShareRepurchases | FinancingCashFlow | Duration |
-| ShareBasedCompensation | OperatingCashFlow | Duration |
+Note: `Revenue` is narrower than element E80 of Chapter 4. It holds the revenue line the filer
+reports. It leaves out the revenues from "other activities" of E84, such as interest income.
+`xbrl/DESIGN.md`, "Roll-Up Tree", puts interest income in other non-operating income.
+
+## Cash Flow Statement (`CashFlowConcept`)
+
+Each value is a duration.
+
+| Concept |
+| --- |
+| OperatingCashFlow |
+| InvestingCashFlow |
+| FinancingCashFlow |
+| DepreciationAmortization |
+| ShareBasedCompensation |
+| CapitalExpenditures |
+| DividendsPaid |
+| ShareRepurchases |
+
+## Per Share (`PerShareConcept`)
+
+A disclosure. Its concepts are outside the trees of the statements, and they do not add over
+periods.
+
+| Concept |
+| --- |
+| EarningsPerShareBasic |
+| EarningsPerShareDiluted |

@@ -6,7 +6,7 @@ use chrono::NaiveDate;
 
 use super::candidate::SeriesKey;
 use super::concept::NamespaceFamily;
-use super::elements::CanonicalElement;
+use super::elements::CanonicalElementKind;
 use super::fact::{Dimensions, FactKey};
 use super::filing::{EntityId, FilingId};
 use super::fiscal_period::FiscalPeriod;
@@ -48,14 +48,14 @@ pub enum Finding {
         ranks: Vec<u16>,
         /// The standard concept of the as-is concept, if a plug-in maps it. If two alias lists of
         /// the plug-in name the concept, this holds the first one, in the order of `aliases()`.
-        standard_concept: Option<CanonicalElement>,
+        standard_concept: Option<CanonicalElementKind>,
     },
     /// The series has no value for an expected period between its first and its last value.
     Gap {
         /// The entity the series is about.
         entity: EntityId,
         /// The standard concept of the series.
-        concept: CanonicalElement,
+        concept: CanonicalElementKind,
         /// The unit of the series.
         unit: Unit,
         /// The axis and member pairs of the series.
@@ -92,7 +92,7 @@ pub enum Finding {
         /// The value key of the as-is fact. It names the filing, the as-is concept, and the period.
         key: FactKey,
         /// The standard concept of the value.
-        standard_concept: CanonicalElement,
+        standard_concept: CanonicalElementKind,
         /// The signals the period hits, in the order of [`PeriodSignal`]. Never empty.
         signals: Vec<PeriodSignal>,
         /// The newest other filing that reports the same value for a plausible period, or `None`.

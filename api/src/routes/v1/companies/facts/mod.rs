@@ -141,7 +141,7 @@ mod tests {
     use bigdecimal::BigDecimal;
     use pretty_assertions::assert_eq;
     use serde_json::json;
-    use xbrl::core::elements::CanonicalElement;
+    use xbrl::core::elements::IncomeStatementConcept;
     use xbrl::core::filing::FilingId;
     use xbrl::core::fiscal_period::FiscalPeriod as DomainFiscalPeriod;
     use xbrl::core::period::Period as DomainPeriod;
@@ -162,7 +162,7 @@ mod tests {
     }
 
     fn revenue_fact_without_lineage() -> Result<Fact, ApiError> {
-        let concept = CanonicalElement::Revenue;
+        let concept = IncomeStatementConcept::Revenue.element();
         let value = BigDecimal::from_str("391035000000")
             .expect("Given a hardcoded integer text, parsing it should always succeed");
         let unit = DomainUnit::from_str("USD")

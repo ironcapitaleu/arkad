@@ -45,7 +45,7 @@ xbrl/
       invalid_value.rs     <- InvalidValue, the error of each core value type
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
-      elements.rs          <- CanonicalElement, our standard concept set, accounting identities
+      elements/            <- CanonicalElementKind, our standard concept set, and the roll-up tree
       standardized.rs      <- StandardizedFact
       candidate.rs         <- Candidate: the value of one filing, before newest-filing
       confidence.rs        <- Exact | Synonym | Derived | Computed
@@ -214,14 +214,14 @@ Links the other statements. Explains additional investment / payout of company s
 
 The MVP builds no statement of changes in equity. See "Roll-Up Tree", "Disclosures".
 
-### CanonicalElement Enum
+### CanonicalElementKind Enum
 
-Decided. The concepts are the lines of the trees and the disclosures in "Roll-Up Tree": 52
-concepts. `xbrl/src/core/elements.rs` holds the enum.
+Decided. The concepts are the lines of the trees and the disclosures in "Roll-Up Tree".
+`xbrl/src/core/elements/` holds the hierarchy.
 
 ### Standard Concept Set
 
-`CanonicalElement` is our own concept set for the standardized layer. Its names are not US GAAP
+`CanonicalElementKind` is our own concept set for the standardized layer. Its names are not US GAAP
 names. Concepts Statement 8 defines its roots, and the IFRS Conceptual Framework defines assets, liabilities,
 equity, income, and expenses in the same terms. So US GAAP and IFRS both map into it, each through
 the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` both map to
@@ -389,8 +389,8 @@ The other line of each open step has a name in the layout:
   `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
   The layout always shows it at the end of the income statement. It is no statement of its own.
 - The cascade has no `Expenses`, `Gains`, or `Losses`. Concepts Statement 8
-  defines these elements, but no filer presents their totals, so these concepts leave the enum.
-  See "Verdict on the 39 Concepts".
+  defines these elements, but no filer presents their totals, so no standard concept holds them.
+  See "Placement of the Concepts".
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
   interest expense. Many filers use it for a total that includes interest. The other line of
   `pretax-income` holds the same amount without that doubt.
@@ -467,8 +467,8 @@ module and one variant, and its siblings do not change.
 | `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept` |
 | a leaf error | a concept, such as `Assets` |
 
-`CanonicalElement` becomes `CanonicalElementKind`, the top of the hierarchy. The sections that
-describe the code of today still say `CanonicalElement`.
+`CanonicalElementKind` is the top of the hierarchy. [ADR 0011](../docs/adr/0011-concept-hierarchy.md)
+records why the concepts nest this way, and why the placement holds the parent and the weight.
 
 ```rust
 #[non_exhaustive]
@@ -502,14 +502,16 @@ impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
 
 ```
 xbrl/src/core/elements/
-  mod.rs                         CanonicalElementKind, the Concept trait, the conversions
+  mod.rs                         CanonicalElementKind, Concept, and the call of the middle
+                                 macro: StatementConcept, DisclosureConcept, the conversions
+  macros.rs                      the innermost macro and the middle macro
   statement/
-    mod.rs                       StatementConcept, and the groups of every statement joined
-    balance_sheet.rs             BalanceSheetConcept, its placements and its groups
-    income_statement.rs          IncomeStatementConcept, its placements and its groups
-    cash_flow.rs                 CashFlowConcept, its placements, its groups, and its starts
+    mod.rs                       the statement modules
+    balance_sheet.rs             BalanceSheetConcept
+    income_statement.rs          IncomeStatementConcept
+    cash_flow.rs                 CashFlowConcept
   disclosure/
-    mod.rs                       DisclosureConcept
+    mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
 xbrl/src/core/statement/
   mod.rs                         FinancialStatement, StatementKind, Statement, StatementLine
@@ -654,62 +656,53 @@ Risk: a zero-if-absent child that a filer reports under a concept outside its al
 zero. Then the derived value absorbs it. The balance sheet identity still holds, so no check
 catches it.
 
-#### Verdict on the 39 Concepts
+#### Placement of the Concepts
 
-No concept changes its name. A move changes the placement only.
+The concepts of `CanonicalElementKind` take these places in the trees and disclosures.
 
-| Concept | Verdict | Placement |
-| ------- | ------- | --------- |
-| `Assets` | keep | top of the balance sheet |
-| `Liabilities` | move | child of `liabilities-and-equity` |
-| `Equity` | move | child of `liabilities-and-equity` |
-| `Revenue` | keep | top of the income statement, start of `gross-profit` |
-| `Expenses` | remove | |
-| `Gains` | remove | |
-| `Losses` | remove | |
-| `NetIncome` | keep | top of the income statement |
-| `OtherComprehensiveIncome` | move | item of `comprehensive-income` |
-| `ComprehensiveIncome` | keep | top of the income statement, last subtotal of the cascade |
-| `OperatingCashFlow` | move | child of `net-change-in-cash` |
-| `InvestingCashFlow` | move | child of `net-change-in-cash` |
-| `FinancingCashFlow` | move | child of `net-change-in-cash` |
-| `CurrentAssets` | keep | child of `assets` |
-| `NonCurrentAssets` | keep | child of `assets` |
-| `CashAndEquivalents` | keep | child of `current-assets` |
-| `ShortTermInvestments` | keep | child of `current-assets` |
-| `AccountsReceivable` | keep | child of `current-assets` |
-| `Inventory` | keep | child of `current-assets` |
-| `PropertyPlantEquipment` | keep | child of `non-current-assets` |
-| `Goodwill` | keep | child of `non-current-assets` |
-| `IntangibleAssets` | keep | child of `non-current-assets` |
-| `CurrentLiabilities` | keep | child of `liabilities` |
-| `NonCurrentLiabilities` | keep | child of `liabilities` |
-| `LongTermDebt` | keep | child of `non-current-liabilities` |
-| `RetainedEarnings` | move | child of `equity-attributable-to-parent` |
-| `CostOfRevenue` | keep | item of `gross-profit` |
-| `GrossProfit` | keep | top of the income statement |
-| `SellingGeneralAdmin` | move | child of `operating-expenses` |
-| `ResearchDevelopment` | move | child of `operating-expenses` |
-| `InterestExpense` | move | item of `pretax-income` |
-| `OperatingIncome` | move | top of the income statement |
-| `EarningsPerShareBasic` | move | disclosure `PerShare` |
-| `EarningsPerShareDiluted` | move | disclosure `PerShare` |
-| `DepreciationAmortization` | move | item of `operating-cash-flow` |
-| `CapitalExpenditures` | keep | child of `investing-cash-flow` |
-| `DividendsPaid` | keep | child of `financing-cash-flow` |
-| `ShareRepurchases` | keep | child of `financing-cash-flow` |
-| `ShareBasedCompensation` | move | item of `operating-cash-flow` |
+| Concept | Placement |
+| ------- | --------- |
+| `Assets` | top of the balance sheet |
+| `Liabilities` | child of `liabilities-and-equity` |
+| `Equity` | child of `liabilities-and-equity` |
+| `Revenue` | top of the income statement, start of `gross-profit` |
+| `NetIncome` | top of the income statement |
+| `OtherComprehensiveIncome` | item of `comprehensive-income` |
+| `ComprehensiveIncome` | top of the income statement, last subtotal of the cascade |
+| `OperatingCashFlow` | child of `net-change-in-cash` |
+| `InvestingCashFlow` | child of `net-change-in-cash` |
+| `FinancingCashFlow` | child of `net-change-in-cash` |
+| `CurrentAssets` | child of `assets` |
+| `NonCurrentAssets` | child of `assets` |
+| `CashAndEquivalents` | child of `current-assets` |
+| `ShortTermInvestments` | child of `current-assets` |
+| `AccountsReceivable` | child of `current-assets` |
+| `Inventory` | child of `current-assets` |
+| `PropertyPlantEquipment` | child of `non-current-assets` |
+| `Goodwill` | child of `non-current-assets` |
+| `IntangibleAssets` | child of `non-current-assets` |
+| `CurrentLiabilities` | child of `liabilities` |
+| `NonCurrentLiabilities` | child of `liabilities` |
+| `LongTermDebt` | child of `non-current-liabilities` |
+| `RetainedEarnings` | child of `equity-attributable-to-parent` |
+| `CostOfRevenue` | item of `gross-profit` |
+| `GrossProfit` | top of the income statement |
+| `SellingGeneralAdmin` | child of `operating-expenses` |
+| `ResearchDevelopment` | child of `operating-expenses` |
+| `InterestExpense` | item of `pretax-income` |
+| `OperatingIncome` | top of the income statement |
+| `EarningsPerShareBasic` | disclosure `PerShare` |
+| `EarningsPerShareDiluted` | disclosure `PerShare` |
+| `DepreciationAmortization` | item of `operating-cash-flow` |
+| `CapitalExpenditures` | child of `investing-cash-flow` |
+| `DividendsPaid` | child of `financing-cash-flow` |
+| `ShareRepurchases` | child of `financing-cash-flow` |
+| `ShareBasedCompensation` | item of `operating-cash-flow` |
 
-"Keep" means the enum already puts the concept where the tree puts it. "Move" means its old level
-or section differs from its new placement.
-
-`Expenses`, `Gains`, and `Losses` leave the enum. No US GAAP concept holds them, no rule fills
-them, and no filer presents them. The cascade replaces them with `OperatingExpenses`,
+No standard concept holds expenses, gains, or losses. No US GAAP concept holds their totals, no
+rule fills them, and no filer presents them. The cascade holds them in `OperatingExpenses`,
 `InterestExpense`, `IncomeTaxExpense`, and the other lines. Concepts Statement 8, Chapter 4,
-keeps them as elements. The identity in "Three Layers" names them, but no
-standard concept holds them.
-
-`is_level_one()` goes away. The placement replaces Level 1 and Level 2.
+keeps them as elements, and the identity in "Three Layers" names them.
 
 #### Concepts to Add
 
@@ -783,23 +776,21 @@ The changes are to comments and to the new lists.
 | `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
 | `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
 | `CostOfRevenue`, `GrossProfit`, `SellingGeneralAdmin`, `ResearchDevelopment`, `InterestExpense` | stays |
-| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts move to the disclosure `PerShare` |
+| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts belong to the disclosure `PerShare` |
 | `DepreciationAmortization`, `CapitalExpenditures`, `DividendsPaid`, `ShareRepurchases`, `ShareBasedCompensation` | stays |
 | `OtherComprehensiveIncome`, `ComprehensiveIncome` | stays |
-| The comment on `Expenses`, `Gains`, and `Losses` | goes away with the three concepts |
 
 The flag `required` stays as it is. The completeness check of "5) Validation" reads it.
 
 #### Names in Silver
 
 The `concept` column of `standardized_facts` stores the variant name, such as `NetIncome`, not the
-label of `Display`. The ticket for the stable name adds the method that gives this name and its
-parse.
+label of `Display`. `Concept::name()` gives this name, and `FromStr` on `CanonicalElementKind`
+parses it.
 
-- No concept changes its name, so every stored row keeps its key.
-- The three removed concepts have no rows. No rule fills them.
+- The name of a concept is its variant name, so a stored row keeps its key.
 - The 16 new concepts add new names. Their name is their variant name.
-- A move changes no name. Silver stores no placement and no group.
+- A placement is not part of the name. Silver stores no placement and no group.
 - Other lines and statements have no name in silver. They are not stored.
 - The derived values of `core/roll-up/<group>@1` are rows of `standardized_facts`, with
   confidence `Derived` and the rule ID in `rule`.
@@ -869,18 +860,17 @@ so the other operating cash flow is 390 − 16 = 374.
 
 The owner decided these on 2026-11-14.
 
-1. **`Expenses`, `Gains`, and `Losses` leave the enum.** The MVP freezes the top lines of the trees
-   instead of the 13 roots. No US GAAP concept holds these totals, no rule fills them, and silver
-   holds no row of them. Keeping them with no placement leaves three variants outside the
-   hierarchy.
+1. **No standard concept holds expenses, gains, or losses.** The MVP freezes the top lines of the
+   trees. No US GAAP concept holds these totals, no rule fills them, and silver holds no row of
+   them. A concept with no placement sits outside the hierarchy (ADR 0011).
 2. **`ShortTermDebt` holds current finance leases**, through `DebtCurrent`. `LongTermDebt` leaves
    them out. The part rule alone gives most filers no value. Widening `LongTermDebt` instead
    reverses the decision to drop wider aliases.
 3. **The tolerance base is the largest absolute value in the group**, not the parent. In a step, the
    parent can be near zero while its members are large.
-4. **Layer 3 drops the check `NetIncome` = `Revenue` − `Expenses` + `Gains` − `Losses`** and adds
-   the exchange rate effect to the cash flow check. The old check cannot run without the three
-   concepts. The cash flow check matches the `accounting` skill.
+4. **Layer 3 checks the cascade and the cash flow, with the exchange rate effect.** No standard
+   concept holds expenses, gains, or losses, so no check names them. The cash flow check matches
+   the `accounting` skill.
 
 ---
 
@@ -1210,9 +1200,9 @@ ticket decides where the removed elements live.
   it only if the filing reports no `NetIncomeLossAttributableToNoncontrollingInterest`.
 - `OtherComprehensiveIncome` and `ComprehensiveIncome` hold the noncontrolling interest, as
   `NetIncome` and `Equity` do. The part of the parent stands for each only through the part rule.
-- `Expenses`, `Gains`, and `Losses` have no alias list. No US GAAP concept holds the expenses,
-  gains, or losses of Concepts Statement 8. `CostsAndExpenses` holds only the cost of revenue and the operating
-  expenses. "Roll-Up Tree" removes the three concepts.
+- No standard concept holds the expenses, gains, or losses of Concepts Statement 8, so they have
+  no alias list. No US GAAP concept holds them. `CostsAndExpenses` holds only the cost of revenue
+  and the operating expenses.
 - The alias lists of `Revenue` and `Equity` hold only totals. The customer-contract revenue
   concepts and `StockholdersEquity` are parts.
 
@@ -1376,7 +1366,7 @@ The resolution engine does not know which API an as-is fact came from.
 ```text
 StandardizedFact {
     entity:      EntityId
-    concept:     CanonicalElement
+    concept:     CanonicalElementKind
     period:      Period
     unit:        Unit
     dimensions:  Dimensions        // empty in the MVP
@@ -1594,7 +1584,7 @@ Finding::Conflict {
     entity:            EntityId
     key:               FactKey                   // rank 0: filing, as-is concept, period end, quarters
     ranks:             Vec<u16>                  // the ranks that disagree with rank 0, ascending
-    standard_concept:  Option<CanonicalElement>  // None if no plug-in maps the as-is concept
+    standard_concept:  Option<CanonicalElementKind>  // None if no plug-in maps the as-is concept
 }
 ```
 
@@ -1733,7 +1723,7 @@ filed. `core::suspicious_period::suspicious_periods` runs inside `check_chronolo
 Finding::SuspiciousPeriod {
     entity:            EntityId
     key:               FactKey            // the first input: filing, as-is concept, period end, quarters
-    standard_concept:  CanonicalElement
+    standard_concept:  CanonicalElementKind
     signals:           Vec<PeriodSignal>  // StartBeforeEarliestYear, EndFarFromReport, or both
     confirmed_by:      Option<FilingId>   // the newest other filing with the same value, or None
 }
@@ -1999,9 +1989,9 @@ ErrorKind
       ::InvalidDataPointValue { concept: String, source: InvalidValue }
       ::InvalidSubmissionRow { adsh: String, source: InvalidValue }
     ::FailedValidation(ValidationErrorKind)
-      ::IncompleteData { missing_elements: Vec<CanonicalElement> }
+      ::IncompleteData { missing_elements: Vec<CanonicalElementKind> }
       ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
-      ::ImpreciseRollup { parent: CanonicalElement, parent_value: i64, children_sum: i64, deviation_pct: f64, threshold_pct: f64 }
+      ::ImpreciseRollup { parent: CanonicalElementKind, parent_value: i64, children_sum: i64, deviation_pct: f64, threshold_pct: f64 }
 ```
 
 ### Error Severity
@@ -2054,7 +2044,7 @@ pub enum ParseErrorKind {
 pub enum ValidationErrorKind {
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
     IncompleteData {
-        missing_elements: Vec<CanonicalElement>,
+        missing_elements: Vec<CanonicalElementKind>,
     },
 
     #[error("[InconsistentIdentity] Invariant '{invariant}' violated, left={left_value}, right={right_value}")]
@@ -2066,7 +2056,7 @@ pub enum ValidationErrorKind {
 
     #[error("[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'")]
     ImpreciseRollup {
-        parent: CanonicalElement,
+        parent: CanonicalElementKind,
         parent_value: i64,
         children_sum: i64,
         deviation_pct: f64,
@@ -2083,8 +2073,8 @@ Exact invariant violations produce `InconsistentIdentity` (hard error). Non-exac
 
 The series step does not fail on a broken identity. It records each failed check of the roll-up tree
 as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
-validates one statement, such as a publish gate. `NetIncomeIdentity` goes away with `Expenses`,
-`Gains`, and `Losses`. The checks of the series step use the tolerance of "Checks the Tree Gives",
+validates one statement, such as a publish gate. The checks of the series step name no `Expenses`,
+`Gains`, or `Losses`, so they have no `NetIncomeIdentity`. The checks of the series step use the tolerance of "Checks the Tree Gives",
 for every group and identity. `is_exact()` applies only to a caller that validates one statement,
 such as a publish gate.
 
@@ -2219,11 +2209,10 @@ impl TryFrom<Statement> for BalanceSheet {
 
 ---
 
-## 8) Data Modeling — Level 2 Sub-Elements
+## 8) Data Modeling — Concepts Below the Top Lines
 
-"Roll-Up Tree" replaces Level 1 and Level 2. A concept has a placement in a tree of one statement,
-or in a disclosure. Its depth in the tree replaces its level. Each concept keeps the tiered
-resolution: exact, synonym, derived, computed.
+A concept has a placement in a tree of one statement, or in a disclosure ("Roll-Up Tree"). Each
+concept keeps the tiered resolution: exact, synonym, derived, computed.
 
 ---
 
@@ -2261,7 +2250,7 @@ resolution: exact, synonym, derived, computed.
 
 ## Decisions Needed Before Implementation
 
-1. **CanonicalElement enum** — Decided: it becomes the hierarchy of `CanonicalElementKind`. See "Roll-Up Tree", "Extension Model", "Verdict on the 39 Concepts", and "Concepts to Add"
+1. **Standard concepts** — Decided: the hierarchy of `CanonicalElementKind`. See "Roll-Up Tree", "Extension Model", "Placement of the Concepts", and "Concepts to Add"
 2. **Graph structure** — Decided: a static table in `xbrl::core`. See "Graph Structure"
 3. **Financial statement output types** — Decided: a generic `Statement` and a typed view per statement. See "7) Financial Statement Output Types"
 
@@ -2281,7 +2270,7 @@ This requires two follow-up tickets:
 
 Research and decide:
 - How `Cik` (sec-specific) interacts with `EntityName` (xbrl) in `CompanyData`
-- Whether `CompanyData.facts` key becomes `CanonicalElement` or stays as a definition reference
+- Whether `CompanyData.facts` key becomes `CanonicalElementKind` or stays as a definition reference
 - Whether `sec` types become re-exports of `xbrl` types or thin wrappers with `From` impls
 - How to handle the `&'static ConceptDefinition` reference pattern (sec's constants vs xbrl's)
 - Migration strategy that keeps the `sec` crate compiling at every step
@@ -2315,7 +2304,7 @@ This touches the `sec` crate's public API and downstream consumers.
 - Concept names shift over time (FASB taxonomy updates) — alias lists must cover historical names
 - 15-17 years of history available for most S&P 500 companies
 - The FASB calculation linkbase is universal (one tree, same for every company)
-- Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for Level 2
+- Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for the lines below the top lines
 - Segment data requires the Notes data set or the instance XML
 - No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 140 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element

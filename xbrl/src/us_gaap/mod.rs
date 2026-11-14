@@ -382,7 +382,10 @@ mod tests {
     use crate::core::candidate::CandidateValue;
     use crate::core::confidence::Confidence;
     use crate::core::dedup::more_precise;
-    use crate::core::elements::CanonicalElement;
+    use crate::core::elements::{
+        BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, IncomeStatementConcept,
+        PerShareConcept,
+    };
     use crate::core::fact::{AsIsFact, Decimals, TaxonomyVersion};
     use crate::core::finding::Finding;
     use crate::core::taxonomy::reference::{Balance, PeriodType};
@@ -483,7 +486,7 @@ mod tests {
     fn resolve(
         facts: &[AsIsFact],
         registry: &Registry<'_>,
-    ) -> Vec<(CanonicalElement, RuleId, Option<Confidence>)> {
+    ) -> Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> {
         resolve_aliases(&more_precise(facts), registry)
             .candidates
             .into_iter()
@@ -505,132 +508,153 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
-            (CanonicalElement::Revenue, "us-gaap/alias/revenue@1"),
             (
-                CanonicalElement::OperatingIncome,
+                IncomeStatementConcept::Revenue.element(),
+                "us-gaap/alias/revenue@1",
+            ),
+            (
+                IncomeStatementConcept::OperatingIncome.element(),
                 "us-gaap/alias/operating-income@1",
             ),
-            (CanonicalElement::NetIncome, "us-gaap/alias/net-income@1"),
-            (CanonicalElement::Assets, "us-gaap/alias/assets@1"),
-            (CanonicalElement::Liabilities, "us-gaap/alias/liabilities@1"),
-            (CanonicalElement::Equity, "us-gaap/alias/equity@1"),
             (
-                CanonicalElement::OperatingCashFlow,
+                IncomeStatementConcept::NetIncome.element(),
+                "us-gaap/alias/net-income@1",
+            ),
+            (
+                BalanceSheetConcept::Assets.element(),
+                "us-gaap/alias/assets@1",
+            ),
+            (
+                BalanceSheetConcept::Liabilities.element(),
+                "us-gaap/alias/liabilities@1",
+            ),
+            (
+                BalanceSheetConcept::Equity.element(),
+                "us-gaap/alias/equity@1",
+            ),
+            (
+                CashFlowConcept::OperatingCashFlow.element(),
                 "us-gaap/alias/operating-cash-flow@1",
             ),
             (
-                CanonicalElement::InvestingCashFlow,
+                CashFlowConcept::InvestingCashFlow.element(),
                 "us-gaap/alias/investing-cash-flow@1",
             ),
             (
-                CanonicalElement::FinancingCashFlow,
+                CashFlowConcept::FinancingCashFlow.element(),
                 "us-gaap/alias/financing-cash-flow@1",
             ),
             (
-                CanonicalElement::CurrentAssets,
+                BalanceSheetConcept::CurrentAssets.element(),
                 "us-gaap/alias/current-assets@1",
             ),
             (
-                CanonicalElement::NonCurrentAssets,
+                BalanceSheetConcept::NonCurrentAssets.element(),
                 "us-gaap/alias/non-current-assets@1",
             ),
             (
-                CanonicalElement::CashAndEquivalents,
+                BalanceSheetConcept::CashAndEquivalents.element(),
                 "us-gaap/alias/cash-and-equivalents@1",
             ),
             (
-                CanonicalElement::ShortTermInvestments,
+                BalanceSheetConcept::ShortTermInvestments.element(),
                 "us-gaap/alias/short-term-investments@1",
             ),
             (
-                CanonicalElement::AccountsReceivable,
+                BalanceSheetConcept::AccountsReceivable.element(),
                 "us-gaap/alias/accounts-receivable@1",
             ),
-            (CanonicalElement::Inventory, "us-gaap/alias/inventory@1"),
             (
-                CanonicalElement::PropertyPlantEquipment,
+                BalanceSheetConcept::Inventory.element(),
+                "us-gaap/alias/inventory@1",
+            ),
+            (
+                BalanceSheetConcept::PropertyPlantEquipment.element(),
                 "us-gaap/alias/property-plant-equipment@1",
             ),
-            (CanonicalElement::Goodwill, "us-gaap/alias/goodwill@1"),
             (
-                CanonicalElement::IntangibleAssets,
+                BalanceSheetConcept::Goodwill.element(),
+                "us-gaap/alias/goodwill@1",
+            ),
+            (
+                BalanceSheetConcept::IntangibleAssets.element(),
                 "us-gaap/alias/intangible-assets@1",
             ),
             (
-                CanonicalElement::CurrentLiabilities,
+                BalanceSheetConcept::CurrentLiabilities.element(),
                 "us-gaap/alias/current-liabilities@1",
             ),
             (
-                CanonicalElement::NonCurrentLiabilities,
+                BalanceSheetConcept::NonCurrentLiabilities.element(),
                 "us-gaap/alias/non-current-liabilities@1",
             ),
             (
-                CanonicalElement::LongTermDebt,
+                BalanceSheetConcept::LongTermDebt.element(),
                 "us-gaap/alias/long-term-debt@1",
             ),
             (
-                CanonicalElement::RetainedEarnings,
+                BalanceSheetConcept::RetainedEarnings.element(),
                 "us-gaap/alias/retained-earnings@1",
             ),
             (
-                CanonicalElement::CostOfRevenue,
+                IncomeStatementConcept::CostOfRevenue.element(),
                 "us-gaap/alias/cost-of-revenue@1",
             ),
             (
-                CanonicalElement::GrossProfit,
+                IncomeStatementConcept::GrossProfit.element(),
                 "us-gaap/alias/gross-profit@1",
             ),
             (
-                CanonicalElement::SellingGeneralAdmin,
+                IncomeStatementConcept::SellingGeneralAdmin.element(),
                 "us-gaap/alias/selling-general-admin@1",
             ),
             (
-                CanonicalElement::ResearchDevelopment,
+                IncomeStatementConcept::ResearchDevelopment.element(),
                 "us-gaap/alias/research-development@1",
             ),
             (
-                CanonicalElement::InterestExpense,
+                IncomeStatementConcept::InterestExpense.element(),
                 "us-gaap/alias/interest-expense@1",
             ),
             (
-                CanonicalElement::EarningsPerShareBasic,
+                PerShareConcept::EarningsPerShareBasic.element(),
                 "us-gaap/alias/earnings-per-share-basic@1",
             ),
             (
-                CanonicalElement::EarningsPerShareDiluted,
+                PerShareConcept::EarningsPerShareDiluted.element(),
                 "us-gaap/alias/earnings-per-share-diluted@1",
             ),
             (
-                CanonicalElement::DepreciationAmortization,
+                CashFlowConcept::DepreciationAmortization.element(),
                 "us-gaap/alias/depreciation-amortization@1",
             ),
             (
-                CanonicalElement::CapitalExpenditures,
+                CashFlowConcept::CapitalExpenditures.element(),
                 "us-gaap/alias/capital-expenditures@1",
             ),
             (
-                CanonicalElement::DividendsPaid,
+                CashFlowConcept::DividendsPaid.element(),
                 "us-gaap/alias/dividends-paid@1",
             ),
             (
-                CanonicalElement::ShareRepurchases,
+                CashFlowConcept::ShareRepurchases.element(),
                 "us-gaap/alias/share-repurchases@1",
             ),
             (
-                CanonicalElement::ShareBasedCompensation,
+                CashFlowConcept::ShareBasedCompensation.element(),
                 "us-gaap/alias/share-based-compensation@1",
             ),
             (
-                CanonicalElement::OtherComprehensiveIncome,
+                IncomeStatementConcept::OtherComprehensiveIncome.element(),
                 "us-gaap/alias/other-comprehensive-income@1",
             ),
             (
-                CanonicalElement::ComprehensiveIncome,
+                IncomeStatementConcept::ComprehensiveIncome.element(),
                 "us-gaap/alias/comprehensive-income@1",
             ),
         ];
 
-        let result: Vec<(CanonicalElement, &str)> = us_gaap
+        let result: Vec<(CanonicalElementKind, &str)> = us_gaap
             .aliases()
             .iter()
             .map(|aliases| (aliases.element, aliases.rule.as_str()))
@@ -712,7 +736,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -724,25 +748,25 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
-            CanonicalElement::Revenue,
-            CanonicalElement::NetIncome,
-            CanonicalElement::Equity,
-            CanonicalElement::CashAndEquivalents,
-            CanonicalElement::ShortTermInvestments,
-            CanonicalElement::IntangibleAssets,
-            CanonicalElement::CostOfRevenue,
-            CanonicalElement::SellingGeneralAdmin,
-            CanonicalElement::ResearchDevelopment,
-            CanonicalElement::InterestExpense,
-            CanonicalElement::DepreciationAmortization,
-            CanonicalElement::CapitalExpenditures,
-            CanonicalElement::DividendsPaid,
-            CanonicalElement::ShareRepurchases,
-            CanonicalElement::OtherComprehensiveIncome,
-            CanonicalElement::ComprehensiveIncome,
+            IncomeStatementConcept::Revenue.element(),
+            IncomeStatementConcept::NetIncome.element(),
+            BalanceSheetConcept::Equity.element(),
+            BalanceSheetConcept::CashAndEquivalents.element(),
+            BalanceSheetConcept::ShortTermInvestments.element(),
+            BalanceSheetConcept::IntangibleAssets.element(),
+            IncomeStatementConcept::CostOfRevenue.element(),
+            IncomeStatementConcept::SellingGeneralAdmin.element(),
+            IncomeStatementConcept::ResearchDevelopment.element(),
+            IncomeStatementConcept::InterestExpense.element(),
+            CashFlowConcept::DepreciationAmortization.element(),
+            CashFlowConcept::CapitalExpenditures.element(),
+            CashFlowConcept::DividendsPaid.element(),
+            CashFlowConcept::ShareRepurchases.element(),
+            IncomeStatementConcept::OtherComprehensiveIncome.element(),
+            IncomeStatementConcept::ComprehensiveIncome.element(),
         ];
 
-        let result: Vec<CanonicalElement> = us_gaap
+        let result: Vec<CanonicalElementKind> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| aliases.parts.is_some())
@@ -757,7 +781,7 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
-            element: CanonicalElement::Revenue,
+            element: IncomeStatementConcept::Revenue.element(),
             rule: rule("us-gaap/alias/revenue@1"),
             concepts: vec![
                 concept("us-gaap", "Revenues"),
@@ -813,7 +837,7 @@ mod tests {
         let result = us_gaap
             .aliases()
             .iter()
-            .find(|aliases| aliases.element == CanonicalElement::Revenue);
+            .find(|aliases| aliases.element == IncomeStatementConcept::Revenue.element());
 
         assert_eq!(result, expected_result);
     }
@@ -823,7 +847,7 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
-            element: CanonicalElement::NetIncome,
+            element: IncomeStatementConcept::NetIncome.element(),
             rule: rule("us-gaap/alias/net-income@1"),
             concepts: vec![concept("us-gaap", "ProfitLoss")],
             parts: Some(PartAliases {
@@ -890,7 +914,7 @@ mod tests {
         let result = us_gaap
             .aliases()
             .iter()
-            .find(|aliases| aliases.element == CanonicalElement::NetIncome);
+            .find(|aliases| aliases.element == IncomeStatementConcept::NetIncome.element());
 
         assert_eq!(result, expected_result);
     }
@@ -900,7 +924,7 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
-            element: CanonicalElement::Equity,
+            element: BalanceSheetConcept::Equity.element(),
             rule: rule("us-gaap/alias/equity@1"),
             concepts: vec![concept(
                 "us-gaap",
@@ -929,46 +953,46 @@ mod tests {
         let result = us_gaap
             .aliases()
             .iter()
-            .find(|aliases| aliases.element == CanonicalElement::Equity);
+            .find(|aliases| aliases.element == BalanceSheetConcept::Equity.element());
 
         assert_eq!(result, expected_result);
     }
 
     /// The balance sheet concepts of [`mappings::OPTIONAL_CONCEPTS`].
-    const BALANCE_SHEET: [CanonicalElement; 13] = [
-        CanonicalElement::CurrentAssets,
-        CanonicalElement::NonCurrentAssets,
-        CanonicalElement::CashAndEquivalents,
-        CanonicalElement::ShortTermInvestments,
-        CanonicalElement::AccountsReceivable,
-        CanonicalElement::Inventory,
-        CanonicalElement::PropertyPlantEquipment,
-        CanonicalElement::Goodwill,
-        CanonicalElement::IntangibleAssets,
-        CanonicalElement::CurrentLiabilities,
-        CanonicalElement::NonCurrentLiabilities,
-        CanonicalElement::LongTermDebt,
-        CanonicalElement::RetainedEarnings,
+    const BALANCE_SHEET: [CanonicalElementKind; 13] = [
+        BalanceSheetConcept::CurrentAssets.element(),
+        BalanceSheetConcept::NonCurrentAssets.element(),
+        BalanceSheetConcept::CashAndEquivalents.element(),
+        BalanceSheetConcept::ShortTermInvestments.element(),
+        BalanceSheetConcept::AccountsReceivable.element(),
+        BalanceSheetConcept::Inventory.element(),
+        BalanceSheetConcept::PropertyPlantEquipment.element(),
+        BalanceSheetConcept::Goodwill.element(),
+        BalanceSheetConcept::IntangibleAssets.element(),
+        BalanceSheetConcept::CurrentLiabilities.element(),
+        BalanceSheetConcept::NonCurrentLiabilities.element(),
+        BalanceSheetConcept::LongTermDebt.element(),
+        BalanceSheetConcept::RetainedEarnings.element(),
     ];
 
     /// The income statement concepts of [`mappings::OPTIONAL_CONCEPTS`].
-    const INCOME_STATEMENT: [CanonicalElement; 7] = [
-        CanonicalElement::CostOfRevenue,
-        CanonicalElement::GrossProfit,
-        CanonicalElement::SellingGeneralAdmin,
-        CanonicalElement::ResearchDevelopment,
-        CanonicalElement::InterestExpense,
-        CanonicalElement::EarningsPerShareBasic,
-        CanonicalElement::EarningsPerShareDiluted,
+    const INCOME_STATEMENT: [CanonicalElementKind; 7] = [
+        IncomeStatementConcept::CostOfRevenue.element(),
+        IncomeStatementConcept::GrossProfit.element(),
+        IncomeStatementConcept::SellingGeneralAdmin.element(),
+        IncomeStatementConcept::ResearchDevelopment.element(),
+        IncomeStatementConcept::InterestExpense.element(),
+        PerShareConcept::EarningsPerShareBasic.element(),
+        PerShareConcept::EarningsPerShareDiluted.element(),
     ];
 
     /// The cash flow concepts of [`mappings::OPTIONAL_CONCEPTS`].
-    const CASH_FLOW: [CanonicalElement; 5] = [
-        CanonicalElement::DepreciationAmortization,
-        CanonicalElement::CapitalExpenditures,
-        CanonicalElement::DividendsPaid,
-        CanonicalElement::ShareRepurchases,
-        CanonicalElement::ShareBasedCompensation,
+    const CASH_FLOW: [CanonicalElementKind; 5] = [
+        CashFlowConcept::DepreciationAmortization.element(),
+        CashFlowConcept::CapitalExpenditures.element(),
+        CashFlowConcept::DividendsPaid.element(),
+        CashFlowConcept::ShareRepurchases.element(),
+        CashFlowConcept::ShareBasedCompensation.element(),
     ];
 
     #[test]
@@ -977,33 +1001,33 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::DepreciationAmortization,
+                CashFlowConcept::DepreciationAmortization.element(),
                 rule("us-gaap/alias/depreciation-amortization@1"),
                 vec![concept("us-gaap", "DepreciationDepletionAndAmortization")],
             ),
             (
-                CanonicalElement::CapitalExpenditures,
+                CashFlowConcept::CapitalExpenditures.element(),
                 rule("us-gaap/alias/capital-expenditures@1"),
                 vec![concept("us-gaap", "PaymentsToAcquireProductiveAssets")],
             ),
             (
-                CanonicalElement::DividendsPaid,
+                CashFlowConcept::DividendsPaid.element(),
                 rule("us-gaap/alias/dividends-paid@1"),
                 vec![concept("us-gaap", "PaymentsOfDividends")],
             ),
             (
-                CanonicalElement::ShareRepurchases,
+                CashFlowConcept::ShareRepurchases.element(),
                 rule("us-gaap/alias/share-repurchases@1"),
                 vec![concept("us-gaap", "PaymentsForRepurchaseOfEquity")],
             ),
             (
-                CanonicalElement::ShareBasedCompensation,
+                CashFlowConcept::ShareBasedCompensation.element(),
                 rule("us-gaap/alias/share-based-compensation@1"),
                 vec![concept("us-gaap", "ShareBasedCompensation")],
             ),
         ];
 
-        let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
+        let result: Vec<(CanonicalElementKind, RuleId, Vec<ConceptName>)> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| CASH_FLOW.contains(&aliases.element))
@@ -1065,7 +1089,7 @@ mod tests {
         let result = us_gaap
             .aliases()
             .iter()
-            .find(|aliases| aliases.element == CanonicalElement::DepreciationAmortization)
+            .find(|aliases| aliases.element == CashFlowConcept::DepreciationAmortization.element())
             .and_then(|aliases| aliases.parts.clone());
 
         assert_eq!(result, expected_result);
@@ -1077,7 +1101,7 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::CapitalExpenditures,
+                CashFlowConcept::CapitalExpenditures.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/capital-expenditures@1"),
                     parts: vec![concept(
@@ -1096,7 +1120,7 @@ mod tests {
                 },
             ),
             (
-                CanonicalElement::DividendsPaid,
+                CashFlowConcept::DividendsPaid.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/dividends-paid@1"),
                     parts: vec![concept("us-gaap", "PaymentsOfDividendsCommonStock")],
@@ -1111,7 +1135,7 @@ mod tests {
                 },
             ),
             (
-                CanonicalElement::ShareRepurchases,
+                CashFlowConcept::ShareRepurchases.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/share-repurchases@1"),
                     parts: vec![concept("us-gaap", "PaymentsForRepurchaseOfCommonStock")],
@@ -1133,12 +1157,12 @@ mod tests {
             ),
         ];
 
-        let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
+        let result: Vec<(CanonicalElementKind, PartAliases)> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| {
                 CASH_FLOW.contains(&aliases.element)
-                    && aliases.element != CanonicalElement::DepreciationAmortization
+                    && aliases.element != CashFlowConcept::DepreciationAmortization.element()
             })
             .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
@@ -1154,7 +1178,7 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
-            element: CanonicalElement::OtherComprehensiveIncome,
+            element: IncomeStatementConcept::OtherComprehensiveIncome.element(),
             rule: rule("us-gaap/alias/other-comprehensive-income@1"),
             concepts: vec![concept("us-gaap", "OtherComprehensiveIncomeLossNetOfTax")],
             parts: Some(PartAliases {
@@ -1289,10 +1313,9 @@ mod tests {
             }),
         });
 
-        let result = us_gaap
-            .aliases()
-            .iter()
-            .find(|aliases| aliases.element == CanonicalElement::OtherComprehensiveIncome);
+        let result = us_gaap.aliases().iter().find(|aliases| {
+            aliases.element == IncomeStatementConcept::OtherComprehensiveIncome.element()
+        });
 
         assert_eq!(result, expected_result);
     }
@@ -1304,7 +1327,7 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = Some(&ConceptAliases {
-            element: CanonicalElement::ComprehensiveIncome,
+            element: IncomeStatementConcept::ComprehensiveIncome.element(),
             rule: rule("us-gaap/alias/comprehensive-income@1"),
             concepts: vec![concept(
                 "us-gaap",
@@ -1498,10 +1521,9 @@ mod tests {
             }),
         });
 
-        let result = us_gaap
-            .aliases()
-            .iter()
-            .find(|aliases| aliases.element == CanonicalElement::ComprehensiveIncome);
+        let result = us_gaap.aliases().iter().find(|aliases| {
+            aliases.element == IncomeStatementConcept::ComprehensiveIncome.element()
+        });
 
         assert_eq!(result, expected_result);
     }
@@ -1516,7 +1538,7 @@ mod tests {
         let facts = vec![fact(&filing, "ComprehensiveIncomeNetOfTax", "900000000")];
 
         let expected_result = vec![(
-            CanonicalElement::ComprehensiveIncome,
+            IncomeStatementConcept::ComprehensiveIncome.element(),
             rule("us-gaap/part/comprehensive-income@1"),
             Some(Confidence::Synonym),
         )];
@@ -1540,7 +1562,7 @@ mod tests {
         )];
 
         let expected_result = vec![(
-            CanonicalElement::OtherComprehensiveIncome,
+            IncomeStatementConcept::OtherComprehensiveIncome.element(),
             rule("us-gaap/part/other-comprehensive-income@1"),
             Some(Confidence::Synonym),
         )];
@@ -1566,7 +1588,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -1593,7 +1615,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -1620,7 +1642,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -1643,7 +1665,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -1656,32 +1678,32 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::CostOfRevenue,
+                IncomeStatementConcept::CostOfRevenue.element(),
                 rule("us-gaap/alias/cost-of-revenue@1"),
                 vec![concept("us-gaap", "CostOfRevenue")],
             ),
             (
-                CanonicalElement::GrossProfit,
+                IncomeStatementConcept::GrossProfit.element(),
                 rule("us-gaap/alias/gross-profit@1"),
                 vec![concept("us-gaap", "GrossProfit")],
             ),
             (
-                CanonicalElement::SellingGeneralAdmin,
+                IncomeStatementConcept::SellingGeneralAdmin.element(),
                 rule("us-gaap/alias/selling-general-admin@1"),
                 vec![concept("us-gaap", "SellingGeneralAndAdministrativeExpense")],
             ),
             (
-                CanonicalElement::ResearchDevelopment,
+                IncomeStatementConcept::ResearchDevelopment.element(),
                 rule("us-gaap/alias/research-development@1"),
                 vec![concept("us-gaap", "ResearchAndDevelopmentExpense")],
             ),
             (
-                CanonicalElement::InterestExpense,
+                IncomeStatementConcept::InterestExpense.element(),
                 rule("us-gaap/alias/interest-expense@1"),
                 vec![concept("us-gaap", "InterestExpense")],
             ),
             (
-                CanonicalElement::EarningsPerShareBasic,
+                PerShareConcept::EarningsPerShareBasic.element(),
                 rule("us-gaap/alias/earnings-per-share-basic@1"),
                 vec![
                     concept("us-gaap", "EarningsPerShareBasic"),
@@ -1689,7 +1711,7 @@ mod tests {
                 ],
             ),
             (
-                CanonicalElement::EarningsPerShareDiluted,
+                PerShareConcept::EarningsPerShareDiluted.element(),
                 rule("us-gaap/alias/earnings-per-share-diluted@1"),
                 vec![
                     concept("us-gaap", "EarningsPerShareDiluted"),
@@ -1698,7 +1720,7 @@ mod tests {
             ),
         ];
 
-        let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
+        let result: Vec<(CanonicalElementKind, RuleId, Vec<ConceptName>)> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| INCOME_STATEMENT.contains(&aliases.element))
@@ -1753,7 +1775,7 @@ mod tests {
         let result = us_gaap
             .aliases()
             .iter()
-            .find(|aliases| aliases.element == CanonicalElement::InterestExpense)
+            .find(|aliases| aliases.element == IncomeStatementConcept::InterestExpense.element())
             .and_then(|aliases| aliases.parts.clone());
 
         assert_eq!(result, expected_result);
@@ -1765,7 +1787,7 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::CostOfRevenue,
+                IncomeStatementConcept::CostOfRevenue.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/cost-of-revenue@1"),
                     parts: vec![concept("us-gaap", "CostOfGoodsAndServicesSold")],
@@ -1791,7 +1813,7 @@ mod tests {
                 },
             ),
             (
-                CanonicalElement::SellingGeneralAdmin,
+                IncomeStatementConcept::SellingGeneralAdmin.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/selling-general-admin@1"),
                     parts: vec![concept("us-gaap", "GeneralAndAdministrativeExpense")],
@@ -1804,7 +1826,7 @@ mod tests {
                 },
             ),
             (
-                CanonicalElement::ResearchDevelopment,
+                IncomeStatementConcept::ResearchDevelopment.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/research-development@1"),
                     parts: vec![concept(
@@ -1825,12 +1847,12 @@ mod tests {
             ),
         ];
 
-        let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
+        let result: Vec<(CanonicalElementKind, PartAliases)> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| {
                 INCOME_STATEMENT.contains(&aliases.element)
-                    && aliases.element != CanonicalElement::InterestExpense
+                    && aliases.element != IncomeStatementConcept::InterestExpense.element()
             })
             .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
             .collect();
@@ -1844,73 +1866,73 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::CurrentAssets,
+                BalanceSheetConcept::CurrentAssets.element(),
                 rule("us-gaap/alias/current-assets@1"),
                 vec![concept("us-gaap", "AssetsCurrent")],
             ),
             (
-                CanonicalElement::NonCurrentAssets,
+                BalanceSheetConcept::NonCurrentAssets.element(),
                 rule("us-gaap/alias/non-current-assets@1"),
                 vec![concept("us-gaap", "AssetsNoncurrent")],
             ),
             (
-                CanonicalElement::CashAndEquivalents,
+                BalanceSheetConcept::CashAndEquivalents.element(),
                 rule("us-gaap/alias/cash-and-equivalents@1"),
                 vec![concept("us-gaap", "CashAndCashEquivalentsAtCarryingValue")],
             ),
             (
-                CanonicalElement::ShortTermInvestments,
+                BalanceSheetConcept::ShortTermInvestments.element(),
                 rule("us-gaap/alias/short-term-investments@1"),
                 vec![concept("us-gaap", "ShortTermInvestments")],
             ),
             (
-                CanonicalElement::AccountsReceivable,
+                BalanceSheetConcept::AccountsReceivable.element(),
                 rule("us-gaap/alias/accounts-receivable@1"),
                 vec![concept("us-gaap", "AccountsReceivableNetCurrent")],
             ),
             (
-                CanonicalElement::Inventory,
+                BalanceSheetConcept::Inventory.element(),
                 rule("us-gaap/alias/inventory@1"),
                 vec![concept("us-gaap", "InventoryNet")],
             ),
             (
-                CanonicalElement::PropertyPlantEquipment,
+                BalanceSheetConcept::PropertyPlantEquipment.element(),
                 rule("us-gaap/alias/property-plant-equipment@1"),
                 vec![concept("us-gaap", "PropertyPlantAndEquipmentNet")],
             ),
             (
-                CanonicalElement::Goodwill,
+                BalanceSheetConcept::Goodwill.element(),
                 rule("us-gaap/alias/goodwill@1"),
                 vec![concept("us-gaap", "Goodwill")],
             ),
             (
-                CanonicalElement::IntangibleAssets,
+                BalanceSheetConcept::IntangibleAssets.element(),
                 rule("us-gaap/alias/intangible-assets@1"),
                 vec![concept("us-gaap", "IntangibleAssetsNetExcludingGoodwill")],
             ),
             (
-                CanonicalElement::CurrentLiabilities,
+                BalanceSheetConcept::CurrentLiabilities.element(),
                 rule("us-gaap/alias/current-liabilities@1"),
                 vec![concept("us-gaap", "LiabilitiesCurrent")],
             ),
             (
-                CanonicalElement::NonCurrentLiabilities,
+                BalanceSheetConcept::NonCurrentLiabilities.element(),
                 rule("us-gaap/alias/non-current-liabilities@1"),
                 vec![concept("us-gaap", "LiabilitiesNoncurrent")],
             ),
             (
-                CanonicalElement::LongTermDebt,
+                BalanceSheetConcept::LongTermDebt.element(),
                 rule("us-gaap/alias/long-term-debt@1"),
                 vec![concept("us-gaap", "LongTermDebtNoncurrent")],
             ),
             (
-                CanonicalElement::RetainedEarnings,
+                BalanceSheetConcept::RetainedEarnings.element(),
                 rule("us-gaap/alias/retained-earnings@1"),
                 vec![concept("us-gaap", "RetainedEarningsAccumulatedDeficit")],
             ),
         ];
 
-        let result: Vec<(CanonicalElement, RuleId, Vec<ConceptName>)> = us_gaap
+        let result: Vec<(CanonicalElementKind, RuleId, Vec<ConceptName>)> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| BALANCE_SHEET.contains(&aliases.element))
@@ -1932,7 +1954,7 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::CashAndEquivalents,
+                BalanceSheetConcept::CashAndEquivalents.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/cash-and-equivalents@1"),
                     parts: vec![concept("us-gaap", "Cash")],
@@ -1954,7 +1976,7 @@ mod tests {
                 },
             ),
             (
-                CanonicalElement::ShortTermInvestments,
+                BalanceSheetConcept::ShortTermInvestments.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/short-term-investments@1"),
                     parts: vec![concept("us-gaap", "MarketableSecuritiesCurrent")],
@@ -1977,7 +1999,7 @@ mod tests {
                 },
             ),
             (
-                CanonicalElement::IntangibleAssets,
+                BalanceSheetConcept::IntangibleAssets.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/intangible-assets@1"),
                     parts: vec![concept("us-gaap", "FiniteLivedIntangibleAssetsNet")],
@@ -1997,7 +2019,7 @@ mod tests {
             ),
         ];
 
-        let result: Vec<(CanonicalElement, PartAliases)> = us_gaap
+        let result: Vec<(CanonicalElementKind, PartAliases)> = us_gaap
             .aliases()
             .iter()
             .filter(|aliases| BALANCE_SHEET.contains(&aliases.element))
@@ -2016,7 +2038,7 @@ mod tests {
         let facts = vec![fact(&filing, "Revenues", "391035000000")];
 
         let expected_result = vec![(
-            CanonicalElement::Revenue,
+            IncomeStatementConcept::Revenue.element(),
             rule("us-gaap/alias/revenue@1"),
             Some(Confidence::Exact),
         )];
@@ -2040,7 +2062,7 @@ mod tests {
         )];
 
         let expected_result = vec![(
-            CanonicalElement::Revenue,
+            IncomeStatementConcept::Revenue.element(),
             rule("us-gaap/part/revenue@1"),
             Some(Confidence::Synonym),
         )];
@@ -2065,7 +2087,7 @@ mod tests {
             fact(&filing, "OperatingLeaseLeaseIncome", "960000000"),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2087,7 +2109,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2106,7 +2128,7 @@ mod tests {
             fact(&filing, "MinorityInterest", "1000000000"),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2123,12 +2145,12 @@ mod tests {
 
         let expected_result = vec![
             (
-                CanonicalElement::EarningsPerShareBasic,
+                PerShareConcept::EarningsPerShareBasic.element(),
                 rule("us-gaap/alias/earnings-per-share-basic@1"),
                 Some(Confidence::Synonym),
             ),
             (
-                CanonicalElement::EarningsPerShareDiluted,
+                PerShareConcept::EarningsPerShareDiluted.element(),
                 rule("us-gaap/alias/earnings-per-share-diluted@1"),
                 Some(Confidence::Synonym),
             ),
@@ -2157,7 +2179,7 @@ mod tests {
             entity: eps.context.entity.clone(),
             key: eps.key(),
             ranks: vec![1],
-            standard_concept: Some(CanonicalElement::EarningsPerShareBasic),
+            standard_concept: Some(PerShareConcept::EarningsPerShareBasic.element()),
         }];
 
         let result = resolve_aliases(&more_precise(&facts), &registry).findings;
@@ -2177,7 +2199,7 @@ mod tests {
             fact(&filing, "SellingAndMarketingExpense", "80000000"),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2196,7 +2218,7 @@ mod tests {
             fact(&filing, "MarketingExpense", "80000000"),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2214,7 +2236,7 @@ mod tests {
             fact(&filing, "InterestExpenseDeposits", "300000000"),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2233,7 +2255,7 @@ mod tests {
             fact(&filing, "DepletionOfOilAndGasProperties", "400000000"),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
@@ -2257,7 +2279,7 @@ mod tests {
         ];
 
         let expected_result = vec![(
-            CanonicalElement::DepreciationAmortization,
+            CashFlowConcept::DepreciationAmortization.element(),
             rule("us-gaap/part/depreciation-amortization@1"),
             Some(Confidence::Synonym),
         )];
@@ -2283,7 +2305,7 @@ mod tests {
             ),
         ];
 
-        let expected_result: Vec<(CanonicalElement, RuleId, Option<Confidence>)> = Vec::new();
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
