@@ -1,18 +1,10 @@
 //! # Balance Sheet Concepts
 //!
-//! Provides [`BalanceSheetConcept`], its placements, and [`GROUPS`], the groups whose parent is a
-//! balance sheet concept.
+//! Provides [`BalanceSheetConcept`] and its placements. Provides [`BalanceSheetGroup`] and
+//! [`GROUPS`], the groups whose parent is a balance sheet concept.
 
 use crate::core::elements::Placed;
-use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
-
-const ASSETS: &str = "assets";
-const CURRENT_ASSETS: &str = "current-assets";
-const NON_CURRENT_ASSETS: &str = "non-current-assets";
-const LIABILITIES_AND_EQUITY: &str = "liabilities-and-equity";
-const LIABILITIES: &str = "liabilities";
-const NON_CURRENT_LIABILITIES: &str = "non-current-liabilities";
-const EQUITY_ATTRIBUTABLE_TO_PARENT: &str = "equity-attributable-to-parent";
+use crate::core::elements::roll_up::{Group, GroupKind, GroupName, Placement, Weight};
 
 innermost_concepts! {
     /// A standard concept of the balance sheet. Each value is an instant.
@@ -52,26 +44,89 @@ innermost_concepts! {
     }
 }
 
+/// A group whose parent is a balance sheet concept.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BalanceSheetGroup {
+    /// The group whose parent is `Assets`.
+    Assets,
+    /// The group whose parent is `CurrentAssets`.
+    CurrentAssets,
+    /// The group whose parent is `NonCurrentAssets`.
+    NonCurrentAssets,
+    /// The group whose parent is `LiabilitiesAndEquity`.
+    LiabilitiesAndEquity,
+    /// The group whose parent is `Liabilities`.
+    Liabilities,
+    /// The group whose parent is `NonCurrentLiabilities`.
+    NonCurrentLiabilities,
+    /// The group whose parent is `EquityAttributableToParent`.
+    EquityAttributableToParent,
+}
+
+impl BalanceSheetGroup {
+    /// Every group, in the order of the variants.
+    pub const ALL: &'static [Self] = &[
+        Self::Assets,
+        Self::CurrentAssets,
+        Self::NonCurrentAssets,
+        Self::LiabilitiesAndEquity,
+        Self::Liabilities,
+        Self::NonCurrentLiabilities,
+        Self::EquityAttributableToParent,
+    ];
+
+    /// Returns the name of the group in rule IDs and findings, such as `assets`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Assets => "assets",
+            Self::CurrentAssets => "current-assets",
+            Self::NonCurrentAssets => "non-current-assets",
+            Self::LiabilitiesAndEquity => "liabilities-and-equity",
+            Self::Liabilities => "liabilities",
+            Self::NonCurrentLiabilities => "non-current-liabilities",
+            Self::EquityAttributableToParent => "equity-attributable-to-parent",
+        }
+    }
+
+    /// Returns the [`GroupName`] that holds this group.
+    #[must_use]
+    pub const fn name(self) -> GroupName {
+        GroupName::BalanceSheet(self)
+    }
+}
+
 impl Placed for BalanceSheetConcept {
     fn placement(self) -> Placement {
         match self {
             Self::Assets => Placement::Top,
-            Self::CurrentAssets | Self::NonCurrentAssets => Placement::child(ASSETS, Weight::Plus),
+            Self::CurrentAssets | Self::NonCurrentAssets => {
+                Placement::child(BalanceSheetGroup::Assets.name(), Weight::Plus)
+            }
             Self::CashAndEquivalents
             | Self::ShortTermInvestments
             | Self::AccountsReceivable
-            | Self::Inventory => Placement::child(CURRENT_ASSETS, Weight::Plus),
+            | Self::Inventory => {
+                Placement::child(BalanceSheetGroup::CurrentAssets.name(), Weight::Plus)
+            }
             Self::PropertyPlantEquipment | Self::Goodwill | Self::IntangibleAssets => {
-                Placement::child(NON_CURRENT_ASSETS, Weight::Plus)
+                Placement::child(BalanceSheetGroup::NonCurrentAssets.name(), Weight::Plus)
             }
             Self::Liabilities | Self::Equity => {
-                Placement::child(LIABILITIES_AND_EQUITY, Weight::Plus)
+                Placement::child(BalanceSheetGroup::LiabilitiesAndEquity.name(), Weight::Plus)
             }
             Self::CurrentLiabilities | Self::NonCurrentLiabilities => {
-                Placement::child(LIABILITIES, Weight::Plus)
+                Placement::child(BalanceSheetGroup::Liabilities.name(), Weight::Plus)
             }
-            Self::LongTermDebt => Placement::child(NON_CURRENT_LIABILITIES, Weight::Plus),
-            Self::RetainedEarnings => Placement::child(EQUITY_ATTRIBUTABLE_TO_PARENT, Weight::Plus),
+            Self::LongTermDebt => Placement::child(
+                BalanceSheetGroup::NonCurrentLiabilities.name(),
+                Weight::Plus,
+            ),
+            Self::RetainedEarnings => Placement::child(
+                BalanceSheetGroup::EquityAttributableToParent.name(),
+                Weight::Plus,
+            ),
         }
     }
 }
@@ -80,31 +135,31 @@ impl Placed for BalanceSheetConcept {
 /// [`Concept::ALL`](crate::core::elements::Concept::ALL).
 pub const GROUPS: &[Group] = &[
     Group {
-        name: ASSETS,
+        name: BalanceSheetGroup::Assets.name(),
         parent: BalanceSheetConcept::Assets.element(),
         kind: GroupKind::Breakdown,
         closed: true,
     },
     Group {
-        name: CURRENT_ASSETS,
+        name: BalanceSheetGroup::CurrentAssets.name(),
         parent: BalanceSheetConcept::CurrentAssets.element(),
         kind: GroupKind::Breakdown,
         closed: false,
     },
     Group {
-        name: NON_CURRENT_ASSETS,
+        name: BalanceSheetGroup::NonCurrentAssets.name(),
         parent: BalanceSheetConcept::NonCurrentAssets.element(),
         kind: GroupKind::Breakdown,
         closed: false,
     },
     Group {
-        name: LIABILITIES,
+        name: BalanceSheetGroup::Liabilities.name(),
         parent: BalanceSheetConcept::Liabilities.element(),
         kind: GroupKind::Breakdown,
         closed: true,
     },
     Group {
-        name: NON_CURRENT_LIABILITIES,
+        name: BalanceSheetGroup::NonCurrentLiabilities.name(),
         parent: BalanceSheetConcept::NonCurrentLiabilities.element(),
         kind: GroupKind::Breakdown,
         closed: false,
@@ -133,63 +188,69 @@ mod tests {
             (BalanceSheetConcept::Assets, Placement::Top),
             (
                 BalanceSheetConcept::CurrentAssets,
-                Placement::child("assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::Assets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::NonCurrentAssets,
-                Placement::child("assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::Assets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::CashAndEquivalents,
-                Placement::child("current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::CurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::ShortTermInvestments,
-                Placement::child("current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::CurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::AccountsReceivable,
-                Placement::child("current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::CurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::Inventory,
-                Placement::child("current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::CurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::PropertyPlantEquipment,
-                Placement::child("non-current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::NonCurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::Goodwill,
-                Placement::child("non-current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::NonCurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::IntangibleAssets,
-                Placement::child("non-current-assets", Weight::Plus),
+                Placement::child(BalanceSheetGroup::NonCurrentAssets.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::Liabilities,
-                Placement::child("liabilities-and-equity", Weight::Plus),
+                Placement::child(BalanceSheetGroup::LiabilitiesAndEquity.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::Equity,
-                Placement::child("liabilities-and-equity", Weight::Plus),
+                Placement::child(BalanceSheetGroup::LiabilitiesAndEquity.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::CurrentLiabilities,
-                Placement::child("liabilities", Weight::Plus),
+                Placement::child(BalanceSheetGroup::Liabilities.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::NonCurrentLiabilities,
-                Placement::child("liabilities", Weight::Plus),
+                Placement::child(BalanceSheetGroup::Liabilities.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::LongTermDebt,
-                Placement::child("non-current-liabilities", Weight::Plus),
+                Placement::child(
+                    BalanceSheetGroup::NonCurrentLiabilities.name(),
+                    Weight::Plus,
+                ),
             ),
             (
                 BalanceSheetConcept::RetainedEarnings,
-                Placement::child("equity-attributable-to-parent", Weight::Plus),
+                Placement::child(
+                    BalanceSheetGroup::EquityAttributableToParent.name(),
+                    Weight::Plus,
+                ),
             ),
         ];
 
@@ -197,6 +258,25 @@ mod tests {
             .iter()
             .map(|concept| (*concept, concept.placement()))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_kebab_case_name_for_every_balance_sheet_group() {
+        let groups = BalanceSheetGroup::ALL;
+
+        let expected_result = vec![
+            "assets",
+            "current-assets",
+            "non-current-assets",
+            "liabilities-and-equity",
+            "liabilities",
+            "non-current-liabilities",
+            "equity-attributable-to-parent",
+        ];
+
+        let result: Vec<&str> = groups.iter().map(|group| group.as_str()).collect();
 
         assert_eq!(result, expected_result);
     }

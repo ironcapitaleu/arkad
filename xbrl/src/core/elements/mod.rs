@@ -48,7 +48,7 @@ pub mod roll_up;
 pub mod statement;
 
 pub use disclosure::PerShareConcept;
-pub use roll_up::{Group, GroupKind, Placement, Weight};
+pub use roll_up::{Group, GroupKind, GroupName, Placement, Weight};
 pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept};
 
 /// A standard concept: the top of the concept hierarchy.

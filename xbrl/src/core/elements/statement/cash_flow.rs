@@ -1,16 +1,11 @@
 //! # Cash Flow Concepts
 //!
-//! Provides [`CashFlowConcept`], its placements, and [`GROUPS`], the groups whose parent is a
-//! cash flow concept.
+//! Provides [`CashFlowConcept`] and its placements. Provides [`CashFlowGroup`] and [`GROUPS`],
+//! the groups whose parent is a cash flow concept.
 
 use crate::core::elements::IncomeStatementConcept;
 use crate::core::elements::Placed;
-use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
-
-const NET_CHANGE_IN_CASH: &str = "net-change-in-cash";
-const OPERATING_CASH_FLOW: &str = "operating-cash-flow";
-const INVESTING_CASH_FLOW: &str = "investing-cash-flow";
-const FINANCING_CASH_FLOW: &str = "financing-cash-flow";
+use crate::core::elements::roll_up::{Group, GroupKind, GroupName, Placement, Weight};
 
 innermost_concepts! {
     /// A standard concept of the cash flow statement. Each value is a duration.
@@ -38,18 +33,61 @@ innermost_concepts! {
     }
 }
 
+/// A group whose parent is a cash flow concept.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum CashFlowGroup {
+    /// The group whose parent is `NetChangeInCash`.
+    NetChangeInCash,
+    /// The group whose parent is `OperatingCashFlow`.
+    OperatingCashFlow,
+    /// The group whose parent is `InvestingCashFlow`.
+    InvestingCashFlow,
+    /// The group whose parent is `FinancingCashFlow`.
+    FinancingCashFlow,
+}
+
+impl CashFlowGroup {
+    /// Every group, in the order of the variants.
+    pub const ALL: &'static [Self] = &[
+        Self::NetChangeInCash,
+        Self::OperatingCashFlow,
+        Self::InvestingCashFlow,
+        Self::FinancingCashFlow,
+    ];
+
+    /// Returns the name of the group in rule IDs and findings, such as `net-change-in-cash`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NetChangeInCash => "net-change-in-cash",
+            Self::OperatingCashFlow => "operating-cash-flow",
+            Self::InvestingCashFlow => "investing-cash-flow",
+            Self::FinancingCashFlow => "financing-cash-flow",
+        }
+    }
+
+    /// Returns the [`GroupName`] that holds this group.
+    #[must_use]
+    pub const fn name(self) -> GroupName {
+        GroupName::CashFlow(self)
+    }
+}
+
 impl Placed for CashFlowConcept {
     fn placement(self) -> Placement {
         match self {
             Self::OperatingCashFlow | Self::InvestingCashFlow | Self::FinancingCashFlow => {
-                Placement::child(NET_CHANGE_IN_CASH, Weight::Plus)
+                Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus)
             }
             Self::DepreciationAmortization | Self::ShareBasedCompensation => {
-                Placement::child(OPERATING_CASH_FLOW, Weight::Plus)
+                Placement::child(CashFlowGroup::OperatingCashFlow.name(), Weight::Plus)
             }
-            Self::CapitalExpenditures => Placement::child(INVESTING_CASH_FLOW, Weight::Minus),
+            Self::CapitalExpenditures => {
+                Placement::child(CashFlowGroup::InvestingCashFlow.name(), Weight::Minus)
+            }
             Self::DividendsPaid | Self::ShareRepurchases => {
-                Placement::child(FINANCING_CASH_FLOW, Weight::Minus)
+                Placement::child(CashFlowGroup::FinancingCashFlow.name(), Weight::Minus)
             }
         }
     }
@@ -62,7 +100,7 @@ impl Placed for CashFlowConcept {
 /// method starts from net income.
 pub const GROUPS: &[Group] = &[
     Group {
-        name: OPERATING_CASH_FLOW,
+        name: CashFlowGroup::OperatingCashFlow.name(),
         parent: CashFlowConcept::OperatingCashFlow.element(),
         kind: GroupKind::Step {
             start: IncomeStatementConcept::NetIncome.element(),
@@ -70,13 +108,13 @@ pub const GROUPS: &[Group] = &[
         closed: false,
     },
     Group {
-        name: INVESTING_CASH_FLOW,
+        name: CashFlowGroup::InvestingCashFlow.name(),
         parent: CashFlowConcept::InvestingCashFlow.element(),
         kind: GroupKind::Breakdown,
         closed: false,
     },
     Group {
-        name: FINANCING_CASH_FLOW,
+        name: CashFlowGroup::FinancingCashFlow.name(),
         parent: CashFlowConcept::FinancingCashFlow.element(),
         kind: GroupKind::Breakdown,
         closed: false,
@@ -104,35 +142,35 @@ mod tests {
         let expected_result = vec![
             (
                 CashFlowConcept::OperatingCashFlow,
-                Placement::child("net-change-in-cash", Weight::Plus),
+                Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
             ),
             (
                 CashFlowConcept::InvestingCashFlow,
-                Placement::child("net-change-in-cash", Weight::Plus),
+                Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
             ),
             (
                 CashFlowConcept::FinancingCashFlow,
-                Placement::child("net-change-in-cash", Weight::Plus),
+                Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
             ),
             (
                 CashFlowConcept::DepreciationAmortization,
-                Placement::child("operating-cash-flow", Weight::Plus),
+                Placement::child(CashFlowGroup::OperatingCashFlow.name(), Weight::Plus),
             ),
             (
                 CashFlowConcept::ShareBasedCompensation,
-                Placement::child("operating-cash-flow", Weight::Plus),
+                Placement::child(CashFlowGroup::OperatingCashFlow.name(), Weight::Plus),
             ),
             (
                 CashFlowConcept::CapitalExpenditures,
-                Placement::child("investing-cash-flow", Weight::Minus),
+                Placement::child(CashFlowGroup::InvestingCashFlow.name(), Weight::Minus),
             ),
             (
                 CashFlowConcept::DividendsPaid,
-                Placement::child("financing-cash-flow", Weight::Minus),
+                Placement::child(CashFlowGroup::FinancingCashFlow.name(), Weight::Minus),
             ),
             (
                 CashFlowConcept::ShareRepurchases,
-                Placement::child("financing-cash-flow", Weight::Minus),
+                Placement::child(CashFlowGroup::FinancingCashFlow.name(), Weight::Minus),
             ),
         ];
 
@@ -140,6 +178,22 @@ mod tests {
             .iter()
             .map(|concept| (*concept, concept.placement()))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_kebab_case_name_for_every_cash_flow_group() {
+        let groups = CashFlowGroup::ALL;
+
+        let expected_result = vec![
+            "net-change-in-cash",
+            "operating-cash-flow",
+            "investing-cash-flow",
+            "financing-cash-flow",
+        ];
+
+        let result: Vec<&str> = groups.iter().map(|group| group.as_str()).collect();
 
         assert_eq!(result, expected_result);
     }

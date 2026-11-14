@@ -1,12 +1,17 @@
 //! # Roll-Up Tree
 //!
-//! Provides the types of the roll-up tree: the [`Placement`] of a concept, its [`Weight`], and
-//! the [`Group`] that sums children into a parent.
+//! Provides the types of the roll-up tree: the [`Placement`] of a concept, its [`Weight`], the
+//! [`Group`] that sums children into a parent, and the [`GroupName`] of a group.
 //!
 //! Each statement module holds the placements of its concepts and the groups whose parent it
 //! holds.
 
+use std::fmt;
+
 use super::CanonicalElementKind;
+use super::statement::balance_sheet::BalanceSheetGroup;
+use super::statement::cash_flow::CashFlowGroup;
+use super::statement::income_statement::IncomeStatementGroup;
 
 /// The place of a concept in the roll-up tree of its statement.
 ///
@@ -20,8 +25,8 @@ pub enum Placement {
     /// A child of one group.
     #[non_exhaustive]
     Child {
-        /// The name of the group, such as `current-assets`.
-        group: &'static str,
+        /// The group the child belongs to.
+        group: GroupName,
         /// The sign with which the child adds to the parent.
         weight: Weight,
     },
@@ -30,7 +35,7 @@ pub enum Placement {
 impl Placement {
     /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`.
     #[must_use]
-    pub const fn child(group: &'static str, weight: Weight) -> Self {
+    pub const fn child(group: GroupName, weight: Weight) -> Self {
         Self::Child { group, weight }
     }
 }
@@ -57,9 +62,8 @@ pub enum Weight {
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Group {
-    /// The name of the group, such as `current-assets`. A rule ID and a finding name the group by
-    /// it.
-    pub name: &'static str,
+    /// The name of the group. A rule ID and a finding name the group by it.
+    pub name: GroupName,
     /// The concept that the start and the weighted children add up to.
     pub parent: CanonicalElementKind,
     /// Whether the group splits its parent or makes it from a start line.
@@ -68,6 +72,40 @@ pub struct Group {
     /// reports lines outside an open group, so the children of an open group do not cover the
     /// parent.
     pub closed: bool,
+}
+
+/// The name of a group, nested by the statement of its parent.
+///
+/// Each statement module defines the group enum of its statement. A group can have a name before
+/// the list of its statement holds it, so a placement can name it.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GroupName {
+    /// A group whose parent is a balance sheet concept.
+    BalanceSheet(BalanceSheetGroup),
+    /// A group whose parent is an income statement concept.
+    IncomeStatement(IncomeStatementGroup),
+    /// A group whose parent is a cash flow concept.
+    CashFlow(CashFlowGroup),
+}
+
+impl GroupName {
+    /// Returns the name of the group in rule IDs and findings, such as `current-assets`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::BalanceSheet(group) => group.as_str(),
+            Self::IncomeStatement(group) => group.as_str(),
+            Self::CashFlow(group) => group.as_str(),
+        }
+    }
+}
+
+impl fmt::Display for GroupName {
+    /// Writes the name of the group, such as `current-assets`.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// The kind of a [`Group`].
@@ -99,5 +137,21 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_group() {
         implements_auto_traits::<Group>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_group_name() {
+        implements_auto_traits::<GroupName>();
+    }
+
+    #[test]
+    fn should_display_the_kebab_case_name_for_current_assets() {
+        let group = BalanceSheetGroup::CurrentAssets.name();
+
+        let expected_result = "current-assets";
+
+        let result = group.to_string();
+
+        assert_eq!(result, expected_result);
     }
 }
