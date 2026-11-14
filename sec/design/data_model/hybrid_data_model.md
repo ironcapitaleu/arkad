@@ -54,9 +54,9 @@ it lists the sources that hold data about it and names the preferred one. It hol
 canonical concepts (§3), and an entry for each source store. Each source store holds the records of
 one data source, such as the SEC facts (§7) as filed and as canonical facts, with the provenance of each
 record (§8.2). A query starts in the metadata store and finds the stores and the keys to read.
-[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision and waits for the
-lead. The diagram, the "Principle" below, §2.1, §6, and §7.1 show one shared canonical fact store
-instead.
+[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision. The diagram, the
+"Principle" below, §2.1, §6, and §7.1 still show one shared canonical fact store, and do not match
+ADR 0007.
 
 ```mermaid
 flowchart TB
@@ -438,7 +438,7 @@ Each adapter owns three things, all **independently queryable** and joinable to 
 
 ## 8. Consistency Model & Layer Hierarchy
 
-> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Postgres loads from silver, not from
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) has Postgres load from silver, not from
 > the raw store. The write order then becomes raw store, silver, Postgres, and Postgres rebuilds from
 > silver. A failed load runs again from a ledger of loaded silver units, so the MVP needs no
 > reconciliation job that replays projections. The drift report below stays a data check.
@@ -902,7 +902,7 @@ value types in the shape of the `sec` error hierarchy
 **Write path to Postgres.** Ingest writes the raw store only. A load step reads silver and writes
 the graph rows and the fact rows of one silver unit in one Postgres transaction, by
 [Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of ADR 0001.
-The amendment is proposed. See also the note at the top of §8.
+See also the note at the top of §8.
 
 **Crate topology.** `storage` holds the ports and depends on no database driver. The Postgres
 backend goes into `storage-postgres`, and only a composition root names it

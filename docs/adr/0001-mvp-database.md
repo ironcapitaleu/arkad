@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 is proposed, for the lead to accept. The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 was accepted by the lead on 2026-11-14. The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
 | Date | 2026-10-21 |
 | Deciders | The project lead. The master's student reviews it after a two-week leave. |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
@@ -39,7 +39,7 @@ stage to define its output.
 
 ## Decision
 
-[Amendment 1](#amendment-1-load-reads-silver) proposes to move the graph and fact writes out of
+[Amendment 1](#amendment-1-load-reads-silver) moves the graph and fact writes out of
 `ingest` and into a load step that reads silver.
 
 Use **one managed Supabase Postgres database** for the graph tier and the fact tier. The raw store
@@ -70,7 +70,7 @@ The rest of the decision:
 
 ## Amendment 1: Load Reads Silver
 
-> **Proposed on 2026-11-08,** for the lead to accept. It changes how data reaches Postgres. It keeps
+> **Proposed on 2026-11-08, accepted by the lead on 2026-11-14.** It changes how data reaches Postgres. It keeps
 > the choice of the store.
 
 ### Why
@@ -389,7 +389,7 @@ The CDN and `/v1` triggers rest on these assumptions:
 
 ## Consequences
 
-If the lead accepts [Amendment 1](#amendment-1-load-reads-silver), it replaces the items on the
+[Amendment 1](#amendment-1-load-reads-silver) replaces the items on the
 hybrid `ingest` and the §8 reconciliation job. The shared pool stays, because the load needs it.
 
 - The Load stage implements `GraphStore` and `FactStore` against one Postgres database, and

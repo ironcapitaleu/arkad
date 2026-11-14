@@ -865,7 +865,7 @@ source.
   on the new bytes. The transform design decides whether a changed digest starts that run.
 - **The change to ADR 0001.** ADR 0001 writes from raw to Postgres. With silver, load reads silver.
   [Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of ADR 0001
-  proposes this change, for the lead to accept.
+  makes this change.
 - **The byte form of `content_digest`.** The silver writer feature of the transform design fixes it.
 - **A filing that the parser rejects as a whole,** in a `filing_day` or a `notes_file` unit. The
   parser rules of the transform design decide whether the unit fails or lists the filing in

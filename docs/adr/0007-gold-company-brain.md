@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The lead confirms. The owner confirms the wording first. |
+| Status | Accepted by the lead on 2026-11-14. |
 | Date | 2026-11-14 |
 | Deciders | The project lead. The owner sets the goal. |
 | Ticket | [STA-512](https://linear.app/state-machine/issue/STA-512) |
@@ -111,7 +111,7 @@ No option was measured.
   Postgres (ADR 0001, Amendment 1). A key to the silver unit and the raw document, in place of a
   copy of each provenance field, keeps the row smaller.
 - `hybrid_data_model.md` §2 (diagram and "Principle"), §2.1, §6, and §7.1 describe one shared
-  canonical fact store. If the lead accepts this ADR, they change.
+  canonical fact store. They must change to match this ADR.
 - Agreement and divergence between two source stores for one company, such as a dual filer at the
   SEC and in ESEF, need a check across stores. In B the shared tier holds both rows side by side.
 - The decision names no engine. ADR 0001 picks the engines.

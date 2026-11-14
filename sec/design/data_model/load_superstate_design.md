@@ -119,7 +119,7 @@ stateDiagram-v2
 An optional third state, `ReconcilePersistence` (post-write accounting identity + completeness check),
 is deferred — it only pays once there is something to reconcile against.
 
-> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Load reads silver, one silver unit per
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) has Load read silver, one silver unit per
 > Postgres transaction, with a ledger of loaded units. A failed load runs again from the ledger, so
 > no reconciliation job replays projections. `ReconcilePersistence` as a data check stays open.
 

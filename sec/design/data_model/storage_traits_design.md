@@ -3,7 +3,7 @@
 This document gives the shape of storage in arkad: the crates, the ports, the raw store, and the
 planned Postgres tiers. Other documents hold the detail. This one links them and repeats none.
 
-Gold is the company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), proposed). One
+Gold is the company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). One
 **metadata store**, a knowledge graph of all data sources, resolves entities. For each company, it lists the sources that hold data about it and
 names the preferred one. It holds the knowledge graph of companies and identifiers, the canonical concepts,
 and an entry for each source store ([`hybrid_data_model.md`](./hybrid_data_model.md) §3, §5, and
@@ -56,7 +56,7 @@ keys and the layout.
 
 None of this section has code. It follows
 [Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of
-[ADR 0001](../../../docs/adr/0001-mvp-database.md). The amendment is proposed and waits for the lead.
+[ADR 0001](../../../docs/adr/0001-mvp-database.md).
 
 - **Ingest** writes the raw store only.
 - **Transform** reads the raw store and writes silver: Parquet units and the `silver_files` list
