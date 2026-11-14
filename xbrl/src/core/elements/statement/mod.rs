@@ -25,7 +25,8 @@ pub use income_statement::IncomeStatementConcept;
 /// Returns every group of the roll-up tree.
 ///
 /// The groups of the balance sheet come first, then those of the income statement, then those of
-/// the cash flow statement. Each statement lists its groups from the top of the statement down.
+/// the cash flow statement. Each statement lists its groups in the order of
+/// their parents in [`Concept::ALL`](crate::core::elements::Concept::ALL).
 ///
 /// The list holds a group only if its parent, its start if it is a step, and at least one child
 /// are standard concepts. So a placement can name a group that the list does not hold, such as
@@ -44,7 +45,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::{Concept, Placed, Placement};
+    use crate::core::elements::{CanonicalElementKind, Concept, Placed, Placement};
 
     #[test]
     fn should_join_the_groups_in_the_order_of_the_statements_and_their_tables() {
@@ -104,6 +105,20 @@ mod tests {
         let expected_result = (10, 10);
 
         let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_match_the_order_of_concepts_when_listing_the_parents_of_the_groups() {
+        let parents: Vec<CanonicalElementKind> = groups().map(|group| group.parent).collect();
+
+        // `Ord` sorts by statement, then by the order of `Concept::ALL`, so the sorted list is
+        // the reference path.
+        let mut expected_result = parents.clone();
+        expected_result.sort();
+
+        let result = parents;
 
         assert_eq!(result, expected_result);
     }

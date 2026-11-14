@@ -55,8 +55,8 @@ impl Placed for CashFlowConcept {
     }
 }
 
-/// The groups whose parent is a cash flow concept, from the top of
-/// the statement down.
+/// The groups whose parent is a cash flow concept, in the order of their parents in
+/// [`Concept::ALL`](crate::core::elements::Concept::ALL).
 ///
 /// `operating-cash-flow` starts from `NetIncome` of the income statement, because the indirect
 /// method starts from net income.

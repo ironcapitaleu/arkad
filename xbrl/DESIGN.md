@@ -533,7 +533,7 @@ Two traits describe a concept. Each innermost enum, such as `BalanceSheetConcept
 
 ```rust
 pub trait Concept: Copy + Eq + 'static {
-    /// Every variant, in the order of the tables of "Roll-Up Tree".
+    /// Every variant, in the order of the enum.
     const ALL: &'static [Self];
     /// The name in silver, such as `NetIncome`.
     fn name(self) -> &'static str;

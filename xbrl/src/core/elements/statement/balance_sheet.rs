@@ -76,8 +76,8 @@ impl Placed for BalanceSheetConcept {
     }
 }
 
-/// The groups whose parent is a balance sheet concept, from the top of
-/// the statement down.
+/// The groups whose parent is a balance sheet concept, in the order of their parents in
+/// [`Concept::ALL`](crate::core::elements::Concept::ALL).
 pub const GROUPS: &[Group] = &[
     Group {
         name: ASSETS,
