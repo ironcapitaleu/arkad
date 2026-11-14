@@ -11,16 +11,19 @@ use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 
+use crate::shared::quarter::Quarter;
 use crate::traits::state_machine::state::Context;
 
 /// Context for the [`SelectFullIndexFilings`](super::SelectFullIndexFilings) state.
 ///
 /// The state keeps the rows with a date filed from `first_filed_date` to `last_filed_date`, both
-/// included.
+/// included. Both dates must be in `quarter`, the quarter of the full index.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 pub struct SelectFullIndexFilingsContext {
     /// The ID of the run.
     pub execution_id: Uuid,
+    /// The quarter of the full index.
+    pub quarter: Quarter,
     /// The first date filed that the state keeps.
     pub first_filed_date: NaiveDate,
     /// The last date filed that the state keeps.
@@ -37,13 +40,14 @@ impl SelectFullIndexFilingsContext {
     /// ```
     /// use chrono::NaiveDate;
     /// use sec::implementations::states::extract::select_full_index_filings::SelectFullIndexFilingsContext;
+    /// use sec::shared::quarter::Quarter;
     /// use uuid::Uuid;
     ///
     /// let first = NaiveDate::from_ymd_opt(2026, 9, 1)
     ///     .expect("Given a hardcoded calendar date, the date should always build");
     /// let last = NaiveDate::from_ymd_opt(2026, 9, 30)
     ///     .expect("Given a hardcoded calendar date, the date should always build");
-    /// let context = SelectFullIndexFilingsContext::new(Uuid::nil(), first, last);
+    /// let context = SelectFullIndexFilingsContext::new(Uuid::nil(), Quarter::of(first), first, last);
     ///
     /// let expected_result = 0;
     ///
@@ -54,11 +58,13 @@ impl SelectFullIndexFilingsContext {
     #[must_use]
     pub const fn new(
         execution_id: Uuid,
+        quarter: Quarter,
         first_filed_date: NaiveDate,
         last_filed_date: NaiveDate,
     ) -> Self {
         Self {
             execution_id,
+            quarter,
             first_filed_date,
             last_filed_date,
             max_retries: 0,
@@ -97,8 +103,8 @@ impl fmt::Display for SelectFullIndexFilingsContext {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "\tExecution ID: {}, Dates filed: {} to {}",
-            self.execution_id, self.first_filed_date, self.last_filed_date
+            "\tExecution ID: {}, Quarter: {}, Dates filed: {} to {}",
+            self.execution_id, self.quarter, self.first_filed_date, self.last_filed_date
         )
     }
 }
@@ -188,17 +194,30 @@ mod tests {
             .expect("Given a hardcoded calendar date, the date should always build")
     }
 
+    /// Returns the quarter 2026 Q3.
+    fn q3() -> Quarter {
+        Quarter::of(date(2026, 9, 1))
+    }
+
     #[test]
     fn should_replace_the_dates_filed_when_update_contains_both() {
-        let mut context =
-            SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+        let mut context = SelectFullIndexFilingsContext::new(
+            Uuid::nil(),
+            q3(),
+            date(2026, 9, 1),
+            date(2026, 9, 30),
+        );
         let update = SelectFullIndexFilingsContextUpdater::builder()
             .first_filed_date(date(2026, 10, 1))
             .last_filed_date(date(2026, 10, 31))
             .build();
 
-        let expected_result =
-            &SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 10, 1), date(2026, 10, 31));
+        let expected_result = &SelectFullIndexFilingsContext::new(
+            Uuid::nil(),
+            q3(),
+            date(2026, 10, 1),
+            date(2026, 10, 31),
+        );
 
         context.update_context(update);
         let result = context.context();
@@ -208,12 +227,20 @@ mod tests {
 
     #[test]
     fn should_leave_the_context_unchanged_when_update_is_empty() {
-        let mut context =
-            SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+        let mut context = SelectFullIndexFilingsContext::new(
+            Uuid::nil(),
+            q3(),
+            date(2026, 9, 1),
+            date(2026, 9, 30),
+        );
         let update = SelectFullIndexFilingsContextUpdater::builder().build();
 
-        let expected_result =
-            &SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+        let expected_result = &SelectFullIndexFilingsContext::new(
+            Uuid::nil(),
+            q3(),
+            date(2026, 9, 1),
+            date(2026, 9, 30),
+        );
 
         context.update_context(update);
         let result = context.context();
@@ -223,8 +250,12 @@ mod tests {
 
     #[test]
     fn should_replace_the_retry_budget_when_update_contains_it() {
-        let mut context =
-            SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 1), date(2026, 9, 30));
+        let mut context = SelectFullIndexFilingsContext::new(
+            Uuid::nil(),
+            q3(),
+            date(2026, 9, 1),
+            date(2026, 9, 30),
+        );
         let update = SelectFullIndexFilingsContextUpdater::builder()
             .max_retries(3)
             .build();
@@ -239,10 +270,14 @@ mod tests {
 
     #[test]
     fn should_display_the_dates_filed_for_select_full_index_filings_context() {
-        let context =
-            SelectFullIndexFilingsContext::new(Uuid::nil(), date(2026, 9, 24), date(2026, 11, 12));
+        let context = SelectFullIndexFilingsContext::new(
+            Uuid::nil(),
+            Quarter::of(date(2026, 10, 1)),
+            date(2026, 10, 1),
+            date(2026, 11, 12),
+        );
 
-        let expected_result = "\tExecution ID: 00000000-0000-0000-0000-000000000000, Dates filed: 2026-09-24 to 2026-11-12";
+        let expected_result = "\tExecution ID: 00000000-0000-0000-0000-000000000000, Quarter: 2026/QTR4, Dates filed: 2026-10-01 to 2026-11-12";
 
         let result = context.to_string();
 
