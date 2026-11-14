@@ -84,10 +84,11 @@ pub struct FailedDailyRun {
     pub dates: usize,
 }
 
-/// Returns `true` if the detection of `date` failed only because its daily index does not exist
-/// yet, and a later run reads `date` again.
+/// Returns `true` if `date` failed only because its daily index or its full index does not cover
+/// it yet. A later run reads `date` again.
 ///
-/// That holds if `error` is a `MissingDailyIndex`, `date` is not `first_date`, and `date` is on or
+/// That holds if `error` is a `MissingDailyIndex` or a `MissingFullIndexDate`, `date` is not
+/// `first_date`, and `date` is on or
 /// after the date [`PENDING_DAYS`] - 1 days before `as_of`. The first date of a run can be its last
 /// read, for example `yesterday-3` in the scheduled run, so a missing index there fails the run.
 /// This keeps the rule safe whatever window the job sets.
@@ -101,7 +102,9 @@ pub(super) fn is_pending(
         && is_recent(date, as_of)
         && matches!(
             &*error.source,
-            StateMachine::State(StateError::MissingDailyIndex(_))
+            StateMachine::State(
+                StateError::MissingDailyIndex(_) | StateError::MissingFullIndexDate(_)
+            )
         )
 }
 
@@ -291,7 +294,7 @@ mod tests {
     use uuid::Uuid;
 
     use crate::error::state_machine::state::{
-        FailedDocumentSelection, FailedRequestExecution, MissingDailyIndex,
+        FailedDocumentSelection, FailedRequestExecution, MissingDailyIndex, MissingFullIndexDate,
     };
     use crate::prelude::StreamEvent;
     use crate::shared::filing_documents::FilingDocumentRole;
@@ -409,6 +412,30 @@ mod tests {
         let error = missing_daily_index("2026-10-29");
         let first_date = date("2026-10-28");
         let as_of = date("2026-10-31");
+
+        let expected_result = true;
+
+        let result = is_pending(&error, run_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_missing_full_index_date_as_pending_when_the_date_is_one_day_before_as_of() {
+        let run_date = date("2026-11-13");
+        let error = stream_error(
+            "Select Full Index Filings",
+            StateMachine::State(
+                MissingFullIndexDate::new(
+                    "Select Full Index Filings",
+                    date("2026-11-13"),
+                    date("2026-11-12"),
+                )
+                .into(),
+            ),
+        );
+        let first_date = date("2026-11-06");
+        let as_of = date("2026-11-14");
 
         let expected_result = true;
 

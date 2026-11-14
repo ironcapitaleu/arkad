@@ -320,3 +320,108 @@ async fn should_report_a_retried_and_a_failed_error_with_the_quarter_when_its_fu
 
     assert_eq!(result, expected_result);
 }
+
+#[tokio::test]
+async fn should_count_a_recent_date_as_pending_when_it_comes_after_the_last_data_received() {
+    // The full index of Q4 names 2026-11-12 as its last data received.
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = vec!["empty", "pending"];
+
+    let result = detections(&dates, date("2026-11-14"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_fail_an_old_date_when_it_comes_after_the_last_data_received() {
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = vec!["empty", "failed"];
+
+    let result = detections(&dates, date("2026-11-30"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_fail_the_first_date_when_it_comes_after_the_last_data_received() {
+    let dates = [date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = vec!["failed"];
+
+    let result = detections(&dates, date("2026-11-14"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_name_the_date_and_the_last_data_received_when_a_date_is_pending() {
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let sec_client = sec_client(200);
+
+    let expected_result = json!(
+        "[StreamError][00000000-0000-0000-0000-000000000007] 'state_failed' in 'Select Full Index Filings', Caused by: [MissingFullIndexDate] The full index does not cover the date yet, Date: '2026-11-13', Last Data Received: '2026-11-12'"
+    );
+
+    let result = run(&temporary_root(), &dates, date("2026-11-14"), &sec_client)
+        .await
+        .entries()[1]["error"]
+        .clone();
+
+    assert_eq!(result, expected_result);
+}
+
+/// A full index of 2026 Q4 with no `Last Data Received` line, and one row of 2026-11-13.
+const FULL_INDEX_WITHOUT_LAST_DATA_RECEIVED: &[u8] = b"Description:           Master Index of EDGAR Dissemination Feed by Form Type
+Form Type   Company Name                                                  CIK         Date Filed  File Name
+--------------------------------------------------------------------------------------------------------------------------------
+10-Q             DARDEN RESTAURANTS INC                                        940944      2026-11-13  edgar/data/940944/0000940944-26-000042.txt
+";
+
+/// A full index of 2026 Q4 whose header names 2026-11-12, with one row of 2026-11-13.
+const FULL_INDEX_WITH_A_ROW_AFTER_LAST_DATA_RECEIVED: &[u8] = b"Description:           Master Index of EDGAR Dissemination Feed by Form Type
+Last Data Received:    November 12, 2026
+Form Type   Company Name                                                  CIK         Date Filed  File Name
+--------------------------------------------------------------------------------------------------------------------------------
+10-Q             DARDEN RESTAURANTS INC                                        940944      2026-11-13  edgar/data/940944/0000940944-26-000042.txt
+";
+
+/// Returns a client that answers the full index of 2026 Q4 with `body`.
+fn sec_client_with_q4(body: &'static [u8]) -> RoutingSecClient {
+    RoutingSecClient::new().route(
+        FULL_INDEX_URL_OF_2026_Q4,
+        200,
+        "application/octet-stream",
+        body,
+    )
+}
+
+#[tokio::test]
+async fn should_count_a_date_without_rows_as_empty_when_the_header_names_no_date() {
+    let dates = [date("2026-11-12"), date("2026-11-14")];
+    let as_of = date("2026-11-30");
+    let sec_client = sec_client_with_q4(FULL_INDEX_WITHOUT_LAST_DATA_RECEIVED);
+
+    let expected_result = vec!["empty", "empty"];
+
+    let result = detections(&dates, as_of, &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_process_a_date_after_the_last_data_received_when_the_full_index_lists_its_rows() {
+    let dates = [date("2026-11-12"), date("2026-11-13")];
+    let as_of = date("2026-11-30");
+    let sec_client = sec_client_with_q4(FULL_INDEX_WITH_A_ROW_AFTER_LAST_DATA_RECEIVED);
+
+    let expected_result = vec!["empty", "processed"];
+
+    let result = detections(&dates, as_of, &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}

@@ -11,8 +11,9 @@
 //!
 //! [`PrepareSecRequest`] of the [`FullIndex`] kind → [`ExecuteSecRequest`] of the [`FullIndex`]
 //! kind → [`StoreFullIndex`] → [`SelectFullIndexFilings`]. The stream ends after
-//! [`SelectFullIndexFilings`]. [`DetectQuarterFilingsSuperState::run_to_detected_filings`] runs the
-//! stream and returns the selected filings with the stored full index they came from.
+//! [`SelectFullIndexFilings`]. [`DetectQuarterFilingsSuperState::run_to_quarter_filings`] runs the
+//! stream and returns the selected filings with the stored full index they came from, and the
+//! last date that the full index covers.
 //!
 //! ## Usage
 //!
@@ -45,7 +46,7 @@
 //!     last_filed_date,
 //! );
 //! let detected = DetectQuarterFilingsSuperState::new(context)
-//!     .run_to_detected_filings(|_item| {})
+//!     .run_to_quarter_filings(|_item| {})
 //!     .await
 //!     .expect("The live SEC download should succeed");
 //! # }
@@ -71,6 +72,7 @@ use crate::implementations::states::extract::prepare_sec_request::{
 use crate::implementations::states::extract::select_full_index_filings::SelectFullIndexFilings;
 use crate::implementations::states::extract::store_full_index::StoreFullIndex;
 use crate::prelude::*;
+use crate::shared::form_index_row::last_data_received;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
@@ -80,6 +82,16 @@ use crate::shared::raw_source::RawFullIndex;
 use crate::shared::request::implementations::sec_request::FullIndex;
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipBody};
 use crate::traits::state_machine::stream::{OutputSlot, terminal_stream_with};
+
+/// The result of a [`DetectQuarterFilingsSuperState`]: the selected filings with the stored full
+/// index they came from, and the date of its header line `Last Data Received`.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DetectedQuarterFilings {
+    /// The selected filings and the stored full index.
+    pub detected: DetectedFilings,
+    /// The last date that the full index covers, or `None` if its header names no date.
+    pub last_data_received: Option<NaiveDate>,
+}
 
 /// Input and output data for the [`DetectQuarterFilingsSuperState`].
 ///
@@ -114,7 +126,7 @@ pub struct DetectQuarterFilingsSuperStateContext<R, C> {
     pub(crate) repository: R,
     pub(crate) first_filed_date: NaiveDate,
     pub(crate) last_filed_date: NaiveDate,
-    pub(crate) filings_slot: OutputSlot<DetectedFilings>,
+    pub(crate) filings_slot: OutputSlot<DetectedQuarterFilings>,
 }
 
 impl<R, C> DetectQuarterFilingsSuperStateContext<R, C> {
@@ -319,7 +331,7 @@ where
     }
 
     /// Runs the stream to its end and returns the selected filings with the stored full index
-    /// they came from.
+    /// they came from, and the last date that the full index covers.
     ///
     /// Calls `on_item` with each successful stream item, in stream order. Each call gets its own
     /// slot for the filings, so clones of one super-state never share it.
@@ -332,10 +344,10 @@ where
     ///
     /// Panics if the stream ends without an error before [`SelectFullIndexFilings`] computes its
     /// output. The state flow rules this out.
-    pub async fn run_to_detected_filings(
+    pub async fn run_to_quarter_filings(
         mut self,
         mut on_item: impl FnMut(&StreamItem),
-    ) -> Result<DetectedFilings, StreamError> {
+    ) -> Result<DetectedQuarterFilings, StreamError> {
         let filings_slot = OutputSlot::default();
         self.context.filings_slot = filings_slot.clone();
         let mut stream = self.into_run_stream();
@@ -383,9 +395,13 @@ impl<R: RawRepository<RawFullIndex> + 'static, C: SecClientTrait + 'static> Into
         let filings_slot = self.context.filings_slot.clone();
         terminal_stream_with(self, execution_id, move |state: &SelectFullIndexFilings| {
             if let Some(output) = state.output_data() {
-                filings_slot.put(DetectedFilings {
-                    filings: output.filings.clone(),
-                    index: Some(state.input_data().index.input_document()),
+                let index = &state.input_data().index;
+                filings_slot.put(DetectedQuarterFilings {
+                    detected: DetectedFilings {
+                        filings: output.filings.clone(),
+                        index: Some(index.input_document()),
+                    },
+                    last_data_received: last_data_received(&index.text),
                 });
             }
         })
@@ -572,8 +588,18 @@ mod tests {
             RoutingSecClient,
         >,
     ) -> DetectedFilings {
+        quarter_filings(super_state).await.detected
+    }
+
+    async fn quarter_filings<R: RawRepository<RawFullIndex> + 'static>(
+        super_state: DetectQuarterFilingsSuperState<
+            PrepareSecRequest<FullIndex>,
+            R,
+            RoutingSecClient,
+        >,
+    ) -> DetectedQuarterFilings {
         super_state
-            .run_to_detected_filings(|_| {})
+            .run_to_quarter_filings(|_| {})
             .await
             .expect("Given the fake client and a writable store, the run should always succeed")
     }
@@ -670,10 +696,24 @@ mod tests {
         )));
 
         let result = super_state
-            .run_to_detected_filings(|_| {})
+            .run_to_quarter_filings(|_| {})
             .await
             .err()
             .map(|error| *error.source);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_last_data_received_of_the_full_index_for_sample_full_index() {
+        let super_state = super_state(
+            sec_client(200, SAMPLE_FULL_INDEX_2026_Q4.as_bytes()),
+            FakeFullIndexRepository::new(),
+        );
+
+        let expected_result = Some(date(2026, 11, 12));
+
+        let result = quarter_filings(super_state).await.last_data_received;
 
         assert_eq!(result, expected_result);
     }
@@ -749,7 +789,7 @@ mod tests {
         let expected_result = Some(EXECUTE_SEC_REQUEST.to_string());
 
         let result = super_state
-            .run_to_detected_filings(|_| {})
+            .run_to_quarter_filings(|_| {})
             .await
             .err()
             .map(|error| error.state_name);
@@ -767,7 +807,7 @@ mod tests {
         let expected_result = Some(SELECT_FULL_INDEX_FILINGS.to_string());
 
         let result = super_state
-            .run_to_detected_filings(|_| {})
+            .run_to_quarter_filings(|_| {})
             .await
             .err()
             .map(|error| error.state_name);
