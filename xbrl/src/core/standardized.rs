@@ -7,7 +7,7 @@ use bigdecimal::BigDecimal;
 
 use super::candidate::SeriesKey;
 use super::confidence::Confidence;
-use super::elements::CanonicalElement;
+use super::elements::CanonicalElementKind;
 use super::fact::{Dimensions, FactKey};
 use super::filing::EntityId;
 use super::period::Period;
@@ -26,8 +26,8 @@ use super::unit::Unit;
 pub struct StandardizedFact {
     /// The entity the value is about.
     pub entity: EntityId,
-    /// The standard concept, for example [`CanonicalElement::Revenue`].
-    pub concept: CanonicalElement,
+    /// The standard concept, for example [`IncomeStatementConcept::Revenue`](super::elements::IncomeStatementConcept::Revenue).
+    pub concept: CanonicalElementKind,
     /// The instant or duration the value covers.
     pub period: Period,
     /// The unit, for example `USD`.

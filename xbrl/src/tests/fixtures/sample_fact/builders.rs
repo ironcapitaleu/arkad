@@ -11,7 +11,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use crate::core::candidate::{Candidate, CandidateValue};
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::confidence::Confidence;
-use crate::core::elements::CanonicalElement;
+use crate::core::elements::IncomeStatementConcept;
 use crate::core::fact::{
     AsIsFact, Context, Decimals, Dimensions, FactValue, FilingSource, TaxonomyVersion,
 };
@@ -131,7 +131,7 @@ pub fn candidate(source: &FilingSource, value: &str) -> Candidate {
     Candidate {
         source: source.clone(),
         entity: apple(),
-        concept: CanonicalElement::Revenue,
+        concept: IncomeStatementConcept::Revenue.element(),
         period: fiscal_year_2024(),
         unit: usd(),
         dimensions: Dimensions::default(),
@@ -157,7 +157,7 @@ pub fn candidate(source: &FilingSource, value: &str) -> Candidate {
 #[must_use]
 pub fn revenue_aliases() -> ConceptAliases {
     ConceptAliases {
-        element: CanonicalElement::Revenue,
+        element: IncomeStatementConcept::Revenue.element(),
         rule: RuleId::from_str("us-gaap/alias/revenue@1").expect(
             "Given a hardcoded rule ID in the documented form, the parse should always succeed",
         ),
@@ -198,7 +198,7 @@ pub fn standardized(period: Period, value: &str) -> StandardizedFact {
     input.context.period = period;
     StandardizedFact {
         entity: apple(),
-        concept: CanonicalElement::Revenue,
+        concept: IncomeStatementConcept::Revenue.element(),
         period,
         unit: usd(),
         dimensions: Dimensions::default(),
