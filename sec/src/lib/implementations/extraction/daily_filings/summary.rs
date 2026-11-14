@@ -3,7 +3,8 @@
 //! Provides [`DailyRunSummary`], the outcome of every date of one `daily_filings` run, and the rules
 //! that sort an error into an outcome.
 //!
-//! A date is pending if its daily index does not exist yet and a later run reads the date again.
+//! A date is pending if its daily index, or the full index of its quarter, does not exist yet, and
+//! a later run reads the date again.
 //! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
 
 use chrono::{Days, NaiveDate};
