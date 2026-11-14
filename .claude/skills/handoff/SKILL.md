@@ -187,7 +187,7 @@ an old measurement, a split of the ticket, a file path or symbol that moved.
 
 Start each comment with its marker line, so a reader sees at once that this skill wrote it. The
 marker is a quote line: `Handoff` and the kind of comment in bold, and the time of the last write
-in UTC. Use no emoji.
+in UTC.
 
 ```markdown
 > **Handoff · State of play** · 2026-11-14 07:55 UTC
