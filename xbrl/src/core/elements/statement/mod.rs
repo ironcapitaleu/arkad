@@ -26,10 +26,12 @@ pub use income_statement::IncomeStatementConcept;
 ///
 /// The groups of the balance sheet come first, then those of the income statement, then those of
 /// the cash flow statement. Each statement keeps the order of its table in `xbrl/DESIGN.md`,
-/// "Roll-Up Tree". The derivation from a closed group visits the groups in this order.
+/// "Roll-Up Tree". `xbrl/DESIGN.md`, "Derivation From a Closed Group", visits the groups in this
+/// order.
 ///
-/// The list holds a group only if each member is a standard concept. So a placement can name a
-/// group that the list does not hold, such as `liabilities-and-equity`.
+/// The list holds a group only if its parent, its start, and at least one child are standard
+/// concepts. So a placement can name a group that the list does not hold, such as
+/// `liabilities-and-equity`.
 pub fn groups() -> impl Iterator<Item = &'static Group> {
     balance_sheet::GROUPS
         .iter()
@@ -39,6 +41,8 @@ pub fn groups() -> impl Iterator<Item = &'static Group> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -65,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_every_group_at_least_one_child_when_reading_the_placements() {
+    fn should_give_at_least_one_child_for_every_listed_group() {
         let placements: Vec<Placement> = BalanceSheetConcept::ALL
             .iter()
             .map(|concept| concept.placement())
@@ -91,6 +95,17 @@ mod tests {
                 })
             })
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_each_group_a_unique_name_for_every_listed_group() {
+        let names: Vec<&str> = groups().map(|group| group.name).collect();
+
+        let expected_result = (10, 10);
+
+        let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
 
         assert_eq!(result, expected_result);
     }

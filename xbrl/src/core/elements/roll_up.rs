@@ -15,9 +15,10 @@ use super::CanonicalElementKind;
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Placement {
-    /// A total or subtotal on the top level of its statement, such as `Assets`.
+    /// A line on the top level of its statement, such as `Assets` or `Revenue`.
     Top,
-    /// A member of one group.
+    /// A child of one group.
+    #[non_exhaustive]
     Child {
         /// The name of the group, such as `current-assets`.
         group: &'static str,
@@ -36,8 +37,10 @@ impl Placement {
 
 /// The sign with which a child adds to the parent of its group.
 ///
-/// A value keeps the sign of the filing, and an expense or a payment is positive. So a cost or
-/// a payment, such as `CostOfRevenue`, carries [`Weight::Minus`].
+/// A value keeps the sign of the filing, and an expense or a payment is positive. So a cost that a
+/// parent subtracts, such as `CostOfRevenue` in `gross-profit`, carries [`Weight::Minus`]. A cost
+/// in a breakdown of costs, such as `SellingGeneralAdmin` in `operating-expenses`, carries
+/// [`Weight::Plus`].
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Weight {
@@ -49,7 +52,8 @@ pub enum Weight {
 
 /// One sum of the roll-up tree: a parent and the concepts that add up to it.
 ///
-/// The members of a group are the concepts whose [`Placement::Child`] names the group.
+/// The children of a group are the concepts whose [`Placement::Child`] names the group. A step
+/// also has a start.
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Group {
@@ -60,8 +64,9 @@ pub struct Group {
     pub parent: CanonicalElementKind,
     /// Whether the group splits its parent or makes it from a start line.
     pub kind: GroupKind,
-    /// `true` if the members equal the parent by definition. A filer reports lines outside an
-    /// open group, so the members of an open group do not cover the parent.
+    /// `true` if the start and the weighted children equal the parent by definition. A filer
+    /// reports lines outside an open group, so the children of an open group do not cover the
+    /// parent.
     pub closed: bool,
 }
 
