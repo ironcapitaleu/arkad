@@ -12,7 +12,7 @@
 
 `hybrid_data_model.md` §14 deferred the physical store on purpose. The pipeline writes through the
 `storage` ports (§14.F), so the store can change without a pipeline change.
-"Choosing the First Storage Backend: Findings"
+The Linear document "Choosing the First Storage Backend: Findings"
 chose a filesystem raw store and deferred the structured store.
 
 The May 2027 MVP needs a structured store by January 2027. The screener and the `/v1` API query

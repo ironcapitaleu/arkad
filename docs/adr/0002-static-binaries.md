@@ -94,4 +94,4 @@ handles the large-file path.
 - STA-422, comments "Image size notes", "Runtime image comparison", and "Decided (lead,
   2026-11-01)"
 - STA-431, Additional Notes (one image per binary)
-- Proposal "ETL Deployment Shape after STA-304" (one `Dockerfile`, `--target`s per image)
+- Linear document "ETL Deployment Shape after STA-304", a proposal (one `Dockerfile`, `--target`s per image)

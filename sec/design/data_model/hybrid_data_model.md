@@ -63,12 +63,12 @@ flowchart TB
     KG["Company(LEI), Identifier, Concept, Period,\nDataSource, source store nodes, claims"]
   end
   subgraph SEC["SEC Source Store"]
-    SECraw["Facts as filed\n(CIK, accession, form 10-K/10-Q,\nus-gaap:* native tags, taxonomy yr)"]
+    SECraw["Raw observations, as filed\n(CIK, accession, form 10-K/10-Q,\nus-gaap:* native tags, taxonomy yr)"]
     SECcan["Canonical facts\n(company_id, CanonicalElement, value, unit,\nperiod, confidence, source_ref)"]
   end
   subgraph ESEF["ESEF Source Store (not built)"]
-    ESEFraw["Facts as filed\n(ifrs-full:* tags, ESEF filing meta)"]
-    ESEFcan["Canonical facts\n(same columns as the SEC store)"]
+    ESEFraw["Raw observations, as filed\n(ifrs-full:* tags, ESEF filing meta)"]
+    ESEFcan["Canonical facts\n(company_id, CanonicalElement, value, unit,\nperiod, confidence, source_ref)"]
   end
   SECraw -- "SEC adapter: us-gaap tag → CanonicalElement" --> SECcan
   ESEFraw -- "ESEF adapter: ifrs-full tag → CanonicalElement" --> ESEFcan
@@ -81,7 +81,9 @@ flowchart TB
 1. The source store of that data source. The store holds the records as the source publishes them,
    and the canonical facts that the adapter resolves from them, each with its provenance.
 2. The entries of the metadata store: the company, its identifiers, its filings, and an edge from
-   the company to the source store. The edge carries the kind of information, the key, and the rank.
+   the company to the source store. The edge carries the kind of information and the key. Its rank
+   follows ADR 0007, Decision 5: a default rank until a person sets one. A load never changes a
+   rank that a person set.
 
 The metadata store holds no fact values (ADR 0007, Decision 3). A company that files nowhere still
 exists in the metadata store, with its identifiers and relationships. A company that files with
@@ -94,16 +96,17 @@ such as a `us-gaap` disclosure tag with no mapping to a `CanonicalElement`, stay
 store as filed. A caller can query it there. This meets the requirement to connect to and query
 regulator-specific data.
 
-### 2.1 Two Rings: Axiomatic Metadata and Derived Records (Multi-Source Rule)
+### 2.1 Two Rings: Axiomatic Identity and Derived Data (Multi-Source Rule)
 
 "Source of truth" has two rings with different standing (review resolution, 2026-08-08):
 
-- **Axiomatic ring: identity and structure.** The metadata store holds `Company`, its
-  `Identifier`s, and the bridges to each data source. This ring holds only what a person can check
+- **Axiomatic ring: identity and structure.** This ring is a part of the metadata store: `Company`,
+  its `Identifier`s, and the bridges to each data source. It holds only what a person can check
   against an authoritative registry. For example, GLEIF says that an LEI exists, and EDGAR says
   that a filing exists. §8 means this ring when it says "graph = source of truth."
-- **Derived ring: normalized data.** The canonical facts (§6) of each source store and the
-  completeness edges are computed from the records of a data source. They are never axiomatic.
+- **Derived ring: normalized data.** The canonical facts (§6) of each source store, and the
+  completeness edges and claims (§5.2) of the metadata store, are computed from the records of a
+  data source. They are never axiomatic.
   Each datum carries provenance (`source_ref`, `confidence`), and a replay rebuilds all of it (§8).
   So a value, a unit, or a period of a canonical fact is a normalized projection of a record in its
   source store, and it traces back to that record.
@@ -356,9 +359,8 @@ central,"* not the data-quality checks.
 
 Each source store holds its canonical facts in a columnar fact table, one row per canonical
 observation. The table holds the canonical facts of one data source only
-([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 4). Its columns are the same for
-every data source, so a screener reads the canonical facts of several source stores in the same
-way. **Grain:** `(company_id, canonical_element, period, dimension_signature, source_ref)`.
+([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 4). The columns below are the
+logical model. ADR 0007, "Open Questions", leaves the gold tables to the gold design. **Grain:** `(company_id, canonical_element, period, dimension_signature, source_ref)`.
 
 | Column | Type | From | Notes |
 | --- | --- | --- | --- |
@@ -434,7 +436,7 @@ and a caller joins it to the metadata store by `company_id` and `source_ref`:
    (today's `us_gaap/mappings.rs`, reframed as the SEC adapter's map). The adapter resolves
    raw observations into the canonical facts of the same source store (§6).
 3. **Filing metadata → graph** — creates the `Filing` node + `HAS_FILING`/`FILED_UNDER`/
-   `COVERS_PERIOD`/`REPORTS_CONCEPT` edges and resolves CIK→LEI to attach to the core company.
+   `COVERS_PERIOD`/`REPORTS_CONCEPT` edges and resolves CIK→LEI to attach the filing to its `Company` in the metadata store.
 
 ### 7.1 Querying in Both Directions
 
