@@ -55,7 +55,7 @@ impl SelectFullIndexFilings {
     /// use chrono::NaiveDate;
     /// use sec::implementations::states::extract::select_full_index_filings::*;
     /// use sec::shared::quarter::Quarter;
-/// use sec::shared::stored_form_index::StoredFormIndex;
+    /// use sec::shared::stored_form_index::StoredFormIndex;
     /// use state_maschine::prelude::State as SMState;
     /// use storage::Sha256Digest;
     /// use storage::implementations::repository::filesystem::DocumentKey;
