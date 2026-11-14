@@ -433,7 +433,7 @@ where
                         quarter_first_date,
                         quarter_last_date,
                     );
-                    DetectQuarterFilingsSuperState::new(quarter, context)
+                    DetectQuarterFilingsSuperState::new(context)
                         .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
                 },
                 |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
