@@ -200,6 +200,10 @@ specific segment without the adapter.
 
 ## 4. Universal Identity
 
+[`identifier_model.md`](./identifier_model.md) describes the identifiers of companies, securities,
+and listings as rows of `(scheme, value)` with a source and a validity
+([ADR 0009](../../../docs/adr/0009-three-levels-of-identity.md)).
+
 - **Primary key: `CompanyId` — our own platform-owned newtype, not raw LEI.** What the model
   presupposes is *one global PK*, **not** that every entity has an LEI. `CompanyId =
   Lei(..) | Cik(..) | …`; the platform keys everything (facts, graph nodes, provenance) on
@@ -241,8 +245,10 @@ extensible.
 | `Period` | shared dimension | `(kind, key)` e.g. `FY2024`, `Q3-2024` | deterministic calendar construct (Instant/Duration) — verifiable by arithmetic, safe to share |
 | `Regulator`/`DataSource` | adapter-bridge | `code` (SEC, FCA, BaFin, ESMA) | |
 | `Filing` | adapter | `regulator + native_id` (SEC: accession) | form, filed_date, period_end, taxonomy version |
-| `Exchange` | reference data | `mic` (ISO 10383) | the *list* is a verifiable standard; any given *listing* is a claim (§5.2) |
-| `Industry`/`Sector` | **claim layer — not core** | `scheme+code` (GICS/SIC/NACE) | classifications are source-owned opinions (GICS is S&P/MSCI's, SIC is the SEC's), multi-label, and disagree across schemes — attached only via source-attributed `IN_INDUSTRY` claims |
+| `Security` | core | `security_id` | one instrument that a company issues, such as a share class or a bond. Identifiers `(scheme, value)`, such as `(figi_share_class, …)` ([`identifier_model.md`](./identifier_model.md)) |
+| `Listing` | core | `listing_id` | one security on one exchange. Identifiers `(scheme, value)`, such as `(us_ticker, GOOGL)` ([`identifier_model.md`](./identifier_model.md)) |
+| `Exchange` | reference data | `mic` (ISO 10383) | the list is a verifiable standard. A listing names one exchange |
+| `Industry`/`Sector` | **claim layer — not core** | `scheme+code` (SIC/NAICS/NACE) | classifications are source-owned opinions (SIC is the SEC's), multi-label, and disagree across schemes — attached only via source-attributed `IN_INDUSTRY` claims. The stores keep no GICS code ([ADR 0010](../../../docs/adr/0010-identifier-schemes-by-licence.md)) |
 
 **Build order (review directive):** ring 1 (`Company` + `Identifier`) → the SEC adapter
 (`Regulator`, `Filing` + structural edges) → the bridge (`HAS_FILING` via CIK→`CompanyId`
@@ -254,7 +260,9 @@ resolution, §11). Claim-layer nodes enter only as their sources are onboarded.
 
 | Edge | From → To | Properties |
 | --- | --- | --- |
-| `HAS_IDENTIFIER` | Company → Identifier | since, status (active / lapsed) |
+| `HAS_IDENTIFIER` | Company, Security, or Listing → Identifier | since, status (active / lapsed) |
+| `OF_SECURITY` | Listing → Security | |
+| `ON_EXCHANGE` | Listing → Exchange | |
 | `HAS_FILING` | Company → Filing | (Filing is adapter-owned but hangs off the core company) |
 | `FILED_UNDER` | Filing → Regulator | |
 | `FILES_WITH` | Company → Regulator | first_filed |
@@ -274,12 +282,15 @@ conflict). So every relationship edge carries a uniform **claim envelope** besid
 
 | Edge (claim) | From → To | Payload |
 | --- | --- | --- |
-| `LISTED_ON` | Company → Exchange | ticker, listing_date |
-| `IN_INDUSTRY` | Company → Industry | scheme |
+| `ISSUED_BY` | Security → Company | valid_from, valid_to |
+| `IN_INDUSTRY` | Company → Industry | scheme, valid_from, valid_to |
 | `SUBSIDIARY_OF` | Company → Company | since |
 | `OWNS_STAKE_IN` | Company → Company | percentage |
 
-Rules: claims are **append-only and never destructively merged** — conflicting claims
+Rules: the load derives each claim from the records of its source on each run
+([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 3, confirmed by the owner on
+2026-11-14). The history of a claim lives in the dated records that silver keeps. Claims are
+**never destructively merged** — conflicting claims
 coexist; which one "wins" is **read-time policy** (most-recent `as_of`, highest
 verifiability, or "show all with sources"); cross-source **agreement upgrades confidence**,
 divergence is itself a data-quality signal to surface — the same posture as the fact store's
@@ -304,6 +315,8 @@ graph LR
   subgraph CoreAx["Ring 1 — axiomatic core (every company ever)"]
     C["Company (PK: CompanyId)"]
     ID["Identifier (LEI / CIK / …)"]
+    S["Security"]
+    L["Listing"]
   end
   subgraph Adapter["SEC adapter (+ shared dimensions)"]
     R["Regulator (SEC/FCA/…)"]
@@ -322,7 +335,9 @@ graph LR
   F -- FILED_UNDER --> R
   F -- COVERS_PERIOD --> P
   F -- REPORTS_CONCEPT --> K
-  C -. "LISTED_ON {source, as_of}" .-> E
+  S -. "ISSUED_BY {source, valid_from}" .-> C
+  L -- OF_SECURITY --> S
+  L -- ON_EXCHANGE --> E
   C -. "IN_INDUSTRY {source, scheme}" .-> I
   C -. "SUBSIDIARY_OF {source, as_of}" .-> C2
   C -. "OWNS_STAKE_IN {source, as_of, %}" .-> C2
@@ -463,9 +478,9 @@ and a caller joins it to the metadata store by `company_id` and `source_ref`:
 > silver. A failed load runs again from a ledger of loaded silver units, so the MVP needs no
 > reconciliation job that replays projections. The drift report below stays a data check.
 
-- **Graph = source of truth** for identity, structural metadata, completeness — and the
-  *ledger* of relationship claims, which stay per-source and append-only (§5.2) rather than
-  being merged into one "true" relationship.
+- **Graph = source of truth** for identity, structural metadata, and completeness. It holds the
+  relationship claims per source (§5.2), derived from the records of each source on each load,
+  rather than merged into one "true" relationship.
 - **Canonical fact store = authoritative** for canonical numeric values/time-series.
 - **Adapter raw store = the replay source** (system of record for what was actually filed).
 - **Write order:** adapter raw ingested → graph nodes/edges upserted → canonical facts
