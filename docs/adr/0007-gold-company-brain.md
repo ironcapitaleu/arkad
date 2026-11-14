@@ -26,6 +26,14 @@ ADR 0001 puts the graph tier and the fact tier in gold. It leaves the gold table
 provenance reaches gold to a later gold design (Amendment 1, "What Stays Open"). No document names
 the goal that joins the parts, so that design has no goal to follow.
 
+Snowflake describes the same split for its planned Cortex Sense (blog post of 2026-06-30). A
+context layer ingests "only metadata and usage patterns, not your actual data rows". It holds the
+definitions of metrics, the join patterns, and where each table lives, so an agent "knows exactly
+where to look and what to query". When two signals conflict, it ranks them "by relevance,
+authority, popularity and freshness", and a conflict it cannot settle goes to a person.
+Snowflake reports that an agent with the context layer answered 86.3% of its benchmark questions,
+and 24.1% without it. These are vendor figures on Snowflake's data. Nobody checked them for arkad.
+
 Terms:
 
 - **Data source**: an outside publisher of company data, such as the SEC or GLEIF.
@@ -38,14 +46,19 @@ Terms:
 1. **Gold is the company brain: one metadata store over one source store per data source.** The
    screener and the `/v1` API read gold, and they are two uses of it.
 2. **The metadata store describes the data and holds no fact values.** It holds the knowledge graph
-   of companies and their identifiers (§5) and the canonical concepts (§3). For each source store,
-   it records which companies, concepts, and periods the store holds, and how to read them.
+   of companies and their identifiers (§5) and the canonical concepts (§3), each with its
+   definition and how to compute it from source facts. For each source store, it records which
+   companies, concepts, and periods the store holds, and how to read them.
 3. **Each source store holds the facts of its data source, with the provenance of each fact.** The
    SEC store holds the SEC facts, and a GLEIF store holds the GLEIF data. The provenance of a fact
    (§8.2) stays next to the fact and names its silver unit and raw document by key.
 4. **A query starts in the metadata store and reads the facts from the source stores.** It resolves
    a company, an identifier, or a concept, finds the source stores that hold it, and reads the facts
    there.
+5. **The metadata store keeps conflicting claims and ranks them.** Two sources can disagree on a
+   link between identifiers or on a definition. The metadata store keeps each claim with its source
+   and date, and ranks them by a fixed source priority, as the design rules of ADR 0001 describe. A
+   conflict that the ranking cannot settle goes to a review queue for a person.
 
 ## Options Considered
 
@@ -57,7 +70,8 @@ No option was measured.
 | B: gold is a serving store of the graph and the facts, with provenance in silver only | Yes | No, a reader goes to silver | A change to the shared tables |
 
 - A keeps the facts of each data source apart, with their provenance, and gives one place that
-  says where each fact lives.
+  says where each fact lives. It is the split of the Snowflake context layer: metadata in one
+  place, data rows in their stores.
 - B answers the screener queries, but no query of gold answers where a value comes from.
 
 ## Consequences
@@ -75,6 +89,8 @@ No option was measured.
 
 - Where the canonical facts that join data sources live (§6): in each source store, or in a shared
   fact tier that the metadata store describes. The owner decides.
+- Whether the metadata store also learns from usage, such as the queries that reach the `/v1`
+  API, as the Snowflake context layer does. In this ADR, the load fills it. The owner decides.
 - The gold tables and their write rule. The gold design fixes them.
 - How a source store and its entries in the metadata store stay in step on a load. The gold design
   fixes it.
@@ -85,6 +101,9 @@ No option was measured.
   and the date, 2026-11-14.
 - The owner's comment on the draft, 2026-11-14: a metadata store with the data endpoints, and one
   store per data source with its facts and their provenance.
+- [Introducing Cortex Sense: Grounded Context for the Data You Never Modeled](https://www.snowflake.com/en/blog/enterprise-ai-agents-grounded-context/),
+  Snowflake blog, 2026-06-30, read on 2026-11-14. The quotes and the benchmark figures above come
+  from it.
 - `sec/design/pipeline/silver_layer.md`, "Layers", and `sec/design/data_model/hybrid_data_model.md`
   §3, §5, §6, §7, §8.2, on `main` at `070b916`, read on 2026-11-14.
 - [ADR 0001](0001-mvp-database.md), Amendment 1: the provenance size of 418 bytes per row,
