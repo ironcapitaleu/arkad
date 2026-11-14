@@ -369,6 +369,8 @@ subtracts items until it reaches net income. Each subtotal is the start of the n
 | `NetIncome` | top | | | | | |
 | **`NetIncomeAttributableToParent`** | `net-income-attribution` | breakdown | `NetIncome` | | +1 | yes |
 | **`NetIncomeAttributableToNoncontrollingInterest`** | `net-income-attribution` | breakdown | `NetIncome` | | +1 | yes, zero if absent |
+| `OtherComprehensiveIncome` | `comprehensive-income` | step | `ComprehensiveIncome` | `NetIncome` | +1 | yes |
+| `ComprehensiveIncome` | top | | | | | |
 
 The other line of each open step has a name in the layout:
 
@@ -379,6 +381,9 @@ The other line of each open step has a name in the layout:
 | `pretax-income` | Other non-operating income (expense) | Interest income, equity method income before tax, foreign exchange gains, and pension costs other than service cost |
 | `net-income` | Other items after tax | Discontinued operations, and equity method income after tax |
 
+- The cascade ends with comprehensive income: `ComprehensiveIncome` = `NetIncome` +
+  `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
+  The layout always shows it at the end of the income statement, so there are three statements.
 - The cascade has no `Expenses`, `Gains`, or `Losses`. No filer presents the SFAC 6 totals, so
   these concepts leave the enum (see "Verdict on the 39 Concepts").
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
@@ -389,21 +394,8 @@ The other line of each open step has a name in the layout:
   and the cost of revenue counts in the step.
 - Known limit: some filers tag their total costs, cost of revenue included, as
   `OperatingExpenses`. If such a filer also reports `CostOfRevenue`, the cascade counts the cost of
-  revenue twice. The other line of
-  `operating-income` then holds the cost of revenue with a positive sign. A measurement on real
+  revenue twice. The other line of `operating-income` then holds the cost of revenue with a positive sign. A measurement on real
   filings decides whether this needs a guard.
-
-#### Comprehensive Income
-
-Duration values. One closed step: `ComprehensiveIncome` = `NetIncome` + `OtherComprehensiveIncome`.
-
-| Concept | Group | Kind | Parent | Start | Weight | Closed |
-| ------- | ----- | ---- | ------ | ----- | ------ | ------ |
-| `ComprehensiveIncome` | top | | | | | |
-| `OtherComprehensiveIncome` | `comprehensive-income` | step | `ComprehensiveIncome` | `NetIncome` | +1 | yes |
-
-A filer can present it in one statement with the income statement or in a second statement. The
-layout shows it as its own statement.
 
 #### Cash Flow Statement
 
@@ -532,7 +524,7 @@ No concept changes its name. A move changes the placement only.
 | `Losses` | remove | |
 | `NetIncome` | keep | top of the income statement |
 | `OtherComprehensiveIncome` | move | item of `comprehensive-income` |
-| `ComprehensiveIncome` | keep | top of the comprehensive income statement |
+| `ComprehensiveIncome` | keep | top of the income statement, last subtotal of the cascade |
 | `OperatingCashFlow` | move | child of `net-change-in-cash` |
 | `InvestingCashFlow` | move | child of `net-change-in-cash` |
 | `FinancingCashFlow` | move | child of `net-change-in-cash` |
@@ -1972,19 +1964,30 @@ impl Invariant {
 
 ## 7) Financial Statement Output Types
 
-Decided: one generic type, built from the roll-up table.
+Decided: a generic statement built from the roll-up table, and a typed view for each statement on
+top of it. There are three statements: the balance sheet, the income statement with comprehensive
+income at its end, and the cash flow statement.
+
+### Generic Statement
 
 ```rust
+#[non_exhaustive]
+pub enum StatementKind {
+    BalanceSheet,
+    IncomeStatement,
+    CashFlow,
+}
+
 pub struct Statement {
-    pub kind: StatementKind, // BalanceSheet, IncomeStatement, ComprehensiveIncome, CashFlow
-    pub entity: EntityId,
-    pub period_end: NaiveDate,
-    pub quarters: u16,       // 0 for the balance sheet
-    pub lines: Vec<StatementLine>,
+    kind: StatementKind,
+    entity: EntityId,
+    period_end: NaiveDate,
+    quarters: u16, // 0 for the balance sheet
+    lines: Vec<StatementLine>,
 }
 
 pub struct StatementLine {
-    pub line: Line,          // Line::Standard(CanonicalElement) or Line::Other { group }
+    pub line: Line, // Line::Standard(CanonicalElement) or Line::Other { group }
     pub depth: u8,
     pub value: Option<BigDecimal>,
 }
@@ -1997,11 +2000,44 @@ pub struct StatementLine {
   rule, and inputs.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. The table
   gives each concept one statement, so `build` rejects a fact of another kind at run time.
-- Typed structs per statement were the alternative. They catch a wrong period type at compile
-  time. But a map from `CanonicalElement` to a fact still accepts a concept of another statement.
-  The table already holds the statement of each concept, so a typed struct adds no check.
+- The layout, the other lines, and the checks all come from the table. A new concept adds a row to
+  the table and changes no type.
+
+### Typed Views
+
+```rust
+#[non_exhaustive]
+pub enum FinancialStatement {
+    BalanceSheet(BalanceSheet),
+    IncomeStatement(IncomeStatement),
+    CashFlow(CashFlowStatement),
+}
+
+pub struct BalanceSheet(Statement);
+
+impl BalanceSheet {
+    pub fn assets(&self) -> Option<&StatementLine> { /* … */ }
+    pub fn liabilities(&self) -> Option<&StatementLine> { /* … */ }
+    pub fn equity(&self) -> Option<&StatementLine> { /* … */ }
+    // one accessor per standard concept of the balance sheet
+}
+
+impl TryFrom<Statement> for BalanceSheet { /* rejects a Statement of another kind */ }
+```
+
+- `BalanceSheet`, `IncomeStatement`, and `CashFlowStatement` each wrap one `Statement` of their
+  kind. They hold no data of their own, so the table stays the only list of lines.
+- Each view has one accessor per standard concept of its statement, such as `assets()` or
+  `net_income()`. An accessor returns the line, so the caller also reaches the fact behind it.
+- `TryFrom<Statement>` checks the kind. A function that takes a `&BalanceSheet` cannot receive an
+  income statement, so the compiler catches a wrong statement and a wrong period type.
+- `FinancialStatement` holds any of the three. It has `#[non_exhaustive]`, so a later statement,
+  such as the changes in equity, adds a variant, a `StatementKind`, and a view. No existing view
+  changes.
+- A new standard concept adds one accessor to the view of its statement. A method on a struct is
+  outside the Open-Closed Principle of `AGENTS.md`, which covers traits only.
 - Side groups need no layout. A reader takes their values from the standardized facts.
-- Silver stores no statement. The gold load builds statements with this type.
+- Silver stores no statement. The gold load builds statements with these types.
 
 ---
 
