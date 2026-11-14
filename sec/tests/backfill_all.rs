@@ -32,14 +32,27 @@ use tempfile::TempDir;
 use uuid::Uuid;
 
 const NOTES_URL: &str = "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/";
-const INDEX_URL_OF_2026_09_30: &str =
-    "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR3/form.20260930.idx";
-const INDEX_URL_OF_2026_10_01: &str =
-    "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR4/form.20261001.idx";
-/// A daily index that lists no filing.
-const EMPTY_DAILY_INDEX: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
+const FULL_INDEX_URL_OF_2026_Q3: &str =
+    "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/form.idx";
+const FULL_INDEX_URL_OF_2026_Q4: &str =
+    "https://www.sec.gov/Archives/edgar/full-index/2026/QTR4/form.idx";
+/// A full index that lists no filing.
+const EMPTY_FULL_INDEX: &[u8] = b"Form Type   Company Name   CIK   Date Filed  File Name
 ---------------------------------------------------------------------
 ";
+/// The catch-up dates of a run with the cut-over date 2026-09-30 and `until` 2026-10-01: from 7
+/// days before the cut-over date to `until`.
+const CATCH_UP_DATES: [&str; 9] = [
+    "2026-09-23",
+    "2026-09-24",
+    "2026-09-25",
+    "2026-09-26",
+    "2026-09-27",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-10-01",
+];
 const RUN_EXPECT: &str =
     "Given a published Notes period in the list, the run should always find a cut-over date";
 
@@ -54,8 +67,8 @@ fn temporary_root() -> TempDir {
     )
 }
 
-/// Returns a client that serves the Notes file of each of `periods` and an empty daily index of
-/// 2026-09-30 and of 2026-10-01. Every other URL answers 404.
+/// Returns a client that serves the Notes file of each of `periods` and an empty full index of
+/// 2026 Q3 and of 2026 Q4. Every other URL answers 404.
 fn sec_client(periods: &[&str]) -> RoutingSecClient {
     periods
         .iter()
@@ -68,16 +81,16 @@ fn sec_client(periods: &[&str]) -> RoutingSecClient {
             )
         })
         .route(
-            INDEX_URL_OF_2026_09_30,
+            FULL_INDEX_URL_OF_2026_Q3,
             200,
             "application/octet-stream",
-            EMPTY_DAILY_INDEX,
+            EMPTY_FULL_INDEX,
         )
         .route(
-            INDEX_URL_OF_2026_10_01,
+            FULL_INDEX_URL_OF_2026_Q4,
             200,
             "application/octet-stream",
-            EMPTY_DAILY_INDEX,
+            EMPTY_FULL_INDEX,
         )
 }
 
@@ -115,6 +128,11 @@ fn repositories(root: &TempDir) -> BackfillRepositories {
                 .root(root.path())
                 .build(),
         },
+        full_index: FilesystemRepository::builder()
+            .writer()
+            .document_type::<RawDocument<_>>()
+            .root(root.path())
+            .build(),
     }
 }
 
@@ -153,13 +171,13 @@ fn stored_metadata(root: &TempDir, file: &str) -> Value {
 }
 
 #[tokio::test]
-async fn should_run_the_catch_up_from_the_cut_over_date_to_until_when_the_newest_period_is_published()
+async fn should_run_the_catch_up_from_seven_days_before_the_cut_over_date_to_until_when_the_newest_period_is_published()
  {
     let root = temporary_root();
     let sec_client = sec_client(&["2026_09"]);
     let periods = ["2026_09"];
 
-    let expected_result = json!(["2026-09-30", "2026-10-01"]);
+    let expected_result = json!(CATCH_UP_DATES);
 
     let summary = run_all(&root, sec_client, &periods).await;
     let result = catch_up_dates(&summary);
@@ -168,14 +186,14 @@ async fn should_run_the_catch_up_from_the_cut_over_date_to_until_when_the_newest
 }
 
 #[tokio::test]
-async fn should_record_one_execution_id_for_the_notes_file_and_the_daily_index_when_both_steps_run()
+async fn should_record_one_execution_id_for_the_notes_file_and_the_full_index_when_both_steps_run()
 {
     let root = temporary_root();
     let sec_client = sec_client(&["2026_09"]);
     let periods = ["2026_09"];
     let metadata_files = [
         "sec/notes/2026_09_notes.zip.meta.json",
-        "sec/daily-index/form.20260930.idx.meta.json",
+        "sec/full-index/2026/QTR3/form.idx.meta.json",
     ];
 
     let expected_result = json!([
@@ -213,7 +231,7 @@ async fn should_run_the_catch_up_when_a_notes_period_fails() {
     let sec_client = sec_client(&["2026_09"]);
     let periods = ["2026_08", "2026_09"];
 
-    let expected_result = (1, json!(["2026-09-30", "2026-10-01"]));
+    let expected_result = (1, json!(CATCH_UP_DATES));
 
     let summary = run_all(&root, sec_client, &periods).await;
     let result = (summary.notes().failure_count(), catch_up_dates(&summary));
@@ -231,7 +249,7 @@ async fn should_fail_the_older_period_when_the_list_is_not_in_order() {
         failed_periods: 1,
         periods: 2,
         catch_up_failures: 0,
-        catch_up_dates: 2,
+        catch_up_dates: 9,
     });
 
     let result = run_all(&root, sec_client, &periods).await.result();
@@ -272,7 +290,7 @@ async fn should_return_failed_all_backfill_when_a_notes_period_fails() {
         failed_periods: 1,
         periods: 2,
         catch_up_failures: 0,
-        catch_up_dates: 2,
+        catch_up_dates: 9,
     });
 
     let result = run_all(&root, sec_client, &periods).await.result();
@@ -319,7 +337,7 @@ async fn should_return_failed_all_backfill_when_the_sec_refuses_the_download_of_
         failed_periods: 1,
         periods: 2,
         catch_up_failures: 0,
-        catch_up_dates: 2,
+        catch_up_dates: 9,
     });
 
     let result = run_all(&root, sec_client, &periods).await.result();
@@ -338,15 +356,15 @@ async fn should_count_one_failed_period_when_the_newest_period_is_unpublished_an
         b"",
     );
     let periods = ["2026_08", "2026_09"];
-    // The cut-over date is 2026-08-31. An earlier `until` runs no catch-up date, so the result
-    // counts only the Notes periods.
+    // The cut-over date is 2026-08-31. The catch-up starts 7 days earlier and reads the empty full
+    // index of Q3, so the result counts only the Notes periods.
     let until = date("2026-08-30");
 
     let expected_result = Err(FailedAllBackfill {
         failed_periods: 1,
         periods: 2,
         catch_up_failures: 0,
-        catch_up_dates: 0,
+        catch_up_dates: 7,
     });
 
     let result = Extraction::backfill()
@@ -387,7 +405,7 @@ async fn should_count_the_missed_cut_over_period_and_the_failed_period_when_both
         failed_periods: 2,
         periods: 2,
         catch_up_failures: 0,
-        catch_up_dates: 2,
+        catch_up_dates: 9,
     });
 
     let result = run_all(&root, sec_client, &periods).await.result();

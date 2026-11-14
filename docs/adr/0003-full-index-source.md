@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The lead confirms |
+| Status | Accepted by the project lead on 2026-11-14 |
 | Date | 2026-11-13 |
 | Deciders | The project lead |
 
@@ -32,6 +32,10 @@ count takes an accession number once.
 3. **One parser reads the daily index and `form.idx`.** Both files have the same fixed-width
    layout. Only the date filed differs: `20260930` in the daily index and `2026-09-30` in
    `form.idx`.
+4. **The catch-up starts 7 days before the cut-over date.** It selects the filings with a date
+   filed in its range, and the store check skips each stored filing. In the measured range, a
+   daily index listed a filing at most 4 days after its date filed in `form.idx`, apart from the
+   20-F below. 7 days leave room above that.
 
 ## Options Considered
 
@@ -85,12 +89,10 @@ Reasons for `form.idx`:
 
 ## Open Questions
 
-- The catch-up filters by date filed, so it needs a rule for a filing with a date filed before
-  the start of its range. Two options: start the range some days before the cut-over date and
-  let the store check skip the stored filings, or select the quarter minus the stored filings, as
-  `daily_filings` does. The change that makes the catch-up read `form.idx` picks one.
-- Both options cover only a date filed in a quarter that the run reads. A filing that the SEC
-  sent again with a date filed in an earlier quarter, as the 20-F, stays open.
+- Decision 4 starts the range 7 days early. It does not select the quarter minus the stored
+  filings, because no code lists the stored filings yet. If a measurement shows a lag above 7 days, that selection replaces decision 4.
+- No rule yet covers a filing that the SEC sent again with a date filed in an earlier quarter, as
+  the 20-F.
 - For `daily_filings`, one download of 47 MB per run can cost too much. `form.gz` holds the same
   rows in 4.8 MB. No measurement of the daily run exists yet.
 - The header line `Last Data Received` names the last date of the file. No code reads it yet. It

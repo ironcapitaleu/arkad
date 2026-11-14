@@ -3,7 +3,8 @@
 //! Provides [`DailyRunSummary`], the outcome of every date of one `daily_filings` run, and the rules
 //! that sort an error into an outcome.
 //!
-//! A date is pending if its daily index does not exist yet and a later run reads the date again.
+//! A date is pending if its daily index, or the full index of its quarter, does not exist yet, and
+//! a later run reads the date again.
 //! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
 
 use chrono::{Days, NaiveDate};
@@ -12,6 +13,7 @@ use thiserror::Error;
 
 use super::PENDING_DAYS;
 use crate::error::{State as StateError, StateMachine};
+use crate::implementations::extraction::notes::summary::is_absent_file;
 use crate::prelude::StreamError;
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FilingDocumentsError;
@@ -28,7 +30,8 @@ pub(super) enum DateOutcome {
         /// The outcome of the `submissions` file of each company.
         companies: Vec<CompanyOutcome>,
     },
-    /// The daily index does not exist yet, and a later run reads the date again.
+    /// The daily index, or the full index of the quarter of the date, does not exist yet, and a
+    /// later run reads the date again.
     Pending(StreamError),
     /// Detection failed.
     Failed(StreamError),
@@ -94,16 +97,40 @@ pub(super) fn is_pending(
     first_date: NaiveDate,
     as_of: NaiveDate,
 ) -> bool {
-    // An `as_of` near `NaiveDate::MIN` has no oldest pending date, so every date is recent.
-    let is_recent = as_of
-        .checked_sub_days(Days::new(PENDING_DAYS - 1))
-        .is_none_or(|oldest_pending| date >= oldest_pending);
     date != first_date
-        && is_recent
+        && is_recent(date, as_of)
         && matches!(
             &*error.source,
             StateMachine::State(StateError::MissingDailyIndex(_))
         )
+}
+
+/// Returns `true` if the detection of a quarter failed only because the SEC has not published its
+/// full index yet, and a later run reads the dates of the quarter again.
+///
+/// That holds if the SEC answered 403 or 404 for the full index, `quarter_first_date` is not
+/// `first_date`, and `quarter_first_date` is on or after the date [`PENDING_DAYS`] - 1 days before
+/// `as_of`. `quarter_first_date` is the first date of the run in the quarter. As in
+/// [`is_pending`], the first date of a run can be its last read, so an absent index there fails
+/// the run. Unlike [`is_pending`], no quarter listing confirms the absence, so a 403 from
+/// throttling also counts.
+pub(super) fn is_pending_quarter(
+    error: &StreamError,
+    quarter_first_date: NaiveDate,
+    first_date: NaiveDate,
+    as_of: NaiveDate,
+) -> bool {
+    quarter_first_date != first_date
+        && is_recent(quarter_first_date, as_of)
+        && is_absent_file(error)
+}
+
+/// Returns `true` if `date` is on or after the date [`PENDING_DAYS`] - 1 days before `as_of`.
+fn is_recent(date: NaiveDate, as_of: NaiveDate) -> bool {
+    // An `as_of` near `NaiveDate::MIN` has no oldest pending date, so every date is recent.
+    as_of
+        .checked_sub_days(Days::new(PENDING_DAYS - 1))
+        .is_none_or(|oldest_pending| date >= oldest_pending)
 }
 
 /// Returns `true` if the folder of the filing holds no XBRL instance.
@@ -263,10 +290,17 @@ mod tests {
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
-    use crate::error::state_machine::state::{FailedDocumentSelection, MissingDailyIndex};
+    use crate::error::state_machine::state::{
+        FailedDocumentSelection, FailedRequestExecution, MissingDailyIndex,
+    };
     use crate::prelude::StreamEvent;
     use crate::shared::filing_documents::FilingDocumentRole;
+    use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::index_date::IndexDate;
+    use crate::shared::response::implementations::sec_response::error::{
+        ErrorReason, InvalidSecResponse,
+    };
+    use crate::shared::status_code::StatusCode;
 
     use super::*;
 
@@ -295,6 +329,20 @@ mod tests {
             data: Value::Null,
             source: Box::new(source),
         }
+    }
+
+    /// Returns the error of a full index request that the SEC answered with `status_code`.
+    fn answered(status_code: StatusCode) -> StreamError {
+        let response_error =
+            InvalidSecResponse::new(ErrorReason::InvalidStatusCode { status_code });
+        let failure = FailedRequestExecution::new(
+            "Execute SEC Request",
+            FailedSecRequest::from(response_error),
+        );
+        stream_error(
+            "Execute SEC Request",
+            StateMachine::State(StateError::FailedRequestExecution(failure)),
+        )
     }
 
     fn missing_daily_index(index_date: &str) -> StreamError {
@@ -435,6 +483,79 @@ mod tests {
         let expected_result = true;
 
         let result = is_pending(&error, run_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_an_absent_full_index_as_pending_when_the_quarter_starts_two_days_before_as_of()
+    {
+        let error = answered(StatusCode::NotFound);
+        let quarter_first_date = date("2026-10-01");
+        let first_date = date("2026-09-24");
+        let as_of = date("2026-10-03");
+
+        let expected_result = true;
+
+        let result = is_pending_quarter(&error, quarter_first_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_full_index_answer_of_403_as_pending_when_the_quarter_starts_on_as_of() {
+        let error = answered(StatusCode::Forbidden);
+        let quarter_first_date = date("2026-10-01");
+        let first_date = date("2026-09-24");
+        let as_of = date("2026-10-01");
+
+        let expected_result = true;
+
+        let result = is_pending_quarter(&error, quarter_first_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_an_absent_full_index_as_pending_when_the_quarter_starts_three_days_before_as_of()
+     {
+        let error = answered(StatusCode::NotFound);
+        let quarter_first_date = date("2026-10-01");
+        let first_date = date("2026-09-24");
+        let as_of = date("2026-10-04");
+
+        let expected_result = false;
+
+        let result = is_pending_quarter(&error, quarter_first_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_an_absent_full_index_as_pending_when_the_quarter_starts_on_the_first_date()
+    {
+        let error = answered(StatusCode::NotFound);
+        let quarter_first_date = date("2026-10-01");
+        let first_date = date("2026-10-01");
+        let as_of = date("2026-10-01");
+
+        let expected_result = false;
+
+        let result = is_pending_quarter(&error, quarter_first_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_a_full_index_answer_of_500_as_pending_when_the_quarter_starts_on_as_of() {
+        let error = answered(StatusCode::InternalServerError);
+        let quarter_first_date = date("2026-10-01");
+        let first_date = date("2026-09-24");
+        let as_of = date("2026-10-01");
+
+        let expected_result = false;
+
+        let result = is_pending_quarter(&error, quarter_first_date, first_date, as_of);
 
         assert_eq!(result, expected_result);
     }

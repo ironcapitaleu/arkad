@@ -104,12 +104,14 @@ impl StateData for DetectFilingsSuperStateData {
     }
 }
 
-/// The filings that detection selected, and the stored daily index they came from.
+/// The filings that detection selected, and the stored index they came from: a daily index, or
+/// the full index of a quarter.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DetectedFilings {
     /// The selected filings, one per accession number, in index order.
     pub filings: Vec<FilingRef>,
-    /// The stored daily index as an [`InputDocument`], or `None` if the day had no filings.
+    /// The stored index as an [`InputDocument`], or `None` if the day had no filings and no daily
+    /// index exists.
     pub index: Option<InputDocument>,
 }
 
