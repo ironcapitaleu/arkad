@@ -2,10 +2,10 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-11-14 (STA-512 comment `e112485d`). |
+| Status | Accepted by the lead on 2026-11-14 ([STA-512 comment `e112485d`](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). |
 | Date | 2026-08-08 |
 | Deciders | The project lead |
-| Ticket | STA-130 made the decision. STA-512 records it. |
+| Ticket | [STA-130](https://linear.app/state-machine/issue/STA-130) made the decision. [STA-512](https://linear.app/state-machine/issue/STA-512) records it. |
 
 ## Context
 
