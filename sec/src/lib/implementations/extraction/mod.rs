@@ -208,7 +208,7 @@ pub mod submissions;
 
 pub use all::{
     AllBatchBuilder, AllClient, AllRunSummary, BackfillAll, BackfillRepositories,
-    FailedAllBackfill, FailedCutOverDate, NoUntil,
+    CATCH_UP_LOOKBACK_DAYS, FailedAllBackfill, FailedCutOverDate, NoUntil,
 };
 pub use company_facts::{
     BackfillCompanyFacts, CompanyFactsBatchBuilder, CompanyFactsRunSummary,

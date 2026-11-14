@@ -16,7 +16,7 @@ use std::time::Duration;
 use chrono::NaiveDate;
 use futures_util::StreamExt;
 use storage::implementations::repository::filesystem::{
-    Document, FilesystemRepository, InputDocument, Read, Write,
+    Document, FilesystemRepository, IngestionMode, InputDocument, Read, Write,
 };
 use storage::traits::repository::ReadRepository;
 
@@ -28,6 +28,9 @@ use crate::implementations::states::extract::daily_index::{
     DetectFilingsSuperState, DetectedFilings,
 };
 use crate::implementations::states::extract::filing::ExtractFilingSuperState;
+use crate::implementations::states::extract::full_index::{
+    DetectQuarterFilingsSuperState, DetectQuarterFilingsSuperStateContext,
+};
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
 use crate::implementations::states::extract::submissions::ExtractSubmissionsSuperState;
 use crate::implementations::states::extract::validate_cik_format::ValidateCikFormat;
@@ -40,15 +43,18 @@ use crate::shared::filing_ref::FilingRef;
 use crate::shared::http_client::Executes;
 use crate::shared::http_client::SecClient as SecClientTrait;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::quarter::Quarter;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::{
-    RawDailyIndex, RawFilingIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+    RawDailyIndex, RawFilingIndex, RawFullIndex, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
 };
-use crate::shared::request::implementations::sec_request::{FilingDocumentSet, FilingIndex};
+use crate::shared::request::implementations::sec_request::{
+    FilingDocumentSet, FilingIndex, FullIndex,
+};
 use crate::shared::response::implementations::sec_response::{JsonBody, SecResponse, ZipBody};
 use summary::{
     CompanyOutcome, DateOutcome, Fetch, FilingOutcome, is_missing_instance, is_pending,
-    is_unextractable,
+    is_pending_quarter, is_unextractable,
 };
 
 mod summary;
@@ -90,6 +96,7 @@ impl<C> DailyClient for C where
 }
 
 type DailyIndexRepository = FilesystemRepository<Write, RawDocument<RawDailyIndex>>;
+type FullIndexRepository = FilesystemRepository<Write, RawDocument<RawFullIndex>>;
 type FilingIndexRepository = FilesystemRepository<Write, RawDocument<RawFilingIndex>>;
 type InstanceRepository = FilesystemRepository<Write, RawDocument<RawXbrlInstance>>;
 type InstanceReader = FilesystemRepository<Read, RawDocument<RawXbrlInstance>>;
@@ -124,7 +131,7 @@ pub struct NoRepositories;
 /// The new-filing path of an incremental run, before the choice of the dates.
 ///
 /// Every super-state of the run carries the `execution_id` of its [`Incremental`] handle and
-/// [`IngestionMode::Incremental`](storage::implementations::repository::filesystem::IngestionMode::Incremental).
+/// [`IngestionMode::Incremental`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IncrementalDailyFilings {
     incremental: Incremental,
@@ -308,6 +315,8 @@ impl<C> DailyFilingsBuilder<NaiveDate, C, DailyFilingsRepositories>
 where
     C: DailyClient,
     DetectFilingsSuperState<ValidateIndexDate, DailyIndexRepository, C>: IntoStateMachineStream,
+    DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, FullIndexRepository, C>:
+        IntoStateMachineStream,
     ExtractFilingSuperState<
         PrepareSecRequest<FilingIndex>,
         FilingIndexRepository,
@@ -372,6 +381,102 @@ where
                 }
             };
             outcomes.push((date, outcome));
+        }
+        DailyRunSummary(outcomes)
+    }
+
+    /// Runs the new-filing path for the dates of the builder, as [`run`](Self::run) does, but
+    /// detects their filings in the full index of each quarter that the dates touch, not in one
+    /// daily index per date.
+    ///
+    /// For each quarter, oldest first, the run runs one [`DetectQuarterFilingsSuperState`] for the
+    /// dates of the run in that quarter, and stores the full index in `full_index`. Then, for each
+    /// of those dates, it runs the filings with that date filed and their companies, as
+    /// [`run`](Self::run) does. Each filing records the stored full index as the input of its
+    /// files. A date without a filing in the full index counts as a day without filings.
+    ///
+    /// The detection of a quarter that fails with a transient SEC failure runs again after each
+    /// retry delay. If it still fails, each date of the quarter fails. A quarter whose full index
+    /// the SEC has not published yet is pending instead, if its first date in the run is recent and
+    /// is not the first date of the run.
+    ///
+    /// Calls `observer` as [`run`](Self::run) does. The unit of the detection of a quarter is
+    /// [`Unit::Quarter`].
+    pub async fn run_from_full_index(
+        self,
+        full_index: FullIndexRepository,
+        observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
+    ) -> DailyRunSummary {
+        let Some(&first_date) = self.dates.first() else {
+            return DailyRunSummary(Vec::new());
+        };
+        let mut outcomes = Vec::with_capacity(self.dates.len());
+        for quarter_dates in self
+            .dates
+            .chunk_by(|a, b| Quarter::of(*a) == Quarter::of(*b))
+        {
+            let (Some(&quarter_first_date), Some(&quarter_last_date)) =
+                (quarter_dates.first(), quarter_dates.last())
+            else {
+                continue;
+            };
+            let quarter = Quarter::of(quarter_first_date);
+            let unit = Unit::Quarter(quarter);
+            let detection = with_retry(
+                &self.retry_delays,
+                || {
+                    let context = DetectQuarterFilingsSuperStateContext::new(
+                        self.sec_client.clone(),
+                        self.incremental.id(),
+                        IngestionMode::Incremental,
+                        full_index.clone(),
+                        quarter_first_date,
+                        quarter_last_date,
+                    );
+                    DetectQuarterFilingsSuperState::new(quarter, context)
+                        .run_to_detected_filings(|item| observer(&unit, RunEvent::Item(item)))
+                },
+                |error| observer(&unit, RunEvent::Error(error, ErrorKind::Retried)),
+            )
+            .await;
+            let detected = match detection {
+                Ok(detected) => detected,
+                Err(error) => {
+                    let pending =
+                        is_pending_quarter(&error, quarter_first_date, first_date, self.as_of);
+                    let kind = if pending {
+                        ErrorKind::Pending
+                    } else {
+                        ErrorKind::Failed
+                    };
+                    observer(&unit, RunEvent::Error(&error, kind));
+                    outcomes.extend(quarter_dates.iter().map(|&date| {
+                        let outcome = if pending {
+                            DateOutcome::Pending(error.clone())
+                        } else {
+                            DateOutcome::Failed(error.clone())
+                        };
+                        (date, outcome)
+                    }));
+                    continue;
+                }
+            };
+            for &date in quarter_dates {
+                let day = DetectedFilings {
+                    filings: detected
+                        .filings
+                        .iter()
+                        .filter(|filing| filing.filed_date() == date)
+                        .cloned()
+                        .collect(),
+                    index: detected.index.clone(),
+                };
+                let outcome = DateOutcome::Processed {
+                    filings: self.extract_filings(date, &day, &observer).await,
+                    companies: self.extract_companies(date, &day.filings, &observer).await,
+                };
+                outcomes.push((date, outcome));
+            }
         }
         DailyRunSummary(outcomes)
     }

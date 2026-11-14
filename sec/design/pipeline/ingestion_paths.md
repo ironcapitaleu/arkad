@@ -329,9 +329,22 @@ as a dynamic fork per filing. The facade does not wait for STA-329.
 #### Room for the Bookmark and the Full Index
 
 `dates(ds)` takes the dates as input. Today `main` reads them from `ARKAD_FROM` and `ARKAD_TO`.
-The listing design replaces the dates with the full index minus the stored filings (see
+`run_from_full_index` takes the same dates, but finds their filings in the full index of each
+quarter in place of one daily index per date. The catch-up of `all()` calls it. The listing design
+can later replace the dates with the full index minus the stored filings (see
 [`repository_listing.md`](../../../storage/design/data_model/repository_listing.md), "Bookmark or
 Full Index"). This changes only the input of the source, not the shape of the facade.
+
+`run_from_full_index` runs one `DetectQuarterFilingsSuperState` per quarter, with retry, and then
+the filings of each date as `run` does. Its rules for a quarter:
+
+- If the SEC answers 403 or 404 for the full index, each date of the quarter is pending, if the
+  first date of the quarter in the run is recent and is not the first date of the run. This is
+  the pending rule of the daily index, applied to the first date of the quarter.
+- Every other failure fails each date of the quarter.
+- A date without rows in the full index counts as empty. The full index does not tell a day
+  without filings from a day that the SEC has not added yet. The window of `daily_filings` reads
+  the last days again from the daily index.
 
 #### Diagram
 
@@ -399,7 +412,8 @@ summary.result()?;
   daily indexes and filings.
 - `backfill` exits with an error if a Notes period or the catch-up failed.
 - `run_dates` stays in `daily_filings`, because it reads time and the environment. `all()` lists
-  the dates of its catch-up itself, from the cut-over date to `until(d)`.
+  the dates of its catch-up itself, from `CATCH_UP_LOOKBACK_DAYS` (7) days before the cut-over
+  date to `until(d)`, and runs them with `run_from_full_index`.
 
 #### Deprecated Binaries
 
@@ -1815,7 +1829,7 @@ Rules:
    The Notes summary lists that period as unpublished, but `result()` counts it as failed. To
    check a run by hand, confirm that no entry in the Notes summary has a `failed_state`, and that
    the newest stored period ends on or after the cut-over date. The `first_date` of the catch-up
-   summary is the cut-over date. If the catch-up has no date, `first_date` is `null`. See
+   summary is 7 days before the cut-over date. If the catch-up has no date, `first_date` is `null`. See
    [Calling the Machines](#calling-the-machines). Do not rely on the
    calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see

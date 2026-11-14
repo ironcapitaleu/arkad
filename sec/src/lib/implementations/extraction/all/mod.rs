@@ -7,9 +7,10 @@
 //! date: the last day of the newest Notes period that the SEC publishes, confirmed with one `HEAD`
 //! request. It then runs two steps at the same time. The Notes step runs
 //! [`BackfillNotes`](super::BackfillNotes) over the periods. The catch-up runs
-//! [`IncrementalDailyFilings`](super::IncrementalDailyFilings) for each date from the cut-over date
-//! to the date of [`until`](AllBatchBuilder::until). Both steps carry the `execution_id` of the
-//! run.
+//! [`IncrementalDailyFilings`](super::IncrementalDailyFilings) for each date from
+//! [`CATCH_UP_LOOKBACK_DAYS`] days before the cut-over date to the date of
+//! [`until`](AllBatchBuilder::until). It finds the filings of those dates in the full index of each
+//! quarter that the dates touch. Both steps carry the `execution_id` of the run.
 //!
 //! [`run`]: AllBatchBuilder::run
 
@@ -17,7 +18,7 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chrono::NaiveDate;
+use chrono::{Days, NaiveDate};
 use futures_util::future::join;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 use thiserror::Error;
@@ -29,6 +30,7 @@ use super::retry::DEFAULT_RETRY_DELAYS;
 use super::run_event::{RunEvent, Unit};
 use crate::implementations::states::extract::daily_index::DetectFilingsSuperState;
 use crate::implementations::states::extract::filing::ExtractFilingSuperState;
+use crate::implementations::states::extract::full_index::DetectQuarterFilingsSuperState;
 use crate::implementations::states::extract::notes::ExtractNotesSuperState;
 use crate::implementations::states::extract::notes::builder::NoSecClient;
 use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
@@ -41,9 +43,10 @@ use crate::shared::http_client::implementations::sec_client::error::FailedSecReq
 use crate::shared::notes_period::NotesPeriod;
 use crate::shared::raw_document::RawDocument;
 use crate::shared::raw_source::{
-    RawDailyIndex, RawFilingIndex, RawNotesArchive, RawSubmissions, RawXbrlInstance, RawXbrlLabels,
+    RawDailyIndex, RawFilingIndex, RawFullIndex, RawNotesArchive, RawSubmissions, RawXbrlInstance,
+    RawXbrlLabels,
 };
-use crate::shared::request::implementations::sec_request::FilingIndex;
+use crate::shared::request::implementations::sec_request::{FilingIndex, FullIndex};
 use crate::shared::response::implementations::sec_response::{SecResponse, ZipHeadBody};
 use crate::traits::state_machine::stream::IntoStateMachineStream;
 
@@ -53,6 +56,19 @@ pub use summary::{AllRunSummary, FailedAllBackfill};
 
 /// The store of the Notes files.
 type NotesWriter = FilesystemRepository<Write, RawDocument<RawNotesArchive>>;
+
+/// The store of the full indexes of the catch-up.
+type FullIndexWriter = FilesystemRepository<Write, RawDocument<RawFullIndex>>;
+
+/// The number of days before the cut-over date at which the catch-up starts.
+///
+/// The full index lists a filing with the date filed of the last time the SEC sent it. A filing
+/// that the SEC sends after the cut-over date can carry an earlier date filed, and a range that
+/// starts at the cut-over date would miss it. On 2026-11-13, in 37 days of daily indexes, a daily
+/// index listed a filing at most 4 days after its date filed in the full index, apart from one old
+/// filing that the SEC sent again. The overlap with the Notes files costs only requests, because
+/// every write is idempotent and a repeat run skips the stored filings.
+pub const CATCH_UP_LOOKBACK_DAYS: u64 = 7;
 
 /// The SEC client that the cut-over probe and both steps of the pipeline accept.
 pub trait AllClient:
@@ -74,6 +90,8 @@ pub struct BackfillRepositories {
     pub notes: NotesWriter,
     /// The stores of the catch-up.
     pub daily_filings: DailyFilingsRepositories,
+    /// The store of the full indexes that the catch-up reads.
+    pub full_index: FullIndexWriter,
 }
 
 /// Marks an [`AllBatchBuilder`] that holds no last date of the catch-up yet.
@@ -257,6 +275,8 @@ where
         FilesystemRepository<Write, RawDocument<RawDailyIndex>>,
         C,
     >: IntoStateMachineStream,
+    DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, FullIndexWriter, C>:
+        IntoStateMachineStream,
     ExtractFilingSuperState<
         PrepareSecRequest<FilingIndex>,
         FilesystemRepository<Write, RawDocument<RawFilingIndex>>,
@@ -279,9 +299,11 @@ where
     /// the next older period of the run. The date of today plays no part.
     ///
     /// The Notes step follows the rules of [`NotesBatchBuilder::run`](super::NotesBatchBuilder::run).
-    /// The catch-up runs each date from the cut-over date to the date of [`until`](Self::until), as
-    /// [`DailyFilingsBuilder::run`](super::DailyFilingsBuilder::run) does. A failed Notes period
-    /// does not stop the catch-up. It fails [`AllRunSummary::result`], and a later run downloads
+    /// The catch-up runs each date from [`CATCH_UP_LOOKBACK_DAYS`] days before the cut-over date to
+    /// the date of [`until`](Self::until), as
+    /// [`DailyFilingsBuilder::run_from_full_index`](super::DailyFilingsBuilder::run_from_full_index)
+    /// does: one full index per quarter, not one daily index per date. A failed Notes period does
+    /// not stop the catch-up. It fails [`AllRunSummary::result`], and a later run downloads
     /// the period again.
     ///
     /// Calls `observer` with every event of both steps. The retries of the probe send no event.
@@ -305,7 +327,7 @@ where
             date: cut_over_date,
             newest_published,
         } = cut_over_date(&self.sec_client, &periods, &self.retry_delays).await?;
-        let catch_up_dates = dates_between(cut_over_date, self.until);
+        let catch_up_dates = dates_between(catch_up_start(cut_over_date), self.until);
         let observer = Arc::new(observer);
         let notes_observer = Arc::clone(&observer);
         let notes = self
@@ -325,7 +347,9 @@ where
             .sec_client(self.sec_client)
             .repositories(self.repositories.daily_filings)
             .retry_delays(self.retry_delays)
-            .run(move |unit, event| observer(unit, event));
+            .run_from_full_index(self.repositories.full_index, move |unit, event| {
+                observer(unit, event);
+            });
         let ((notes, notes_duration), (catch_up, catch_up_duration)) =
             join(timed(notes), timed(catch_up)).await;
         Ok(AllRunSummary {
@@ -385,6 +409,14 @@ async fn cut_over_date<C: AllClient>(
 struct CutOver {
     date: NaiveDate,
     newest_published: bool,
+}
+
+/// Returns the first date of the catch-up: [`CATCH_UP_LOOKBACK_DAYS`] days before `cut_over`, or
+/// `cut_over` itself if that date lies before the first date that [`NaiveDate`] holds.
+fn catch_up_start(cut_over: NaiveDate) -> NaiveDate {
+    cut_over
+        .checked_sub_days(Days::new(CATCH_UP_LOOKBACK_DAYS))
+        .unwrap_or(cut_over)
 }
 
 /// Returns every date from `cut_over` to `until`, both included, oldest first.
@@ -467,6 +499,11 @@ mod tests {
                     .root(root.path())
                     .build(),
             },
+            full_index: FilesystemRepository::builder()
+                .writer()
+                .document_type::<RawDocument<_>>()
+                .root(root.path())
+                .build(),
         }
     }
 
@@ -665,6 +702,28 @@ mod tests {
         let expected_result: Vec<NaiveDate> = Vec::new();
 
         let result = dates_between(cut_over, until);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_start_the_catch_up_seven_days_before_the_cut_over_date_when_the_date_is_in_range() {
+        let cut_over = date(2026, 9, 30);
+
+        let expected_result = date(2026, 9, 23);
+
+        let result = catch_up_start(cut_over);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_start_the_catch_up_on_the_cut_over_date_when_the_lookback_leaves_the_date_range() {
+        let cut_over = NaiveDate::MIN;
+
+        let expected_result = NaiveDate::MIN;
+
+        let result = catch_up_start(cut_over);
 
         assert_eq!(result, expected_result);
     }
