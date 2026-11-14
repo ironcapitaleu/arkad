@@ -119,7 +119,7 @@ facade writes the ingestion mode, `backfill` or `incremental`, into the metadata
 | `stream_etl` | `backfill().company_facts()` per CIK, for a fixed list of 469 CIKs | An operator, for tests | Company Facts |
 | `extraction` | None. It runs the Company Facts states one by one for CIK 1067983 | An operator, as a demo | Company Facts |
 
-Two deprecated examples in `sec/examples/` still compile: `notes_backfill` (replaced by `backfill`)
+Two deprecated examples in `sec/examples/` still compile: `notes_backfill` (use `backfill`)
 and `stream_extract` (Company Facts). The `Dockerfile` builds one image for `backfill` and one
 for `daily_filings`. No image holds an example.
 

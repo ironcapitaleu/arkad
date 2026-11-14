@@ -933,7 +933,7 @@ of §8.
 `Load` context, exactly as `SecClient` is today.
 
 **Crate topology.** The persistence ports + `StorageError` + ingest DTOs + feature-gated fakes
-live in a new backend-agnostic **`storage`** crate (no `sqlx`; renamed from `domain` — the domain
+live in a new backend-agnostic **`storage`** crate (no `sqlx`; the domain
 vocabulary itself stays in `xbrl`, which `storage` depends on); a **`storage-postgres`** crate
 holds the concrete `PostgresRepository`; only the composition root names Postgres. Makes §12a's
 language-agnostic / reversible-storage property enforceable by the compiler.

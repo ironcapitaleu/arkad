@@ -13,35 +13,19 @@
 
 ## Purpose
 
-The `storage` crate exposes one write-only port today. A caller that only reads has no read method,
-and a caller handed the port can call `persist`. The goal is a design where the type system enforces
-the capability: a read-only caller cannot call a write method, and the mistake is a compile error.
+The `storage` crate splits its ports by access capability. A read-only caller cannot call a write
+method, and the mistake is a compile error.
 
 The split also gives one capability model for two backends. The database repository and the future
 queue-backed repository both express access as the same read and write traits.
 [`capability_split_ports.md`](./capability_split_ports.md) records the queue mapping.
 
-## The Current Port
-
-The `storage` crate holds one trait, `Repository`, with a single write method:
-
-```rust
-#[async_trait]
-pub trait Repository: Send + Sync {
-    type Record: Send;
-    async fn persist(&self, record: Self::Record) -> Result<(), WriteError>;
-}
-```
-
-The rename to `WriteRepository` and the new `ReadRepository` sibling are the whole change on the
-trait side. The read side is a new trait, not a rework of the write side.
-
 ## The Three Traits
 
 ### `WriteRepository`
 
-`WriteRepository` is the current `Repository`, renamed. The method and the associated type are
-unchanged, so the write contract stays exact.
+`WriteRepository` holds the write contract: the method `persist` and the associated type
+`Record`.
 
 ```rust
 #[async_trait]
@@ -60,7 +44,7 @@ pub trait WriteRepository: Send + Sync {
 
 ### `ReadRepository`
 
-`ReadRepository` is the new sibling. It reads one record by key.
+`ReadRepository` reads one record by key.
 
 ```rust
 #[async_trait]
@@ -218,8 +202,8 @@ single-capability trait objects. The blanket impl still holds, so `RW: ReadWrite
 valid bound where `Record` is not named. Single-capability trait objects stay available for a caller
 that holds a collection of read handles or write handles.
 
-The split keeps the dispatch options the current port has. A caller injects a concrete store by
-generic bound, or holds a single-capability trait object where erasure helps.
+The split keeps two dispatch options. A caller injects a concrete store by generic bound, or holds
+a single-capability trait object where erasure helps.
 
 ## Capability Binding in a `State`
 
@@ -299,8 +283,8 @@ ErrorKind
 
 The map from method to error class:
 
-- `WriteRepository::persist` returns `WriteError`. This class exists in the crate today.
-- `ReadRepository::get` returns `ReadError`. STA-147 adds this class.
+- `WriteRepository::persist` returns `WriteError`.
+- `ReadRepository::get` returns `ReadError`.
 - `ErrorKind` is the union a caller propagates for any operation. `From` upcasts a class into the
   union. `TryFrom` recovers a class from the union.
 - `BackendError` is the shared leaf. `ReadError::Backend` and `WriteError::Backend` both wrap it, so
@@ -324,9 +308,8 @@ Each capability gets its own fake, so a consumer test wires only the trait it ex
 live in each crate's `#[cfg(test)]` fixtures, the house convention. A second consumer that needs the
 same fake is the trigger to promote it to a shared testkit, not before.
 
-- **`FakeWriteRepository<Rec>`** — the current `FakeRepository<Rec>`, renamed. It records every
-  persisted record and returns `Ok`. It exposes the recorded records for assertions. This is the
-  write fake unchanged.
+- **`FakeWriteRepository<Rec>`** — records every persisted record and returns `Ok`. It exposes the
+  recorded records for assertions.
 - **`FakeReadRepository<Key, Rec>`** — seeded with key-to-record entries. Its `get` returns the
   seeded record, or `Ok(None)` for an unknown key. A test can seed it to return a `ReadError`, so
   the read failure paths have a target.
