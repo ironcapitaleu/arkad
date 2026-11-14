@@ -4,9 +4,11 @@ description: >
   Use when the user asks to "write an ADR", "record this decision", "amend the ADR", "supersede
   the ADR", or asks "does this need an ADR" or "why is the code like this". Also use when a task
   makes you choose between options and the test in AGENTS.md, "Architecture Decision Records",
-  says to write an ADR. Also use when you remove history or a past decision from a document, to
-  check whether the decision needs an ADR first.
-version: 0.2.0
+  says to write an ADR. Also use when a decision shapes the architecture and is hard to reverse,
+  carries long-term trade-offs for the system or the team, or is one that a later engineer will
+  question. Also use when you remove history or a past decision from a document, to check whether
+  the decision needs an ADR first.
+version: 0.2.1
 ---
 
 # ADR Skill
