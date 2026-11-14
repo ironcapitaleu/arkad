@@ -4,10 +4,11 @@ This document gives the shape of storage in arkad: the crates, the ports, the ra
 planned Postgres tiers. Other documents hold the detail. This one links them and repeats none.
 
 Gold is the company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). One
-**metadata store**, a knowledge graph of all data sources, resolves entities. For each company, it lists the sources that hold data about it and
-names the preferred one. It holds the knowledge graph of companies and identifiers, the canonical concepts,
-and an entry for each source store ([`hybrid_data_model.md`](./hybrid_data_model.md) §3, §5, and
-[`ontology_guardrails.md`](./ontology_guardrails.md)). Each **source store** holds the records of one
+**metadata store** covers all data sources. It is a knowledge graph of the companies and their
+identifiers, the canonical concepts, and the data sources and their source stores
+([`hybrid_data_model.md`](./hybrid_data_model.md) §3, §5, and
+[`ontology_guardrails.md`](./ontology_guardrails.md)). It resolves entities. For each company, it
+lists the sources that hold data about it and names the preferred one. Each **source store** holds the records of one
 data source, such as the SEC facts as filed and as canonical facts, with the provenance of each record
 (§8.2). The raw store and silver
 feed the source stores. The code holds the raw store. The other tiers are in
