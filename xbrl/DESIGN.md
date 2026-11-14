@@ -237,7 +237,7 @@ the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` 
 
 The standard concepts form one fixed tree per statement. The tree is the same for every company
 and every source. It gives the layout of each statement, the "other" lines, the checks, and one
-more Tier 3 rule. A concept that belongs to no sum is a disclosure next to the trees.
+more Tier 3 rule. A concept outside every tree of a statement belongs to a disclosure.
 
 #### Groups
 
@@ -429,9 +429,10 @@ Duration values. The top line is `NetChangeInCash`.
 
 #### Disclosures
 
-A disclosure is a set of concepts that belong to no sum. Its concepts have no parent, no other
-line, and no roll-up check. EPS sits on the face of the income statement (ASC 260-10-45-2), but it
-adds to no line, so it is a disclosure here.
+A disclosure is a set of concepts outside the trees of the statements. The concepts of `PerShare`
+have no parent, no other line, and no roll-up check. EPS sits on the face of the income statement
+(ASC 260-10-45-2), but it adds to no line, so it is a disclosure here. A later disclosure with its
+own sums, such as debt maturities, gets its own trait (see "Extension Model").
 
 - `PerShare`: `EarningsPerShareBasic` and `EarningsPerShareDiluted`. A per-share value does not add
   with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
@@ -547,9 +548,11 @@ pub trait Placed: Concept {
   disclosure. A later disclosure whose values add up, such as debt maturities, gets its own trait
   next to these.
 - A declarative macro defines each innermost enum and its `ALL` from one list of variants, so the
-  two cannot drift. `elements/mod.rs` holds `INNERMOST`, a `const` list with one entry for each
-  innermost enum. The parse from the name and the uniqueness test walk it. A test checks that
-  `INNERMOST` holds 52 concepts.
+  two cannot drift.
+- A second macro defines each middle enum, `StatementConcept` and `DisclosureConcept`, from its
+  list of innermost enums. The same macro builds `INNERMOST: &[&[CanonicalElementKind]]`, one entry
+  per innermost enum, each built with `element()`. So a variant of a middle enum cannot miss
+  `INNERMOST`. The parse from the name and the uniqueness test walk it.
 - A trait method cannot be a `const fn`. The alias lists and the part rules are `const` tables. So
   each innermost enum also has an inherent `const fn element(self) -> CanonicalElementKind`, and a
   list writes `BalanceSheetConcept::Assets.element()`. Run-time code converts with `From` one level
@@ -578,8 +581,8 @@ A change touches these places, and no others:
 | A concept in an existing statement | a variant in the macro of its enum, an arm of each method of `Concept` and `Placed`, an alias list | nothing else |
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
-| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, an entry in `INNERMOST`, alias lists | nothing else |
-| A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, an entry in `INNERMOST`, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
+| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
+| A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
 arrives. A new variant is outside the Open-Closed Principle, which covers traits only.
@@ -1531,8 +1534,8 @@ statement module holds its part, as "Extension Model" describes.
   same table for the layout and the other lines.
 - The calculation tree of a plug-in stays a separate structure. It links taxonomy concepts, not
   standard concepts, and Tier 4 reads it.
-- No trait for the graph. It has one implementation, and a plug-in adds no edges. The `Concept`
-  trait describes one concept, not the graph.
+- No trait for the graph. It has one implementation, and a plug-in adds no edges. `Concept` and
+  `Placed` describe one concept, not the graph.
 - `CanonicalElementKind` nests by statement, as "Extension Model" describes. The placement holds
   the parent and the weight, because a parent is a sum and not a container.
 - The SFAC 6 identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
@@ -2181,9 +2184,9 @@ impl TryFrom<Statement> for BalanceSheet {
 - A step can start from a line of another statement. Today `NetIncome` in the cash flow statement
   is the only one. Each view lists these starts in a `const`, such as
   `CashFlowStatement::STARTS`, and gives each one an accessor, such as `net_income()`. A unit test
-  checks that `STARTS` holds the starts of the groups in `elements/statement/` that come from
-  another statement, in their order. A new start fails the test until it lands in `STARTS`, and that change adds its
-  accessor.
+  checks that `STARTS` holds the starts from another statement of the groups in the module of its
+  statement, such as `cash_flow.rs`, in their order. A new start fails the test until it lands in
+  `STARTS`, and that change adds its accessor.
 - `line` returns `None` if the statement has no line for the concept: a parent with no value, which
   is transparent. A child with no value has a line with `value: None`.
 - `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
