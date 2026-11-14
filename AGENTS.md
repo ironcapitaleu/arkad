@@ -105,7 +105,8 @@ before you write or amend an ADR.
   documents, READMEs, and skills, says what an item is and does now. It never says what the item
   or a cited standard replaced, or what changed from an earlier version. Commits and PRs hold that
   history. If a decision behind the change passes the test in "Architecture Decision Records",
-  record it in an ADR, and link the ADR from the document.
+  record it in an ADR, and link the ADR from the document. Read history from the current docs and
+  the ADRs.
   [`DOCUMENTATION.md`](DOCUMENTATION.md), "Temporal references", gives examples.
 - **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 

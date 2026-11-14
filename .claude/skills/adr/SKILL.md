@@ -2,9 +2,11 @@
 name: adr
 description: >
   Use when the user asks to "write an ADR", "record this decision", "amend the ADR", "supersede
-  the ADR", or asks "does this need an ADR". Also use when a task makes you choose between options
-  and the test in AGENTS.md, "Architecture Decision Records", says to write an ADR.
-version: 0.1.0
+  the ADR", or asks "does this need an ADR" or "why is the code like this". Also use when a task
+  makes you choose between options and the test in AGENTS.md, "Architecture Decision Records",
+  says to write an ADR. Also use when you remove history or a past decision from a document, to
+  check whether the decision needs an ADR first.
+version: 0.2.0
 ---
 
 # ADR Skill
@@ -12,7 +14,9 @@ version: 0.1.0
 ## Purpose
 
 An Architecture Decision Record (ADR) keeps one decision, the options, and the facts behind it in
-the repository. A later reader learns why one option won without the ticket or the chat. This skill
+the repository. It records the best way forward known at its date. A later reader learns why one
+option won without the ticket or the chat. The current documents say what the code does, and the
+ADRs say why. This skill
 holds the template and the procedure. `AGENTS.md`, "Architecture Decision Records", holds the test
 for when a decision needs an ADR.
 
