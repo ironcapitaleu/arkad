@@ -40,7 +40,7 @@ What to carry forward vs. change (detail in §10):
 
 | Existing artifact | Verdict |
 | --- | --- |
-| `xbrl::CanonicalElement` (the ten elements) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
+| `xbrl::CanonicalElement` (the standard concepts) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
 | `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
@@ -114,8 +114,9 @@ posture to relationship claims (§5.2).
 
 ## 3. Universal Canonical Concept Model
 
-The universal vocabulary is the **`CanonicalElement`** set, rooted in the ten elements, (13 Level-1 roots +
-~29 Level-2 sub-elements; already enumerated in `xbrl/src/core/elements.rs`). Concepts Statement 8 is a
+The universal vocabulary is the **`CanonicalElement`** set: 13 Level-1 roots and
+~29 Level-2 sub-elements, listed in `xbrl/src/core/elements.rs`. The roots cover the ten elements
+of Concepts Statement 8 and totals such as `NetIncome`. Concepts Statement 8 is a
 US document, but its ten elements are **definitional, not standard-specific** — IFRS's
 Conceptual Framework defines assets, liabilities, equity, income, and expenses in
 substantially the same terms. So the roots are a legitimate *cross-standard* canonical
