@@ -113,7 +113,8 @@ macro_rules! middle_concepts {
             }
 
             impl $middle {
-                /// Returns the name in silver of the concept, from [`Concept::name`].
+                /// Returns the name in silver of the concept, from
+                /// [`Concept::name`](crate::core::elements::Concept::name).
                 #[must_use]
                 pub fn name(self) -> &'static str {
                     match self {
@@ -121,7 +122,8 @@ macro_rules! middle_concepts {
                     }
                 }
 
-                /// Returns the label for people of the concept, from [`Concept::label`].
+                /// Returns the label for people of the concept, from
+                /// [`Concept::label`](crate::core::elements::Concept::label).
                 #[must_use]
                 pub fn label(self) -> &'static str {
                     match self {

@@ -776,7 +776,7 @@ The changes are to comments and to the new lists.
 | `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
 | `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
 | `CostOfRevenue`, `GrossProfit`, `SellingGeneralAdmin`, `ResearchDevelopment`, `InterestExpense` | stays |
-| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts move to the disclosure `PerShare` |
+| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts belong to the disclosure `PerShare` |
 | `DepreciationAmortization`, `CapitalExpenditures`, `DividendsPaid`, `ShareRepurchases`, `ShareBasedCompensation` | stays |
 | `OtherComprehensiveIncome`, `ComprehensiveIncome` | stays |
 
@@ -788,9 +788,9 @@ The `concept` column of `standardized_facts` stores the variant name, such as `N
 label of `Display`. `Concept::name()` gives this name, and `FromStr` on `CanonicalElementKind`
 parses it.
 
-- No concept changes its name, so every stored row keeps its key.
+- The name of a concept is its variant name, so a stored row keeps its key.
 - The 16 new concepts add new names. Their name is their variant name.
-- A move changes no name. Silver stores no placement and no group.
+- A placement is not part of the name. Silver stores no placement and no group.
 - Other lines and statements have no name in silver. They are not stored.
 - The derived values of `core/roll-up/<group>@1` are rows of `standardized_facts`, with
   confidence `Derived` and the rule ID in `rule`.
@@ -860,18 +860,17 @@ so the other operating cash flow is 390 − 16 = 374.
 
 The owner decided these on 2026-11-14.
 
-1. **`Expenses`, `Gains`, and `Losses` leave the enum.** The MVP freezes the top lines of the trees
-   instead of the 13 roots. No US GAAP concept holds these totals, no rule fills them, and silver
-   holds no row of them. Keeping them with no placement leaves three variants outside the
-   hierarchy.
+1. **No standard concept holds expenses, gains, or losses.** The MVP freezes the top lines of the
+   trees. No US GAAP concept holds these totals, no rule fills them, and silver holds no row of
+   them. A concept with no placement sits outside the hierarchy (ADR 0011).
 2. **`ShortTermDebt` holds current finance leases**, through `DebtCurrent`. `LongTermDebt` leaves
    them out. The part rule alone gives most filers no value. Widening `LongTermDebt` instead
    reverses the decision to drop wider aliases.
 3. **The tolerance base is the largest absolute value in the group**, not the parent. In a step, the
    parent can be near zero while its members are large.
-4. **Layer 3 drops the check `NetIncome` = `Revenue` − `Expenses` + `Gains` − `Losses`** and adds
-   the exchange rate effect to the cash flow check. The old check cannot run without the three
-   concepts. The cash flow check matches the `accounting` skill.
+4. **Layer 3 checks the cascade and the cash flow, with the exchange rate effect.** No standard
+   concept holds expenses, gains, or losses, so no check names them. The cash flow check matches
+   the `accounting` skill.
 
 ---
 
@@ -2074,8 +2073,8 @@ Exact invariant violations produce `InconsistentIdentity` (hard error). Non-exac
 
 The series step does not fail on a broken identity. It records each failed check of the roll-up tree
 as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
-validates one statement, such as a publish gate. `NetIncomeIdentity` goes away with `Expenses`,
-`Gains`, and `Losses`. The checks of the series step use the tolerance of "Checks the Tree Gives",
+validates one statement, such as a publish gate. The checks of the series step name no `Expenses`,
+`Gains`, or `Losses`, so they have no `NetIncomeIdentity`. The checks of the series step use the tolerance of "Checks the Tree Gives",
 for every group and identity. `is_exact()` applies only to a caller that validates one statement,
 such as a publish gate.
 
