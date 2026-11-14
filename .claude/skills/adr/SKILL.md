@@ -2,9 +2,11 @@
 name: adr
 description: >
   Use when the user asks to "write an ADR", "record this decision", "amend the ADR", "supersede
-  the ADR", or asks "does this need an ADR". Also use when a task makes you choose between options
-  and the test in AGENTS.md, "Architecture Decision Records", says to write an ADR.
-version: 0.1.0
+  the ADR", or asks "does this need an ADR" or "why is the code like this". Also use when a task
+  makes you choose between options and the test in AGENTS.md, "Architecture Decision Records",
+  says to write an ADR. Also use when you remove history or a past decision from a document, to
+  check whether the decision needs an ADR first.
+version: 0.2.0
 ---
 
 # ADR Skill
@@ -12,11 +14,22 @@ version: 0.1.0
 ## Purpose
 
 An Architecture Decision Record (ADR) keeps one decision, the options, and the facts behind it in
-the repository. A later reader learns why one option won without the ticket or the chat. This skill
+the repository. It records the best way forward known at its date. A later reader learns why one
+option won without the ticket or the chat. The current documents say what the code does, and the
+ADRs say why. This skill
 holds the template and the procedure. `AGENTS.md`, "Architecture Decision Records", holds the test
 for when a decision needs an ADR.
 
 ## Procedure
+
+- **To answer "why is the code like this"**, search `docs/adr/` and the design docs that describe
+  the code. Cite the ADR that holds the decision. If none holds it, say so, and name the commit or
+  PR that `git log` shows for the change. Write no ADR unless the user asks for one.
+- **Before you remove a past decision from a document**, run the test below on that decision. If
+  it passes and no ADR holds it, write the ADR in the same PR. Set `Date` to the date of the
+  decision, and name the source of that date.
+
+To write an ADR:
 
 1. **Run the test** of `AGENTS.md`, "Architecture Decision Records". If the test is unclear, name
    the decision and both options in the PR description, and ask the owner.
@@ -35,8 +48,9 @@ for when a decision needs an ADR.
 6. **Link it.** Each design doc that describes the affected code links to the ADR. If the decision
    adds a rule for all code, add the rule to `AGENTS.md` with a link to the ADR.
 7. **Ship it** in the PR that first acts on the decision. A decision from a ticket without a PR,
-   such as a SPIKE, ships in the first PR that changes the code. Name the ADR in the PR
-   description, and say who confirms it.
+   such as a SPIKE, ships in the first PR that changes the code. A past decision that leaves a
+   document ships in the PR that removes it. Name the ADR in the PR description, and say who
+   confirms it.
 
 ## Template
 

@@ -707,7 +707,9 @@ type system carry extensibility. State a deliberate boundary as a **timeless pro
 concrete backend"), not as a deferral ("backends are added in a later slice"). Ticket IDs and
 slice/PR numbers never appear in rustdoc. A sentence about what an item does not do is allowed when
 the reader can act on it ("makes no network call"). If its only reason is that an older version did
-it, delete it.
+it, delete it. The same holds for a document the code follows, such as an accounting standard. Name
+the current document and what it defines. Do not name the document it replaced, or what changed
+from it.
 
 | Prose | Problem | Instead |
 |-------|---------|---------|
@@ -716,6 +718,7 @@ it, delete it.
 | "the tier traits are deferred to later slices" | Roadmap | "names no tiers and no concrete backend" |
 | "embeds into `WriteError` (and, later, `ReadError`)" | Future sibling | drop the future reference; state what the error represents (see positional rule below) |
 | "The state needs no storage" (an older version wrote to storage) | Contrasts with removed code | say what the state does, for example "Sends the request and outputs the response" |
+| "Concepts Statement 8 (formerly SFAC 6)" | Names the replaced standard | "Concepts Statement 8, Chapter 4" |
 
 **Positional and consumption references** are the same mistake aimed at structure instead of time.
 Do not describe an item by **where it sits** in a hierarchy or **how it is consumed** — say what it

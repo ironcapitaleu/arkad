@@ -9,7 +9,7 @@ below; each doc's header states its own status.
 
 | # | Document | Status | What it is |
 |---|----------|--------|------------|
-| 1 | [`hybrid_data_model.md`](./hybrid_data_model.md) | **Authoritative** (findings complete) | The SPIKE findings: universal canonical core (LEI-keyed, rooted in the elements of FASB Concepts Statement 8, formerly SFAC 6) + regulator adapters, knowledge-graph & canonical-fact tiers, consistency/provenance model, storage-tech research, deployment options |
+| 1 | [`hybrid_data_model.md`](./hybrid_data_model.md) | **Authoritative** (findings complete) | The SPIKE findings: universal canonical core (LEI-keyed, rooted in the elements of FASB Concepts Statement 8) + regulator adapters, knowledge-graph & canonical-fact tiers, consistency/provenance model, storage-tech research, deployment options |
 | 2 | [`storage_traits_design.md`](./storage_traits_design.md) | **Current: Consolidated Design (2026-08-10)** — supersedes the STA-145 v1 | The storage abstraction: neutral `Repository` + `persist`, `Backend` store base, `SecRepository` owning the tier triad, `ErrorKind` value-type hierarchy, crate topology, per-crate fakes. STA-145 v1 retained below for rationale. Feeds STA-139 |
 | 3 | [`load_superstate_design.md`](./load_superstate_design.md) | Exploratory, non-normative | The Load `SuperState` through the ports-and-adapters lens; for iteration before Load tickets are cut |
 | 4 | [`design_patterns_primer.md`](./design_patterns_primer.md) | Background | Shared vocabulary: Repository, Ports & Adapters, Unit of Work, CQRS — each mapped onto arkad |
