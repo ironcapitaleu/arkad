@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms. |
+| Status | Accepted by the lead on 2026-11-14 ([STA-501 comment `af013d35`](https://linear.app/state-machine/issue/STA-501/design-identifiers-and-classifications-of-companies-securities-and#comment-af013d35)). |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-501](https://linear.app/state-machine/issue/STA-501) |
