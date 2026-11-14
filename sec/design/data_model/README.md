@@ -27,7 +27,7 @@ below; each doc's header states its own status.
 - **Identifiers have three levels: company, security, and listing.** Each identifier and code is a
   row of `(scheme, value)` with a source and a validity. The stores keep only schemes that need no
   paid licence ([ADR 0009](../../../docs/adr/0009-three-levels-of-identity.md),
-  [ADR 0010](../../../docs/adr/0010-identifier-schemes-by-licence.md), both proposed).
+  [ADR 0010](../../../docs/adr/0010-identifier-schemes-by-licence.md)).
 - **Crate topology** — `storage` holds the ports and depends on no database driver. The Postgres
   backend goes into `storage-postgres`. Only a composition root names a database
   ([ADR 0005](../../../docs/adr/0005-storage-ports-crate.md)).
