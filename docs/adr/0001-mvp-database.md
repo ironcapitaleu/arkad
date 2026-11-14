@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 was accepted by the lead on 2026-11-14. The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. The lead accepted [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 on 2026-11-14 ([STA-512 comment](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
 | Date | 2026-10-21 |
 | Deciders | The project lead. The master's student reviews it after a two-week leave. |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |

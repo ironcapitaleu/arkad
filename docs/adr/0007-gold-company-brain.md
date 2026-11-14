@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-11-14. |
+| Status | Accepted by the lead on 2026-11-14 ([STA-512 comment](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). |
 | Date | 2026-11-14 |
 | Deciders | The project lead. The owner sets the goal. |
 | Ticket | [STA-512](https://linear.app/state-machine/issue/STA-512) |
@@ -52,15 +52,17 @@ Terms:
    identifier to one company (§4, §5). For a company and a kind of information, it lists every
    source that holds it, with the key and how to read it, and names the preferred source
    (Decision 5). For example, the financial facts of Apple Inc. come from the SEC store, by CIK.
-3. **The metadata store describes the data and holds no fact values.** Its graph holds the companies and
-   their identifiers (§5), the canonical concepts (§3), each with its definition and how to compute
-   it from source facts, and the data sources and their source stores. An edge from a company to a
-   source store carries the kind of information, the key, and the rank of that store for that
-   company (Decision 5). For a store of facts, it also records the
-   concepts and the periods. A claim of the graph, such as a GLEIF parent link (§5.2), is metadata.
+3. **The metadata store describes the data and holds no fact values.** Its graph holds four things:
+   the companies and their identifiers (§5), the canonical concepts (§3), the data sources, and
+   their source stores. The data sources are the `DataSource` nodes of §5.1, and a source store is
+   a node of its own. Each concept has its definition and how to compute it from source facts. An
+   edge from a company to a source store carries the kind of information, the key, and the rank of
+   that store for that company (Decision 5). For a store of facts, the metadata store also records
+   the concepts and the periods. A claim of the graph, such as a GLEIF parent link (§5.2), is metadata.
    The load derives each claim from the records of the source store of its source, such as the
-   GLEIF store. The claim sits in the metadata store with its source and date. Only two writes
-   change the metadata store: the load, and a verdict on an item of the review queue. Unlike the
+   GLEIF store. The claim sits in the metadata store with its source and date. Three writes change the
+   metadata store: the load, a verdict on an item of the review queue, and a person who sets the
+   ranking of Decision 5 in the graph. Unlike the
    Snowflake context layer, it does not learn from usage, such as the queries that reach the `/v1`
    API.
 4. **Each source store holds the records of its data source, with the provenance of each
@@ -71,7 +73,8 @@ Terms:
 5. **If several source stores hold records of the same kind for a company, the metadata store
    picks one by default, and the caller can name another.** The default follows a preference order
    per company: the source of the home market of the company first, then the more trusted sources.
-   The metadata store holds the home market of each company. The order is a decision per company,
+   The home market of each company and the rank of each source store for it sit in the graph of the
+   metadata store, and a person edits them there. The order is a decision per company,
    not one global list. For example, Alibaba lists in Hong Kong and files with the SEC. At the SEC
    it files the annual 20-F of a foreign issuer, not the 10-K and 10-Q of a domestic filer, so
    for Alibaba the Hong Kong source ranks above the SEC. At first the order is set by hand: the
@@ -125,6 +128,8 @@ No option was measured.
 - A rule that sets the trust of a source from data, in place of a judgment. The error rates and
   conflicts that the data checks find for each source, at ingest and on live data, are the
   candidate input. It needs several sources and those checks first. The owner decides.
+- How a hand-set ranking keeps who set it and when, since no pull request reviews it. The gold
+  design fixes it.
 - How the metadata store sets the home market of a company that files in two markets. One
   candidate is the market of the legal address in its LEI record. The owner decides.
 - Which source sets the attributes of a `Company` node (§5.1), such as the name and the country,
@@ -142,8 +147,8 @@ No option was measured.
 
 - [STA-512](https://linear.app/state-machine/issue/STA-512), "Definition of Done": the owner's goal
   and the date, 2026-11-14.
-- The owner's decisions on the draft, 2026-11-14, recorded in a comment on
-  [STA-512](https://linear.app/state-machine/issue/STA-512): one metadata store, a knowledge graph
+- The owner's decisions on the draft, 2026-11-14, recorded in a
+  [comment on STA-512](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-d6de906d): one metadata store, a knowledge graph
   of all data sources, over one store per data source with its facts and their provenance. The
   canonical facts stay in each source store. The metadata store resolves entities, lists the
   sources of each company with their keys, and picks a source by a hand-set preference order that

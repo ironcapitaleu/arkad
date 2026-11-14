@@ -96,6 +96,10 @@ requirement.
 
 ### 2.1 Two rings inside the core: axiomatic vs derived (multi-adapter rule)
 
+> [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) puts the canonical facts in one store
+> per data source. This section shows one shared store and changes in
+> [STA-513](https://linear.app/state-machine/issue/STA-513).
+
 "Source of truth" needs precision — the core has two rings with different epistemic status
 (review resolution, 2026-08-08):
 
@@ -349,6 +353,10 @@ central,"* not the data-quality checks.
 
 ## 6. Universal Canonical Fact Store (Analytical Layer)
 
+> [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) puts the canonical facts in one store
+> per data source. This section shows one shared store and changes in
+> [STA-513](https://linear.app/state-machine/issue/STA-513).
+
 A columnar fact table — regulator-agnostic — one row per canonical observation. **Grain:**
 `(company_id, canonical_element, period, dimension_signature, source_ref)`.
 
@@ -429,6 +437,10 @@ Each adapter owns three things, all **independently queryable** and joinable to 
    `COVERS_PERIOD`/`REPORTS_CONCEPT` edges and resolves CIK→LEI to attach to the core company.
 
 ### 7.1 Querying in both directions
+
+> [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) puts the canonical facts in one store
+> per data source. This section shows one shared store and changes in
+> [STA-513](https://linear.app/state-machine/issue/STA-513).
 
 - **Universal → regulator-specific:** start from any `Company` (worldwide) in the core, fetch
   canonical facts; drill down via `source_ref` to see the exact SEC filing + native
