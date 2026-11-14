@@ -9,10 +9,13 @@ use std::hash::Hash;
 /// Names the SEC file that a [`RawDocument`](crate::shared::raw_document::RawDocument) holds.
 ///
 /// Each SEC file is a marker type that implements this trait. Its [`RawSource::DOCUMENT_TYPE`]
-/// becomes the document type of the stored document. Each marker must hold a text that no other
-/// marker holds, because the repository compares document types, not Rust types. Two markers with
-/// one document type read and write each other's files. Add each new marker to the test
+/// becomes the document type of the stored document, under the rules of
+/// [`Document::DocumentType`]. Each marker must hold a text that no other marker holds, because
+/// the repository compares document types, not Rust types. Two markers with one document type read
+/// and write each other's files. Add each new marker to the test
 /// `should_hold_a_different_document_type_for_each_raw_source` in `implementations`.
+///
+/// [`Document::DocumentType`]: storage::implementations::repository::filesystem::Document::DocumentType
 pub trait RawSource: Debug + Clone + Copy + PartialEq + Eq + PartialOrd + Ord + Hash {
     /// The document type of this file, as the store writes it into the metadata.
     ///
