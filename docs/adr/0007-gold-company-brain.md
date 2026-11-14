@@ -39,21 +39,23 @@ Terms:
 - **Data source**: an outside publisher of company data, such as the SEC or GLEIF.
 - **Source store**: the store of one data source. It holds the records of that source as the
   source publishes them, such as the SEC facts or the GLEIF LEI records.
-- **Metadata store**: the store that describes the companies, the concepts, and the source stores,
-  and routes a caller to the sources.
+- **Metadata store**: the one knowledge graph that describes the companies, the concepts, the data
+  sources, and the source stores, and routes a caller to the sources.
 - **Company brain**: the metadata store over the source stores, in gold.
 
 ## Decision
 
-1. **Gold is the company brain: one metadata store over one source store per data source.** The
-   screener and the `/v1` API read gold, and they are two uses of it.
+1. **Gold is the company brain: one metadata store for all data sources, over one source store per
+   data source.** The metadata store is a knowledge graph. The screener and the `/v1` API read
+   gold, and they are two uses of it.
 2. **The metadata store has two jobs: entity resolution and routing.** It resolves a name or an
    identifier to one company (§4, §5). For a company and a kind of information, it lists every
    source that holds it, with the key and how to read it, and names the preferred source
    (Decision 5). For example, the financial facts of Apple Inc. come from the SEC store, by CIK.
-3. **The metadata store describes the data and holds no fact values.** It holds the knowledge graph
-   of companies and their identifiers (§5) and the canonical concepts (§3), each with its
-   definition and how to compute it from source facts. For a store of facts, it also records the
+3. **The metadata store describes the data and holds no fact values.** Its graph holds the companies and
+   their identifiers (§5), the canonical concepts (§3), each with its definition and how to compute
+   it from source facts, and the data sources and their source stores. An edge from a company to a
+   source store carries the kind of information, the key, and the rank of Decision 5. For a store of facts, it also records the
    concepts and the periods. A claim of the graph, such as a GLEIF parent link (§5.2), is metadata.
    The load derives each claim from the records of the source store of its source, such as the
    GLEIF store. The claim sits in the metadata store with its source and date. Only two writes
@@ -68,7 +70,9 @@ Terms:
 5. **If several source stores hold records of the same kind for a company, the metadata store
    picks one by default, and the caller can name another.** The default follows a preference order
    per company: the source of the home market of the company first, then the more trusted sources.
-   A caller that names a source reads that source. This is the read-time policy of §2.1. It covers
+   The metadata store holds the home market of each company. At first the order is set by hand:
+   the trust of a source is a judgment, and a source as well known as the SEC ranks high. A
+   caller that names a source reads that source. This is the read-time policy of §2.1. It covers
    the records of the source stores, such as facts or a legal address. Decision 6 covers the claims
    of the graph.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
@@ -82,7 +86,7 @@ No option was measured.
 
 | Option | Serves the screener and `/v1` | A query finds which source holds a fact | Adding a data source |
 | ------ | ----------------------------- | --------------------------------------- | -------------------- |
-| **A (chosen):** a metadata store over one source store per data source, each with its canonical facts | Yes. A screener across regions reads several source stores | Yes, in the metadata store | A new source store and its entries in the metadata store |
+| **A (chosen):** one metadata store, a knowledge graph of all data sources, over one source store per data source, each with its canonical facts | Yes. A screener across regions reads several source stores | Yes, in the metadata store | A new source store and its entries in the metadata store |
 | B: a metadata store over one shared canonical fact tier, with provenance per fact | Yes. A screener reads one tier | Yes, in the provenance of each fact | A new adapter and its resolution map. The shared tables do not change |
 | C: gold is a serving store of the graph and the facts, with provenance in silver only | Yes | No, a reader goes to silver | A new adapter and its resolution map |
 
@@ -114,11 +118,13 @@ No option was measured.
 
 ## Open Questions
 
-- The full preference order of Decision 5 after the home market and the trusted sources, who
-  ranks the trust of a source, and the home market of a company that files in two markets. One
+- A rule that sets the trust of a source from data, in place of a judgment. The error rates and
+  conflicts that the data checks find for each source, at ingest and on live data, are the
+  candidate input. It needs several sources and those checks first. The owner decides.
+- How the metadata store sets the home market of a company that files in two markets. One
   candidate is the market of the legal address in its LEI record. The owner decides.
-- Which source sets the name and the country of a `Company` node (§5.1) when two source stores
-  disagree, and whether the preference order of Decision 5 decides it. The owner decides.
+- Which source sets the attributes of a `Company` node (§5.1), such as the name and the country,
+  when two source stores disagree, and whether the preference order of Decision 5 decides it. The owner decides.
 - Whether the source priority of the claim resolution spec (ADR 0001) and the preference order of
   Decision 5 are one list. The owner and the lead decide.
 - Where the check across source stores runs, and where the confidence from agreement across
@@ -132,10 +138,12 @@ No option was measured.
 
 - [STA-512](https://linear.app/state-machine/issue/STA-512), "Definition of Done": the owner's goal
   and the date, 2026-11-14.
-- The owner's comments on the draft, 2026-11-14: a metadata store with the data endpoints, and one
-  store per data source with its facts and their provenance. The canonical facts stay in each
-  source store. The metadata store resolves entities, lists the sources of each company with their keys, and
-  picks a source by a preference order that a caller can override.
+- The owner's decisions on the draft, 2026-11-14, recorded in a comment on
+  [STA-512](https://linear.app/state-machine/issue/STA-512): one metadata store, a knowledge graph
+  of all data sources, over one store per data source with its facts and their provenance. The
+  canonical facts stay in each source store. The metadata store resolves entities, lists the
+  sources of each company with their keys, and picks a source by a hand-set preference order that
+  a caller can override.
 - [Introducing Cortex Sense: Grounded Context for the Data You Never Modeled](https://www.snowflake.com/en/blog/enterprise-ai-agents-grounded-context/),
   Snowflake blog, 2026-06-30, read on 2026-11-14. The quotes and the benchmark figures above come
   from it.
