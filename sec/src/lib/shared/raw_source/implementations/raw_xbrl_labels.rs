@@ -2,7 +2,6 @@
 //!
 //! Provides [`RawXbrlLabels`], the [`RawSource`] marker for the `_lab.xml` label file of one filing.
 
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 
 /// Marks the `_lab.xml` label file of one filing, as the SEC returns it. The label file holds the
@@ -11,7 +10,7 @@ use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 pub struct RawXbrlLabels;
 
 impl RawSource for RawXbrlLabels {
-    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawXbrlLabels;
+    const DOCUMENT_TYPE: &'static str = "raw_xbrl_labels";
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
@@ -37,7 +36,7 @@ mod tests {
 
     #[test]
     fn should_name_the_raw_xbrl_labels_document_type_for_raw_xbrl_labels() {
-        let expected_result = SecDocumentType::RawXbrlLabels;
+        let expected_result = "raw_xbrl_labels";
 
         let result = RawXbrlLabels::DOCUMENT_TYPE;
 

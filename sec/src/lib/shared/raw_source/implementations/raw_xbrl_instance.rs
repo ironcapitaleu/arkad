@@ -2,7 +2,6 @@
 //!
 //! Provides [`RawXbrlInstance`], the [`RawSource`] marker for the XBRL instance of one filing.
 
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 
 /// Marks the XBRL instance of one filing, as the SEC returns it. The instance holds the values of
@@ -11,7 +10,7 @@ use crate::shared::raw_source::traits::{RawFileSource, RawSource};
 pub struct RawXbrlInstance;
 
 impl RawSource for RawXbrlInstance {
-    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawXbrlInstance;
+    const DOCUMENT_TYPE: &'static str = "raw_xbrl_instance";
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
@@ -37,7 +36,7 @@ mod tests {
 
     #[test]
     fn should_name_the_raw_xbrl_instance_document_type_for_raw_xbrl_instance() {
-        let expected_result = SecDocumentType::RawXbrlInstance;
+        let expected_result = "raw_xbrl_instance";
 
         let result = RawXbrlInstance::DOCUMENT_TYPE;
 

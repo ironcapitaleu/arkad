@@ -3,7 +3,6 @@
 //! Provides [`RawCompanyFacts`], the [`RawSource`] marker for the Company Facts JSON of one
 //! company.
 
-use crate::shared::document_type::SecDocumentType;
 use crate::shared::raw_source::traits::RawSource;
 
 /// Marks the Company Facts JSON of one company, as the SEC returns it.
@@ -11,7 +10,7 @@ use crate::shared::raw_source::traits::RawSource;
 pub struct RawCompanyFacts;
 
 impl RawSource for RawCompanyFacts {
-    const DOCUMENT_TYPE: SecDocumentType = SecDocumentType::RawCompanyFacts;
+    const DOCUMENT_TYPE: &'static str = "raw_company_facts";
     const DOCUMENT_TYPE_VERSION: u32 = 1;
 }
 
@@ -29,7 +28,7 @@ mod tests {
 
     #[test]
     fn should_name_the_raw_company_facts_document_type_for_raw_company_facts() {
-        let expected_result = SecDocumentType::RawCompanyFacts;
+        let expected_result = "raw_company_facts";
 
         let result = RawCompanyFacts::DOCUMENT_TYPE;
 

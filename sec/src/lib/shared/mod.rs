@@ -6,7 +6,6 @@
 //! ## Modules
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
-//! - [`document_type`]: Provides [`SecDocumentType`](document_type::SecDocumentType), the types of document the SEC state machines store.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
 //! - [`filing_documents_ref`]: Provides [`FilingDocumentsRef`](filing_documents_ref::FilingDocumentsRef), the filing and the keys of its stored XBRL instance and label file.
@@ -39,7 +38,6 @@ pub mod build_info;
 pub mod cik;
 pub mod content_type;
 pub mod document_storage;
-pub mod document_type;
 pub mod filing_documents;
 pub mod filing_documents_ref;
 pub mod filing_ref;

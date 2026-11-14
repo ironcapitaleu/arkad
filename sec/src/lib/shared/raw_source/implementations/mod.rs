@@ -31,3 +31,36 @@ pub use raw_notes_archive::RawNotesArchive;
 pub use raw_submissions::RawSubmissions;
 pub use raw_xbrl_instance::RawXbrlInstance;
 pub use raw_xbrl_labels::RawXbrlLabels;
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::shared::raw_source::traits::RawSource;
+
+    #[test]
+    fn should_hold_a_different_document_type_for_each_raw_source() {
+        let mut document_types = [
+            RawCompanyFacts::DOCUMENT_TYPE,
+            RawDailyIndex::DOCUMENT_TYPE,
+            RawFilingIndex::DOCUMENT_TYPE,
+            RawFullIndex::DOCUMENT_TYPE,
+            RawNotesArchive::DOCUMENT_TYPE,
+            RawSubmissions::DOCUMENT_TYPE,
+            RawXbrlInstance::DOCUMENT_TYPE,
+            RawXbrlLabels::DOCUMENT_TYPE,
+        ];
+        document_types.sort_unstable();
+
+        let expected_result: Vec<&str> = Vec::new();
+
+        let result: Vec<&str> = document_types
+            .windows(2)
+            .filter(|pair| pair[0] == pair[1])
+            .map(|pair| pair[0])
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+}
