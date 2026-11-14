@@ -7,7 +7,7 @@
 //! ```rust
 //! use storage::WriteError;
 //!
-//! let reason = "SFAC-6 identity violated";
+//! let reason = "balance sheet identity violated";
 //!
 //! let _err = WriteError::failed_integrity_check(reason);
 //! ```
@@ -30,7 +30,7 @@ pub enum WriteError {
         reason: String,
     },
 
-    /// The write violates a data-integrity invariant (check constraint, SFAC-6 identity).
+    /// The write violates a data-integrity invariant (check constraint, balance sheet identity).
     #[error("[FailedIntegrityCheck] Data integrity or invariant violated, Reason: '{reason}'")]
     FailedIntegrityCheck {
         /// Human-readable explanation of the violated invariant.
@@ -212,9 +212,9 @@ mod tests {
 
     #[test]
     fn should_format_display_with_bracketed_name_and_reason_when_integrity_check_fails() {
-        let error = WriteError::failed_integrity_check("SFAC-6 identity violated");
+        let error = WriteError::failed_integrity_check("balance sheet identity violated");
 
-        let expected_result = "[FailedIntegrityCheck] Data integrity or invariant violated, Reason: 'SFAC-6 identity violated'";
+        let expected_result = "[FailedIntegrityCheck] Data integrity or invariant violated, Reason: 'balance sheet identity violated'";
 
         let result = error.to_string();
 

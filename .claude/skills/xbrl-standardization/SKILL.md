@@ -2,11 +2,11 @@
 name: xbrl-standardization
 description: >
   Use when work on the xbrl crate turns filed facts into standardized facts: mapping US GAAP
-  concepts to standard concepts, alias lists, resolution tiers and confidence levels, SFAC 6
+  concepts to standard concepts, alias lists, resolution tiers and confidence levels, identity
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.2
+version: 0.3.3
 ---
 
 # XBRL Standardization
@@ -15,16 +15,21 @@ version: 0.3.2
 
 This skill holds the rules by which the `xbrl` crate turns as-is facts into `StandardizedFact`
 values. It covers resolution, the confidence levels, and the taxonomy data the rules read. The
-accounting background, such as the SFAC 6 identities and the fiscal periods, is in the
+accounting background, such as the accounting identities and the fiscal periods, is in the
 `accounting` skill.
 
-## SFAC 6 Checks
+## Identity Checks
 
-The standard concepts rest on the SFAC 6 elements. Validation checks the identities in
-`xbrl/DESIGN.md`, "Layer 3". These still differ from the `accounting` skill: Layer 3 checks net
-income against Revenue − Expenses + Gains − Losses, and its cash flow check has no exchange rate
-term. The owner decides which text changes. If a check fails and every input is a Tier 1 value, the company filed
-inconsistent data. If a check fails with a Tier 3 or Tier 4 value, the derivation has a bug.
+The standard concepts rest on the elements of FASB Concepts Statement 8, Chapter 4 (formerly
+SFAC 6). Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", and the checks in
+"Roll-Up Tree", "Checks the Tree Gives". The weakest confidence of the inputs of a failed check
+tells what the failure means:
+
+- All inputs `Exact`: the filing is inconsistent.
+- At least one input `Synonym`, and none weaker: check the alias list first, then the filing.
+- At least one input `Derived` or `Computed`: the derivation has a bug.
+
+The finding of a failed check carries the weakest confidence of its inputs.
 
 ## Resolution Procedure
 
@@ -34,7 +39,7 @@ When mapping a US GAAP concept to a CanonicalElement:
    `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
 2. If it is a later concept of that alias list, a part that the filing reports with no other part
    (the part rule), or an ESEF anchor (planned `ifrs` plug-in), use it (Tier 2: Synonym)
-3. If no alias resolves, apply an identity the core knows: an SFAC 6 identity or a period identity,
+3. If no alias resolves, apply an identity the core knows: an accounting identity or a period identity,
    such as Q4 = FY − 9-month year to date (Tier 3: Derived)
 4. If still unresolved, sum the children of the concept along the calculation tree of a plug-in.
    The sum takes the arcs of one role (Tier 4: Computed)
@@ -45,18 +50,18 @@ of its own tier and its inputs.
 ## Adding New Concepts — Checklist
 
 1. Identify the US GAAP concept name(s) from SEC filings or FASB taxonomy
-2. Determine which CanonicalElement it maps to (see the SFAC 6 elements in the `accounting` skill)
+2. Determine which CanonicalElement it maps to (see the elements in the `accounting` skill)
 3. Research historical name variants (taxonomy versions change concept names over time)
 4. Add to `REQUIRED_CONCEPTS` or `OPTIONAL_CONCEPTS` in `xbrl/src/us_gaap/mappings.rs`
 5. Order aliases by priority (most common/current first)
 6. Write tests verifying the mapping resolves correctly
-7. Verify no SFAC 6 identity is violated by the new mapping
+7. Verify no accounting identity is violated by the new mapping
 
 ## Derivation Rules (Tier 3)
 
 A Tier 3 value comes from an identity the core knows, not from the calculation tree:
 
-1. An SFAC 6 identity, for example `Assets = Liabilities + Equity`
+1. An accounting identity, for example `Assets = Liabilities + Equity`
 2. A period identity, for example `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date.
    It applies only to duration concepts in one currency, with no per-share unit
 3. Store with `confidence: Derived`, or the weaker level of an input

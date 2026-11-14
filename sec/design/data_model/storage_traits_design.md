@@ -497,7 +497,7 @@ pub enum StorageError {
     #[error("[MissingRecord] Requested record not found")]
     MissingRecord,
 
-    /// Data integrity / invariant violated (check constraint, SFAC-6 identity).
+    /// Data integrity / invariant violated (check constraint, balance sheet identity).
     #[error("[FailedIntegrityCheck] Data integrity or invariant violated, Caused by: {0}")]
     FailedIntegrityCheck(#[source] Box<dyn std::error::Error + Send + Sync>),
 

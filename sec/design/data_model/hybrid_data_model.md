@@ -19,9 +19,9 @@ requirements drive the design:
    the universal core and stays independently queryable** — CIK, accession numbers, native
    `us-gaap` tags, and form types are first-class *within their adapter*, joinable to the
    universal model but never leaking into it.
-3. **Accounting correctness** — normalization obeys SFAC-6 element definitions and the five
-   accounting identities; every normalized fact is traceable back to the raw filing tag it
-   came from.
+3. **Accounting correctness** — normalization obeys the element definitions of FASB Concepts
+   Statement 8, Chapter 4 (formerly SFAC 6), and the five accounting identities; every
+   normalized fact is traceable back to the raw filing tag it came from.
 
 ### 1.1 The current codebase is an immature seed, not the target
 
@@ -30,7 +30,7 @@ has two parallel, non-integrated models and one raw-document store:
 
 - `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
   identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
-- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42 SFAC-6-rooted
+- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElement` (42 element-rooted
   variants), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
 - The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
@@ -40,9 +40,9 @@ What to carry forward vs. change (detail in §10):
 
 | Existing artifact | Verdict |
 | --- | --- |
-| `xbrl::CanonicalElement` (SFAC-6 vocabulary) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
+| `xbrl::CanonicalElement` (element vocabulary) | **Keep & promote** — this *is* the universal concept layer, but decouple it from the `us_gaap` module so it is standard-neutral |
 | `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
-| `xbrl::Invariant` (SFAC-6 identities) | **Keep** — universal validation |
+| `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
 | `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (LEI-preferred, §4), resolved at load time |
 | `sec::CompanyData/CompanyFact/Observation` | **Replace** — superseded by the canonical model |
@@ -80,7 +80,7 @@ worth of raw data all resolving into **one** canonical fact history.
 **What resolves vs. what stays in the adapter:** only observations that resolve to a
 `CanonicalElement` (at a known `Confidence`) are promoted to the core. Anything regulator-
 specific that has no canonical meaning (e.g. a bespoke `us-gaap` disclosure tag with no
-SFAC-6 mapping) **remains in the adapter, fully queryable**, but is not forced into the
+element mapping) **remains in the adapter, fully queryable**, but is not forced into the
 universal model. This is precisely the "connect to and query regulator-specific data"
 requirement.
 
@@ -114,8 +114,8 @@ posture to relationship claims (§5.2).
 
 ## 3. Universal Canonical Concept Model
 
-The universal vocabulary is the **SFAC-6-rooted `CanonicalElement`** set (13 Level-1 roots +
-~29 Level-2 sub-elements; already enumerated in `xbrl/src/core/elements.rs`). SFAC-6 is a
+The universal vocabulary is the **element-rooted `CanonicalElement`** set (13 Level-1 roots +
+~29 Level-2 sub-elements; already enumerated in `xbrl/src/core/elements.rs`). Concepts Statement 8 is a
 US document, but its ten elements are **definitional, not standard-specific** — IFRS's
 Conceptual Framework defines assets, liabilities, equity, income, and expenses in
 substantially the same terms. So the roots are a legitimate *cross-standard* canonical
@@ -135,7 +135,7 @@ layer; US-GAAP and IFRS are two **dialects** that resolve into it.
 - **Invariant:** never map two different concepts to the same `CanonicalElement` for the
   same period/dimension.
 
-### 3.2 Universal validation (SFAC-6 identities)
+### 3.2 Universal validation (accounting identities)
 
 The core enforces the five identities as data-quality checks (`xbrl::Invariant`):
 
@@ -158,7 +158,7 @@ resulting fact with its `Confidence`:
 | --- | --- | --- |
 | 1 | `Exact` | direct canonical concept match |
 | 2 | `Synonym` | alias list (dialect-specific, e.g. `Revenues`, `SalesRevenueNet`), or a part with no other part reported |
-| 3 | `Derived` | SFAC-6 identity / calculation-linkbase children (`parent = Σ childᵢ·weightᵢ`) |
+| 3 | `Derived` | accounting identity / calculation-linkbase children (`parent = Σ childᵢ·weightᵢ`) |
 | 4 | `Computed` | full taxonomy linkbase graph traversal |
 
 `rule` and `inputs` record the trace (which tag(s), which derivation) so any canonical fact
@@ -456,7 +456,7 @@ Data quality is enforced on **two independent axes**, mapping onto the two core 
    *absences in a traversal*: missing filings/periods/concepts (§5.4). Store mechanics:
    Postgres → recursive CTE / anti-join; graph DB → a Cypher/traversal pattern that fails to
    match; lakehouse → not its job (completeness stays in the graph tier).
-2. **Value-level invariants — canonical fact tier.** The five SFAC-6 identities
+2. **Value-level invariants — canonical fact tier.** The five accounting identities
    (`xbrl::Invariant`), rollup consistency (`parent ≈ Σ childᵢ·weightᵢ` within a threshold),
    and confidence/traceability. Failure kinds mirror `ValidationErrorKind`:
    `IncompleteData`, `InconsistentIdentity`, `ImpreciseRollup`. Identity #1
@@ -863,7 +863,7 @@ truth** — the design isolates the risk:
    materializations.
 2. To move a tier (e.g. canonical facts Postgres → Iceberg): implement the new writer behind
    the storage trait; **backfill by replaying** raw → resolve → write into the new store.
-3. **Verify parity:** row counts, all SFAC-6 invariant checks, and the §8 drift reconciliation
+3. **Verify parity:** row counts, all accounting identity checks, and the §8 drift reconciliation
    (which doubles as migration verification) between old and new stores.
 4. Optionally **dual-write** during a transition window, then cut reads over and decommission
    the old tier.

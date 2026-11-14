@@ -45,7 +45,7 @@ xbrl/
       invalid_value.rs     <- InvalidValue, the error of each core value type
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
-      elements.rs          <- CanonicalElement, our standard concept set, SFAC 6 invariants
+      elements.rs          <- CanonicalElement, our standard concept set, accounting identities
       standardized.rs      <- StandardizedFact
       candidate.rs         <- Candidate: the value of one filing, before newest-filing
       confidence.rs        <- Exact | Synonym | Derived | Computed
@@ -96,7 +96,7 @@ flowchart LR
       RES[Resolve: tiers 1 and 2 per filing]
       D2[Dedup: newest-filing across filings]
       DER[Derive: tiers 3 and 4]
-      V[Validate: SFAC 6]
+      V[Validate: identities]
       C[Chronology]
       S[StandardizedFact]
     end
@@ -168,9 +168,10 @@ replacements are in the code:
 
 Define the target model inside `xbrl::core`, outside any taxonomy-specific module, to contain core financial company data required for all companies.
 
-Start with SFAC 6.
+Start with FASB Concepts Statement 8, Chapter 4 (formerly SFAC 6).
 
-SFAC 6 is the authoritative definition of what financial data exists and how it relates. It describes 10 elements as well as the invariants that connect them. Unchanged since 1985.
+Concepts Statement 8, Chapter 4 (December 2021) defines the 10 elements of financial statements.
+The accounting identities connect the elements.
 
 It gives you:
 - **What to extract** — the 10 elements are the canonical set
@@ -202,7 +203,7 @@ A cascade of subtotals from revenue to net income:
 - Pretax Income − Income Tax Expense = Net Income
 - Net Income + OCI = Comprehensive Income
 
-Each step also has an "other" line. The elements of Concepts Statement 8 (formerly SFAC 6) split
+Each step also has an "other" line. The elements of Concepts Statement 8 split
 income into revenue, expenses, gains, and losses, but filers do not present these totals. See "Roll-Up Tree".
 
 ### 0.4) Changes in Equity
@@ -221,7 +222,7 @@ concepts. `xbrl/src/core/elements.rs` holds the enum.
 ### Standard Concept Set
 
 `CanonicalElement` is our own concept set for the standardized layer. Its names are not US GAAP
-names. SFAC 6 defines its roots, and the IFRS Conceptual Framework defines assets, liabilities,
+names. Concepts Statement 8 defines its roots, and the IFRS Conceptual Framework defines assets, liabilities,
 equity, income, and expenses in the same terms. So US GAAP and IFRS both map into it, each through
 the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` both map to
 `Revenue`.
@@ -387,7 +388,7 @@ The other line of each open step has a name in the layout:
 - The cascade ends with comprehensive income: `ComprehensiveIncome` = `NetIncome` +
   `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
   The layout always shows it at the end of the income statement. It is no statement of its own.
-- The cascade has no `Expenses`, `Gains`, or `Losses`. Concepts Statement 8 (formerly SFAC 6)
+- The cascade has no `Expenses`, `Gains`, or `Losses`. Concepts Statement 8
   defines these elements, but no filer presents their totals, so these concepts leave the enum.
   See "Verdict on the 39 Concepts".
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
@@ -597,7 +598,7 @@ identities. Each failed check is a finding. A check never removes a value.
    `liabilities-and-equity`, `liabilities`, `equity`, `gross-profit`, `net-income-attribution`,
    `comprehensive-income`, and `net-change-in-cash`. A failure is a `RollUpMismatch` finding.
 2. **Balance sheet identity.** `Assets` must equal `LiabilitiesAndEquity`. It is the check of
-   `core/sfac6/balance-sheet@1`. A failure is a `RollUpMismatch` finding.
+   `core/identity/balance-sheet@1`. A failure is a `RollUpMismatch` finding.
 3. **Negative other.** The other line of `current-assets`, `non-current-assets`,
    `current-liabilities`, `non-current-liabilities`, and `operating-expenses` must not fall below
    zero. Each child of these groups is a part of the parent with the same sign. A negative other
@@ -621,7 +622,7 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
 `ExchangeRateEffect` (see below).
 
 - The rule ID is `core/roll-up/<group>@1`, for example `core/roll-up/liabilities@1`. The balance
-  sheet identity keeps `core/sfac6/balance-sheet@1`.
+  sheet identity keeps `core/identity/balance-sheet@1`.
 - The rule runs after `core/period/q4-from-fy@1` and fills only a period that has no value.
 - The rule repeats until no group gives a new value. For example, `Liabilities` comes from
   `liabilities-and-equity`, and then `NonCurrentLiabilities` comes from `liabilities`.
@@ -705,7 +706,7 @@ or section differs from its new placement.
 `Expenses`, `Gains`, and `Losses` leave the enum. No US GAAP concept holds them, no rule fills
 them, and no filer presents them. The cascade replaces them with `OperatingExpenses`,
 `InterestExpense`, `IncomeTaxExpense`, and the other lines. Concepts Statement 8, Chapter 4,
-which replaced SFAC 6 in 2021, keeps them as elements. The identity in "Three Layers" names them, but no
+keeps them as elements. The identity in "Three Layers" names them, but no
 standard concept holds them.
 
 `is_level_one()` goes away. The placement replaces Level 1 and Level 2.
@@ -913,7 +914,7 @@ pub struct TaxonomyRelease {
 }
 ```
 
-SFAC 6 identities and period identities are not part of the trait. They are core rules, the same
+Accounting identities and period identities are not part of the trait. They are core rules, the same
 for every taxonomy.
 
 **Registry.** The core holds a list of `&dyn Taxonomy`. The caller owns the plug-ins, and the
@@ -1209,7 +1210,7 @@ ticket decides where the removed elements live.
 - `OtherComprehensiveIncome` and `ComprehensiveIncome` hold the noncontrolling interest, as
   `NetIncome` and `Equity` do. The part of the parent stands for each only through the part rule.
 - `Expenses`, `Gains`, and `Losses` have no alias list. No US GAAP concept holds the expenses,
-  gains, or losses of SFAC 6. `CostsAndExpenses` holds only the cost of revenue and the operating
+  gains, or losses of Concepts Statement 8. `CostsAndExpenses` holds only the cost of revenue and the operating
   expenses. "Roll-Up Tree" removes the three concepts.
 - The alias lists of `Revenue` and `Equity` hold only totals. The customer-contract revenue
   concepts and `StockholdersEquity` are parts.
@@ -1406,10 +1407,14 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `us-gaap/alias/revenue@1`: the alias list of a plug-in.
 - `us-gaap/part/equity@1`: the parts of a standard concept that stand for the whole if the filing
   reports no other part.
-- `core/sfac6/balance-sheet@1`: an SFAC 6 identity.
+- `core/identity/balance-sheet@1`: an accounting identity.
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
+
+`core/identity/balance-sheet@1` had the name `core/sfac6/balance-sheet@1` until 2026-11-14, when
+the owner renamed it. The rule keeps version 1. Before the MVP, the standardized layer is built
+again from the as-is layer, so the rename needs no replay.
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
@@ -1421,7 +1426,7 @@ not the version. A core rule carries the release of the plug-in that resolved th
 
 ### Three Layers
 
-**Layer 1 — Canonical Elements (SFAC 6)**
+**Layer 1 — Canonical Elements (Concepts Statement 8)**
 
 The root elements are the target. Everything resolves down to these.
 
@@ -1439,7 +1444,7 @@ Each element has a tiered resolution chain:
 | ---- | ---------- | --------- |
 | 1 | `Exact` | The first concept of the alias list of a plug-in |
 | 2 | `Synonym` | A later concept of the alias list, a part with no other part reported, or an ESEF anchor |
-| 3 | `Derived` | An identity the core knows: an SFAC 6 identity or a period identity |
+| 3 | `Derived` | An identity the core knows: an accounting identity or a period identity |
 | 4 | `Computed` | A sum along the calculation tree of a plug-in |
 
 ```
@@ -1513,15 +1518,20 @@ Check:  every closed group of the roll-up tree adds up
 "Roll-Up Tree", "Checks the Tree Gives", lists every check. The cascade of the income statement
 replaces the check Net Income = Revenue − Expenses + Gains − Losses.
 
-A validation failure with all Tier 1 values = the company filed inconsistent data.
-A validation failure with Tier 3 or 4 values = your derivation logic has a bug.
+The weakest confidence of the inputs of a failed check tells what the failure means:
+
+- All inputs `Exact`: the filing is inconsistent.
+- At least one input `Synonym`, and none weaker: check the alias list first, then the filing.
+- At least one input `Derived` or `Computed`: the derivation has a bug.
+
+The finding of a failed check carries the weakest confidence of its inputs.
 
 ### The Key Insight
 
-Resolution and validation are the same graph. The SFAC 6 identities define edges between elements. When resolving, you traverse edges to derive unknowns. When validating, you check that the edges hold. Same structure, two modes.
+Resolution and validation are the same graph. The accounting identities define edges between elements. When resolving, you traverse edges to derive unknowns. When validating, you check that the edges hold. Same structure, two modes.
 
 ```
-Nodes  = SFAC 6 Elements (what you extract)
+Nodes  = Elements       (what you extract)
 Edges  = Invariants       (how they relate)
 Mode 1 = Resolve          (fill unknowns from knowns)
 Mode 2 = Validate         (verify all edges hold)
@@ -1546,7 +1556,7 @@ statement module holds its part, as "Extension Model" describes.
 - `CanonicalElementKind` nests by statement, as "Extension Model" describes. The placement holds
   the parent and the weight, because a parent is a sum and not a container.
 - The identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
-  check, `core/sfac6/balance-sheet@1`, next to the table.
+  check, `core/identity/balance-sheet@1`, next to the table.
 
 ---
 
@@ -1949,7 +1959,7 @@ Data quality checks to validate that parsed data makes sense.
 Three levels, applied in order of strictness:
 
 1. **Completeness** — Are all required canonical elements present? Can't validate what's missing.
-2. **Consistency** — Do the SFAC 6 identities hold? A structural violation (e.g., `Assets != Liabilities + Equity`).
+2. **Consistency** — Do the accounting identities hold? A structural violation (e.g., `Assets != Liabilities + Equity`).
 3. **Precision** — Do sub-items sum exactly to their reported parent totals? A rounding or classification issue.
 
 Specific checks include:
@@ -2084,7 +2094,7 @@ such as a publish gate.
 ```rust
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Invariant {
-    // Exact — SFAC 6 identities, must hold with zero tolerance
+    // Exact — accounting identities, must hold with zero tolerance
     BalanceSheetIdentity,        // Assets = LiabilitiesAndEquity
     ComprehensiveIncomeIdentity, // Comprehensive Income = Net Income + OCI
     EquityChangeIdentity,        // ΔEquity = CompIncome + Investments - Distributions
