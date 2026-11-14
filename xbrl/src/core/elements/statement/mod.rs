@@ -29,8 +29,8 @@ pub use income_statement::IncomeStatementConcept;
 /// "Roll-Up Tree". `xbrl/DESIGN.md`, "Derivation From a Closed Group", visits the groups in this
 /// order.
 ///
-/// The list holds a group only if its parent, its start, and at least one child are standard
-/// concepts. So a placement can name a group that the list does not hold, such as
+/// The list holds a group only if its parent, its start if it is a step, and at least one child
+/// are standard concepts. So a placement can name a group that the list does not hold, such as
 /// `liabilities-and-equity`.
 pub fn groups() -> impl Iterator<Item = &'static Group> {
     balance_sheet::GROUPS

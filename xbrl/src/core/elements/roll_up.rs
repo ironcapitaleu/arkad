@@ -60,7 +60,7 @@ pub struct Group {
     /// The name of the group, such as `current-assets`. A rule ID and a finding name the group by
     /// it.
     pub name: &'static str,
-    /// The concept that the members add up to.
+    /// The concept that the start and the weighted children add up to.
     pub parent: CanonicalElementKind,
     /// Whether the group splits its parent or makes it from a start line.
     pub kind: GroupKind,

@@ -510,7 +510,7 @@ xbrl/src/core/elements/
     mod.rs                       the groups of every statement joined
     balance_sheet.rs             BalanceSheetConcept, its placements and its groups
     income_statement.rs          IncomeStatementConcept, its placements and its groups
-    cash_flow.rs                 CashFlowConcept, its placements, its groups, and its starts
+    cash_flow.rs                 CashFlowConcept, its placements and its groups
   disclosure/
     mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept

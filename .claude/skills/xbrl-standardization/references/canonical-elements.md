@@ -90,8 +90,8 @@ A disclosure. Its concepts have no placement, and they do not add over periods.
 
 ## Groups
 
-`statement::groups()` lists a group only if its parent, its start, and at least one child are
-standard concepts, in this order:
+`statement::groups()` lists a group only if its parent, its start if it is a step, and at least
+one child are standard concepts, in this order:
 `assets`, `current-assets`, `non-current-assets`, `liabilities`, `non-current-liabilities`,
 `gross-profit`, `comprehensive-income`, `operating-cash-flow`, `investing-cash-flow`,
 `financing-cash-flow`. A placement can name a group that the list does not hold, such as
