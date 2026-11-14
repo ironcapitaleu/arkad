@@ -485,14 +485,13 @@ where
                         .collect(),
                     index: detected.index.clone(),
                 };
-                let missing = day.filings.is_empty().then(|| {
-                    missing_full_index_date(
+                if day.filings.is_empty()
+                    && let Some(error) = missing_full_index_date(
                         date,
                         quarter_filings.last_data_received,
                         self.incremental.id(),
                     )
-                });
-                if let Some(error) = missing.flatten() {
+                {
                     let (kind, outcome) = if is_pending(&error, date, first_date, self.as_of) {
                         (ErrorKind::Pending, DateOutcome::Pending(error.clone()))
                     } else {

@@ -41,7 +41,7 @@ count takes an accession number once.
 
 Date: 2026-11-14.
 
-**Reason.** The last consequence below names a gap: a date without rows in `form.idx` can be a day
+**Reason.** The last consequence below, and the last open question, name a gap: a date without rows in `form.idx` can be a day
 without filings or a day that the SEC has not added yet. The catch-up counted both as a day without
 filings. So a recent date that the SEC had not added yet lost its filings without an alert.
 
