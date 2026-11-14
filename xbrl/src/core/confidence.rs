@@ -14,7 +14,7 @@ pub enum Confidence {
     /// Tier 2: Resolved from a later concept of the alias list, from a part that the filing reports
     /// with no other part, or, in a planned `ifrs` plug-in, from an ESEF anchor.
     Synonym,
-    /// Tier 3: Derived from other standardized values by an SFAC 6 identity or a period identity.
+    /// Tier 3: Derived from other standardized values by an accounting identity or a period identity.
     Derived,
     /// Tier 4: Computed as a sum along the calculation tree of a plug-in.
     Computed,

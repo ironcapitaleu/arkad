@@ -298,7 +298,7 @@ mod tests {
     #[test]
     fn should_fail_skip_level_downcast_to_backend_error_when_no_branch_holds_a_backend_error() {
         let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
-            "SFAC-6 identity violated",
+            "balance sheet identity violated",
         ));
         let expected_result = ErrorKind::DowncastNotPossible;
 
@@ -322,7 +322,7 @@ mod tests {
 
     #[test]
     fn should_roundtrip_write_error_when_upcast_then_downcast() {
-        let write_error = WriteError::failed_integrity_check("SFAC-6 identity violated");
+        let write_error = WriteError::failed_integrity_check("balance sheet identity violated");
 
         let upcast: ErrorKind = write_error.clone().into();
         let result = WriteError::try_from(upcast)
@@ -380,7 +380,7 @@ mod tests {
     #[test]
     fn should_return_no_source_when_error_kind_wraps_write() {
         let error_kind = ErrorKind::Write(WriteError::failed_integrity_check(
-            "SFAC-6 identity violated",
+            "balance sheet identity violated",
         ));
 
         let expected_result: Option<String> = None;

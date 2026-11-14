@@ -8,9 +8,13 @@ update-frequency: on-code-change
 
 These are the 42 CanonicalElement enum variants the system resolves to. Grouped by financial statement and level.
 
-## Level 1 — SFAC 6 Roots
+## Level 1 — Roots
 
-| Element | Statement | Period Type | SFAC 6 Reference |
+The roots are the elements of FASB Concepts Statement 8, Chapter 4. The paragraph numbers below
+point to SFAC 6, which Chapter 4 replaced. They stay until the `accounting` skill holds the
+official text of Chapter 4.
+
+| Element | Statement | Period Type | SFAC 6 Paragraph |
 | --- | --- | --- | --- |
 | Assets | Balance Sheet | Instant | ¶25 |
 | Liabilities | Balance Sheet | Instant | ¶35 |

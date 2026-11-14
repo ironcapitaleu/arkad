@@ -116,7 +116,7 @@ stateDiagram-v2
 | `ResolveCompanyIdentity` | `Cik` + `FinancialStatements` | `LeiResolver` | `CompanyId` + `FinancialStatements` |
 | `StoreFinancialData` (terminal) | `CompanyId` + `FinancialStatements` | `FinancialStatementRepository` | persistence receipt / `()` |
 
-An optional third state, `ReconcilePersistence` (post-write SFAC-6 invariant + completeness check),
+An optional third state, `ReconcilePersistence` (post-write accounting identity + completeness check),
 is deferred — it only pays once there is something to reconcile against.
 
 > **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Load reads silver, one silver unit per

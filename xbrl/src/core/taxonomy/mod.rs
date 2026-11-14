@@ -23,7 +23,7 @@ pub mod registry;
 
 /// The knowledge of one taxonomy, for example US GAAP.
 ///
-/// SFAC 6 identities and period identities are not part of the trait. They are core rules, the
+/// Accounting identities and period identities are not part of the trait. They are core rules, the
 /// same for every taxonomy.
 pub trait Taxonomy: Send + Sync {
     /// Returns the release that the tables of this plug-in come from, for example `us-gaap/2026`.

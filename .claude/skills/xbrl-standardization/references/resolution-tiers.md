@@ -33,7 +33,7 @@ All three map to CanonicalElement::Revenue.
 
 ## Tier 3: Derived (Confidence::Derived)
 
-An identity the core knows gives the value: an SFAC 6 identity or a period identity.
+An identity the core knows gives the value: an accounting identity or a period identity.
 
 Examples:
 
@@ -57,7 +57,7 @@ The procedure is in `SKILL.md`, "Computation Rules (Tier 4)".
 | --- | --- | --- |
 | 1 | Exact | The first concept of the alias list of a plug-in |
 | 2 | Synonym | A later concept of the alias list, a part with no other part reported, or an ESEF anchor (planned `ifrs` plug-in) |
-| 3 | Derived | An identity the core knows: an SFAC 6 identity or a period identity |
+| 3 | Derived | An identity the core knows: an accounting identity or a period identity |
 | 4 | Computed | A sum along the calculation tree of a plug-in |
 
 The level of a derived or computed value is the weakest of its own level and the levels of its

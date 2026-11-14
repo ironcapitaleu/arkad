@@ -276,6 +276,7 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch` and `NegativeOther`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
+| `confidence` | `utf8`, nullable | For `RollUpMismatch` and `NegativeOther`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
 | `step` | `utf8` | `filing` or `series` |
 | `change` | `utf8`, nullable | `new`, `changed`, or `resolved` for a series row. Null for a filing row |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
@@ -284,8 +285,8 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 The key of a finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`, for a filing
 row and for a series row. The series rows of `findings` are append-only like `standardized_facts`. A null `filing_id` matches a
 null `filing_id` (`IS NOT DISTINCT FROM`). A finding is open from its
-`new` row until a later `resolved` row of the same key. A `changed` row records a new `reason` or a new
-`confirmed_by` of an open finding.
+`new` row until a later `resolved` row of the same key. A `changed` row records a new `reason`, a new
+`confirmed_by`, or a new `confidence` of an open finding.
 
 A dataset, not a report, for three reasons:
 
