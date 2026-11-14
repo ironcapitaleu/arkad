@@ -20,7 +20,7 @@ requirements drive the design:
    `us-gaap` tags, and form types are first-class *within their adapter*, joinable to the
    universal model but never leaking into it.
 3. **Accounting correctness** — normalization obeys the element definitions of FASB Concepts
-   Statement 8, Chapter 4 (formerly SFAC 6), and the five accounting identities; every
+   Statement 8, Chapter 4, and the five accounting identities; every
    normalized fact is traceable back to the raw filing tag it came from.
 
 ### 1.1 The current codebase is an immature seed, not the target

@@ -27,7 +27,7 @@ concepts. This table is the core of the reference — it means "adding an ontolo
 
 | arkad concept | Ontology equivalent | Notes |
 | --- | --- | --- |
-| `CanonicalElement` (vocabulary rooted in the elements of FASB Concepts Statement 8, formerly SFAC 6, 13 L1 roots + L2) | Concept scheme / class taxonomy (SKOS-shaped) | Our own curated vocabulary — axiomatic by construction |
+| `CanonicalElement` (vocabulary rooted in the elements of FASB Concepts Statement 8, 13 L1 roots + L2) | Concept scheme / class taxonomy (SKOS-shaped) | Our own curated vocabulary — axiomatic by construction |
 | Axiomatic core ring: `Company` + `Identifier` (§2.1, §5.1) | Entities with registry-grounded identity (IRIs ↔ `CompanyId`) | |
 | CIK ↔ LEI mapping; relink-without-rewrite (§4) | **`owl:sameAs`** identity reconciliation | Same entity known under multiple identifier schemes |
 | Claim envelope on relationship edges — `source`, `as_of`, `observed_at`, `verifiability`; conflicts coexist; read-time selection (§5.2) | **Wikidata statement model**: references (source), qualifiers (point-in-time), ranks (preferred/normal/deprecated = read-time policy) | Independently reinvented; Wikidata is the prior art to consult when finalizing the claim layer |

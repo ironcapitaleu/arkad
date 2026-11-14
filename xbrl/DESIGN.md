@@ -168,7 +168,7 @@ replacements are in the code:
 
 Define the target model inside `xbrl::core`, outside any taxonomy-specific module, to contain core financial company data required for all companies.
 
-Start with FASB Concepts Statement 8, Chapter 4 (formerly SFAC 6).
+Start with FASB Concepts Statement 8, Chapter 4.
 
 Concepts Statement 8, Chapter 4 (December 2021) defines the 10 elements of financial statements.
 The accounting identities connect the elements.
@@ -1412,10 +1412,6 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
-
-`core/identity/balance-sheet@1` had the name `core/sfac6/balance-sheet@1` until 2026-11-14, when
-the owner renamed it. The rule keeps version 1. Before the MVP, we build the standardized layer
-again from the as-is layer, so the rename needs no replay.
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.

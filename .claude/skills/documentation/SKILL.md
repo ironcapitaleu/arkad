@@ -5,7 +5,7 @@ description: >
   "refactor docs", or wants to improve documentation for any part of the codebase. Supports
   documenting a specific package, module, recently written code, or running a compliance check
   against DOCUMENTATION.md guidelines.
-version: 0.4.0
+version: 0.4.1
 argument-hint: "[target-path or 'check' or 'recent']"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 ---
@@ -83,7 +83,7 @@ Then:
    - Error reason enums not starting with "Enum representing the reason why..."
    - Coupling references (ordinals, naming consumers, "transport" jargon, sibling contrasts)
    - Internal-dependent references (naming a caller/state/pipeline or the concrete type that holds this one) — distinct from allowed references to the external system the crate serves; and domain vocabulary ("request", "SEC") leaking into a generic trait contract
-   - Temporal / roadmap references (naming *when* something exists or will: "later", "deferred", "first/minimal slice", "the read arm arrives later", "for now", "exists now", "built X-side first", ticket/PR IDs) — docs describe the current contract, not a timeline
+   - Temporal / roadmap references (naming *when* something exists or will: "later", "deferred", "first/minimal slice", "the read arm arrives later", "for now", "exists now", "built X-side first", ticket/PR IDs, "formerly X", "replaced Y", "changed from") — docs describe the current contract, not a timeline or the documents it replaced
    - Positional / consumption references (describing *where an item sits* in a hierarchy or *how it is consumed* instead of what it is: "innermost leaf", "top-level", "outermost layer", "the union", "shared across every X", "embedded in Y rather than surfaced on its own", "the class returned by every write method", "for the shared consumers") — say what the item represents; for errors, mirror `sec/src/lib/error/` ("Error occurring …")
    - Restating what the code already says ("the fallible downcast" on a `TryFrom`, narrating `#[non_exhaustive]`, jargon like "sentinel")
    - Module docs carrying team policy, process, or history (where fixtures live, when to extract a shared crate, why a past decision was made) — distinct from the module's *purpose*, which belongs there; missing a why/how sentence is equally a violation
@@ -119,7 +119,7 @@ These are loaded from `DOCUMENTATION.md` but summarized here for speed:
 - **Conversions**: One-liner naming source and target
 - **Doc-tests**: ADAA pattern; omit assertion when construction is the point (use `let _x = ...`)
 - **No coupling**: No ordinals from children, no naming consumers, no sibling contrasts
-- **No temporal coupling**: Describe what an item is now, never *when* — no "later", "deferred", "first/minimal slice", "arrives with", "for now", "exists now", or ticket/PR IDs. State deliberate boundaries as timeless properties ("names no concrete backend"); let `#[non_exhaustive]` carry extensibility
+- **No temporal coupling**: Describe what an item is now, never *when* — no "later", "deferred", "first/minimal slice", "arrives with", "for now", "exists now", ticket/PR IDs, or the name of a replaced document ("formerly X"). State deliberate boundaries as timeless properties ("names no concrete backend"); let `#[non_exhaustive]` carry extensibility
 - **No positional / consumption coupling**: Say what an item *is / does*, never where it sits in a hierarchy ("innermost leaf", "top-level", "outermost layer") or how it's consumed ("shared across …", "embedded in …", "for the shared consumers"). For errors, mirror `sec/src/lib/error/`: open with what failed ("Error occurring …"), not the error's position. Exception: when the relationships *are* the item (a wrapper/decorator, adapter, or coordinator that composes parts), naming what it wraps or combines *is* what it does — describe it
 - **Don't restate the code**: A `TryFrom` is obviously fallible (no "the fallible downcast"); an attribute is visible in the source (don't narrate `#[non_exhaustive]`); avoid empty jargon ("sentinel")
 - **Voice**: present tense, third person, concrete noun subject — "This substitution keeps …", not "Substituting a double keeps …"; "Returns the validated CIK", not "This will return …"
