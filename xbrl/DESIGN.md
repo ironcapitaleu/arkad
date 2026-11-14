@@ -387,8 +387,8 @@ The other line of each open step has a name in the layout:
 - The cascade ends with comprehensive income: `ComprehensiveIncome` = `NetIncome` +
   `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
   The layout always shows it at the end of the income statement. It is no statement of its own.
-- The cascade has no `Expenses`, `Gains`, or `Losses`. No filer presents these totals of the
-  elements of Concepts Statement 8 (formerly SFAC 6), so these concepts leave the enum (see "Verdict on the 39 Concepts").
+- The cascade has no `Expenses`, `Gains`, or `Losses`. Concepts Statement 8 (formerly SFAC 6)
+  defines these elements, but no filer presents their totals, so these concepts leave the enum (see "Verdict on the 39 Concepts").
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
   interest expense. Many filers use it for a total that includes interest. The other line of
   `pretax-income` holds the same amount without that doubt.
@@ -605,8 +605,9 @@ identities. Each failed check is a finding. A check never removes a value.
    check.
 
 The tolerance is the one of "5) Validation": ±0.1% of the largest absolute value in the group,
-not of the parent. In a step, the parent can be near zero while its
-members are large. Net income of 1 from revenue of 10,000 is an example. Then a base of the parent
+not of the parent. For the balance sheet identity, the base is the larger of `Assets` and
+`LiabilitiesAndEquity`. In a step, the parent can be near zero while its
+members are large. Comprehensive income of 1 from net income of 10,000 and OCI of −9,999 is an example. Then a base of the parent
 fails on the rounding of the members.
 
 A value that `core/roll-up/<group>@1` derived from a group makes that group hold by construction.
@@ -702,8 +703,8 @@ or section differs from its new placement.
 
 `Expenses`, `Gains`, and `Losses` leave the enum. No US GAAP concept holds them, no rule fills
 them, and no filer presents them. The cascade replaces them with `OperatingExpenses`,
-`InterestExpense`, `IncomeTaxExpense`, and the other lines. Concepts Statement 8, which
-replaced SFAC 6 in 2021, keeps them as elements. The identity in "Three Layers" names them, but no
+`InterestExpense`, `IncomeTaxExpense`, and the other lines. Concepts Statement 8, Chapter 4,
+which replaced SFAC 6 in 2021, keeps them as elements. The identity in "Three Layers" names them, but no
 standard concept holds them.
 
 `is_level_one()` goes away. The placement replaces Level 1 and Level 2.
@@ -800,10 +801,11 @@ parse.
 - Other lines and statements have no name in silver. They are not stored.
 - The derived values of `core/roll-up/<group>@1` are rows of `standardized_facts`, with
   confidence `Derived` and the rule ID in `rule`.
-- `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. `concepts` holds the
-  parent of the group first, then the start of a step, then the other members in the order of the
-  tables of "Roll-Up Tree". `reason` holds the name
-  of the group, such as `liabilities`.
+- `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. For a group,
+  `concepts` holds the parent first, then the start of a step, then the other members in the order
+  of the tables of "Roll-Up Tree", and `reason` holds the name of the group, such as
+  `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
+  `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`.
 
 #### Worked Example
 
