@@ -288,8 +288,8 @@ Rules: the load derives each claim from the records of its source on each run
 ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 3). The history of a claim
 lives in the dated records that silver keeps. `valid_from` is the start of the first record that
 gives the payload: the `accepted` time of a filing, or `filed` if `accepted` is null. `valid_to` is
-the start of the next record of the same source and subject that gives another payload
-([`identifier_model.md`](./identifier_model.md)). Claims are
+the start of the next record of the same source and subject that gives another payload, or the
+end that a rule of [`identifier_model.md`](./identifier_model.md) sets. Claims are
 **never destructively merged** — conflicting claims
 coexist; which one "wins" is **read-time policy** (most-recent `as_of`, highest
 verifiability, or "show all with sources"); cross-source **agreement upgrades confidence**,
@@ -335,7 +335,7 @@ graph LR
   F -- FILED_UNDER --> R
   F -- COVERS_PERIOD --> P
   F -- REPORTS_CONCEPT --> K
-  S -. "ISSUED_BY {source, valid_from}" .-> C
+  S -. "ISSUED_BY {source, valid_from, valid_to}" .-> C
   L -- OF_SECURITY --> S
   L -- ON_EXCHANGE --> E
   C -. "IN_INDUSTRY {source, valid_from, valid_to}" .-> I
