@@ -10,6 +10,7 @@
 //! - [`company_facts`]: The [`ExtractCompanyFactsSuperState`](company_facts::ExtractCompanyFactsSuperState)
 //!   and its builder.
 //! - [`filing`]: The [`ExtractFilingSuperState`](filing::ExtractFilingSuperState) and its builder.
+//! - [`full_index`]: The super-state that detects the filings of a range of dates filed in the full index of one quarter.
 //! - [`notes`]: The [`ExtractNotesSuperState`](notes::ExtractNotesSuperState) and its builder.
 //! - [`daily_index`]: The [`DetectFilingsSuperState`](daily_index::DetectFilingsSuperState) and its
 //!   builder.
@@ -38,6 +39,7 @@ pub mod daily_index;
 pub mod download_daily_index;
 pub mod execute_sec_request;
 pub mod filing;
+pub mod full_index;
 pub mod notes;
 pub mod prepare_sec_request;
 pub mod select_filing_documents;
