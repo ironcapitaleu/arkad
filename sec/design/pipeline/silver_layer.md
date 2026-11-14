@@ -34,7 +34,7 @@ the transform fills it.
 | ----- | ------- | ----- | ---------- |
 | Bronze | The SEC files, unchanged, each with a JSON metadata file | The raw store, a GCS bucket | Extract |
 | Silver | As-is facts, filings, standardized facts, findings, and reference data, in Parquet | Its own GCS bucket | Transform, a Cloud Run job |
-| Gold | The serving model of the screener and the `/v1` API | Supabase Postgres ([ADR 0001](../../../docs/adr/0001-mvp-database.md)) | Load, from silver |
+| Gold | The company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). The screener and the `/v1` API read it | Supabase Postgres ([ADR 0001](../../../docs/adr/0001-mvp-database.md)) | Load, from silver |
 
 ```mermaid
 flowchart LR
@@ -857,7 +857,7 @@ source.
 
 - **Gold for facts:** the gold tables, the write rule ("upsert by full grain" against
   `ON CONFLICT DO NOTHING`), the replay of a filing in gold, dedup for direct reads, and the
-  replacement of `FactStore::upsert`. Silver writes units and never upserts rows. A later gold
+  write method of the fact tier. Silver writes units and never upserts rows. A later gold
   design decides these. They are in the fog of the epic MVP Data Pt. 2.
 - **The standardize filing step per filing or per source.** The transform design decides. Silver
   accepts both. [Current Facts](#current-facts) picks one `candidates` unit per filing either way.
@@ -865,7 +865,7 @@ source.
   on the new bytes. The transform design decides whether a changed digest starts that run.
 - **The change to ADR 0001.** ADR 0001 writes from raw to Postgres. With silver, load reads silver.
   [Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of ADR 0001
-  proposes this change, for the lead to accept.
+  makes this change.
 - **The byte form of `content_digest`.** The silver writer feature of the transform design fixes it.
 - **A filing that the parser rejects as a whole,** in a `filing_day` or a `notes_file` unit. The
   parser rules of the transform design decide whether the unit fails or lists the filing in

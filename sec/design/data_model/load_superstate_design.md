@@ -119,7 +119,7 @@ stateDiagram-v2
 An optional third state, `ReconcilePersistence` (post-write accounting identity + completeness check),
 is deferred — it only pays once there is something to reconcile against.
 
-> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) proposes that Load reads silver, one silver unit per
+> **Note (2026-11-08):** [Amendment 1 of ADR 0001](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) has Load read silver, one silver unit per
 > Postgres transaction, with a ledger of loaded units. A failed load runs again from the ledger, so
 > no reconciliation job replays projections. `ReconcilePersistence` as a data check stays open.
 
@@ -133,8 +133,7 @@ pub struct LoadSuperStateContext<R, L> {   // R: FinancialStatementRepository, L
 }
 ```
 
-(Concrete generic types, not `dyn` — consistent with the non-object-safe `State` trait; §
-`storage_traits_design.md`.)
+(Concrete generic types, not `dyn` — consistent with the non-object-safe `State` trait.)
 
 ---
 
@@ -168,12 +167,12 @@ where
 ```
 
 *(Method names illustrative — `store`/`get`/`contains` are the write / read / exists trio; the
-inventory stays provisional per `storage_traits_design.md`.)*
+inventory is provisional.)*
 
-**Relationship to `storage_traits_design.md`.** `FinancialStatementRepository` is the *Load-facing*
-port. Its concrete adapter is where the storage `Repository` facade and the tier stores
-(`RawStore`/`GraphStore`/`FactStore` + `ingest`) live — they become the **implementation** of
-`store`, not something the Load state sees. Two honest ways to line these up, see §6.
+**Relationship to the storage ports.** `FinancialStatementRepository` is the *Load-facing* port.
+Its concrete adapter implements `store` with the ports of the `storage` crate
+([`storage_traits_design.md`](./storage_traits_design.md)). The Load state never sees them. Two
+honest ways to line these up, see §6.
 
 ### 3.2 `LeiResolver` (identity port)
 
@@ -294,8 +293,8 @@ sequenceDiagram
 - **In:** application-domain `FinancialStatements` (a separate, source-shaped format).
 - **Boundary:** the port (`store`) — the state stops here.
 - **Mapping:** a pure domain mapper (testable with zero DB).
-- **Out:** one atomic multi-tier write; raw is the durable SoT (`storage_traits_design.md` §ingest
-  contract).
+- **Out:** one atomic multi-tier write; raw is the durable SoT (`storage_traits_design.md`, "Raw
+  Store").
 
 ---
 
@@ -310,7 +309,7 @@ placements:
   application; the port speaks the domain a reviewer expects. **Cons:** the mapper is "infrastructure"
   even though it's pure domain logic (mitigated by keeping it a standalone, unit-tested function).
 - **(B) In a Load sub-state.** Add `BuildIngestionUnit` between resolve and store; the port becomes
-  the lower-level `Repository::ingest(IngestionUnit)` from `storage_traits_design.md`. **Pros:** the
+  a lower-level `Repository::ingest(IngestionUnit)`. **Pros:** the
   mapping is a visible, independently-testable application step. **Cons:** three states; the
   application now handles the storage-tier bundle, coupling it to the storage decomposition.
 
@@ -320,7 +319,7 @@ detail of the adapter. (B) is a reasonable fallback if we want the mapping surfa
 stage. Either way the mapper itself is a pure, DB-free, unit-tested domain function.
 
 This also reconciles the two "repository" names: **`FinancialStatementRepository`** is the Load port;
-the **`Repository`/tier-store** design from `storage_traits_design.md` is the adapter's internals.
+the ports of the `storage` crate are the adapter's internals.
 
 ---
 
