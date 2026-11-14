@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-11-14 ([STA-512 comment `e112485d`](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). |
+| Status | Accepted by the project lead on 2026-11-14 ([STA-512 comment `e112485d`](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). |
 | Date | 2026-11-14 |
 | Deciders | The project lead. The owner sets the goal. |
 | Ticket | [STA-512](https://linear.app/state-machine/issue/STA-512) |
@@ -143,7 +143,7 @@ No option was measured.
 - Which source sets the attributes of a `Company` node (§5.1), such as the name and the country,
   when two source stores disagree, and whether the preference order of Decision 5 decides it. The owner decides.
 - Whether the claim resolution spec of ADR 0001 ranks the claims of a company by the per-company
-  order of Decision 5, or keeps a fixed source priority. The owner and the lead decide.
+  order of Decision 5, or keeps a fixed source priority. The owner and the project lead decide.
 - Where the check across source stores runs, and where the confidence from agreement across
   sources (§2.1) lives. The gold design fixes it.
 - The gold tables and their write rule, and the tier of the records that are not facts, such as

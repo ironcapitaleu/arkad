@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. The lead accepted [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 on 2026-11-14 ([STA-512 comment `e112485d`](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
+| Status | Accepted by the project lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. The project lead accepted [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 on 2026-11-14 ([STA-512 comment `e112485d`](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
 | Date | 2026-10-21 |
 | Deciders | The project lead. The master's student reviews it after a two-week leave. |
 | Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
@@ -70,7 +70,7 @@ The rest of the decision:
 
 ## Amendment 1: Load Reads Silver
 
-> **Proposed on 2026-11-08, accepted by the lead on 2026-11-14.** It changes how data reaches Postgres. It keeps
+> **Proposed on 2026-11-08, accepted by the project lead on 2026-11-14.** It changes how data reaches Postgres. It keeps
 > the choice of the store.
 
 ### Why
@@ -203,7 +203,7 @@ The table rates the decision as taken: Option A with the raw store on the filesy
 
 ### Label Mapping
 
-The lead's input of 2026-10-17 on STA-272 used its own labels. Its option A is "Postgres plus
+The project lead's input of 2026-10-17 on STA-272 used its own labels. Its option A is "Postgres plus
 Neo4j from day one", which is §14 Option B. Its option B is "Postgres now, the graph as tables,
 Neo4j on a fixed trigger", which is §14 Option A plus a trigger. This ADR uses the §14 labels.
 
@@ -234,7 +234,7 @@ on 2026-10-21:
 | Extension | On Supabase | Effect |
 | --------- | ----------- | ------ |
 | `pg_duckdb` | No | The column-store path of §14.A needs self-hosted Postgres |
-| Apache AGE | No | Matches the lead's input to skip AGE |
+| Apache AGE | No | Matches the project lead's input to skip AGE |
 | DuckDB wrapper | Yes, read only | Reads Parquet, Iceberg, and S3 Tables from Postgres |
 | Iceberg wrapper | Yes, append only | Writes rows to Iceberg tables from Postgres |
 
@@ -267,9 +267,9 @@ Live multi-hop questions over large ownership chains need a graph database. An e
 ultimate parent across all sources". RDF and SHACL tooling, such as Neo4j `neosemantics`, also
 needs one.
 
-The lead set the second regulator as a trigger as well. This trigger is an architecture choice, not
+The project lead set the second regulator as a trigger as well. This trigger is an architecture choice, not
 a performance threshold. From that point the graph is the identity spine across all sources, and
-the lead wants it in a graph engine before the tables hold the claims of several sources. So this
+the project lead wants it in a graph engine before the tables hold the claims of several sources. So this
 trigger needs no measurement, such as a slow ownership-tree query. The triggers are in [Triggers to Revisit](#triggers-to-revisit).
 
 ### Design Rules
@@ -346,7 +346,7 @@ the RDF conditions above holds.
 
 | Trigger | Action |
 | ------- | ------ |
-| The first GLEIF parent-chain load or the second regulator, whichever comes first. The second regulator is a lead decision, see [Why a Graph Database Will Come Later](#why-a-graph-database-will-come-later). | Add Neo4j behind the graph port. Confirm that an n10s release exists for the chosen Neo4j version. |
+| The first GLEIF parent-chain load or the second regulator, whichever comes first. The project lead decides on the second regulator, see [Why a Graph Database Will Come Later](#why-a-graph-database-will-come-later). | Add Neo4j behind the graph port. Confirm that an n10s release exists for the chosen Neo4j version. |
 | The fact tier passes about 50 GB, for example at full US coverage | Add Iceberg next to Postgres, not in place of it |
 | Historical screens over many years and thousands of companies become a product goal | Add Iceberg next to Postgres |
 | The p95 latency of the screener endpoint stays above 500 ms for a week, or screener queries use more than a quarter of the database CPU | Serve the screener as a CDN snapshot |
@@ -408,7 +408,7 @@ hybrid `ingest` and the §8 reconciliation job. The shared pool stays, because t
 ## Open Questions
 
 - **Raw archive.** The cost model proposes to keep the raw files of each source unchanged in object
-  storage from day one. This touches §12b and §14 and is for the lead and the student to decide.
+  storage from day one. This touches §12b and §14 and is for the project lead and the student to decide.
 - **Identity in the design documents.** `load_superstate_design.md` §3.2 (`LeiResolver`, "LEI
   preferred") and `hybrid_data_model.md` §4 (`CompanyId::Cik(..)`) treat the LEI or the CIK as the
   identity. STA-288 chose an internal `company_id`. A rename of the port to `EntityResolver`, which
@@ -418,7 +418,7 @@ hybrid `ingest` and the §8 reconciliation job. The shared pool stays, because t
   deferred, and §12b.5 and §14.A still name `pg_duckdb`. The student owns that document and updates
   it after the review.
 - **Price store.** STA-270 keeps prices out of `/v1` and puts them in a separate store for the
-  screener. This ADR does not decide where that store lives. The lead decides it before STA-280
+  screener. This ADR does not decide where that store lives. The project lead decides it before STA-280
   sizes the hosting.
 - **Supabase project.** STA-280 decides whether the graph tier and the fact tier share the Supabase
   project of the authentication, or get a separate project.
@@ -439,7 +439,7 @@ hybrid `ingest` and the §8 reconciliation job. The shared pool stays, because t
   `company_id` at write time, so the facts of the split-off identifiers stay on the old id. One
   proposal: the part that holds the oldest identifier keeps the id, the pipeline replays the
   affected filings from the raw store under the new id, and the old fact rows go to quarantine.
-  The lead and the student decide the rule before the second source loads.
+  The project lead and the student decide the rule before the second source loads.
 - **Fact count.** The cost model assumes 15 million fact rows, or about 4.5 GB in Postgres. A count
   against the real SEC company facts for the S&P 500 will confirm the compute size.
 
