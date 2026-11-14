@@ -66,10 +66,11 @@ Terms:
    holds the LEI records as GLEIF publishes them. The provenance of a record (§8.2) stays next to
    it and names its silver unit and raw document by key. No store holds the canonical facts of two
    data sources.
-5. **If several sources hold the same information about a company, the metadata store picks one
-   by default, and the caller can name another.** The default follows a preference order per
+5. **If several source stores hold facts of the same kind for a company, the metadata store picks
+   one by default, and the caller can name another.** The default follows a preference order per
    company: the source of the home market of the company first, then the more trusted sources.
-   A caller that names a source reads that source.
+   A caller that names a source reads that source. This order covers facts. Decision 6 covers the
+   claims of the graph.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
    "Design Rules" 2 and 3, settle the links between identifiers. The claim resolution spec of
    ADR 0001, "Open Questions", fixes the priority order, the review queue, and the rule for the
@@ -87,8 +88,8 @@ No option was measured.
 
 - A keeps the records of each data source apart, with their provenance, and gives one place that
   says where each record lives. It is the split of the Snowflake context layer: metadata in one
-  place, data rows in their stores. The metadata store picks the source, so a caller does not
-  merge the facts of two sources.
+  place, data rows in their stores. The metadata store picks the source for each company, so a
+  caller does not merge two sources for one company.
 - B is the hub-and-spoke model of `hybrid_data_model.md` §2. A screener reads one tier, but the
   tier mixes the canonical facts of all sources, and only the provenance of a fact names its
   source.
@@ -105,14 +106,19 @@ No option was measured.
 - Provenance stays with each record. A numeric row with text provenance took about 418 bytes in
   Postgres (ADR 0001, Amendment 1). A key to the silver unit and the raw document, in place of a
   copy of each provenance field, keeps the row smaller.
-- `hybrid_data_model.md` §2 and §6 describe one shared canonical fact store. If the lead accepts
-  this ADR, both change.
+- `hybrid_data_model.md` §2, §2.1 ("Multi-adapter rule"), and §6 describe one shared canonical
+  fact store. If the lead accepts this ADR, they change.
+- Agreement and divergence between two source stores for one company, such as a dual filer at the
+  SEC and in ESEF, need a check across stores. In B the shared tier holds both rows side by side.
 - The decision names no engine. ADR 0001 picks the engines.
 
 ## Open Questions
 
 - The full preference order of Decision 5 after the home market and the trusted sources, and who
   ranks the trust of a source. The owner decides.
+- Whether the source priority of the claim resolution spec (ADR 0001) and the preference order of
+  Decision 5 are one list. The owner and the lead decide.
+- Where the check across source stores runs, and what it writes. The gold design fixes it.
 - The gold tables and their write rule, and the tier of the records that are not facts, such as
   the GLEIF LEI records. The gold design fixes them.
 - How a source store and its entries in the metadata store stay in step on a load. The gold design
