@@ -22,6 +22,15 @@ for when a decision needs an ADR.
 
 ## Procedure
 
+- **To answer "why is the code like this"**, search `docs/adr/` and the design docs that describe
+  the code. Cite the ADR that holds the decision. If none holds it, say so, and name the commit or
+  PR that `git log` shows for the change. Write no ADR unless the user asks for one.
+- **Before you remove a past decision from a document**, run the test below on that decision. If
+  it passes and no ADR holds it, write the ADR in the same PR. Set `Date` to the date of the
+  decision, and name the source of that date.
+
+To write an ADR:
+
 1. **Run the test** of `AGENTS.md`, "Architecture Decision Records". If the test is unclear, name
    the decision and both options in the PR description, and ask the owner.
 2. **Search `docs/adr/`** for an ADR on the same subject.
