@@ -8,7 +8,7 @@ description: >
   carries long-term trade-offs for the system or the team, or is one that a later engineer will
   question. Also use when you remove history or a past decision from a document, to check whether
   the decision needs an ADR first.
-version: 0.2.1
+version: 0.3.0
 ---
 
 # ADR Skill
@@ -30,6 +30,8 @@ for when a decision needs an ADR.
 - **Before you remove a past decision from a document**, run the test below on that decision. If
   it passes and no ADR holds it, write the ADR in the same PR. Set `Date` to the date of the
   decision, and name the source of that date.
+- **If a later engineer will question a decision** and the test does not say ADR, name the
+  decision and the options in the PR description, and ask the owner.
 
 To write an ADR:
 
