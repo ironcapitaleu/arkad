@@ -340,7 +340,8 @@ the consumer depends on, and a write path cannot leak into it.
 - [`capability_split_ports.md`](./capability_split_ports.md) — the STA-157 findings this design
   builds on: the two approaches, the queue mapping, and the recommendation.
 - [`../../../sec/design/data_model/storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md)
-  — the authoritative storage trait design (the Consolidated Design section): the neutral
-  `Repository` facade, the `Backend` store base, `SecRepository`, and the error model.
+  — the storage overview: the crates, the ports, the raw store, and the planned Postgres tiers.
+- [`../../../docs/adr/0006-storage-error-hierarchy.md`](../../../docs/adr/0006-storage-error-hierarchy.md)
+  — why the storage errors are value types in the shape of the `sec` error hierarchy.
 - [`../../../sec/design/uml_class_diagram/sec_error_handling.md`](../../../sec/design/uml_class_diagram/sec_error_handling.md)
   — the `sec` error hierarchy that the `storage` error hierarchy mirrors.

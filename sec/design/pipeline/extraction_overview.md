@@ -677,7 +677,7 @@ each gap through the facade calls that exist. A weekly job in the same container
 ## See Also
 
 - [`ingestion_paths.md`](ingestion_paths.md): the decisions and measurements behind each section.
-- [`storage_traits_design.md`](../data_model/storage_traits_design.md): the design of the store ports.
+- [`storage_traits_design.md`](../data_model/storage_traits_design.md): the storage overview: crates, ports, and the raw store.
 - `sec/src/lib/implementations/extraction/`: the facade.
 - `sec/src/bin/`: the binaries.
 - `sec/src/lib/shared/raw_source/implementations/`: the raw sources.
