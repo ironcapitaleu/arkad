@@ -48,8 +48,9 @@ To write an ADR:
 6. **Link it.** Each design doc that describes the affected code links to the ADR. If the decision
    adds a rule for all code, add the rule to `AGENTS.md` with a link to the ADR.
 7. **Ship it** in the PR that first acts on the decision. A decision from a ticket without a PR,
-   such as a SPIKE, ships in the first PR that changes the code. Name the ADR in the PR
-   description, and say who confirms it.
+   such as a SPIKE, ships in the first PR that changes the code. A past decision that leaves a
+   document ships in the PR that removes it. Name the ADR in the PR description, and say who
+   confirms it.
 
 ## Template
 
