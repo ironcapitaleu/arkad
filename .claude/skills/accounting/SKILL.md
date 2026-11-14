@@ -7,7 +7,7 @@ description: >
   reports of the SEC and of EU issuers, restatements, and which values add over periods. Also use
   when the user asks "does this balance", "how does IFRS treat X", "is this a restatement", "what
   is Q4", or "which period is this".
-version: 0.2.2
+version: 0.2.3
 ---
 
 # Accounting
@@ -155,9 +155,10 @@ Standards change. A standard setter can replace a document. Each reference file 
    superseded, and do not check again.
 3. If the source still holds, set `last-verified` to today in a PR of its own, not in the PR of
    the task. If you cannot reach the source, tell the user the file is stale, and go on.
-4. If a newer document replaced the source, tell the user. Propose to:
-   - add `superseded-by` to the header, update the file from the new document, and rename the
-     file and its links,
+4. If a newer document replaced the source, tell the user, and add `superseded-by` to the header.
+   Propose to:
+   - update the file from the new document, set `source` and `last-verified`, remove
+     `superseded-by`, and rename the file and its links,
    - update every statement of this skill that names the old document,
    - search the repository for the old name, for example `git grep -n "<old name>"`, and list the
      hits for a follow-up ticket.
