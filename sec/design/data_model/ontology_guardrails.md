@@ -29,11 +29,11 @@ concepts. This table is the core of the reference — it means "adding an ontolo
 | --- | --- | --- |
 | `CanonicalElement` (vocabulary rooted in the elements of FASB Concepts Statement 8, 13 L1 roots + L2) | Concept scheme / class taxonomy (SKOS-shaped) | Our own curated vocabulary — axiomatic by construction |
 | Axiomatic core ring: `Company` + `Identifier` (§2.1, §5.1) | Entities with registry-grounded identity (IRIs ↔ `CompanyId`) | |
-| CIK ↔ LEI mapping; relink-without-rewrite (§4) | **`owl:sameAs`** identity reconciliation | Same entity known under multiple identifier schemes |
+| CIK ↔ LEI as identifier rows of one `company_id` (§4) | **`owl:sameAs`** identity reconciliation | Same entity known under multiple identifier schemes |
 | Claim envelope on relationship edges — `source`, `as_of`, `observed_at`, `verifiability`; conflicts coexist; read-time selection (§5.2) | **Wikidata statement model**: references (source), qualifiers (point-in-time), ranks (preferred/normal/deprecated = read-time policy) | Independently reinvented; Wikidata is the prior art to consult when finalizing the claim layer |
 | Accounting identity `Invariant`s (Assets = Liabilities + Equity, …) + per-element DQ table (§5.2) | **OWL axioms / SHACL shapes** — machine-enforced constraints | "A sentence in a spec is a hope; an axiom is a rule a machine enforces" |
 | Resolution engine deriving facts via calc-linkbase (`Derived`/`Computed` + `rule` + `inputs`) | **RDFS-style inference** — the reasoner derives, unasked; `rule` and `inputs` are the derivation trace | |
-| Restatement invariant; exactly-one-primary-id | `owl:FunctionalProperty`-class constraints ("at most one") | |
+| Restatement invariant; exactly one `company_id` per company | `owl:FunctionalProperty`-class constraints ("at most one") | |
 | Regulator adapters resolving native tags → canonical vocabulary | Ontology alignment / mapping between vocabularies | US-GAAP and IFRS as *dialects* of one upper vocabulary |
 
 **RDFS infers, OWL constrains** — the talk's split maps cleanly onto ours: the *derived
@@ -73,7 +73,7 @@ Vocabulary/design-level borrowings; all zero runtime cost:
 | --- | --- | --- |
 | **FIBO** (EDM Council, finance ontology) | Term alignment for legal entities, **ownership vs control** distinctions on relationship edges | Claim-edge naming/semantics (`SUBSIDIARY_OF`, `OWNS_STAKE_IN`) when the claim layer is finalized |
 | **GLEIF LEI Level 2** ("who owns whom" relationship records; GLEIF publishes an RDF ontology) | A **direct data source** for ownership claims at the `Verified` tier — from the registry we already use for identity (Level 1) | Future ownership-claims adapter; roadmap candidate |
-| **SKOS** | Concept-scheme + cross-scheme mapping model (`exactMatch`/`closeMatch`) | Industry/Sector claim layer (GICS vs SIC vs NACE mappings, §5.1) |
+| **SKOS** | Concept-scheme + cross-scheme mapping model (`exactMatch`/`closeMatch`) | Industry/Sector claim layer (SIC vs NAICS vs NACE mappings, §5.1) |
 | **Wikidata statement model** | References/qualifiers/ranks pattern | Validation + refinement of the §5.2 claim envelope |
 | **schema.org** (`Organization`) | Lightweight interchange vocabulary | Only if/when a public JSON-LD export exists (level 3) |
 
