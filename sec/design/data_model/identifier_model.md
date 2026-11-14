@@ -15,9 +15,9 @@ classification codes of companies, securities, and listings. It extends `hybrid_
 
 ## Terms
 
-- **Scheme**: the namespace in which an issuer gives each value to one holder at one point in
-  time, for example `cik` or `lei`.
-- **Identifier**: a `(scheme, value)` pair that names one subject at one point in time.
+- **Scheme**: the namespace of an identifier or a code, for example `cik` or `sic`.
+- **Identifier**: a `(scheme, value)` pair that names one subject at one point in time. The issuer
+  of the scheme gives each value to one holder at a time.
 - **Code**: a `(scheme, value)` pair of a classification, for example `(sic, 3571)`. Many companies
   share one code, so a code is not an identifier.
 - **Subject**: a company, a security, or a listing.
@@ -73,7 +73,13 @@ graph LR
    filings name no key that both tickers share. If a later `figi` claim links them, the two
    listings join. The older `listing_id` survives, and the other gets a dated `same_as` event, as
    ADR 0001, "Design Rules" 4, says for companies.
-4. **A code is a claim on a company.** The SEC gives the SIC to the registrant, not to a security.
+4. **With SEC data only, each new listing gets its own security.** The security has no identifier
+   row. Its `ISSUED_BY` claim comes from the CIK of the filing. If a later `figi_share_class` claim
+   names two such securities, they join: the older `security_id` survives, and the other gets a
+   dated `same_as` event.
+5. **A listing with no exchange takes the first exchange that a later filing names for its
+   ticker.** It has no `ON_EXCHANGE` edge until then.
+6. **A code is a claim on a company.** The SEC gives the SIC to the registrant, not to a security.
 
 ## Rows as Filed and as Resolved
 
@@ -104,6 +110,7 @@ tables stay open (ADR 0007, "Open Questions"), so the columns below are the logi
 | `valid_from` | The start of the record that gives the value |
 | `valid_to` | The start of the next record of the same source and subject with another value. Null while no such record exists |
 | `source` | The data source, for example `sec` |
+| `verifiability` | `Verified` for a registry or a filing, `Reported` for a third party, such as an LEI from SEC N-PORT (`hybrid_data_model.md` §5.2) |
 | `record` | The key of the record in silver: the unit and the filing |
 
 The row sets are `company_identifiers`, `security_identifiers`, `listing_identifiers`, and
@@ -114,6 +121,10 @@ The row sets are `company_identifiers`, `security_identifiers`, `listing_identif
   "Open Questions", fixes which row a reader gets.
 - **A null value ends nothing.** A filing with no ticker keeps the previous ticker valid, as in
   "Company Attributes Over Time" of `silver_layer.md`.
+- **A ticker list ends the listings it omits.** If a filing of a company has a non-empty `tickers`
+  list, each open listing of that company and source that the list does not name ends at the start
+  of that filing. So `FB` ends at the first filing that lists `META` only. An empty or null list
+  ends nothing.
 - **The CIK range table keeps its own axis.** The SEC adapter resolves a filing by its CIK and its
   period end (Linear document "Entity Resolution: the Company Key, LEI, and Dated CIKs: Findings",
   Decision 2). The `cik` rows of the metadata store use the start of the record, as every other
@@ -125,8 +136,7 @@ The row sets are `company_identifiers`, `security_identifiers`, `listing_identif
 ### Claims Come From Records That Silver Keeps
 
 The load derives every claim from the records of its source on each run (ADR 0007, Decision 3).
-The owner confirmed this on 2026-11-14 (STA-501 comment `1a2f2887`). A replay of silver rebuilds
-every claim. So a claim has history only if silver keeps a dated record for each value:
+A replay of silver rebuilds every claim. So a claim has history only if silver keeps a dated record for each value:
 
 | Scheme | Record in silver | History |
 | ------ | ---------------- | ------- |

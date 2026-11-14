@@ -24,6 +24,10 @@ below; each doc's header states its own status.
 - **Physical deployment deliberately deferred (2026-08-08)** — storage is fully abstracted behind
   the `storage` crate's ports; Option A / Option B (§14) is the framework for a *later*, trigger-
   gated decision, not a pending question.
+- **Identifiers have three levels: company, security, and listing.** Each identifier and code is a
+  row of `(scheme, value)` with a source and a validity. The stores keep only schemes that need no
+  paid licence ([ADR 0009](../../../docs/adr/0009-three-levels-of-identity.md),
+  [ADR 0010](../../../docs/adr/0010-identifier-schemes-by-licence.md), both proposed).
 - **Crate topology** — `storage` holds the ports and depends on no database driver. The Postgres
   backend goes into `storage-postgres`. Only a composition root names a database
   ([ADR 0005](../../../docs/adr/0005-storage-ports-crate.md)).

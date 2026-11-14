@@ -69,8 +69,10 @@ No option was measured.
   `OF_SECURITY`, and `ON_EXCHANGE`. `hybrid_data_model.md` §5.1 and §5.2 hold them.
 - `EntityResolver` resolves company schemes only. Securities and listings get resolver ports of
   their own.
-- The SEC filings give no key for a security: the share class of a ticker is not in silver. The
-  security level stays empty until a FIGI source loads.
+- The SEC filings give no key for a security: the share class of a ticker is not in silver. So
+  with SEC data only, each new listing gets its own security with no identifier row, and its issuer
+  comes from the CIK of the filing. A `figi_share_class` claim joins two such securities later,
+  with a dated `same_as` event.
 - With SEC data only, a ticker change gives a new listing. A `figi` claim joins the two listings
   later, with a dated `same_as` event.
 - Prices and a ticker search key on `listing_id`.

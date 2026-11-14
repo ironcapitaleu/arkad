@@ -73,7 +73,7 @@ Vocabulary/design-level borrowings; all zero runtime cost:
 | --- | --- | --- |
 | **FIBO** (EDM Council, finance ontology) | Term alignment for legal entities, **ownership vs control** distinctions on relationship edges | Claim-edge naming/semantics (`SUBSIDIARY_OF`, `OWNS_STAKE_IN`) when the claim layer is finalized |
 | **GLEIF LEI Level 2** ("who owns whom" relationship records; GLEIF publishes an RDF ontology) | A **direct data source** for ownership claims at the `Verified` tier — from the registry we already use for identity (Level 1) | Future ownership-claims adapter; roadmap candidate |
-| **SKOS** | Concept-scheme + cross-scheme mapping model (`exactMatch`/`closeMatch`) | Industry/Sector claim layer (GICS vs SIC vs NACE mappings, §5.1) |
+| **SKOS** | Concept-scheme + cross-scheme mapping model (`exactMatch`/`closeMatch`) | Industry/Sector claim layer (SIC vs NAICS vs NACE mappings, §5.1) |
 | **Wikidata statement model** | References/qualifiers/ranks pattern | Validation + refinement of the §5.2 claim envelope |
 | **schema.org** (`Organization`) | Lightweight interchange vocabulary | Only if/when a public JSON-LD export exists (level 3) |
 

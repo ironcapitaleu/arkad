@@ -19,9 +19,12 @@ a licensed code, a reversal deletes stored data.
 ## Decision
 
 1. **The stores keep only the schemes in the table "Allowed" below.** A new scheme joins the table
-   after a licence check, with the date and the source of the check.
-2. **No store keeps a CUSIP, an ISIN, or a GICS code.** A US ISIN holds the CUSIP, so this covers
-   every ISIN.
+   after a licence check, with the date and the source of the check. A scheme marked "Unverified"
+   is allowed for design only. No loader of it ships before a check of the primary page confirms
+   the licence.
+2. **No store keeps a CUSIP, an ISIN, or a GICS code.** A US ISIN holds the CUSIP. The licence of
+   the other ISINs depends on the national numbering agency, and nobody checked it, so the rule
+   covers every ISIN.
 3. **Each licence carries the date and the source of its check.** A licence that no primary page
    confirms stays marked "unverified".
 
@@ -59,8 +62,6 @@ No option was measured.
 - The security level takes its keys from FIGI, not from ISIN or CUSIP.
 - A loader that reads a file with ISINs or CUSIPs drops them before it writes silver or gold.
 - `/v1` returns no CUSIP, no ISIN, and no GICS sector. Sectors come from SIC.
-- Each licence above needs a check of its primary page before the first loader of its scheme
-  ships.
 
 ## Open Questions
 
@@ -68,6 +69,8 @@ No option was measured.
   ISIN, which the FIGI path of the fog log reads. The owner decides with a lawyer.
 - Whether a loader can hold an ISIN in memory as a temporary key to reach a FIGI. The owner decides
   with a lawyer.
+- Whether the licence of an ISIN from a numbering agency outside the US allows storing it. A check
+  of the ANNA terms answers it.
 - This decision reopens if a licence above changes, or if a check of a primary page contradicts the
   table.
 

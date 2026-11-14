@@ -44,7 +44,7 @@ What to carry forward vs. change (detail in §10):
 | `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElement) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
-| `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (LEI-preferred, §4), resolved at load time |
+| `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (internal key, §4), resolved at load time |
 | `sec::CompanyData/CompanyFact/Observation` | **Replace** — superseded by the canonical model |
 
 ## 2. Architectural Spine — Metadata Store Over Source Stores
@@ -204,27 +204,24 @@ specific segment without the adapter.
 and listings as rows of `(scheme, value)` with a source and a validity
 ([ADR 0009](../../../docs/adr/0009-three-levels-of-identity.md)).
 
-- **Primary key: `CompanyId` — our own platform-owned newtype, not raw LEI.** What the model
-  presupposes is *one global PK*, **not** that every entity has an LEI. `CompanyId =
-  Lei(..) | Cik(..) | …`; the platform keys everything (facts, graph nodes, provenance) on
-  `CompanyId`, so the identity *scheme* can evolve — or fall back — without exposing the whole
-  data platform to LEI availability. (The same shielding-newtype pattern this repo already
-  uses for domain concepts.)
-- **LEI is the preferred/canonical scheme** (ISO 17442, 20-char, GLEIF-issued — global and
-  regulator-agnostic). A validated `Lei` newtype is added under `shared/` (sibling to the
-  existing `Cik`), built with the `domain-concept` pattern (format + ISO 17442 check-digit
-  validation).
+- **Primary key: `company_id`, an opaque internal key.** The load assigns it once and never
+  reuses or changes it ([ADR 0001](../../../docs/adr/0001-mvp-database.md), "Design Rules" 4).
+  Facts, graph nodes, and provenance key on it.
+- **The company is not the legal entity.** One listed company can span several legal entities over
+  time, each with its own LEI, and one CIK can name several legal entities in turn. So neither the
+  LEI nor the CIK is the key (Linear document "Entity Resolution: the Company Key, LEI, and Dated
+  CIKs: Findings").
+- **`cik` and `lei` are dated identifiers of a company.** Each is a row of `(scheme, value)` with a
+  source and a validity (ADR 0001, "Design Rules" 1). A validated `Lei` newtype checks the format
+  and the ISO 17442 check digits, next to the existing `Cik`.
 - **LEI cannot be presupposed for every entity — concrete gaps:** LEIs are mandatory mainly
   for entities party to regulated financial transactions (EMIR/MiFID-style obligations); many
   SEC registrants (smaller reporting companies, some foreign private issuers, trusts/shells)
   have never obtained one; issued LEIs **lapse** when annual renewal stops; and private
-  companies appearing only in ownership claims (§5.2) often have no LEI at all.
-- **CIK is not core — but it is first-class inside the SEC adapter:** the adapter's primary
-  key and the natural entry point of SEC pipelines. The CIK↔LEI mapping is how the SEC adapter
-  attaches its data to the universal company (§11).
-- **Fallback & relink invariant.** A company first seen via SEC with no LEI is keyed on
-  `CompanyId::Cik(..)` and **relinked to LEI later without rewriting facts** (facts key on the
-  resolved `CompanyId`; the graph carries all known identifiers as `Identifier` nodes, §5.1).
+  companies appearing only in ownership claims (§5.2) often have no LEI at all. A company with no
+  LEI keeps its `company_id` and its CIKs.
+- **The CIK is the entry point of the SEC adapter.** The adapter resolves a filing by its CIK and
+  its period end to a `company_id` (§11). A new LEI adds an identifier row and rewrites no fact.
 
 ## 5. Universal Knowledge Graph (Knowledge-Base Layer)
 
@@ -288,8 +285,10 @@ conflict). So every relationship edge carries a uniform **claim envelope** besid
 | `OWNS_STAKE_IN` | Company → Company | percentage |
 
 Rules: the load derives each claim from the records of its source on each run
-([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 3, confirmed by the owner on
-2026-11-14). The history of a claim lives in the dated records that silver keeps. Claims are
+([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 3). The history of a claim
+lives in the dated records that silver keeps. `valid_from` is the `as_of` of the first record that
+gives the payload, and `valid_to` is the `as_of` of the next record of the same source that gives
+another payload. Claims are
 **never destructively merged** — conflicting claims
 coexist; which one "wins" is **read-time policy** (most-recent `as_of`, highest
 verifiability, or "show all with sources"); cross-source **agreement upgrades confidence**,
@@ -338,7 +337,7 @@ graph LR
   S -. "ISSUED_BY {source, valid_from}" .-> C
   L -- OF_SECURITY --> S
   L -- ON_EXCHANGE --> E
-  C -. "IN_INDUSTRY {source, scheme}" .-> I
+  C -. "IN_INDUSTRY {source, valid_from, valid_to}" .-> I
   C -. "SUBSIDIARY_OF {source, as_of}" .-> C2
   C -. "OWNS_STAKE_IN {source, as_of, %}" .-> C2
 ```
@@ -384,7 +383,7 @@ logical model. ADR 0007, "Open Questions", leaves the gold tables to the gold de
 
 | Column | Type | From | Notes |
 | --- | --- | --- | --- |
-| `company_id` | string | `CompanyId` (LEI preferred) | partition/cluster key |
+| `company_id` | string | internal key (§4) | partition/cluster key |
 | `canonical_element` | enum | `CanonicalElement` | universal concept |
 | `value` | decimal | `StandardizedFact.value` | exact decimal, as reported |
 | `unit` | string | `Unit` | ISO 4217 currency, `shares`, `pure`, … |
@@ -612,7 +611,7 @@ flowchart LR
 | --- | --- |
 | 1 | Promote `xbrl::core` (CanonicalElement, StandardizedFact, FactSet, Confidence, Invariant, Period, Unit) to the **standard-neutral core**; decouple `CanonicalElement` from the `us_gaap` module namespace. |
 | 2 | Reframe `xbrl::us_gaap` as the **SEC/US-GAAP adapter** (raw parse + resolution map + filing metadata). Keep `adapter::edgar::company_facts::parse`. |
-| 3 | Add `Lei` domain concept + `CompanyId` enum under `shared/`; add CIK→LEI translation to the SEC adapter. |
+| 3 | Add `Lei` domain concept + the internal `CompanyId` key type under `shared/`; add CIK→LEI translation to the SEC adapter. |
 | 4 | Implement the resolution engine (`xbrl::core::graph` TODO stub) — the 4-tier ladder + calc-linkbase derivation. |
 | 5 | Wire `CreateFinancialStatements` to emit `FactSet`s; retire `sec::CompanyData`. |
 | 6 | Implement the **Load SuperState / `StoreData`** as the dual-writer over the chosen storage tech (§11–12). |
@@ -623,21 +622,21 @@ flowchart LR
   adapter maintains CIK→LEI.
 - **Minimal viable → automated:** (1) static hardcoded map now (mirrors the sample CIKs in
   `cik/constants.rs`); (2) batch cross-reference GLEIF golden-copy × SEC ticker/CIK map;
-  (3) on-demand GLEIF API lookup at ingest with cache. Ambiguous/missing → key on CIK,
-  flag for review, backfill LEI later without rewriting facts.
+  (3) on-demand GLEIF API lookup at ingest with cache. Ambiguous/missing → keep the
+  `company_id`, flag for review, add the LEI later as an identifier row.
 - **SEC pipelines start from `Cik`, and that is fine.** The ETL takes a `Cik` as input;
   identity resolution to `CompanyId` happens **at the Load step** — Extract/Transform stay
   purely SEC-native and are never blocked on LEI availability.
 - **What the LEI actually does at ingestion time** (the review question), concretely:
-  1. **Resolve** — `Cik → CompanyId` (LEI if mapped, else `CompanyId::Cik`).
+  1. **Resolve** — `(Cik, period end) → company_id` (§4).
   2. **Attach** — upsert the core `Company` node and hang the new `Filing` off it; the
      resolved id is the graph attach point — this is what keeps one canonical company across
      regulators instead of one shadow company per adapter.
   3. **Check** — data quality at the identity seam (§5.2 table): LEI check digit, GLEIF
      status (issued vs lapsed), entity-name cross-check between the GLEIF record and the
      filing.
-  4. **Degrade gracefully** — a missing/ambiguous mapping never blocks ingestion: proceed
-     CIK-keyed, flag for review, backfill the LEI later (relink invariant, §4).
+  4. **Degrade gracefully** — a missing/ambiguous mapping never blocks ingestion: proceed,
+     flag for review, add the LEI later as an identifier row (§4).
 
 ## 12. Batch vs. Incremental
 
