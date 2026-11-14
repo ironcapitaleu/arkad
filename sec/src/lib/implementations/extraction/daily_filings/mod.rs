@@ -397,8 +397,8 @@ where
     ///
     /// The detection of a quarter that fails with a transient SEC failure runs again after each
     /// retry delay. If it still fails, each date of the quarter fails. A quarter whose full index
-    /// the SEC has not published yet is pending instead, if its first date in the run is recent and
-    /// is not the first date of the run.
+    /// answers 403 or 404 is pending instead, if its first date in the run is recent and is not
+    /// the first date of the run.
     ///
     /// Calls `observer` as [`run`](Self::run) does. The unit of the detection of a quarter is
     /// [`Unit::Quarter`].
@@ -482,8 +482,8 @@ where
     }
 
     /// Runs one filing machine per detected filing, at most [`in_flight`](Self::in_flight) at
-    /// once, in the order of the filings. Each machine records the daily index of `detected` as the input of
-    /// its files.
+    /// once, in the order of the filings. Each machine records the index of `detected`, daily or full, as
+    /// the input of its files.
     ///
     /// A filing runs no machine if its stored instance passes the size and SHA-256 check and its
     /// label file passes it or is not listed, or if its stored folder index lists no XBRL instance
