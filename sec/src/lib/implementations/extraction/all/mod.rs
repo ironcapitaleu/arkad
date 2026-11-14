@@ -64,10 +64,9 @@ type FullIndexWriter = FilesystemRepository<Write, RawDocument<RawFullIndex>>;
 ///
 /// The full index lists a filing with the date filed of the last time the SEC sent it. A filing
 /// that the SEC sends after the cut-over date can carry an earlier date filed, and a range that
-/// starts at the cut-over date would miss it. On 2026-11-13, in 37 days of daily indexes, a daily
-/// index listed a filing at most 4 days after its date filed in the full index, apart from one old
-/// filing that the SEC sent again. The overlap with the Notes files costs only requests, because
-/// every write is idempotent and a repeat run skips the stored filings.
+/// starts at the cut-over date would miss it. ADR 0003, decision 4, records the measured lag. The
+/// overlap with the Notes files costs only requests, because every write is idempotent and a
+/// repeat run skips the stored filings.
 pub const CATCH_UP_LOOKBACK_DAYS: u64 = 7;
 
 /// The SEC client that the cut-over probe and both steps of the pipeline accept.

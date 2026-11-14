@@ -226,7 +226,8 @@ leaves a gap.
 The Notes step and the catch-up run at the same time. A failed Notes period fails the run, and a
 repeat run downloads the period.
 
-The cut-over day is in both paths. Its filings reach the store as Notes rows and as instances.
+The 8 days from 7 days before the cut-over date to the cut-over date are in both paths. Their
+filings reach the store as Notes rows and as instances.
 
 ### Backfill, Catch-Up
 
@@ -671,6 +672,8 @@ each gap through the facade calls that exist. A weekly job in the same container
 | No gzip | The three measured files (Company Facts, `submissions`, the daily index) transfer 6 to 14 times more bytes than with gzip |
 | One run of `daily_filings` has a 30-minute timeout | A hand-set `ARKAD_FROM` fits in one run for about 10 business days by the [Window](ingestion_paths.md#window) estimate, or about 40 at the rate limit alone. Neither is measured |
 | A replaced daily index | The `inputs` SHA-256 of each stored instance that it listed names bytes the store no longer holds |
+| A replaced full index | The full index of the current quarter changes each night. Each repeat run replaces it, so the `inputs` SHA-256 of each instance from an earlier run names bytes the store no longer holds |
+| The full index has no rows for a date yet | The catch-up counts the date as empty. Only the window of `daily_filings` reads it again. The header line `Last Data Received` can tell the two cases apart, but no code reads it yet |
 
 ## See Also
 

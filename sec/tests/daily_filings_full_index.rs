@@ -6,11 +6,14 @@
 //! The fake SEC serves the cut full indexes of 2026 Q3 and Q4. Every filing folder answers 404, so
 //! each selected filing fails and the summary names it.
 
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
-use sec::implementations::extraction::{DailyFilingsRepositories, DailyRunSummary, Extraction};
+use sec::implementations::extraction::{
+    DailyFilingsRepositories, DailyRunSummary, Extraction, RunEvent, Unit,
+};
 use sec::shared::raw_document::RawDocument;
 use sec::tests::fixtures::data::full_index::{
     SAMPLE_FULL_INDEX_2026_Q3, SAMPLE_FULL_INDEX_2026_Q4,
@@ -85,13 +88,26 @@ fn repositories(root: &TempDir) -> DailyFilingsRepositories {
     }
 }
 
-/// Runs `dates` from the full index with the stores under `root`, `as_of`, and no wait between
-/// attempts.
+const LOCK_EXPECT: &str = "Given an observer that never panics while it holds the lock, the lock should never be poisoned";
+
+/// Runs `dates` as `run_observed` does, without an observer.
 async fn run(
     root: &TempDir,
     dates: &[NaiveDate],
     as_of: NaiveDate,
     sec_client: &RoutingSecClient,
+) -> DailyRunSummary {
+    run_observed(root, dates, as_of, sec_client, |_, _| {}).await
+}
+
+/// Runs `dates` from the full index with the stores under `root`, `as_of`, one retry with no wait,
+/// and passes each event to `observer`.
+async fn run_observed(
+    root: &TempDir,
+    dates: &[NaiveDate],
+    as_of: NaiveDate,
+    sec_client: &RoutingSecClient,
+    observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
 ) -> DailyRunSummary {
     Extraction::incremental()
         .execution_id(Uuid::from_u128(7))
@@ -107,7 +123,7 @@ async fn run(
                 .document_type::<RawDocument<_>>()
                 .root(root.path())
                 .build(),
-            |_, _| {},
+            observer,
         )
         .await
 }
@@ -209,19 +225,28 @@ async fn should_store_the_full_index_of_each_quarter_when_the_dates_span_two_qua
     assert_eq!(result, expected_result);
 }
 
-#[tokio::test]
-async fn should_count_the_dates_of_a_recent_quarter_as_pending_when_its_full_index_is_absent() {
-    let dates = [date("2026-09-30"), date("2026-10-01")];
-    let sec_client = sec_client(404);
-
-    let expected_result = vec!["processed", "pending"];
-
-    let result: Vec<String> = run(&temporary_root(), &dates, date("2026-10-02"), &sec_client)
+/// Runs `dates` as `run` does in a new temp dir, and returns the detection of each date.
+async fn detections(
+    dates: &[NaiveDate],
+    as_of: NaiveDate,
+    sec_client: &RoutingSecClient,
+) -> Vec<String> {
+    run(&temporary_root(), dates, as_of, sec_client)
         .await
         .entries()
         .iter()
         .map(|entry| entry["detection"].as_str().unwrap_or_default().to_string())
-        .collect();
+        .collect()
+}
+
+#[tokio::test]
+async fn should_count_each_date_of_a_recent_quarter_as_pending_when_its_full_index_is_absent() {
+    let dates = [date("2026-09-30"), date("2026-10-01"), date("2026-10-02")];
+    let sec_client = sec_client(404);
+
+    let expected_result = vec!["processed", "pending", "pending"];
+
+    let result = detections(&dates, date("2026-10-03"), &sec_client).await;
 
     assert_eq!(result, expected_result);
 }
@@ -233,29 +258,65 @@ async fn should_fail_each_date_of_a_quarter_when_its_full_index_is_absent_on_the
 
     let expected_result = vec!["failed", "failed"];
 
-    let result: Vec<String> = run(&temporary_root(), &dates, date("2026-10-02"), &sec_client)
-        .await
-        .entries()
-        .iter()
-        .map(|entry| entry["detection"].as_str().unwrap_or_default().to_string())
-        .collect();
+    let result = detections(&dates, date("2026-10-02"), &sec_client).await;
 
     assert_eq!(result, expected_result);
 }
 
 #[tokio::test]
-async fn should_fail_each_date_of_a_quarter_when_its_full_index_answers_500_on_every_attempt() {
-    let dates = [date("2026-09-30"), date("2026-10-01")];
+async fn should_fail_each_date_of_a_quarter_when_its_full_index_answers_500() {
+    let dates = [date("2026-09-30"), date("2026-10-01"), date("2026-10-02")];
     let sec_client = sec_client(500);
 
-    let expected_result = vec!["processed", "failed"];
+    let expected_result = vec!["processed", "failed", "failed"];
 
-    let result: Vec<String> = run(&temporary_root(), &dates, date("2026-10-02"), &sec_client)
-        .await
-        .entries()
-        .iter()
-        .map(|entry| entry["detection"].as_str().unwrap_or_default().to_string())
-        .collect();
+    let result = detections(&dates, date("2026-10-03"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_fail_each_date_of_a_quarter_when_its_full_index_answers_503_on_every_attempt() {
+    let dates = [date("2026-09-30"), date("2026-10-01"), date("2026-10-02")];
+    let sec_client = sec_client(503);
+
+    let expected_result = vec!["processed", "failed", "failed"];
+
+    let result = detections(&dates, date("2026-10-03"), &sec_client).await;
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_report_a_retried_and_a_failed_error_with_the_quarter_when_its_full_index_answers_503()
+ {
+    let dates = [date("2026-09-30"), date("2026-10-01")];
+    let sec_client = sec_client(503);
+    let errors = Arc::new(Mutex::new(Vec::new()));
+    let observed_errors = Arc::clone(&errors);
+    let observer = move |unit: &Unit, event: RunEvent<'_>| {
+        if let (Unit::Quarter(_), RunEvent::Error(_, kind)) = (unit, event) {
+            observed_errors
+                .lock()
+                .expect(LOCK_EXPECT)
+                .push(json!({ "context": unit, "kind": kind.to_string() }));
+        }
+    };
+
+    let expected_result = vec![
+        json!({ "context": { "quarter": "2026/QTR4" }, "kind": "retried" }),
+        json!({ "context": { "quarter": "2026/QTR4" }, "kind": "failed" }),
+    ];
+
+    let _ = run_observed(
+        &temporary_root(),
+        &dates,
+        date("2026-10-31"),
+        &sec_client,
+        observer,
+    )
+    .await;
+    let result = errors.lock().expect(LOCK_EXPECT).clone();
 
     assert_eq!(result, expected_result);
 }

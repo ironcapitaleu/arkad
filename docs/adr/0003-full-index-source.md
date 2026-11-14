@@ -89,9 +89,8 @@ Reasons for `form.idx`:
 
 ## Open Questions
 
-- Decision 4 picks a range that starts 7 days early over a selection of the quarter minus the
-  stored filings. The second option needs a listing of the stored filings, and no code lists
-  them yet. If a measurement shows a lag above 7 days, the second option replaces decision 4.
+- Decision 4 starts the range 7 days early. It does not select the quarter minus the stored
+  filings, because no code lists the stored filings yet. If a measurement shows a lag above 7 days, the second option replaces decision 4.
 - No rule yet covers a filing that the SEC sent again with a date filed in an earlier quarter, as
   the 20-F.
 - For `daily_filings`, one download of 47 MB per run can cost too much. `form.gz` holds the same

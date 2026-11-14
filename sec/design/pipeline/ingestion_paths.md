@@ -1797,12 +1797,12 @@ month depends on the day of the run, not on a fixed constant.
 
 Rules:
 
-1. The new-filing path starts at the daily index of the last day of the newest published Notes
-   period. Before any download, `backfill().all()` sends one `HEAD` request for the file of the
+1. The new-filing path starts `CATCH_UP_LOOKBACK_DAYS` (7) days before the last day of the newest
+   published Notes period, the cut-over date. Before any download, `backfill().all()` sends one `HEAD` request for the file of the
    newest period of its list. If the SEC answers 200, the cut-over date is the last day of that
    period. If it answers 404, the cut-over date is the last day of the next older period. The
-   date of today plays no part. That day is in both paths. The overlap of one day covers
-   assumption A2 below. A cut-over date that is too early costs only overlap, because rule 4
+   date of today plays no part. The 8 days from 7 days before the cut-over date to the cut-over
+   date are in both paths. This overlap covers assumption A2 below. A cut-over date that is too early costs only overlap, because rule 4
    keeps every write idempotent. A cut-over date that is too late leaves a gap that no step
    reports.
 
@@ -1829,7 +1829,7 @@ Rules:
    The Notes summary lists that period as unpublished, but `result()` counts it as failed. To
    check a run by hand, confirm that no entry in the Notes summary has a `failed_state`, and that
    the newest stored period ends on or after the cut-over date. The `first_date` of the catch-up
-   summary is 7 days before the cut-over date. If the catch-up has no date, `first_date` is `null`. See
+   summary is `CATCH_UP_LOOKBACK_DAYS` (7) days before the cut-over date. If the catch-up has no date, `first_date` is `null`. See
    [Calling the Machines](#calling-the-machines). Do not rely on the
    calendar. In three samples, the SEC posted a month in the first 8
    days of the next month. But `2025_10_notes.zip` has a Last-Modified of 2025-12-01 (see
@@ -1849,7 +1849,7 @@ Assumptions:
 | Id | Assumption | Status | If it is false |
 | -- | ---------- | ------ | -------------- |
 | A1 | A monthly Notes file holds every filing of the selected forms with a filed date in that month | Measured for `2026_09`: its `sub.tsv` runs from 2026-09-01 to 2026-09-30 | A filing before the start date is lost. To check, compare `sub.tsv` with the daily indexes of that month. |
-| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of one day covers a filing on the last day of the month. A longer gap needs a longer overlap. |
+| A2 | A filing after 5:30 PM Eastern on the last day of a month gets the next business day as its filed date, and the daily index of that day lists it | Unverified | The overlap of 8 days covers a filing on the last day of the month. A longer gap needs a longer overlap. |
 | A3 | The daily index lists every filing of its day, and the SEC does not change it after publication | Unverified | A late change is lost. A rerun of that date picks it up. |
 | A4 | About a year after a quarter ends, the SEC merges the monthly Notes files of that quarter into one quarterly file. It removes the monthly files. Example: `2025q3` on 2026-10-07. The SEC also corrects old files about once a year, for example 2010q1 to 2013q4 in September 2024 | Measured on 2026-11-07 with `Last-Modified` of the 80 files listed on the SEC data-sets page that day, and the notes on that page. A `HEAD` of the merged monthly files `2025_07` to `2025_09` returns 404 | `backfill` sends a `HEAD` request for each quarterly file after 2025q3 that ended less than 24 months ago. After the merge of 2025q4, the request answers 200, so the run asks for `2025q4` and skips the stored months `2025_10` to `2025_12`. The merge came 367 to 458 days after the quarter end in the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged. If the SEC stops merging, every request answers 404 and the run keeps the months for 24 months. After that, the run counts the quarter as merged, asks for a file that does not exist, and fails. A merge that takes more than 24 months fails the same way, which shows the case. A run does not fetch a corrected file again. An amendment reaches the new-filing path as its own filing (10-K/A, 10-Q/A). |
 | A5 | CIK and accession number never change and are never reused | Unverified, SEC practice | Idempotent writes on these keys merge two different things |
@@ -1939,7 +1939,7 @@ Which path delivers a filing depends on how the backfill was split. Three cases:
 - Notes files up to the newest stored Notes month, then daily indexes from the last day of that
   month. This is the plan. See rule 1 of [Cut-Over Between the Paths](#cut-over-between-the-paths).
 - A possible later split: daily indexes back to 2009, with no Notes file.
-- Both paths for the same filing: the overlap of one day in rule 1 of
+- Both paths for the same filing: the overlap of 8 days in rule 1 of
   [Cut-Over Between the Paths](#cut-over-between-the-paths), or a backfill run after the
   new-filing path ran.
 

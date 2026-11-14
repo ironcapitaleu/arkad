@@ -12,6 +12,7 @@ use thiserror::Error;
 
 use super::PENDING_DAYS;
 use crate::error::{State as StateError, StateMachine};
+use crate::implementations::extraction::notes::summary::is_absent_file;
 use crate::prelude::StreamError;
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FilingDocumentsError;
@@ -108,9 +109,10 @@ pub(super) fn is_pending(
 ///
 /// That holds if the SEC answered 403 or 404 for the full index, `quarter_first_date` is not
 /// `first_date`, and `quarter_first_date` is on or after the date [`PENDING_DAYS`] - 1 days before
-/// `as_of`. `quarter_first_date` is the first date of the run in the quarter. The rule follows
-/// [`is_pending`]: the first date of a run can be its last read, so an absent index there fails
-/// the run.
+/// `as_of`. `quarter_first_date` is the first date of the run in the quarter. As in
+/// [`is_pending`], the first date of a run can be its last read, so an absent index there fails
+/// the run. Unlike [`is_pending`], no quarter listing confirms the absence, so a 403 from
+/// throttling also counts.
 pub(super) fn is_pending_quarter(
     error: &StreamError,
     quarter_first_date: NaiveDate,
@@ -119,11 +121,7 @@ pub(super) fn is_pending_quarter(
 ) -> bool {
     quarter_first_date != first_date
         && is_recent(quarter_first_date, as_of)
-        && matches!(
-            &*error.source,
-            StateMachine::State(StateError::FailedRequestExecution(failure))
-                if failure.domain_error().is_absent_file()
-        )
+        && is_absent_file(error)
 }
 
 /// Returns `true` if `date` is on or after the date [`PENDING_DAYS`] - 1 days before `as_of`.
@@ -495,6 +493,20 @@ mod tests {
         let quarter_first_date = date("2026-10-01");
         let first_date = date("2026-09-24");
         let as_of = date("2026-10-03");
+
+        let expected_result = true;
+
+        let result = is_pending_quarter(&error, quarter_first_date, first_date, as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_full_index_answer_of_403_as_pending_when_the_quarter_starts_on_as_of() {
+        let error = answered(StatusCode::Forbidden);
+        let quarter_first_date = date("2026-10-01");
+        let first_date = date("2026-09-24");
+        let as_of = date("2026-10-01");
 
         let expected_result = true;
 
