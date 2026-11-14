@@ -8,7 +8,7 @@ description: >
   long-term trade-offs for the system or the team. Also use for one that a later engineer will
   question. Also use when you remove history or a past decision from a document, to check whether
   the decision needs an ADR first.
-version: 0.3.0
+version: 0.4.0
 ---
 
 # ADR Skill
@@ -66,7 +66,7 @@ To write an ADR:
 | Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD \| Superseded by ADR NNNN> |
 | Date | YYYY-MM-DD |
 | Deciders | <who decides> |
-| Ticket | <link to the ticket that needs the decision> |
+| Ticket | <ID of the ticket that needs the decision, such as STA-123, with no link> |
 
 ## Context
 
@@ -122,6 +122,9 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
 - An agent sets the status "Proposed". Only the decider named in the ADR accepts it.
 - Never rewrite the decision of an accepted ADR. Amend it or supersede it.
 - Every count, size, and time has a date and a source.
+- An ADR names a Linear item as plain text, never by a link: a ticket by its ID, a comment by its
+  ticket ID and comment ID, and a document by "Linear document" and its title.
+  Linear archives tickets, and a person can delete a ticket or a document, so a link can break.
 - State what the decision does not cover. A reader must not take a gap for a covered case.
 - The reasons and the options live in the ADR only. `AGENTS.md` can state the rule that the
   decision adds, with a link to the ADR. A design doc links to the ADR and does not repeat the

@@ -47,7 +47,7 @@ What to carry forward vs. change (detail in §10):
 | `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (LEI-preferred, §4), resolved at load time |
 | `sec::CompanyData/CompanyFact/Observation` | **Replace** — superseded by the canonical model |
 
-## 2. Architectural Spine — Universal Core + Regulator Adapters (Hub & Spoke)
+## 2. Architectural Spine — Metadata Store Over Source Stores
 
 The model serves one goal: a **company brain** in gold. One metadata store covers all data sources.
 It is a knowledge graph of the companies and their identifiers (§5), the canonical concepts (§3),
@@ -55,76 +55,85 @@ and the data sources and their source stores. It resolves entities. For each com
 sources that hold data about it and names the preferred one. Each source store holds the records of
 one data source, such as the SEC facts (§7) as filed and as canonical facts, with the provenance of each
 record (§8.2). A query starts in the metadata store and finds the stores and the keys to read.
-[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision. The diagram, the
-"Principle" below, §2.1, §6, and §7.1 still show one shared canonical fact store, and do not match
-ADR 0007.
+[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision.
 
 ```mermaid
 flowchart TB
-  subgraph CORE["🌍 Universal Canonical Core (source of truth, regulator-independent)"]
-    KG["Knowledge Graph\nCompany(LEI), Concept, Period,\nExchange, Industry, relationships"]
-    AF["Canonical Fact Store\n(LEI, CanonicalElement, value, unit,\nperiod, confidence) — analytical"]
+  subgraph META["Metadata Store (one knowledge graph, no fact values)"]
+    KG["Company(LEI), Identifier, Concept, Period,\nDataSource, source store nodes, claims"]
   end
-  subgraph SEC["🇺🇸 SEC / US-GAAP Adapter"]
-    SECraw["Raw observations\n(CIK, accession, form 10-K/10-Q,\nus-gaap:* native tags, taxonomy yr)"]
-    SECmap["Resolution map\nus-gaap tag → CanonicalElement"]
+  subgraph SEC["SEC Source Store"]
+    SECraw["Raw observations, as filed\n(CIK, accession, form 10-K/10-Q,\nus-gaap:* native tags, taxonomy yr)"]
+    SECcan["Canonical facts\n(company_id, CanonicalElement, value, unit,\nperiod, confidence, source_ref)"]
   end
-  subgraph ESEF["🇪🇺 ESEF / IFRS Adapter (future)"]
-    ESEFraw["Raw observations\n(ifrs-full:* tags, ESEF filing meta)"]
-    ESEFmap["Resolution map\nifrs-full tag → CanonicalElement"]
+  subgraph ESEF["ESEF Source Store (not built)"]
+    ESEFraw["Raw observations, as filed\n(ifrs-full:* tags, ESEF filing meta)"]
+    ESEFcan["Canonical facts\n(company_id, CanonicalElement, value, unit,\nperiod, confidence, source_ref)"]
   end
-  SECraw --> SECmap --> AF
-  ESEFraw --> ESEFmap --> AF
-  SECraw -. "attaches via LEI + Filing node" .-> KG
-  ESEFraw -. "attaches via LEI + Filing node" .-> KG
-  AF <--> KG
+  SECraw -- "SEC adapter: us-gaap tag → CanonicalElement" --> SECcan
+  ESEFraw -- "ESEF adapter: ifrs-full tag → CanonicalElement" --> ESEFcan
+  KG -- "per company: key (CIK), rank" --> SEC
+  KG -- "per company: key (LEI), rank" --> ESEF
 ```
 
-**Principle:** an adapter's job is to (a) retain the regulator's raw data verbatim and
-queryable, and (b) *resolve* native taxonomy tags into the universal `CanonicalElement`
-vocabulary, writing normalized facts into the core. The core never contains a `us-gaap`
-string, a CIK, or a 10-K form code. A company that files nowhere still exists in the core
-(identity + relationships); a company that files with three regulators has three adapters'
-worth of raw data all resolving into **one** canonical fact history.
+**Principle:** An adapter loads one data source. It writes two things:
 
-**What resolves vs. what stays in the adapter:** only observations that resolve to a
-`CanonicalElement` (at a known `Confidence`) are promoted to the core. Anything regulator-
-specific that has no canonical meaning (e.g. a bespoke `us-gaap` disclosure tag with no
-mapping to a `CanonicalElement`) **remains in the adapter, fully queryable**, but is not forced into the
-universal model. This is precisely the "connect to and query regulator-specific data"
-requirement.
+1. The source store of that data source. The store holds the records as the source publishes them,
+   and the canonical facts that the adapter resolves from them, each with its provenance.
+2. The entries of the metadata store: the company, its identifiers, its filings, and an edge from
+   the company to the source store. The edge carries the kind of information and the key. Its rank
+   follows ADR 0007, Decision 5: a default rank until a person sets one. A load never changes a
+   rank that a person set.
 
-### 2.1 Two rings inside the core: axiomatic vs derived (multi-adapter rule)
+The metadata store holds no fact values (ADR 0007, Decision 3). A company that files nowhere still
+exists in the metadata store, with its identifiers and relationships. A company that files with
+three regulators has its records in three source stores, each with its own canonical facts. The
+metadata store lists all three for that company.
 
-> [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) puts the canonical facts in one store
-> per data source. This section shows one shared store and changes in
-> [STA-513](https://linear.app/state-machine/issue/STA-513).
+**What resolves and what stays as filed:** an observation becomes a canonical fact only if it
+resolves to a `CanonicalElement` at a known `Confidence`. An observation with no canonical meaning,
+such as a `us-gaap` disclosure tag with no mapping to a `CanonicalElement`, stays in the source
+store as filed. A caller can query it there. This meets the requirement to connect to and query
+regulator-specific data.
 
-"Source of truth" needs precision — the core has two rings with different epistemic status
-(review resolution, 2026-08-08):
+### 2.1 Two Rings: Axiomatic Identity and Derived Data (Multi-Source Rule)
 
-- **Axiomatic ring — identity & structure.** `Company`, its `Identifier`s, the adapter
-  bridges: only what is **independently verifiable against an authoritative registry** (GLEIF
-  says this LEI exists; EDGAR says this filing exists). This ring is what §8 means by "graph =
-  source of truth."
-- **Derived ring — normalized data.** Canonical facts (§6) and completeness edges are
-  **materializations computed from adapter data**, never axiomatic. Every datum carries
-  provenance (`source_ref`, `confidence`) and all of it is rebuildable by replay (§8). Values,
-  units, and periods in the core are therefore not "core truth" — they are normalized
-  *projections of* adapter observations, always traceable back to one.
-- **Query routing works in both directions** (§7.1): query an adapter directly by its native
-  PK (`Cik` against the SEC adapter), or query the universal `Company` by `CompanyId`/LEI and
-  let the core delegate to whichever adapters hold data for it.
+"Source of truth" has two rings with different standing (review resolution, 2026-08-08):
 
-**Multi-adapter rule:** when several adapters normalize data for the same company, their
-outputs are **never destructively merged**. The §6 grain includes `source_ref`, so canonical
-facts from different adapters coexist as separate provenance-attributed rows. Example: a
-dual-listed filer reports FY2024 revenue via a 10-K (`us-gaap`, SEC adapter) *and* an ESEF
-report (`ifrs-full`, ESEF adapter) → **two rows** for (company, `Revenue`, FY2024), one per
-`source_ref`. **Agreement across sources upgrades confidence** (cross-source validation);
-divergence is surfaced as a data-quality finding; "which value wins" is **read-time policy**
-(e.g. prefer the primary regulator), never a write-time overwrite. The graph applies the same
-posture to relationship claims (§5.2).
+- **Axiomatic ring: identity and structure.** This ring is a part of the metadata store: `Company`,
+  its `Identifier`s, and the bridges to each data source. It holds only what a person can check
+  against an authoritative registry. For example, GLEIF says that an LEI exists, and EDGAR says
+  that a filing exists. §8 means this ring when it says "graph = source of truth."
+- **Derived ring: normalized data.** The canonical facts (§6) of each source store, and the
+  completeness edges of the metadata store, are computed from the records of a data source. They
+  are never axiomatic. Each datum carries provenance (`source_ref`, `confidence`), and a replay rebuilds all of it (§8).
+  So a value, a unit, or a period of a canonical fact is a normalized projection of a record in its
+  source store, and it traces back to that record.
+- **Query routing works in both directions** (§7.1). A caller can query a source store directly by
+  its native key, such as a `Cik` in the SEC store. A caller can also query a `Company` by
+  `CompanyId` or LEI. The metadata store then routes the query to the source stores that hold data
+  for it.
+
+A value that a person sets is in neither ring: a rank, a home market, the trust of a source, or a
+verdict on an item of the review queue (ADR 0007, Decisions 3 and 5). No registry checks it, and no
+replay rebuilds it. So a rebuild of the metadata store must keep it. §8, "Recoverability", does not
+cover such a value. ADR 0007, "Open Questions", leaves open how the metadata store records who set
+a rank and when.
+
+**Multi-source rule:** if several source stores hold canonical facts for the same company, no load
+merges them. Each source store keeps its own canonical facts (ADR 0007, Decision 4). Example: a
+dual-listed filer reports FY2024 revenue in a 10-K (`us-gaap`, SEC store) and in an ESEF report
+(`ifrs-full`, ESEF store). Each of the two stores then holds one row for (company, `Revenue`,
+FY2024).
+
+Which value a caller reads is a read-time policy, never a write-time overwrite. The metadata store
+names the preferred source store for each company, and a caller can name another (ADR 0007,
+Decision 5). The graph keeps conflicting relationship claims in the same way (§5.2).
+
+Agreement across sources raises the confidence of a value. A divergence is a data-quality finding.
+Both need a check that reads two source stores for one company. ADR 0007, "Open Questions", leaves
+open where this check runs and where the confidence from agreement lives, and assigns both to the
+gold design.
 
 ## 3. Universal Canonical Concept Model
 
@@ -351,14 +360,12 @@ relationship traversal (b) is the only workload that does. So the §14 trigger f
 dedicated graph store is specifically *"when multi-hop ownership/relationship analysis becomes
 central,"* not the data-quality checks.
 
-## 6. Universal Canonical Fact Store (Analytical Layer)
+## 6. Canonical Facts of a Source Store (Analytical Layer)
 
-> [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) puts the canonical facts in one store
-> per data source. This section shows one shared store and changes in
-> [STA-513](https://linear.app/state-machine/issue/STA-513).
-
-A columnar fact table — regulator-agnostic — one row per canonical observation. **Grain:**
-`(company_id, canonical_element, period, dimension_signature, source_ref)`.
+Each source store holds its canonical facts in a columnar fact table, one row per canonical
+observation. The table holds the canonical facts of one data source only
+([ADR 0007](../../../docs/adr/0007-gold-company-brain.md), Decision 4). The columns below are the
+logical model. ADR 0007, "Open Questions", leaves the gold tables to the gold design. **Grain:** `(company_id, canonical_element, period, dimension_signature, source_ref)`.
 
 | Column | Type | From | Notes |
 | --- | --- | --- | --- |
@@ -374,12 +381,12 @@ A columnar fact table — regulator-agnostic — one row per canonical observati
 | `dimension_sig` | string? | dimension signature | null/empty = consolidated total |
 | `confidence` | enum | `Confidence` | Exact/Synonym/Derived/Computed |
 | `rule`, `inputs` | string, list<struct> | `StandardizedFact.rule`, `StandardizedFact.inputs` | traceability |
-| `source_ref` | string | (generic) | **opaque handle to the adapter filing** (e.g. `sec:accession`) — the only link out to a regulator |
+| `source_ref` | string | (generic) | **opaque handle to the filing as filed** in the same source store, for example `sec:accession` |
 | `ingested_at` | timestamp | (load) | idempotency/audit |
 
-Note what is **absent**: no `cik`, no `form`, no `accession_number` column, no `us-gaap`
-tag. Provenance to a specific regulator filing is a single opaque `source_ref` that resolves
-into the adapter (§7) — keeping the fact store universal while still fully traceable.
+The table has no `cik`, `form`, or `accession_number` column, and no `us-gaap` tag. A single
+`source_ref` points to the filing as filed in the same source store (§7), and the filing holds
+those fields.
 
 ```mermaid
 erDiagram
@@ -422,8 +429,8 @@ projections built on demand — never the storage of record.**
 
 ## 7. Regulator Adapter Layer (SEC/EDGAR concrete)
 
-Each adapter owns three things, all **independently queryable** and joinable to the core by
-`company_id` + `source_ref`:
+Each adapter loads one data source and owns three things. Each is **independently queryable**,
+and a caller joins it to the metadata store by `company_id` and `source_ref`:
 
 1. **Raw observation store** — every native fact as filed, verbatim:
    `cik`, `accession_number`, `form` (10-K/10-Q/8-K/20-F), `filed_date`, `period_end`,
@@ -431,23 +438,23 @@ Each adapter owns three things, all **independently queryable** and joinable to 
    `value`, `unit`, `period`, `dimensions`. This is the replay source and the "SEC-specific
    query" surface.
 2. **Resolution map** — dialect tag → `CanonicalElement` with priority-ordered aliases
-   (today's `us_gaap/mappings.rs`, reframed as the SEC adapter's map). Drives promotion of
-   raw observations into core canonical facts.
+   (today's `us_gaap/mappings.rs`, reframed as the SEC adapter's map). The adapter resolves
+   raw observations into the canonical facts of the same source store (§6).
 3. **Filing metadata → graph** — creates the `Filing` node + `HAS_FILING`/`FILED_UNDER`/
-   `COVERS_PERIOD`/`REPORTS_CONCEPT` edges and resolves CIK→LEI to attach to the core company.
+   `COVERS_PERIOD`/`REPORTS_CONCEPT` edges and resolves CIK→LEI to attach the filing to its `Company` in the metadata store.
 
-### 7.1 Querying in both directions
+### 7.1 Querying in Both Directions
 
-> [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) puts the canonical facts in one store
-> per data source. This section shows one shared store and changes in
-> [STA-513](https://linear.app/state-machine/issue/STA-513).
-
-- **Universal → regulator-specific:** start from any `Company` (worldwide) in the core, fetch
-  canonical facts; drill down via `source_ref` to see the exact SEC filing + native
-  `us-gaap` tag that produced a number ("what tag did Apple's FY2024 Revenue come from?").
-- **Regulator-specific → universal:** start from an SEC concept (`by CIK`, `by form`, `by
-  us-gaap tag`) in the adapter, resolve CIK→LEI, and pull the universal normalized history
-  ("give me every company that reported `us-gaap:Goodwill`, as canonical `Goodwill`").
+- **From a company to a source store:** start from any `Company` in the metadata store. The
+  metadata store lists the source stores that hold its facts, with the key for each, and names the
+  preferred store (§2.1). Read the canonical facts from that store. Then follow `source_ref` to the
+  SEC filing and the native `us-gaap` tag that produced a number. Example: "Which tag did the
+  FY2024 revenue of Apple come from?"
+- **From a source store to a company:** start from an SEC concept in the SEC store, by CIK, by form,
+  or by `us-gaap` tag. The SEC store holds the canonical facts next to the raw observations. Example:
+  "Every company that reported `us-gaap:Goodwill`, as canonical `Goodwill`." Resolve each CIK to its
+  `Company` in the metadata store. The metadata store lists the other source stores that hold data
+  on that company.
 
 ## 8. Consistency Model & Layer Hierarchy
 

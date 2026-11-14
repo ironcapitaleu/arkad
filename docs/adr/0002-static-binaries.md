@@ -5,7 +5,7 @@
 | Status | Accepted by the lead: the build and the base on 2026-11-01, one image per binary on 2026-11-03 |
 | Date | 2026-11-03 |
 | Deciders | The project lead |
-| Ticket | [STA-437](https://linear.app/state-machine/issue/STA-437). Decisions recorded on [STA-422](https://linear.app/state-machine/issue/STA-422) and [STA-431](https://linear.app/state-machine/issue/STA-431) |
+| Ticket | STA-437. Decisions recorded on STA-422 and STA-431 |
 
 ## Context
 
@@ -94,5 +94,4 @@ handles the large-file path.
 - STA-422, comments "Image size notes", "Runtime image comparison", and "Decided (lead,
   2026-11-01)"
 - STA-431, Additional Notes (one image per binary)
-- Proposal "ETL Deployment Shape after STA-304" (one `Dockerfile`, `--target`s per image):
-  https://linear.app/state-machine/document/etl-deployment-shape-after-sta-304-proposal-4ce8a78e92b7
+- Linear document "ETL Deployment Shape after STA-304", a proposal (one `Dockerfile`, `--target`s per image)
