@@ -29,8 +29,8 @@ Facts that bound the choice:
 - The rate limiter paces the sends to about 9 per second. No run on record got a 429
   (`sec/design/pipeline/ingestion_paths.md`, "Daily Run", measured runs).
 
-The choice binds every binary, since each builds its client through `sec/src/bin/shared/sec_client.rs`,
-and the run-level retry of the facade.
+The choice binds every binary and the run-level retry of the facade. Each binary builds its
+client through `sec/src/bin/shared/sec_client.rs`.
 
 ## Decision
 
@@ -68,6 +68,9 @@ that the waits of both levels span.
 ## Consequences
 
 - A cut connection costs one request again, not a rerun of the machine.
+- `backfill` and `daily_filings` log each retry of a request as `batch_request_retried`, with the
+  error and the retry number. So a run log shows a 429 or a 503 even when a later attempt
+  succeeds.
 - A request of several files, such as a filing document set, retries each file on its own.
 - A 503 for a folder that does not exist costs 3 sends in each of 2 runs, so 6 sends, before the
   machine fails.

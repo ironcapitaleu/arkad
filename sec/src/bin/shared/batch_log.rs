@@ -11,6 +11,7 @@ use std::time::Duration;
 use chrono::NaiveDate;
 use sec::implementations::extraction::{DailyRunSummary, ErrorKind, Unit};
 use sec::prelude::{StreamError, StreamItem};
+use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use serde_json::Value;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 use uuid::Uuid;
@@ -32,6 +33,8 @@ pub enum BatchEvent {
     /// A request that asks whether a Notes file exists failed with a transient SEC failure and
     /// runs again.
     NotesProbeRetried,
+    /// An SEC request failed with a transient SEC failure, and the client sends it again.
+    RequestRetried,
     StartupFailed,
     /// One facade call of a run with two calls ended with no failure.
     StepComplete,
@@ -46,6 +49,7 @@ impl Display for BatchEvent {
             Self::DefaultUserAgent => write!(f, "batch_default_user_agent"),
             Self::Failed => write!(f, "batch_failed"),
             Self::NotesProbeRetried => write!(f, "batch_notes_probe_retried"),
+            Self::RequestRetried => write!(f, "batch_request_retried"),
             Self::StartupFailed => write!(f, "batch_startup_failed"),
             Self::StepComplete => write!(f, "batch_step_complete"),
             Self::StepFailed => write!(f, "batch_step_failed"),
@@ -54,6 +58,7 @@ impl Display for BatchEvent {
 }
 
 /// Builds the SEC client of the run, logs a failure, and warns about the default `User-Agent`.
+/// The client logs each retry of a request.
 ///
 /// # Errors
 ///
@@ -76,7 +81,17 @@ pub fn startup_sec_client() -> Result<RunSecClient, Box<dyn Error + Send + Sync>
             context = %serde_json::json!({ "env_var": USER_AGENT_ENV_VAR }),
         );
     }
-    Ok(sec_client)
+    Ok(sec_client.with_on_retry(log_request_retry))
+}
+
+/// Logs a request that the SEC client sends again after the transient SEC failure `error`.
+/// `retry` counts the retries of the request from 1.
+fn log_request_retry(error: &FailedSecRequest, retry: u32) {
+    tracing::warn!(
+        event = %BatchEvent::RequestRetried,
+        message = %error,
+        context = %serde_json::json!({ "retry": retry }),
+    );
 }
 
 /// Creates the root directory of `repository`, and logs a failure.

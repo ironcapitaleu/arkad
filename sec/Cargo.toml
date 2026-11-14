@@ -49,8 +49,9 @@ pretty_assertions = "1"
 # exposes them outside of `cfg(test)`. The test of the JSON logger needs `tracing-logging`.
 sec = { path = ".", features = ["test-fixtures", "tracing-logging"] }
 tempfile = "3"
-# The tests of the request timeouts run local TCP servers, and limit how long they wait.
-tokio = { version = "1.52.3", features = ["io-util", "net", "time"] }
+# The tests of the request timeouts run local TCP servers, and limit how long they wait. The test
+# of the retry waits pauses the clock.
+tokio = { version = "1.52.3", features = ["io-util", "net", "test-util", "time"] }
 
 [lib]
 name = "sec"

@@ -1,7 +1,6 @@
 use super::Pipeline;
 
 use crate::sec_client::RunSecClient;
-
 use crate::storage_root::RawCompanyFactsWriter;
 /// Marker type indicating no CIK has been provided yet.
 pub struct NoCik;

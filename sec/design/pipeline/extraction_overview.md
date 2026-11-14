@@ -440,9 +440,9 @@ flowchart TB
 ```
 
 All machines of one run share one `execution_id`. The dates run one after another. A `submissions`
-machine and the detection of a date retry the same way as a filing. Before that, the client
-sends each request up to 3 times within about 3 s, so the diagram shows only the retry of the
-machine. A transient failure is a
+machine and the detection of a date retry the same way as a filing. Within each run of a
+machine, the client sends each request up to 3 times in about 3 s. So the diagram shows only the
+retry of the machine. A transient failure is a
 502, a 503, a 504, a 429, a failed or timed-out request, or a failed or timed-out read of the
 body. A Notes
 period of `backfill` retries too, and downloads the whole file again.

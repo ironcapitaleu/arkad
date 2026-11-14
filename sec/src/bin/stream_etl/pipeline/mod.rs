@@ -5,11 +5,11 @@ use std::fmt::{self, Display, Formatter};
 use std::pin::pin;
 use std::time::Instant;
 
-use crate::sec_client::RunSecClient;
 use futures_util::StreamExt;
 use sec::implementations::extraction::Backfill;
 use sec::prelude::*;
 
+use crate::sec_client::RunSecClient;
 use crate::storage_root::RawCompanyFactsWriter;
 use builder::{NoCik, NoClient, NoRepository, PipelineBuilder};
 
