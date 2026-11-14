@@ -202,8 +202,8 @@ A cascade of subtotals from revenue to net income:
 - Pretax Income − Income Tax Expense = Net Income
 - Net Income + OCI = Comprehensive Income
 
-Each step also has an "other" line. SFAC 6 splits income into revenue, expenses, gains, and losses,
-but filers do not present these totals. See "Roll-Up Tree".
+Each step also has an "other" line. The elements of Concepts Statement 8 (formerly SFAC 6) split
+income into revenue, expenses, gains, and losses, but filers do not present these totals. See "Roll-Up Tree".
 
 ### 0.4) Changes in Equity
 
@@ -387,8 +387,8 @@ The other line of each open step has a name in the layout:
 - The cascade ends with comprehensive income: `ComprehensiveIncome` = `NetIncome` +
   `OtherComprehensiveIncome`. A filer can present it below net income or in a second statement.
   The layout always shows it at the end of the income statement. It is no statement of its own.
-- The cascade has no `Expenses`, `Gains`, or `Losses`. No filer presents the SFAC 6 totals, so
-  these concepts leave the enum (see "Verdict on the 39 Concepts").
+- The cascade has no `Expenses`, `Gains`, or `Losses`. No filer presents these totals of the
+  elements of Concepts Statement 8 (formerly SFAC 6), so these concepts leave the enum (see "Verdict on the 39 Concepts").
 - `NonoperatingIncomeExpense` is no standard concept. In the 2026 calculation tree it excludes
   interest expense. Many filers use it for a total that includes interest. The other line of
   `pretax-income` holds the same amount without that doubt.
@@ -604,8 +604,8 @@ identities. Each failed check is a finding. A check never removes a value.
    `NegativeOther` finding. Other lines of steps and of equity can be negative, so they get no
    check.
 
-The tolerance is the one of "5) Validation", ±0.1%, with one change. The base is the largest
-absolute value in the group, not the parent. In a step, the parent can be near zero while its
+The tolerance is the one of "5) Validation": ±0.1% of the largest absolute value in the group,
+not of the parent. In a step, the parent can be near zero while its
 members are large. Net income of 1 from revenue of 10,000 is an example. Then a base of the parent
 fails on the rounding of the members.
 
@@ -702,8 +702,9 @@ or section differs from its new placement.
 
 `Expenses`, `Gains`, and `Losses` leave the enum. No US GAAP concept holds them, no rule fills
 them, and no filer presents them. The cascade replaces them with `OperatingExpenses`,
-`InterestExpense`, `IncomeTaxExpense`, and the other lines. SFAC 6 still defines them. The
-identity in "Three Layers" names them, but no standard concept holds them.
+`InterestExpense`, `IncomeTaxExpense`, and the other lines. Concepts Statement 8, which
+replaced SFAC 6 in 2021, keeps them as elements. The identity in "Three Layers" names them, but no
+standard concept holds them.
 
 `is_level_one()` goes away. The placement replaces Level 1 and Level 2.
 
@@ -739,7 +740,8 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 - `AccountsPayableAndAccruedLiabilitiesCurrent` (965) is wider than `AccountsPayable`. It is not
   in the list.
 - `DebtCurrent` holds the current finance lease obligations. `LongTermDebt` leaves out the
-  noncurrent ones. No US GAAP concept holds current debt without leases. See "Open Points".
+  noncurrent ones. No US GAAP concept holds current debt without leases. So the two differ in scope, as
+  "Decided Points" records. A net debt figure can subtract `FinanceLeaseLiabilityCurrent`.
 - `StockholdersEquity` stays the part of `Equity` and becomes the alias of
   `EquityAttributableToParent`. `NetIncomeLoss` stays the part of `NetIncome` and becomes the alias
   of `NetIncomeAttributableToParent`. A concept in two lists is allowed, as "`us_gaap`" says.
@@ -859,19 +861,22 @@ and the series stores them under `quarters` 1. The example takes every line from
 copy to show the arithmetic only. In the series, net income and D&A have no value for this period,
 so the other operating cash flow is 390 − 16 = 374.
 
-#### Open Points
+#### Decided Points
 
-These need a decision of the owner. The design above assumes the first option of each.
+The owner decided these on 2026-11-14.
 
-1. **Remove `Expenses`, `Gains`, and `Losses`.** "Standard Concept Set" froze the 13 roots for the
-   MVP. The alternative keeps the three variants with no placement and no rule.
+1. **`Expenses`, `Gains`, and `Losses` leave the enum.** The MVP freezes the top lines of the trees
+   instead of the 13 roots. No US GAAP concept holds these totals, no rule fills them, and silver
+   holds no row of them. Keeping them with no placement leaves three variants outside the
+   hierarchy.
 2. **`ShortTermDebt` holds current finance leases**, through `DebtCurrent`. `LongTermDebt` leaves
-   them out. The alternative gives `ShortTermDebt` only the part rule, with no alias list, so most
-   filers get no value.
-3. **The tolerance base is the largest member of the group**, not the parent.
+   them out. The part rule alone gives most filers no value. Widening `LongTermDebt` instead
+   reverses the decision to drop wider aliases.
+3. **The tolerance base is the largest absolute value in the group**, not the parent. In a step, the
+   parent can be near zero while its members are large.
 4. **Layer 3 drops the check `NetIncome` = `Revenue` − `Expenses` + `Gains` − `Losses`** and adds
-   the exchange rate effect to the cash flow check. The `xbrl-standardization` skill names this
-   difference to the `accounting` skill as a decision of the owner.
+   the exchange rate effect to the cash flow check. The old check cannot run without the three
+   concepts. The cash flow check matches the `accounting` skill.
 
 ---
 
@@ -1538,7 +1543,7 @@ statement module holds its part, as "Extension Model" describes.
   `Placed` describe one concept, not the graph.
 - `CanonicalElementKind` nests by statement, as "Extension Model" describes. The placement holds
   the parent and the weight, because a parent is a sum and not a container.
-- The SFAC 6 identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
+- The identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
   check, `core/sfac6/balance-sheet@1`, next to the table.
 
 ---
@@ -1957,7 +1962,7 @@ Specific checks include:
 
 For values computed by the resolution engine (Tiers 3 and 4), precision must be exactly 100% — our math must be exact.
 
-When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the parent value.
+When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the largest absolute value in the group of the check, as "Roll-Up Tree", "Checks the Tree Gives", explains.
 
 Rule: **our math must be exact, their math gets a tolerance.**
 
