@@ -50,17 +50,18 @@ Terms:
    definition and how to compute it from source facts. For each source store, it records which
    companies, concepts, and periods the store holds, and how to read them. A claim of the graph,
    such as a GLEIF parent link (§5.2), is metadata. It sits in the metadata store with its source
-   and date.
+   and date. Only the load writes the metadata store. Unlike the Snowflake context layer, it does
+   not learn from usage, such as the queries that reach the `/v1` API.
 3. **Each source store holds the facts of its data source, with the provenance of each fact.** The
-   SEC store holds the SEC facts, and a GLEIF store holds the GLEIF records. The provenance of a fact
-   (§8.2) stays next to the fact and names its silver unit and raw document by key.
-4. **A query starts in the metadata store and reads the facts from the source stores.** It resolves
-   a company, an identifier, or a concept, finds the source stores that hold it, and reads the facts
-   there.
-5. **The metadata store keeps conflicting claims and ranks them.** Two sources can disagree on a
-   link between identifiers or on a definition. The metadata store keeps each claim with its source
-   and date, and ranks them by a fixed source priority, as the design rules of ADR 0001 describe. A
-   conflict that the ranking cannot settle goes to a review queue for a person.
+   SEC store holds the SEC facts, and an ESEF store holds the ESEF facts. The provenance of a fact
+   (§8.2) stays next to the fact and names its silver unit and raw document by key. This decision
+   covers the facts as each source reports them. Where the canonical facts live is open (Open
+   Questions).
+4. **A query starts in the metadata store.** It resolves a company, an identifier, or a concept,
+   and finds the stores that hold the facts.
+5. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
+   "Design Rules" 2 and 3, rank the claims and fill the review queue. The claim resolution spec of
+   ADR 0001, "Open Questions", fixes the priority order and the queue.
 
 ## Options Considered
 
@@ -69,15 +70,15 @@ No option was measured.
 | Option | Serves the screener and `/v1` | A query finds which source holds a fact | Adding a data source |
 | ------ | ----------------------------- | --------------------------------------- | -------------------- |
 | **A (chosen):** a metadata store over one source store per data source | Yes | Yes, in the metadata store | A new source store and its entries in the metadata store |
-| B: a metadata store over one shared canonical fact tier, with provenance per fact | Yes | Yes, in the metadata store | A new adapter and its resolution map. The shared tables do not change |
+| B: a metadata store over one shared canonical fact tier, with provenance per fact | Yes | Yes, in the provenance of each fact | A new adapter and its resolution map. The shared tables do not change |
 | C: gold is a serving store of the graph and the facts, with provenance in silver only | Yes | No, a reader goes to silver | A new adapter and its resolution map |
 
 - A keeps the facts of each data source apart, with their provenance, and gives one place that
   says where each fact lives. It is the split of the Snowflake context layer: metadata in one
   place, data rows in their stores.
 - B is the hub-and-spoke model of `hybrid_data_model.md` §2. It mixes the facts of all sources in
-  one tier, so the metadata store does not name the store of a source. B stays possible for the
-  canonical facts until the first open question is answered.
+  one tier, and only the provenance of a fact names its source. A covers the facts as each source
+  reports them. For the canonical facts, B stays possible until the first open question is answered.
 - C answers the screener queries, but no query of gold answers where a value comes from.
 
 ## Consequences
@@ -95,8 +96,6 @@ No option was measured.
 
 - Where the canonical facts that join data sources live (§6): in each source store, or in a shared
   fact tier that the metadata store describes. The owner decides.
-- Whether the metadata store also learns from usage, such as the queries that reach the `/v1`
-  API, as the Snowflake context layer does. In this ADR, the load fills it. The owner decides.
 - The gold tables and their write rule. The gold design fixes them.
 - How a source store and its entries in the metadata store stay in step on a load. The gold design
   fixes it.
