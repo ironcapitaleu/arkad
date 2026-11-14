@@ -105,15 +105,18 @@ regulator-specific data.
   against an authoritative registry. For example, GLEIF says that an LEI exists, and EDGAR says
   that a filing exists. §8 means this ring when it says "graph = source of truth."
 - **Derived ring: normalized data.** The canonical facts (§6) of each source store, and the
-  completeness edges and claims (§5.2) of the metadata store, are computed from the records of a
-  data source. They are never axiomatic.
-  Each datum carries provenance (`source_ref`, `confidence`), and a replay rebuilds all of it (§8).
+  completeness edges of the metadata store, are computed from the records of a data source. They
+  are never axiomatic. Each datum carries provenance (`source_ref`, `confidence`), and a replay rebuilds all of it (§8).
   So a value, a unit, or a period of a canonical fact is a normalized projection of a record in its
   source store, and it traces back to that record.
 - **Query routing works in both directions** (§7.1). A caller can query a source store directly by
   its native key, such as a `Cik` in the SEC store. A caller can also query a `Company` by
   `CompanyId` or LEI. The metadata store then routes the query to the source stores that hold data
   for it.
+
+A rank that a person sets (ADR 0007, Decision 5) is in neither ring. No registry checks it, and no
+replay rebuilds it, so a rebuild of the metadata store keeps it. ADR 0007, "Open Questions", leaves
+open how the rank keeps who set it and when.
 
 **Multi-source rule:** if several source stores hold canonical facts for the same company, no load
 merges them. Each source store keeps its own canonical facts (ADR 0007, Decision 4). Example: a
@@ -446,7 +449,7 @@ and a caller joins it to the metadata store by `company_id` and `source_ref`:
   SEC filing and the native `us-gaap` tag that produced a number. Example: "Which tag did the
   FY2024 revenue of Apple come from?"
 - **From a source store to a company:** start from an SEC concept in the SEC store, by CIK, by form,
-  or by `us-gaap` tag. The SEC store holds the canonical facts next to the facts as filed. Example:
+  or by `us-gaap` tag. The SEC store holds the canonical facts next to the raw observations. Example:
   "Every company that reported `us-gaap:Goodwill`, as canonical `Goodwill`." Resolve each CIK to its
   `Company` in the metadata store. The metadata store lists the other source stores that hold data
   on that company.
