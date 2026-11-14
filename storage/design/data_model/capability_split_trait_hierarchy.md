@@ -283,8 +283,8 @@ ErrorKind
 
 The map from method to error class:
 
-- `WriteRepository::persist` returns `WriteError`. This class exists in the crate.
-- `ReadRepository::get` returns `ReadError`. STA-147 adds this class.
+- `WriteRepository::persist` returns `WriteError`.
+- `ReadRepository::get` returns `ReadError`.
 - `ErrorKind` is the union a caller propagates for any operation. `From` upcasts a class into the
   union. `TryFrom` recovers a class from the union.
 - `BackendError` is the shared leaf. `ReadError::Backend` and `WriteError::Backend` both wrap it, so
