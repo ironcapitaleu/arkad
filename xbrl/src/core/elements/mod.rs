@@ -1,7 +1,7 @@
 //! # Standard Concepts
 //!
-//! Provides [`CanonicalElementKind`], the standard concept set, and the trait [`Concept`] that
-//! describes one concept.
+//! Provides [`CanonicalElementKind`], the standard concept set, and the traits [`Concept`] and
+//! [`Placed`] that describe one concept.
 //!
 //! The concepts nest by statement and disclosure, as the errors of `sec` nest by level:
 //!
@@ -16,7 +16,8 @@
 //! ## Modules
 //!
 //! - [`disclosure`]: The concepts outside the trees of the statements.
-//! - [`statement`]: The concepts of the three statements.
+//! - [`roll_up`]: The placements and the groups of the roll-up tree.
+//! - [`statement`]: The concepts of the three statements, with their placements and groups.
 //!
 //! ## Usage
 //!
@@ -43,9 +44,11 @@ use super::invalid_value::{InvalidValue, InvalidValueReason};
 mod macros;
 
 pub mod disclosure;
+pub mod roll_up;
 pub mod statement;
 
 pub use disclosure::PerShareConcept;
+pub use roll_up::{Group, GroupKind, Placement, Weight};
 pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept};
 
 /// A standard concept: the top of the concept hierarchy.
@@ -54,8 +57,7 @@ pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept
 /// It never stores the label of `Display`, such as `Net Income`. `Serialize` writes the name, and
 /// [`FromStr`] parses it back.
 ///
-/// `Ord` sorts by statement first, then by concept in the order of the tables of
-/// `xbrl/DESIGN.md`, "Roll-Up Tree".
+/// `Ord` sorts by statement first, then by the order of the variants in the enum of the concept.
 ///
 /// # Examples
 ///
@@ -73,7 +75,7 @@ pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum CanonicalElementKind {
-    /// A concept of a statement.
+    /// A concept of a statement, with a place in the roll-up tree of that statement.
     Statement(StatementConcept),
     /// A concept of a disclosure, outside the trees of the statements.
     Disclosure(DisclosureConcept),
@@ -81,7 +83,7 @@ pub enum CanonicalElementKind {
 
 /// One standard concept of an innermost enum, such as [`BalanceSheetConcept`].
 pub trait Concept: Copy + Eq + 'static {
-    /// Every variant, in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree".
+    /// Every variant, in the order of the enum.
     const ALL: &'static [Self];
 
     /// Returns the name in silver, such as `NetIncome`: the name of the variant.
@@ -89,6 +91,14 @@ pub trait Concept: Copy + Eq + 'static {
 
     /// Returns the label for people, such as `Net Income`.
     fn label(self) -> &'static str;
+}
+
+/// A concept with a place in the roll-up tree of a statement.
+///
+/// A concept of a disclosure has no placement, so its enum implements [`Concept`] only.
+pub trait Placed: Concept {
+    /// Returns the group and the weight of the concept, or [`Placement::Top`].
+    fn placement(self) -> Placement;
 }
 
 middle_concepts! {

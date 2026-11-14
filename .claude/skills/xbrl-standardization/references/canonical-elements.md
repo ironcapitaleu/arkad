@@ -16,48 +16,49 @@ statement and disclosure:
 A table names a concept as `BalanceSheetConcept::Assets.element()`. Silver stores the variant name,
 such as `Assets`, from `Concept::name()`.
 
-`xbrl/DESIGN.md`, "Roll-Up Tree", gives the place of each concept in the tree of its statement.
-The top lines rest on the elements of FASB Concepts Statement 8, Chapter 4.
+Each concept of a statement has a placement (`Placed::placement()`): `Top`, or a child of one group
+with a weight of +1 or −1. `xbrl/DESIGN.md`, "Roll-Up Tree", gives the tables. The top lines rest on
+the elements of FASB Concepts Statement 8, Chapter 4.
 
 ## Balance Sheet (`BalanceSheetConcept`)
 
 Each value is an instant.
 
-| Concept |
-| --- |
-| Assets |
-| CurrentAssets |
-| NonCurrentAssets |
-| CashAndEquivalents |
-| ShortTermInvestments |
-| AccountsReceivable |
-| Inventory |
-| PropertyPlantEquipment |
-| Goodwill |
-| IntangibleAssets |
-| Liabilities |
-| Equity |
-| CurrentLiabilities |
-| NonCurrentLiabilities |
-| LongTermDebt |
-| RetainedEarnings |
+| Concept | Placement |
+| --- | --- |
+| Assets | Top |
+| CurrentAssets | `assets`, +1 |
+| NonCurrentAssets | `assets`, +1 |
+| CashAndEquivalents | `current-assets`, +1 |
+| ShortTermInvestments | `current-assets`, +1 |
+| AccountsReceivable | `current-assets`, +1 |
+| Inventory | `current-assets`, +1 |
+| PropertyPlantEquipment | `non-current-assets`, +1 |
+| Goodwill | `non-current-assets`, +1 |
+| IntangibleAssets | `non-current-assets`, +1 |
+| Liabilities | `liabilities-and-equity`, +1 |
+| Equity | `liabilities-and-equity`, +1 |
+| CurrentLiabilities | `liabilities`, +1 |
+| NonCurrentLiabilities | `liabilities`, +1 |
+| LongTermDebt | `non-current-liabilities`, +1 |
+| RetainedEarnings | `equity-attributable-to-parent`, +1 |
 
 ## Income Statement (`IncomeStatementConcept`)
 
 Each value is a duration. The cascade ends with comprehensive income.
 
-| Concept |
-| --- |
-| Revenue |
-| CostOfRevenue |
-| GrossProfit |
-| SellingGeneralAdmin |
-| ResearchDevelopment |
-| OperatingIncome |
-| InterestExpense |
-| NetIncome |
-| OtherComprehensiveIncome |
-| ComprehensiveIncome |
+| Concept | Placement |
+| --- | --- |
+| Revenue | Top |
+| CostOfRevenue | `gross-profit`, −1 |
+| GrossProfit | Top |
+| SellingGeneralAdmin | `operating-expenses`, +1 |
+| ResearchDevelopment | `operating-expenses`, +1 |
+| OperatingIncome | Top |
+| InterestExpense | `pretax-income`, −1 |
+| NetIncome | Top |
+| OtherComprehensiveIncome | `comprehensive-income`, +1 |
+| ComprehensiveIncome | Top |
 
 Note: `Revenue` is narrower than element E80 of Chapter 4. It holds the revenue line the filer
 reports. It leaves out the revenues from "other activities" of E84, such as interest income.
@@ -67,23 +68,31 @@ reports. It leaves out the revenues from "other activities" of E84, such as inte
 
 Each value is a duration.
 
-| Concept |
-| --- |
-| OperatingCashFlow |
-| InvestingCashFlow |
-| FinancingCashFlow |
-| DepreciationAmortization |
-| ShareBasedCompensation |
-| CapitalExpenditures |
-| DividendsPaid |
-| ShareRepurchases |
+| Concept | Placement |
+| --- | --- |
+| OperatingCashFlow | `net-change-in-cash`, +1 |
+| InvestingCashFlow | `net-change-in-cash`, +1 |
+| FinancingCashFlow | `net-change-in-cash`, +1 |
+| DepreciationAmortization | `operating-cash-flow`, +1 |
+| ShareBasedCompensation | `operating-cash-flow`, +1 |
+| CapitalExpenditures | `investing-cash-flow`, −1 |
+| DividendsPaid | `financing-cash-flow`, −1 |
+| ShareRepurchases | `financing-cash-flow`, −1 |
 
 ## Per Share (`PerShareConcept`)
 
-A disclosure. Its concepts are outside the trees of the statements, and they do not add over
-periods.
+A disclosure. Its concepts have no placement, and they do not add over periods.
 
 | Concept |
 | --- |
 | EarningsPerShareBasic |
 | EarningsPerShareDiluted |
+
+## Groups
+
+`statement::groups()` lists a group only if its parent, its start if it is a step, and at least
+one child are standard concepts, in this order:
+`assets`, `current-assets`, `non-current-assets`, `liabilities`, `non-current-liabilities`,
+`gross-profit`, `comprehensive-income`, `operating-cash-flow`, `investing-cash-flow`,
+`financing-cash-flow`. A placement can name a group that the list does not hold, such as
+`liabilities-and-equity`, whose parent `LiabilitiesAndEquity` is no standard concept.
