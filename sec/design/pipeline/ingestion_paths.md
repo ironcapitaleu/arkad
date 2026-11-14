@@ -1610,8 +1610,9 @@ The dates run one after another, so each entry of the summary belongs to one dat
 
 Measured on 2026-11-13 in the cloud container, with the `daily_filings` binary alone: the run of
 2026-11-02 (388 requests) in a fresh store, twice for each value, in the order 4, 8, 12, 16, 16,
-12, 8, 4. The catch-up of `backfill().all()` was not measured with 8. While Notes files download,
-it runs below the rate limit (see [The Steps at the Same Time](#the-steps-at-the-same-time)).
+12, 8, 4. The catch-up of `backfill().all()` was not measured with 8. With 4 machines, it ran
+below the rate limit in 2 of 3 runs while Notes files downloaded (see
+[The Steps at the Same Time](#the-steps-at-the-same-time)).
 
 | Machines in flight | Run time | Requests per second | Median request | 503 |
 | ------------------ | -------- | ------------------- | -------------- | --- |
