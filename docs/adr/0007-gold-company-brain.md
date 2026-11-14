@@ -55,7 +55,8 @@ Terms:
 3. **The metadata store describes the data and holds no fact values.** Its graph holds the companies and
    their identifiers (§5), the canonical concepts (§3), each with its definition and how to compute
    it from source facts, and the data sources and their source stores. An edge from a company to a
-   source store carries the kind of information, the key, and the rank of Decision 5. For a store of facts, it also records the
+   source store carries the kind of information, the key, and the rank of that store for that
+   company (Decision 5). For a store of facts, it also records the
    concepts and the periods. A claim of the graph, such as a GLEIF parent link (§5.2), is metadata.
    The load derives each claim from the records of the source store of its source, such as the
    GLEIF store. The claim sits in the metadata store with its source and date. Only two writes
@@ -70,9 +71,12 @@ Terms:
 5. **If several source stores hold records of the same kind for a company, the metadata store
    picks one by default, and the caller can name another.** The default follows a preference order
    per company: the source of the home market of the company first, then the more trusted sources.
-   The metadata store holds the home market of each company. At first the order is set by hand:
-   the trust of a source is a judgment, and a source as well known as the SEC ranks high. A
-   caller that names a source reads that source. This is the read-time policy of §2.1. It covers
+   The metadata store holds the home market of each company. The order is a decision per company,
+   not one global list. For example, Alibaba lists in Hong Kong and files with the SEC. At the SEC
+   it files the annual 20-F of a foreign issuer, not the 10-K and 10-Q of a domestic filer, so
+   for Alibaba the Hong Kong source ranks above the SEC. At first the order is set by hand: the
+   trust of a source is a judgment, and a source as well known as the SEC ranks high. A caller
+   that names a source reads that source. This is the read-time policy of §2.1. It covers
    the records of the source stores, such as facts or a legal address. Decision 6 covers the claims
    of the graph.
 6. **The metadata store keeps conflicting claims.** Each claim keeps its source and date. ADR 0001,
