@@ -6,7 +6,6 @@
 #
 # The binaries are static musl binaries for x86_64, linked by zig through `cargo zigbuild`.
 # Every stage pins `linux/amd64`, so an arm64 host builds the same image as CI and Cloud Run.
-# See `docs/adr/0002-static-binaries.md`.
 
 # The runtime base holds the CA certificates, `/etc/passwd`, and `/tmp`, and has no shell.
 FROM --platform=linux/amd64 gcr.io/distroless/static-debian13 AS distroless
