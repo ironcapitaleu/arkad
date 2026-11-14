@@ -202,14 +202,16 @@ The marker is the handoff's own addition to the comment shape of the `linear` sk
 Leave **one** current comment of each kind on the ticket through the `linear` skill, in status
 voice. The two kinds are the state-of-play comment and the short update comment. Find an earlier
 comment of a kind by the bold part of its marker, such as `**Handoff · State of play**`. If more
-than one comment matches, use the one with the latest time. If no comment has a marker, find the
-earlier comment by its content, and add the marker when you edit it.
+than one comment matches, use the one with the latest time. If no comment of that kind has a
+marker, find the earlier comment by its content. Do not edit that comment: post a new one that
+names it in its second line.
 
-If an earlier comment of the same kind exists and the session can edit a comment, edit that
-comment, and set the new time in its marker. Otherwise post a new one. If it replaces an earlier
+If an earlier marked comment of the same kind exists and the session can edit a comment, read it
+again. If it holds text that no handoff wrote, post a new comment. Otherwise edit it, and set the
+new time in its marker. Otherwise post a new one. If it replaces an earlier
 comment, name that comment in its second line. Never replace a state-of-play comment with a short
 update comment. If a state-of-play comment exists, the second line of the short update names it.
-It also says which of its points are out of date.
+The short update also says which points of that comment are out of date.
 
 - For the Linear destination, the state-of-play comment holds one more list: "Stale on this
   ticket".
