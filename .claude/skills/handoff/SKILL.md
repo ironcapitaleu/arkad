@@ -186,15 +186,15 @@ does not match the work, a changed scope, a decision that replaces a sentence of
 an old measurement, a split of the ticket, a file path or symbol that moved.
 
 Start each comment with its marker line, so a reader sees at once that this skill wrote it. The
-marker is a quote line: the `🤝` emoji, `Handoff` and the kind of comment in bold, and the time of
-the last write in UTC.
+marker is a quote line: `Handoff` and the kind of comment in bold, and the time of the last write
+in UTC. Use no emoji.
 
 ```markdown
-> 🤝 **Handoff · State of play** · 2026-11-14 07:55 UTC
+> **Handoff · State of play** · 2026-11-14 07:55 UTC
 ```
 
 ```markdown
-> 🤝 **Handoff · Short update** · 2026-11-14 07:55 UTC
+> **Handoff · Short update** · 2026-11-14 07:55 UTC
 ```
 
 The marker is the handoff's own addition to the comment shape of the `linear` skill.
