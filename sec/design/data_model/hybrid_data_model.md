@@ -49,6 +49,11 @@ What to carry forward vs. change (detail in §10):
 
 ## 2. Architectural Spine — Universal Core + Regulator Adapters (Hub & Spoke)
 
+The model serves one goal: a **company brain** in gold. A metadata store holds the knowledge graph
+of companies and identifiers (§5), the canonical concepts (§3), and the provenance of each fact
+(§8.2). It sits over the source stores: the fact tier (§6), and links to silver and the raw store.
+[ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision.
+
 ```mermaid
 flowchart TB
   subgraph CORE["🌍 Universal Canonical Core (source of truth, regulator-independent)"]
@@ -875,71 +880,33 @@ the system of record. The storage-abstraction trait (§14.D.3) keeps the pipelin
 
 ### 14.F Storage abstraction — trait design
 
-The trait layer that makes §14.D.3 real. Full design (traits, error model, fakes, crate topology,
-review checklist) lives in `storage_traits_design.md`; its **Consolidated Design (2026-08-10)** is
-the current contract STA-139 scaffolds (STA-145 froze an earlier v1, since refined). **The summary
-below reflects that earlier v1 shape** — read `persist` for `ingest`, `Backend` for the base
-`Storage`, `SecRepository` for the composing `Repository`, and `ErrorKind` for `StorageError`; see
-the consolidated design for the current names.
+The trait layer that makes §14.D.3 real. The storage overview,
+[`storage_traits_design.md`](./storage_traits_design.md), gives the crates, the ports, and the
+planned tiers, and links the detailed designs.
 
-**Design pattern.** This applies the **Repository pattern** to decouple the pipeline from the
-physical database backend — swapping stores is a new impl behind the same interface, never a
-pipeline change. Precisely: the composing `Repository` is a persistence facade whose `ingest`
-carries a Unit-of-Work flavor (one atomic multi-tier write) and whose read methods are classic
-repository queries; per-tier stores are persistence ports (DAO-like). Same ports-and-adapters shape
-as `SecClient`.
+**Design pattern.** The pipeline writes and reads through the ports of the `storage` crate, as in
+the Repository pattern. A new store is a new implementation behind the same ports, never a pipeline
+change. The ports split by access capability (`WriteRepository`, `ReadRepository`,
+`ListRepository`), so a read-only caller cannot write
+([`capability_split_trait_hierarchy.md`](../../../storage/design/data_model/capability_split_trait_hierarchy.md)).
+This is the same ports-and-adapters shape as `SecClient`.
 
-**Shape — composition, not inheritance (the `SecClient` house pattern).** A composing `Repository`
-*has-a* store per tier via associated types, rather than one type implementing all three:
+**Errors.** A read method returns `ReadError`, and a write method returns `WriteError`. Both are
+value types in the shape of the `sec` error hierarchy
+([ADR 0006](../../../docs/adr/0006-storage-error-hierarchy.md)).
 
-```rust
-trait Repository: Send + Sync {
-    type Raw:   RawStore;    // each: Storage
-    type Graph: GraphStore;
-    type Facts: FactStore;
-    fn raw(&self) -> &Self::Raw;  fn graph(&self) -> &Self::Graph;  fn facts(&self) -> &Self::Facts;
-    async fn ingest(&self, unit: IngestionUnit) -> Result<(), StorageError>; // live write; atomic per impl
-}
-```
+**Write path to Postgres.** Ingest writes the raw store only. A load step reads silver and writes
+the graph rows and the fact rows of one silver unit in one Postgres transaction, by
+[Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of ADR 0001.
+The amendment is proposed. See also the note at the top of §8.
 
-This makes the **engine mixture the natural case**: Option A is `type Raw/Graph/Facts` all Postgres
-(sharing one pool); Option B is e.g. `DataLakeRawStore` + `Neo4jGraphStore` + `IcebergFactStore` —
-same trait, different associated types. A later per-tier split (§14.E) is a new `impl`, nothing else.
+**Crate topology.** `storage` holds the ports and depends on no database driver. The Postgres
+backend goes into `storage-postgres`, and only a composition root names it
+([ADR 0005](../../../docs/adr/0005-storage-ports-crate.md)). This makes the reversible-storage
+property of §12a a compile-time check.
 
-**Capability traits** `RawStore`/`GraphStore`/`FactStore: Storage` speak **concrete domain types**
-(`RawFiling`, `FactSet`, `GraphDelta`) — uniform across backends, so no associated *data* types
-(unlike `SecClient`, whose associated `Request`/`Response` abstract the HTTP library).
-
-**Error currency.** Each store has a rich associated `type Error`, bounded once on the base
-`Storage` as `StorageError: From<Self::Error>` (the `From` direction, so `?` converts). Capability
-ops return the rich error; `Repository::ingest` returns one `StorageError` — an enum that
-*classifies* (retryable / conflict / not-found / integrity) while preserving the backend error via
-`source()`. `is_retryable()` is the one bit the ETL loop needs (retry vs. dead-letter).
-
-**`ingest` contract ↔ Option A vs B.** Pinned to the weakest guarantee both give: on `Ok`, **raw is
-durably the SoT; graph/fact materializations converge but may lag.** Option A (co-located Postgres)
-over-delivers — one transaction, atomic, read-after-write consistent ("dual-write is a non-issue,"
-§14.A). Option B (mixed engines) can't span one tx → raw-first + async projection. Callers must not
-assume read-after-write on the graph/fact tiers; that keeps the pipeline honest across the physical
-choice. **Transaction ownership** follows: a co-located impl realizes atomicity by implementing
-`ingest` directly against the shared transaction (impl-private helpers), *never* by composing its own
-capability-trait methods (three independent commits = a torn unit); a mixed-engine impl composes
-tier-by-tier with the raw write as commit point + idempotent, reconciled projections — see
-`storage_traits_design.md` § "Transaction ownership". For the silver load, see the note at the top
-of §8.
-
-**No `dyn`.** Associated types make these traits non-object-safe — consistent with the framework's
-`State` trait (also non-object-safe). Stores are injected by concrete type / generics into the
-`Load` context, exactly as `SecClient` is today.
-
-**Crate topology.** The persistence ports + `StorageError` + ingest DTOs + feature-gated fakes
-live in a new backend-agnostic **`storage`** crate (no `sqlx`; the domain
-vocabulary itself stays in `xbrl`, which `storage` depends on); a **`storage-postgres`** crate
-holds the concrete `PostgresRepository`; only the composition root names Postgres. Makes §12a's
-language-agnostic / reversible-storage property enforceable by the compiler.
-
-> Deferred: **bulk vs incremental** update semantics are an orthogonal axis (crosses all three
-> tiers) — see `storage_traits_design.md`; to be designed when a backfill/migration consumer exists.
+> Open: a port for a bulk write, as opposed to one record per call, waits for a backfill or
+> migration consumer (§12).
 
 ## 15. Open Questions / Risks
 

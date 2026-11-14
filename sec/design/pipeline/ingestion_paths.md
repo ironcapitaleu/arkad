@@ -1984,11 +1984,9 @@ case "Notes only" the store holds the Notes value, and in the case "daily indexe
 the instance value. Only agreement between the sources gives the same result in every case.
 [Measured Result](#measured-result) gives how often the sources differ.
 
-The fact store design already has a rule for two sources (STA-145, see
-`sec/design/data_model/storage_traits_design.md`, `FactStore::upsert`, and
-`hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
+The fact store design already has a rule for two sources (`hybrid_data_model.md` §2.1). It keys canonical facts by `source_ref` and never merges two sources
 into one row. "Which value wins" is a read-time choice. Today `source_ref` names the filing
-(`sec:accession`), so a Notes copy and an instance copy of the same filing share it. The freeze
+(`sec:accession`), so a Notes copy and an instance copy of the same filing share it. That rule
 points to option 3, but does not decide this case. Silver takes option 3, see [`silver_layer.md`](silver_layer.md#current-facts), "Current Facts".
 
 | Option | Rule | Same result across the cases? | Pro | Con |

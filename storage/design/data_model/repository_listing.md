@@ -27,10 +27,10 @@ have no code. The lead must still review the decision in
 
 ## Relation to the Deferred Read Surface
 
-The consolidated design of the storage traits defers the whole read surface (see
-[`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md),
-"Consolidated Design", deferred item 1). The deferral waits for a concrete consumer. The listing
-has five, see [Consumers](#consumers). So the listing reopens item 1, but only for the listing:
+Read methods beyond `get` wait for a concrete consumer (see
+[`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md#planned-silver-graph-and-facts),
+"Planned"). The listing has five, see [Consumers](#consumers). So the listing reopens the read
+surface for the listing only:
 
 - `completeness`, `ownership_tree`, and `query` stay deferred. They wait for a screener or API
   consumer.
@@ -683,7 +683,7 @@ and the object API projection does not, add a backend that lists through the obj
 - [`capability_split_trait_hierarchy.md`](./capability_split_trait_hierarchy.md): the read and write
   traits that `ListRepository` stands next to.
 - [`storage_traits_design.md`](../../../sec/design/data_model/storage_traits_design.md): the
-  deferred read surface.
+  storage overview and the deferred read surface.
 - [`ingestion_paths.md`](../../../sec/design/pipeline/ingestion_paths.md): "Cut-Over Between the
   Paths", "Path Independence", "Window", "Unextractable Record", and "Handover to Transform".
 - [`extraction_overview.md`](../../../sec/design/pipeline/extraction_overview.md): "Integrity and

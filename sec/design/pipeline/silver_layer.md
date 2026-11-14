@@ -34,7 +34,7 @@ the transform fills it.
 | ----- | ------- | ----- | ---------- |
 | Bronze | The SEC files, unchanged, each with a JSON metadata file | The raw store, a GCS bucket | Extract |
 | Silver | As-is facts, filings, standardized facts, findings, and reference data, in Parquet | Its own GCS bucket | Transform, a Cloud Run job |
-| Gold | The serving model of the screener and the `/v1` API | Supabase Postgres ([ADR 0001](../../../docs/adr/0001-mvp-database.md)) | Load, from silver |
+| Gold | The company brain: a metadata store of companies, identifiers, concepts, and provenance, over the fact tier and links to silver and the raw store ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). The screener and the `/v1` API read it | Supabase Postgres ([ADR 0001](../../../docs/adr/0001-mvp-database.md)) | Load, from silver |
 
 ```mermaid
 flowchart LR

@@ -120,8 +120,7 @@ on the storage ports.
 (`Adult AND HighIncome AND GoodCredit`) instead of scattered `if` conditions.
 
 **arkad:** Not used yet, but a natural evolution of the read side: `FactQuery` / `RawScan` are query
-objects today; if filter composition grows, a specification-style API is the path (noted as an open
-question in `storage_traits_design.md`).
+objects today; if filter composition grows, a specification-style API is the path.
 
 ## Strategy
 
