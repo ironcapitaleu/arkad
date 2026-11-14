@@ -172,6 +172,21 @@ mod tests {
     }
 
     #[test]
+    fn should_name_the_kind_when_no_item_has_the_name() {
+        let error = InvalidValue::new(
+            "CanonicalElementKind",
+            InvalidValueReason::NoMatchingName("standard concept"),
+            "Expenses",
+        );
+
+        let expected_result = "[InvalidValue] Invalid 'CanonicalElementKind', Reason: 'No standard concept has the value as its name', Input: 'Expenses'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_name_the_element_when_no_element_has_the_id() {
         let error = InvalidValue::new(
             "InstanceDocument",
