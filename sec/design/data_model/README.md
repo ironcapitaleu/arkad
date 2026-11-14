@@ -14,7 +14,8 @@ below; each doc's header states its own status.
 | 3 | [`load_superstate_design.md`](./load_superstate_design.md) | Exploratory, non-normative | The Load `SuperState` through the ports-and-adapters lens; for iteration before Load tickets are cut |
 | 4 | [`design_patterns_primer.md`](./design_patterns_primer.md) | Background | Shared vocabulary: Repository, Ports & Adapters, Unit of Work, CQRS — each mapped onto arkad |
 | 5 | [`design_patterns_demo.py`](./design_patterns_demo.py) | Background (runnable) | Dependency-free Python model of the same pattern combination: `python3 design_patterns_demo.py` |
-| 6 | [`ontology_guardrails.md`](./ontology_guardrails.md) | Future reference, non-normative | Ontologies as guardrails / axiomatic enforcement on graph data: the arkad ↔ ontology mapping, reuse targets (FIBO, GLEIF L2, SKOS, Wikidata model), enforcement levels, and the adoption triggers for when to revisit |
+| 6 | [`identifier_model.md`](./identifier_model.md) | **Current** | The identifiers and classification codes of companies, securities, and listings, as rows of `(scheme, value)` with a source and a validity |
+| 7 | [`ontology_guardrails.md`](./ontology_guardrails.md) | Future reference, non-normative | Ontologies as guardrails / axiomatic enforcement on graph data: the arkad ↔ ontology mapping, reuse targets (FIBO, GLEIF L2, SKOS, Wikidata model), enforcement levels, and the adoption triggers for when to revisit |
 
 ## Decisions so far
 
@@ -23,6 +24,10 @@ below; each doc's header states its own status.
 - **Physical deployment deliberately deferred (2026-08-08)** — storage is fully abstracted behind
   the `storage` crate's ports; Option A / Option B (§14) is the framework for a *later*, trigger-
   gated decision, not a pending question.
+- **Identifiers have three levels: company, security, and listing.** Each identifier and code is a
+  row of `(scheme, value)` with a source and a validity. The stores keep only schemes that need no
+  paid licence ([ADR 0009](../../../docs/adr/0009-three-levels-of-identity.md),
+  [ADR 0010](../../../docs/adr/0010-identifier-schemes-by-licence.md)).
 - **Crate topology** — `storage` holds the ports and depends on no database driver. The Postgres
   backend goes into `storage-postgres`. Only a composition root names a database
   ([ADR 0005](../../../docs/adr/0005-storage-ports-crate.md)).

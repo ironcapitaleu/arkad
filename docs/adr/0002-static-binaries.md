@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead: the build and the base on 2026-11-01, one image per binary on 2026-11-03 |
+| Status | Accepted by the project lead: the build and the base on 2026-11-01, one image per binary on 2026-11-03 |
 | Date | 2026-11-03 |
 | Deciders | The project lead |
 | Ticket | [STA-437](https://linear.app/state-machine/issue/STA-437). Decisions recorded on [STA-422](https://linear.app/state-machine/issue/STA-422) and [STA-431](https://linear.app/state-machine/issue/STA-431) |
