@@ -5,6 +5,7 @@
 | Status | Accepted by the project lead on 2026-11-14. Amendment 1: Proposed. The project lead confirms |
 | Date | 2026-11-13 |
 | Deciders | The project lead |
+| Ticket | [STA-430](https://linear.app/state-machine/issue/STA-430) |
 
 ## Context
 
