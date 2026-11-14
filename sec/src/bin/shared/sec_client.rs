@@ -1,20 +1,28 @@
 //! # SEC Client
 //!
-//! Provides the [`SecClient`] that a binary builds at startup, and the rule that picks the
+//! Provides the [`RunSecClient`] that a binary builds at startup, and the rule that picks the
 //! `User-Agent` it sends.
 
 use std::env;
 use std::error::Error;
 use std::ffi::OsString;
 
+use sec::shared::http_client::SecClient as SecClientTrait;
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
+use sec::shared::http_client::implementations::retrying_sec_client::{
+    RetryPolicy, RetryingSecClient,
+};
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::user_agent::{UserAgent, UserAgentError, UserAgentErrorReason};
 
 /// The environment variable that names the `User-Agent` of every SEC request.
 pub const USER_AGENT_ENV_VAR: &str = "ARKAD_SEC_USER_AGENT";
 
-/// Builds an [`SecClient`] whose `User-Agent` is the value of `ARKAD_SEC_USER_AGENT`.
+/// The SEC client of a binary: an [`SecClient`] that retries a transient failure under the default
+/// [`RetryPolicy`].
+pub type RunSecClient = RetryingSecClient<SecClient>;
+
+/// Builds a [`RunSecClient`] whose `User-Agent` is the value of `ARKAD_SEC_USER_AGENT`.
 ///
 /// If the variable is unset or empty, the client sends the default [`UserAgent`].
 ///
@@ -23,13 +31,14 @@ pub const USER_AGENT_ENV_VAR: &str = "ARKAD_SEC_USER_AGENT";
 /// Returns [`UserAgentError`] if the variable is not valid UTF-8 or does not have the form
 /// `Company Name email@domain.com`. Returns [`reqwest::Error`] if `reqwest` cannot build the HTTP
 /// client, for example when the value holds a character that an HTTP header cannot carry.
-pub fn sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
+pub fn sec_client() -> Result<RunSecClient, Box<dyn Error + Send + Sync>> {
     let user_agent = user_agent(env::var_os(USER_AGENT_ENV_VAR))?;
-    Ok(SecClient::new(ReqwestClient::new(user_agent)?))
+    let client = SecClient::new(ReqwestClient::new(user_agent)?);
+    Ok(RetryingSecClient::new(client, RetryPolicy::default()))
 }
 
 /// Returns a warning if `sec_client` sends the default [`UserAgent`], else `None`.
-pub fn default_user_agent_warning(sec_client: &SecClient) -> Option<String> {
+pub fn default_user_agent_warning(sec_client: &impl SecClientTrait) -> Option<String> {
     (*sec_client.user_agent() == UserAgent::default()).then(|| {
         format!(
             "Every SEC request sends the placeholder User-Agent. Set '{USER_AGENT_ENV_VAR}' to 'Company Name email@domain.com'"

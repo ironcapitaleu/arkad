@@ -3,13 +3,14 @@ use std::pin::pin;
 use futures_util::StreamExt;
 use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::prelude::*;
-use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawCompanyFacts;
 use storage::implementations::repository::filesystem::{
     FilesystemRepository, IngestionMode, Write,
 };
 use uuid::Uuid;
+
+use crate::sec_client::RunSecClient;
 
 /// The storage repository that stores the raw Company Facts of each run.
 pub type RawCompanyFactsWriter = FilesystemRepository<Write, RawDocument<RawCompanyFacts>>;
@@ -29,7 +30,7 @@ pub fn raw_company_facts_writer() -> RawCompanyFactsWriter {
 
 /// Marker type indicating no CIK has been provided yet.
 pub struct NoCik;
-/// Marker type indicating no [`SecClient`] has been provided yet.
+/// Marker type indicating no [`RunSecClient`] has been provided yet.
 pub struct NoClient;
 /// Marker type indicating no storage repository has been provided yet.
 pub struct NoRepository;
@@ -62,7 +63,7 @@ impl<S, R> PipelineBuilder<NoCik, S, R> {
 }
 
 impl<C, R> PipelineBuilder<C, NoClient, R> {
-    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, R> {
+    pub fn sec_client(self, sec_client: RunSecClient) -> PipelineBuilder<C, RunSecClient, R> {
         PipelineBuilder {
             cik: self.cik,
             sec_client,
@@ -85,7 +86,7 @@ impl<C, S> PipelineBuilder<C, S, NoRepository> {
     }
 }
 
-impl PipelineBuilder<String, SecClient, RawCompanyFactsWriter> {
+impl PipelineBuilder<String, RunSecClient, RawCompanyFactsWriter> {
     pub fn build(self) -> Pipeline {
         Pipeline {
             raw_cik: self.cik,
@@ -98,7 +99,7 @@ impl PipelineBuilder<String, SecClient, RawCompanyFactsWriter> {
 /// The extract pipeline for a single CIK.
 pub struct Pipeline {
     raw_cik: String,
-    sec_client: SecClient,
+    sec_client: RunSecClient,
     repository: RawCompanyFactsWriter,
 }
 

@@ -1,11 +1,11 @@
 use super::Pipeline;
 
-use sec::shared::http_client::implementations::sec_client::SecClient;
+use crate::sec_client::RunSecClient;
 
 use crate::storage_root::RawCompanyFactsWriter;
 /// Marker type indicating no CIK has been provided yet.
 pub struct NoCik;
-/// Marker type indicating no [`SecClient`] has been provided yet.
+/// Marker type indicating no [`RunSecClient`] has been provided yet.
 pub struct NoClient;
 /// Marker type indicating no storage repository has been provided yet.
 pub struct NoRepository;
@@ -44,7 +44,7 @@ impl<S, R> PipelineBuilder<NoCik, S, R> {
 
 impl<C, R> PipelineBuilder<C, NoClient, R> {
     /// Sets the shared HTTP client for the pipeline.
-    pub fn sec_client(self, sec_client: SecClient) -> PipelineBuilder<C, SecClient, R> {
+    pub fn sec_client(self, sec_client: RunSecClient) -> PipelineBuilder<C, RunSecClient, R> {
         PipelineBuilder {
             cik: self.cik,
             sec_client,
@@ -67,7 +67,7 @@ impl<C, S> PipelineBuilder<C, S, NoRepository> {
     }
 }
 
-impl PipelineBuilder<String, SecClient, RawCompanyFactsWriter> {
+impl PipelineBuilder<String, RunSecClient, RawCompanyFactsWriter> {
     /// Builds the [`Pipeline`] from the fully configured builder state.
     pub fn build(self) -> Pipeline {
         Pipeline {

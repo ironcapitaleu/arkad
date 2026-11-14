@@ -29,14 +29,15 @@ use std::time::Instant;
 
 use chrono::Utc;
 use sec::implementations::extraction::{ErrorKind, Extraction, FailedNotesProbe, RunEvent};
-use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use sec::shared::notes_period::NotesPeriod;
 
 use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_flight};
 use json_log::init_logger;
 use periods::notes_periods;
-use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
+use sec_client::{
+    RunSecClient, USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause,
+};
 use storage_root::{create_root, raw_notes_archive_writer};
 
 // This deprecated example stays frozen, so it keeps its own copy of the log code in `batch_log.rs`.
@@ -78,7 +79,7 @@ async fn main() -> ExitCode {
 /// # Errors
 ///
 /// Returns the [`FailedNotesProbe`] of [`notes_periods`].
-async fn notes_periods_of_run(sec_client: &SecClient) -> Result<Vec<String>, FailedNotesProbe> {
+async fn notes_periods_of_run(sec_client: &RunSecClient) -> Result<Vec<String>, FailedNotesProbe> {
     let on_retry = |quarter: NotesPeriod, error: &FailedSecRequest| {
         tracing::warn!(
             event = %BatchEvent::NotesProbeRetried,
