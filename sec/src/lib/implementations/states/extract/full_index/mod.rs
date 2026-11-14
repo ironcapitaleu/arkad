@@ -181,7 +181,8 @@ impl<R: RawRepository<RawFullIndex>, C: SecClientTrait>
     /// `context`.
     ///
     /// The quarter comes from the context, so the downloaded file always holds the first date
-    /// filed. A last date filed in a later quarter fails the run in [`SelectFullIndexFilings`].
+    /// filed. A last date filed before the first, or in a later quarter, fails the run in
+    /// [`SelectFullIndexFilings`].
     #[must_use]
     pub fn new(context: DetectQuarterFilingsSuperStateContext<R, C>) -> Self {
         let quarter = Quarter::of(context.first_filed_date);
