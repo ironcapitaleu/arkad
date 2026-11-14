@@ -211,11 +211,11 @@ Links the other statements. Explains additional investment / payout of company s
 
 `ΔEquity = Comprehensive Income + Investments by Owners - Distributions to Owners`
 
-The MVP builds no statement of changes in equity. See "Roll-Up Tree", "Side Groups".
+The MVP builds no statement of changes in equity. See "Roll-Up Tree", "Disclosures".
 
 ### CanonicalElement Enum
 
-Decided. The concepts are the lines of the trees and the side groups in "Roll-Up Tree": 52
+Decided. The concepts are the lines of the trees and the disclosures in "Roll-Up Tree": 52
 concepts. `xbrl/src/core/elements.rs` holds the enum.
 
 ### Standard Concept Set
@@ -227,7 +227,7 @@ the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` 
 `Revenue`.
 
 - The MVP freezes the top lines of the trees in "Roll-Up Tree". A new concept gets a placement in
-  a tree or in a side group, by the checklist of the `xbrl-standardization` skill.
+  a tree or in a disclosure, by the checklist of the `xbrl-standardization` skill.
 - A taxonomy concept with no faithful match stays an as-is fact. It never maps to the nearest
   element.
 - For one entity, period, and dimensions, at most one concept fills each element. The alias
@@ -237,7 +237,7 @@ the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` 
 
 The standard concepts form one fixed tree per statement. The tree is the same for every company
 and every source. It gives the layout of each statement, the "other" lines, the checks, and one
-more Tier 3 rule. A concept that belongs to no sum sits in a side group next to the trees.
+more Tier 3 rule. A concept that belongs to no sum is a disclosure next to the trees.
 
 #### Groups
 
@@ -247,10 +247,10 @@ A **group** is one sum: a parent and the concepts that add up to it. Each concep
 - `Top`: a total or subtotal on the top level of its statement, such as `Assets` or
   `GrossProfit`.
 - `Child { group, weight }`: a member of one group. The weight is `+1` or `−1`.
-- `Side`: a value outside every sum, such as `EarningsPerShareBasic`.
+- `Disclosure`: a value outside every sum, such as `EarningsPerShareBasic`.
 
-The statement or side group of a concept is its variant of `CanonicalElement` (see "Extension
-Model").
+The statement or disclosure of a concept is its place in the hierarchy of `CanonicalElementKind`.
+The `Concept` trait gives the placement (see "Extension Model").
 
 A group has one of two kinds:
 
@@ -427,19 +427,19 @@ Duration values. The top line is `NetChangeInCash`.
   `NetChangeInCash` against two balances needs the balance at the start date. A Notes period has
   no exact start, so this check waits for a later round.
 
-#### Side Groups
+#### Disclosures
 
-A side group holds values that belong to no sum. Its concepts have no parent, no other line, and
+A disclosure holds values that belong to no sum. Its concepts have no parent, no other line, and
 no roll-up check.
 
 - `PerShare`: `EarningsPerShareBasic` and `EarningsPerShareDiluted`. A per-share value does not add
   with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
-- Planned: a group for the debt maturities and other financing data, from its own design. Segments
-  are not a side group. A segment value is a standard concept with a member of a segment axis, and
+- Planned: a disclosure for the debt maturities and other financing data, from its own design.
+  Segments are not a disclosure. A segment value is a standard concept with a member of a segment axis, and
   its own design decides how the tree applies to it.
 
-A side group is a variant of `CanonicalElement` with its own concept enum, such as
-`PerShare(PerShareConcept)`. A new side group adds a variant and its concepts (see "Extension
+A disclosure is a variant of `DisclosureConcept` with its own concept enum, such as
+`PerShare(PerShareConcept)`. A new disclosure adds a variant and its concepts (see "Extension
 Model"). It changes no placement, no group, and no check of the trees.
 
 **Changes in equity** get no statement in the MVP. The statement of changes in equity is a roll
@@ -456,72 +456,121 @@ The concepts and the statements follow the shape of the `sec` error hierarchy in
 its own module. Each level converts up with `From` and down with `TryFrom`. A new case adds one
 module and one variant, and its siblings do not change.
 
-`CanonicalElement` nests one level, by statement or side group:
+| `sec` errors | Standard concepts |
+| ------------ | ----------------- |
+| `ErrorKind` | `CanonicalElementKind` |
+| `StateMachine` | `StatementConcept`, `DisclosureConcept` |
+| `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept` |
+| a leaf error | a concept, such as `Assets` |
+
+`CanonicalElement` becomes `CanonicalElementKind`, the top of the hierarchy. The rest of this
+document still says `CanonicalElement`, the name in the code today.
 
 ```rust
 #[non_exhaustive]
-pub enum CanonicalElement {
+pub enum CanonicalElementKind {
+    Statement(StatementConcept),
+    Disclosure(DisclosureConcept),
+}
+
+#[non_exhaustive]
+pub enum StatementConcept {
     BalanceSheet(BalanceSheetConcept),
     IncomeStatement(IncomeStatementConcept),
     CashFlow(CashFlowConcept),
+}
+
+#[non_exhaustive]
+pub enum DisclosureConcept {
     PerShare(PerShareConcept),
 }
 
 #[non_exhaustive]
 pub enum BalanceSheetConcept { Assets, CurrentAssets, /* … */ }
 
-impl From<BalanceSheetConcept> for CanonicalElement { /* … */ }
-impl TryFrom<CanonicalElement> for BalanceSheetConcept {
-    type Error = CanonicalElement; // gives back a concept of another statement
+impl From<BalanceSheetConcept> for StatementConcept { /* … */ }
+impl From<StatementConcept> for CanonicalElementKind { /* … */ }
+impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
+    type Error = CanonicalElementKind; // gives back a concept of another group
     /* … */
 }
 ```
 
+A **disclosure** is a value that belongs to no sum of a statement. Filers report it next to the
+statements or in the notes. `PerShare` holds the earnings per share. Debt maturities come later as
+a second disclosure.
+
 ```
 xbrl/src/core/elements/
-  mod.rs               CanonicalElement, and the From and TryFrom of each child
-  balance_sheet.rs     BalanceSheetConcept
-  income_statement.rs  IncomeStatementConcept
-  cash_flow.rs         CashFlowConcept
-  per_share.rs         PerShareConcept, a side group
+  mod.rs                         CanonicalElementKind, the Concept trait, the conversions
+  statement/
+    mod.rs                       StatementConcept, and the groups of every statement joined
+    balance_sheet.rs             BalanceSheetConcept, its placements and its groups
+    income_statement.rs          IncomeStatementConcept, its placements and its groups
+    cash_flow.rs                 CashFlowConcept, its placements, its groups, and its starts
+  disclosure/
+    mod.rs                       DisclosureConcept
+    per_share.rs                 PerShareConcept
 xbrl/src/core/statement/
-  mod.rs               FinancialStatement, StatementKind, Statement, StatementLine
-  balance_sheet.rs     BalanceSheet view
-  income_statement.rs  IncomeStatement view
-  cash_flow.rs         CashFlowStatement view
+  mod.rs                         FinancialStatement, StatementKind, Statement, StatementLine
+  balance_sheet.rs               BalanceSheet view
+  income_statement.rs            IncomeStatement view
+  cash_flow.rs                   CashFlowStatement view
 ```
 
-- The nesting stops at the statement. A parent in the tree is a sum, not a container. A sum can
-  start from another statement, as `operating-cash-flow` starts from `NetIncome`. A move to a new
-  parent also must not change a type. So the parent and the weight stay in the roll-up table.
-- The statement of a concept comes from its variant of `CanonicalElement`. The table needs no
-  statement column.
-- The name in silver stays the name of the inner variant, such as `NetIncome`, not a path such as
-  `IncomeStatement.NetIncome`. A test checks that no two inner variants share a name. So the parse
-  from the name finds one concept, and every stored name stays valid.
-- The alias lists and the part rules name a `CanonicalElement`. They are `const` tables, and
-  `From::from` is not a `const fn`. So they write the full path, such as
-  `CanonicalElement::BalanceSheet(BalanceSheetConcept::Assets)`, or call a `const fn` that each
-  concept enum provides. `From` serves code that runs at run time.
-- `Serialize` writes the name of the inner variant, such as `Assets`, as the name in silver does.
-  A derived `Serialize` writes `{"BalanceSheet":"Assets"}`, so the implementation writes it by
-  hand. The `api` crate derives its concept ID from this name.
-- `Display` keeps the label of the inner variant, such as `Net Income`. The `api` crate shows it
-  as the name of a concept.
+**Each statement module owns its part of the tree.** `balance_sheet.rs` holds the placement of
+each balance sheet concept and the groups whose parent is a balance sheet concept. A group from
+another statement, such as `operating-cash-flow` with its start `NetIncome`, belongs to the
+module of its parent. `statement/mod.rs` joins the groups in the order balance sheet, income
+statement, cash flow. That order is the order of "Derivation From a Closed Group".
+
+**The `Concept` trait** is implemented by each innermost enum, such as `BalanceSheetConcept`:
+
+```rust
+pub trait Concept: Copy + Eq + 'static {
+    /// Every variant, in the order of the tables of "Roll-Up Tree".
+    const ALL: &'static [Self];
+    /// The name in silver, such as `NetIncome`.
+    fn name(self) -> &'static str;
+    /// The label for people, such as `Net Income`.
+    fn label(self) -> &'static str;
+    /// The parent and the weight, or a top line, or a disclosure.
+    fn placement(self) -> Placement;
+}
+```
+
+- A trait method cannot be a `const fn`. The alias lists and the part rules are `const` tables. So
+  each innermost enum also has an inherent `const fn element(self) -> CanonicalElementKind`, and a
+  list writes `BalanceSheetConcept::Assets.element()`. `From` serves code that runs at run time.
+- `Concept` is a new trait next to the existing traits, so it changes no trait (`AGENTS.md`,
+  "Open-Closed Principle").
+- A parent in the tree is a sum, not a container, so the nesting stops at the statement. A sum can
+  start from another statement, as `operating-cash-flow` starts from `NetIncome`. `placement()`
+  names the parent and the weight. A move to a new parent changes one arm of `placement()` and no
+  type.
+- The statement of a concept comes from its place in the hierarchy. The placement needs no
+  statement.
+- The name in silver stays the name of the innermost variant, such as `NetIncome`, not a path
+  such as `Statement.IncomeStatement.NetIncome`. A test walks `ALL` of every innermost enum and
+  checks that no two concepts share a name. So the parse from the name finds one concept, and every
+  stored name stays valid.
+- `Serialize` writes `name()`. A derived `Serialize` writes the path, so the implementation writes
+  it by hand. The `api` crate derives its concept ID from this name.
+- `Display` writes `label()`. The `api` crate shows it as the name of a concept.
 - `Ord` sorts by statement first, then by concept.
 
 A change touches these places, and no others:
 
 | Change | Adds | Changes |
 | ------ | ---- | ------- |
-| A concept in an existing statement | a variant of its `…Concept` enum, a row of the roll-up table, an alias list | nothing else |
+| A concept in an existing statement | a variant of its enum, an arm of each method of `Concept`, an alias list | nothing else |
+| A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
-| A side group, such as debt maturities | a module with its `…Concept` enum, a variant of `CanonicalElement`, alias lists | nothing else |
-| A statement, such as changes in equity | a module in `elements` and one in `statement`, a variant of `CanonicalElement`, `StatementKind`, and `FinancialStatement`, its rows of the table, its view with `From` and `TryFrom` | nothing else |
+| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
+| A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
-arrives. These are enums, not traits, so the Open-Closed Principle of `AGENTS.md` allows a new
-variant.
+arrives. A new variant is outside the Open-Closed Principle, which covers traits only.
 
 #### Checks the Tree Gives
 
@@ -625,8 +674,8 @@ No concept changes its name. A move changes the placement only.
 | `ResearchDevelopment` | move | child of `operating-expenses` |
 | `InterestExpense` | move | item of `pretax-income` |
 | `OperatingIncome` | move | top of the income statement |
-| `EarningsPerShareBasic` | move | side group `PerShare` |
-| `EarningsPerShareDiluted` | move | side group `PerShare` |
+| `EarningsPerShareBasic` | move | disclosure `PerShare` |
+| `EarningsPerShareDiluted` | move | disclosure `PerShare` |
 | `DepreciationAmortization` | move | item of `operating-cash-flow` |
 | `CapitalExpenditures` | keep | child of `investing-cash-flow` |
 | `DividendsPaid` | keep | child of `financing-cash-flow` |
@@ -700,7 +749,7 @@ child, with no change to the groups above.
 | Interest income | `InvestmentIncomeInterest` | 1,612 | other non-operating income |
 | Acquisitions | `PaymentsToAcquireBusinessesNetOfCashAcquired` | 1,328 | other investing cash flow |
 | Debt issued and repaid | `ProceedsFromIssuanceOfLongTermDebt`, `RepaymentsOfLongTermDebt` | 898, 1,132 | other financing cash flow |
-| Weighted average shares | `WeightedAverageNumberOfSharesOutstandingBasic` | 5,218 | side group `PerShare`, later |
+| Weighted average shares | `WeightedAverageNumberOfSharesOutstandingBasic` | 5,218 | disclosure `PerShare`, later |
 
 #### Alias Lists After the Tree
 
@@ -714,7 +763,7 @@ The changes are to comments and to the new lists.
 | `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
 | `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
 | `CostOfRevenue`, `GrossProfit`, `SellingGeneralAdmin`, `ResearchDevelopment`, `InterestExpense` | stays |
-| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts move to the side group `PerShare` |
+| `EarningsPerShareBasic`, `EarningsPerShareDiluted` | stays. The concepts move to the disclosure `PerShare` |
 | `DepreciationAmortization`, `CapitalExpenditures`, `DividendsPaid`, `ShareRepurchases`, `ShareBasedCompensation` | stays |
 | `OtherComprehensiveIncome`, `ComprehensiveIncome` | stays |
 | The comment on `Expenses`, `Gains`, and `Losses` | goes away with the three concepts |
@@ -1458,20 +1507,22 @@ Mode 2 = Validate         (verify all edges hold)
 
 ### Graph Structure
 
-Decided: a static table of weighted edges in `xbrl::core`, the same for every plug-in.
+Decided: static tables of weighted edges in `xbrl::core`, the same for every plug-in. Each
+statement module holds its part, as "Extension Model" describes.
 
-- The table gives each standard concept its placement. A placement is a top line, a child of one
-  group with a weight of +1 or −1, or a side group. A second table lists the groups: the parent, the start of a
-  step, and whether the group is closed. "Roll-Up Tree" holds both.
+- `Concept::placement()` gives each standard concept its placement. A placement is a top line, a
+  child of one group with a weight of +1 or −1, or a disclosure. Each statement module lists its
+  groups: the parent, the start of a step, and whether the group is closed. "Roll-Up Tree" holds
+  both.
 - Resolution and validation share the table. Tier 3 derives the one unknown member of a closed
   group. Validation checks that each closed group adds up. The statement output type reads the
   same table for the layout and the other lines.
 - The calculation tree of a plug-in stays a separate structure. It links taxonomy concepts, not
   standard concepts, and Tier 4 reads it.
-- No trait. The table has one implementation, and a plug-in adds no edges. A trait with one
-  implementor adds an indirection and no extension.
-- `CanonicalElement` nests by statement, as "Extension Model" describes. The table holds the
-  parent and the weight, because a parent is a sum and not a container.
+- No trait for the graph. It has one implementation, and a plug-in adds no edges. The `Concept`
+  trait describes one concept, not the graph.
+- `CanonicalElementKind` nests by statement, as "Extension Model" describes. The placement holds
+  the parent and the weight, because a parent is a sum and not a container.
 - The SFAC 6 identity `Assets` = `LiabilitiesAndEquity` links two top lines. It stays a named
   check, `core/sfac6/balance-sheet@1`, next to the table.
 
@@ -2067,7 +2118,7 @@ pub struct Statement {
 }
 
 pub struct StatementLine {
-    pub line: Line, // Line::Standard(CanonicalElement) or Line::Other { group }
+    pub line: Line, // Line::Standard(CanonicalElementKind) or Line::Other { group }
     pub depth: u8,
     pub value: Option<BigDecimal>,
 }
@@ -2134,7 +2185,7 @@ impl TryFrom<Statement> for BalanceSheet {
   `TryFrom<FinancialStatement> for BalanceSheet`, as the `sec` error hierarchy does. Unlike `sec`,
   the downward conversion gives the value back if it holds another statement. "Extension Model" lists the
   modules.
-- Side groups need no layout. A reader takes their values from the standardized facts.
+- Disclosures need no layout. A reader takes their values from the standardized facts.
 - Silver stores no statement. The gold load builds statements with these types.
 
 ---
@@ -2142,7 +2193,7 @@ impl TryFrom<Statement> for BalanceSheet {
 ## 8) Data Modeling — Level 2 Sub-Elements
 
 "Roll-Up Tree" replaces Level 1 and Level 2. A concept has a placement in a tree of one statement,
-or in a side group. Its depth in the tree replaces its level. Each concept keeps the tiered
+or in a disclosure. Its depth in the tree replaces its level. Each concept keeps the tiered
 resolution: exact, synonym, derived, computed.
 
 ---
@@ -2181,7 +2232,7 @@ resolution: exact, synonym, derived, computed.
 
 ## Decisions Needed Before Implementation
 
-1. **CanonicalElement enum** — Decided. See "Roll-Up Tree", "Verdict on the 39 Concepts" and "Concepts to Add"
+1. **CanonicalElement enum** — Decided: it becomes the hierarchy of `CanonicalElementKind`. See "Roll-Up Tree", "Extension Model", "Verdict on the 39 Concepts", and "Concepts to Add"
 2. **Graph structure** — Decided: a static table in `xbrl::core`. See "Graph Structure"
 3. **Financial statement output types** — Decided: a generic `Statement` and a typed view per statement. See "7) Financial Statement Output Types"
 
