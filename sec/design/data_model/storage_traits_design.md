@@ -3,13 +3,13 @@
 This document gives the shape of storage in arkad: the crates, the ports, the raw store, and the
 planned Postgres tiers. Other documents hold the detail. This one links them and repeats none.
 
-arkad keeps two kinds of data. The **data sources** hold the filings and the facts drawn from
-them: the raw store, silver, and the fact tier. The **metadata layer** says what those facts mean
-and where they come from: the knowledge graph of companies and identifiers, the canonical concepts,
-and the provenance of each fact ([`hybrid_data_model.md`](./hybrid_data_model.md) §3, §5, §8.2,
-and [`ontology_guardrails.md`](./ontology_guardrails.md)). In gold, the metadata layer sits over
-the fact tier as the company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). The
-code holds the raw store. The other tiers are in [Planned](#planned-silver-graph-and-facts).
+Gold is the company brain ([ADR 0007](../../../docs/adr/0007-gold-company-brain.md)). A
+**metadata store** holds the knowledge graph of companies and identifiers, the canonical concepts,
+and an entry for each source store ([`hybrid_data_model.md`](./hybrid_data_model.md) §3, §5, and
+[`ontology_guardrails.md`](./ontology_guardrails.md)). Each **source store** holds the facts of one
+data source, such as the SEC, with the provenance of each fact (§8.2). The raw store and silver
+feed the source stores. The code holds the raw store. The other tiers are in
+[Planned](#planned-silver-graph-and-facts).
 
 ## Crates
 

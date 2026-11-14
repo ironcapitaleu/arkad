@@ -50,8 +50,9 @@ What to carry forward vs. change (detail in §10):
 ## 2. Architectural Spine — Universal Core + Regulator Adapters (Hub & Spoke)
 
 The model serves one goal: a **company brain** in gold. A metadata store holds the knowledge graph
-of companies and identifiers (§5), the canonical concepts (§3), and the provenance of each fact
-(§8.2). It sits over the fact tier (§6) and links to silver and the raw store.
+of companies and identifiers (§5), the canonical concepts (§3), and an entry for each source store.
+Each source store holds the facts of one data source, such as the SEC (§7), with the provenance of
+each fact (§8.2). A query starts in the metadata store and reads the facts from the source stores.
 [ADR 0007](../../../docs/adr/0007-gold-company-brain.md) records the decision.
 
 ```mermaid
