@@ -83,6 +83,8 @@ pub enum InvalidValueReason {
     NoMatchingRow(&'static str),
     /// No element of the kind, for example `context`, has the input as its ID.
     NoMatchingElement(&'static str),
+    /// No item of the kind, for example `standard concept`, has the input as its name.
+    NoMatchingName(&'static str),
     /// The source cut the named field of the row that the input keys, so the field is not complete.
     Truncated(&'static str),
 }
@@ -112,6 +114,7 @@ impl fmt::Display for InvalidValueReason {
             Self::NoMatchingElement(element) => {
                 write!(f, "No {element} element has the value as its ID")
             }
+            Self::NoMatchingName(kind) => write!(f, "No {kind} has the value as its name"),
             Self::Truncated(field) => write!(f, "The source cut {field}"),
         }
     }

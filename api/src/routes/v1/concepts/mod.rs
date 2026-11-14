@@ -7,7 +7,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use serde::Serialize;
 use serde_json::json;
 use utoipa::ToSchema;
-use xbrl::core::elements::CanonicalElement;
+use xbrl::core::elements::CanonicalElementKind;
 use xbrl::us_gaap::mappings::{OPTIONAL_CONCEPTS, REQUIRED_CONCEPTS};
 
 use crate::error::{ApiError, Problem};
@@ -28,13 +28,13 @@ pub struct Concept {
 impl Concept {
     /// Builds the [`Concept`] of `element`.
     ///
-    /// The name is the `Display` text of the variant.
+    /// The name is the label for people of the concept, from `Display`.
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidPascalCase`] if the serialized name of the variant is not in
+    /// Returns an [`InvalidPascalCase`] if the name in silver of the concept is not in
     /// `PascalCase`.
-    fn from_element(element: CanonicalElement) -> Result<Self, InvalidPascalCase> {
+    fn from_element(element: CanonicalElementKind) -> Result<Self, InvalidPascalCase> {
         Ok(Self {
             concept: element.try_into()?,
             name: element.to_string(),
@@ -102,6 +102,7 @@ pub async fn list_concepts() -> Result<Json<ConceptList>, ApiError> {
 mod tests {
     use chrono::TimeZone;
     use pretty_assertions::assert_eq;
+    use xbrl::core::elements::IncomeStatementConcept;
 
     use super::*;
 
@@ -119,7 +120,7 @@ mod tests {
 
     #[test]
     fn should_build_snake_case_concept_and_display_name_for_net_income() {
-        let element = CanonicalElement::NetIncome;
+        let element = IncomeStatementConcept::NetIncome.element();
 
         let expected_result = json!({ "concept": "net_income", "name": "Net Income" });
 
