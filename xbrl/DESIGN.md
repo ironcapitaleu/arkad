@@ -45,7 +45,7 @@ xbrl/
       invalid_value.rs     <- InvalidValue, the error of each core value type
       unit.rs              <- Unit (open: numerator and denominator measures)
       period.rs            <- Instant | Duration
-      elements.rs          <- CanonicalElement, our standard concept set, accounting identities
+      elements/            <- CanonicalElementKind, our standard concept set, and the roll-up tree
       standardized.rs      <- StandardizedFact
       candidate.rs         <- Candidate: the value of one filing, before newest-filing
       confidence.rs        <- Exact | Synonym | Derived | Computed
@@ -214,14 +214,14 @@ Links the other statements. Explains additional investment / payout of company s
 
 The MVP builds no statement of changes in equity. See "Roll-Up Tree", "Disclosures".
 
-### CanonicalElement Enum
+### CanonicalElementKind Enum
 
-Decided. The concepts are the lines of the trees and the disclosures in "Roll-Up Tree": 52
-concepts. `xbrl/src/core/elements.rs` holds the enum.
+Decided. The concepts are the lines of the trees and the disclosures in "Roll-Up Tree".
+`xbrl/src/core/elements/` holds the hierarchy.
 
 ### Standard Concept Set
 
-`CanonicalElement` is our own concept set for the standardized layer. Its names are not US GAAP
+`CanonicalElementKind` is our own concept set for the standardized layer. Its names are not US GAAP
 names. Concepts Statement 8 defines its roots, and the IFRS Conceptual Framework defines assets, liabilities,
 equity, income, and expenses in the same terms. So US GAAP and IFRS both map into it, each through
 the aliases of its plug-in. Example: `us-gaap:Revenues` and `ifrs-full:Revenue` both map to
@@ -467,8 +467,8 @@ module and one variant, and its siblings do not change.
 | `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept` |
 | a leaf error | a concept, such as `Assets` |
 
-`CanonicalElement` becomes `CanonicalElementKind`, the top of the hierarchy. The sections that
-describe the code of today still say `CanonicalElement`.
+`CanonicalElementKind` is the top of the hierarchy. [ADR 0011](../docs/adr/0011-concept-hierarchy.md)
+records why the concepts nest this way, and why the placement holds the parent and the weight.
 
 ```rust
 #[non_exhaustive]
@@ -502,14 +502,17 @@ impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
 
 ```
 xbrl/src/core/elements/
-  mod.rs                         CanonicalElementKind, the Concept trait, the conversions
+  mod.rs                         CanonicalElementKind, Concept, Placed, and the call of the middle
+                                 macro: StatementConcept, DisclosureConcept, the conversions
+  macros.rs                      the innermost macro and the middle macro
+  roll_up.rs                     Placement, Weight, Group, GroupKind
   statement/
-    mod.rs                       StatementConcept, and the groups of every statement joined
+    mod.rs                       the groups of every statement joined
     balance_sheet.rs             BalanceSheetConcept, its placements and its groups
     income_statement.rs          IncomeStatementConcept, its placements and its groups
     cash_flow.rs                 CashFlowConcept, its placements, its groups, and its starts
   disclosure/
-    mod.rs                       DisclosureConcept
+    mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
 xbrl/src/core/statement/
   mod.rs                         FinancialStatement, StatementKind, Statement, StatementLine
@@ -793,8 +796,8 @@ The flag `required` stays as it is. The completeness check of "5) Validation" re
 #### Names in Silver
 
 The `concept` column of `standardized_facts` stores the variant name, such as `NetIncome`, not the
-label of `Display`. The ticket for the stable name adds the method that gives this name and its
-parse.
+label of `Display`. `Concept::name()` gives this name, and `FromStr` on `CanonicalElementKind`
+parses it.
 
 - No concept changes its name, so every stored row keeps its key.
 - The three removed concepts have no rows. No rule fills them.
@@ -1376,7 +1379,7 @@ The resolution engine does not know which API an as-is fact came from.
 ```text
 StandardizedFact {
     entity:      EntityId
-    concept:     CanonicalElement
+    concept:     CanonicalElementKind
     period:      Period
     unit:        Unit
     dimensions:  Dimensions        // empty in the MVP
@@ -1594,7 +1597,7 @@ Finding::Conflict {
     entity:            EntityId
     key:               FactKey                   // rank 0: filing, as-is concept, period end, quarters
     ranks:             Vec<u16>                  // the ranks that disagree with rank 0, ascending
-    standard_concept:  Option<CanonicalElement>  // None if no plug-in maps the as-is concept
+    standard_concept:  Option<CanonicalElementKind>  // None if no plug-in maps the as-is concept
 }
 ```
 
@@ -1733,7 +1736,7 @@ filed. `core::suspicious_period::suspicious_periods` runs inside `check_chronolo
 Finding::SuspiciousPeriod {
     entity:            EntityId
     key:               FactKey            // the first input: filing, as-is concept, period end, quarters
-    standard_concept:  CanonicalElement
+    standard_concept:  CanonicalElementKind
     signals:           Vec<PeriodSignal>  // StartBeforeEarliestYear, EndFarFromReport, or both
     confirmed_by:      Option<FilingId>   // the newest other filing with the same value, or None
 }
@@ -1999,9 +2002,9 @@ ErrorKind
       ::InvalidDataPointValue { concept: String, source: InvalidValue }
       ::InvalidSubmissionRow { adsh: String, source: InvalidValue }
     ::FailedValidation(ValidationErrorKind)
-      ::IncompleteData { missing_elements: Vec<CanonicalElement> }
+      ::IncompleteData { missing_elements: Vec<CanonicalElementKind> }
       ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
-      ::ImpreciseRollup { parent: CanonicalElement, parent_value: i64, children_sum: i64, deviation_pct: f64, threshold_pct: f64 }
+      ::ImpreciseRollup { parent: CanonicalElementKind, parent_value: i64, children_sum: i64, deviation_pct: f64, threshold_pct: f64 }
 ```
 
 ### Error Severity
@@ -2054,7 +2057,7 @@ pub enum ParseErrorKind {
 pub enum ValidationErrorKind {
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
     IncompleteData {
-        missing_elements: Vec<CanonicalElement>,
+        missing_elements: Vec<CanonicalElementKind>,
     },
 
     #[error("[InconsistentIdentity] Invariant '{invariant}' violated, left={left_value}, right={right_value}")]
@@ -2066,7 +2069,7 @@ pub enum ValidationErrorKind {
 
     #[error("[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'")]
     ImpreciseRollup {
-        parent: CanonicalElement,
+        parent: CanonicalElementKind,
         parent_value: i64,
         children_sum: i64,
         deviation_pct: f64,
@@ -2261,7 +2264,7 @@ resolution: exact, synonym, derived, computed.
 
 ## Decisions Needed Before Implementation
 
-1. **CanonicalElement enum** — Decided: it becomes the hierarchy of `CanonicalElementKind`. See "Roll-Up Tree", "Extension Model", "Verdict on the 39 Concepts", and "Concepts to Add"
+1. **Standard concepts** — Decided: the hierarchy of `CanonicalElementKind`. See "Roll-Up Tree", "Extension Model", "Verdict on the 39 Concepts", and "Concepts to Add"
 2. **Graph structure** — Decided: a static table in `xbrl::core`. See "Graph Structure"
 3. **Financial statement output types** — Decided: a generic `Statement` and a typed view per statement. See "7) Financial Statement Output Types"
 
@@ -2281,7 +2284,7 @@ This requires two follow-up tickets:
 
 Research and decide:
 - How `Cik` (sec-specific) interacts with `EntityName` (xbrl) in `CompanyData`
-- Whether `CompanyData.facts` key becomes `CanonicalElement` or stays as a definition reference
+- Whether `CompanyData.facts` key becomes `CanonicalElementKind` or stays as a definition reference
 - Whether `sec` types become re-exports of `xbrl` types or thin wrappers with `From` impls
 - How to handle the `&'static ConceptDefinition` reference pattern (sec's constants vs xbrl's)
 - Migration strategy that keeps the `sec` crate compiling at every step

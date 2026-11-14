@@ -244,7 +244,7 @@ bucket, by their statistics.
 | Column | Arrow type | From |
 | ------ | ---------- | ---- |
 | `entity_scheme`, `entity_id` | `utf8` | |
-| `concept` | `utf8` | `CanonicalElement`, for example `Revenue` |
+| `concept` | `utf8` | `CanonicalElementKind::name()`, for example `Revenue` |
 | `period_end`, `period_start`, `quarters`, `dimensions` | as in `as_is_facts` | Dimensions are empty in the MVP |
 | `unit` | `utf8` | `StandardizedFact::unit`, never null |
 | `value` | `decimal128(38, 10)` | |
@@ -257,9 +257,10 @@ bucket, by their statistics.
 | `computed_at` | `timestamp[ms, UTC]` | The start time of the series run that computed the row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
-`concept` holds the variant name of `CanonicalElement`, such as `NetIncome`, never the label of
-`Display`. Silver stores no "other" line and no statement layout. The roll-up tree of
-`xbrl/DESIGN.md`, "Roll-Up Tree", computes both at read time.
+`concept` holds the name of the innermost variant of `CanonicalElementKind`, from
+`Concept::name()`, such as `NetIncome`, never the label of `Display`. Silver stores no "other"
+line and no statement layout. The roll-up tree of `xbrl/DESIGN.md`, "Roll-Up Tree", computes both
+at read time.
 
 `standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
 entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. The current value of a key is
