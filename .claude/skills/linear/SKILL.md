@@ -733,7 +733,7 @@ that cannot be reviewed in one sitting will not be reviewed properly.
 
 ### Step 3: Create the Issue
 
-Use `mcp__Linear__save_issue` with no `id`, and with:
+Use `mcp__Linear__save_issue` without an `id`. Pass:
 - `team`: `2f641ff7-6c29-4aa7-9bc5-659ff838e4ad`
 - `title`: formatted as `[LABEL] Title` (or just `Title` for basic)
 - `description`: filled template
@@ -746,7 +746,7 @@ Show the user the created issue URL and summary.
 
 ## Workflow: Reading / Searching Issues
 
-- **List issues:** Use `mcp__Linear__list_issues` with team filter
+- **List issues:** Use `mcp__Linear__list_issues` with `team`
 - **Search:** Use `mcp__Linear__list_issues` with the keywords in `query`
 - **Get details:** Use `mcp__Linear__get_issue` with the issue ID
 - **List teams:** Use `mcp__Linear__list_teams` to discover team IDs when needed
@@ -756,8 +756,8 @@ When presenting issues to the user, show: identifier, title, status, assignee, a
 
 ## Workflow: Updating an Issue
 
-Use `mcp__Linear__save_issue` with the `id` of the issue to change status, assignee, priority, or
-description.
+To change the status, assignee, priority, or description, use `mcp__Linear__save_issue` with the
+`id` of the issue and `state`, `assignee`, `priority`, or `description`.
 Always confirm with the user before making changes.
 
 ## Workflow: Comments
