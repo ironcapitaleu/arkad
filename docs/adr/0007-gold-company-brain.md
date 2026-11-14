@@ -40,7 +40,7 @@ Terms:
 - **Source store**: the store of one data source. It holds the records of that source as the
   source publishes them, such as the SEC facts or the GLEIF LEI records.
 - **Metadata store**: the store that describes the companies, the concepts, and the source stores,
-  and routes a caller to a source.
+  and routes a caller to the sources.
 - **Company brain**: the metadata store over the source stores, in gold.
 
 ## Decision
@@ -48,9 +48,9 @@ Terms:
 1. **Gold is the company brain: one metadata store over one source store per data source.** The
    screener and the `/v1` API read gold, and they are two uses of it.
 2. **The metadata store has two jobs: entity resolution and routing.** It resolves a name or an
-   identifier to one company (§4, §5). It tells a caller which source to read for a company and a
-   kind of information, and by which key. For example, the financial facts of Apple Inc. come from
-   the SEC store, by CIK.
+   identifier to one company (§4, §5). For a company and a kind of information, it lists every
+   source that holds it, with the key and how to read it, and names the preferred source
+   (Decision 5). For example, the financial facts of Apple Inc. come from the SEC store, by CIK.
 3. **The metadata store describes the data and holds no fact values.** It holds the knowledge graph
    of companies and their identifiers (§5) and the canonical concepts (§3), each with its
    definition and how to compute it from source facts. For each source store, it records which
@@ -124,7 +124,7 @@ No option was measured.
   and the date, 2026-11-14.
 - The owner's comments on the draft, 2026-11-14: a metadata store with the data endpoints, and one
   store per data source with its facts and their provenance. The canonical facts stay in each
-  source store. The metadata store resolves entities, routes a caller to a source and a key, and
+  source store. The metadata store resolves entities, lists the sources of each company with their keys, and
   picks a source by a preference order that a caller can override.
 - [Introducing Cortex Sense: Grounded Context for the Data You Never Modeled](https://www.snowflake.com/en/blog/enterprise-ai-agents-grounded-context/),
   Snowflake blog, 2026-06-30, read on 2026-11-14. The quotes and the benchmark figures above come
