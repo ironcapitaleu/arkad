@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover. Also posts the stale points of that ticket in a comment.
-version: 0.5.0
+version: 0.6.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -185,13 +185,33 @@ of a stale point: an open box of a Definition of Done item that a merged PR does
 does not match the work, a changed scope, a decision that replaces a sentence of the description,
 an old measurement, a split of the ticket, a file path or symbol that moved.
 
+Start each comment with its marker line, so a reader sees at once that this skill wrote it. The
+marker is a quote line: `Handoff` and the kind of comment in bold, and the time of the last write
+in UTC.
+
+```markdown
+> **Handoff · State of play** · 2026-11-14 07:55 UTC
+```
+
+```markdown
+> **Handoff · Short update** · 2026-11-14 07:55 UTC
+```
+
+The marker is the handoff's own addition to the comment shape of the `linear` skill.
+
 Leave **one** current comment of each kind on the ticket through the `linear` skill, in status
-voice. The two kinds are the state-of-play comment and the short update comment. If an earlier
-handoff left a comment of the same kind and the session can edit a comment, edit that comment.
-Otherwise post a new one. If it replaces an earlier comment, name that comment in its first line.
-Never replace a state-of-play comment with a short update comment. If a state-of-play comment
-exists, the first line of the short update names it and says which of its points are now out of
-date.
+voice. The two kinds are the state-of-play comment and the short update comment. Find an earlier
+comment of a kind by the bold part of its marker, such as `**Handoff · State of play**`. If more
+than one comment matches, use the one with the latest time. If no comment of that kind has a
+marker, find the earlier comment by its content. Do not edit that comment: post a new one that
+names it in its second line.
+
+If an earlier marked comment of the same kind exists, read it again. If a handoff wrote all of its
+text and the session can edit a comment, edit it. Set the new time in its marker. Otherwise post a
+new comment. A new comment that replaces an earlier one names it in its second
+line. Never replace a state-of-play comment with a short update comment. If a state-of-play
+comment exists, the second line of the short update names it. The short update also says which
+points of that comment are out of date.
 
 - For the Linear destination, the state-of-play comment holds one more list: "Stale on this
   ticket".

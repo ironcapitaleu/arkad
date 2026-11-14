@@ -5,7 +5,7 @@ description: >
   "make a linear ticket", "create a SPIKE", "create a FEATURE ticket", "list my issues",
   "search linear", "update a ticket", "comment on a ticket", or needs to interact with Linear in
   any way (creating, reading, updating, searching, or commenting on issues).
-version: 0.3.0
+version: 0.4.0
 argument-hint: "[create|list|search|get|update|comment] [details]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, mcp__Linear__save_issue, mcp__Linear__get_issue, mcp__Linear__list_issues, mcp__Linear__list_teams, mcp__Linear__list_projects, mcp__Linear__list_issue_labels, mcp__Linear__list_comments, mcp__Linear__save_comment]
 ---
@@ -770,10 +770,11 @@ Always confirm with the user before making changes.
   body. Use this for the one current state-of-play comment (see "For the returning developer").
 
 A new comment needs no confirmation from the user. It adds to the ticket and changes no text of
-another person. Edit a comment without confirmation only if this session posted it. The Linear
-server posts as the user, so the author of a comment does not show who wrote it. Before you edit
-any other comment, ask the user, or post a new comment. A change to the issue itself still needs
-confirmation (see "Workflow: Updating an Issue").
+another person. Edit a comment without confirmation in two cases. Either this session posted it,
+or it starts with a handoff marker line and a handoff wrote all of its text (see the `handoff`
+skill). The Linear server posts as the user, so the author of a comment does not show who wrote
+it. Before you edit any other comment, ask the user, or post a new comment. A change to the issue
+itself still needs confirmation (see "Workflow: Updating an Issue").
 
 ## Label IDs
 
