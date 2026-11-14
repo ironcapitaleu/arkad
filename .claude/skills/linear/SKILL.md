@@ -770,7 +770,8 @@ Always confirm with the user before making changes.
 
 A new comment needs no confirmation from the user. It adds to the ticket and changes no text of
 another person. Edit a comment without confirmation in two cases: this session posted it, or it
-starts with a handoff marker line (see the `handoff` skill). The Linear server posts as the user,
+starts with a handoff marker line and holds no text that a handoff did not write (see the
+`handoff` skill). The Linear server posts as the user,
 so the author of a comment does not show who wrote it. Before you edit any other comment, ask the
 user, or post a new comment. A change to the issue itself still needs
 confirmation (see "Workflow: Updating an Issue").
