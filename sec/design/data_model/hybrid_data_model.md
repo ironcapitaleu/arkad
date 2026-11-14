@@ -115,8 +115,9 @@ posture to relationship claims (§5.2).
 ## 3. Universal Canonical Concept Model
 
 The universal vocabulary is the **`CanonicalElement`** set: 13 Level-1 roots and
-~29 Level-2 sub-elements, listed in `xbrl/src/core/elements.rs`. The roots cover the ten elements
-of Concepts Statement 8 and totals such as `NetIncome`. Concepts Statement 8 is a
+~29 Level-2 sub-elements, listed in `xbrl/src/core/elements.rs`. The roots hold 8 of the ten
+elements of Concepts Statement 8, plus totals such as `NetIncome`. Investments by owners and
+distributions to owners have no root. Concepts Statement 8 is a
 US document, but its ten elements are **definitional, not standard-specific** — IFRS's
 Conceptual Framework defines assets, liabilities, equity, income, and expenses in
 substantially the same terms. So the roots are a legitimate *cross-standard* canonical
