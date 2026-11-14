@@ -2,17 +2,17 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. The lead accepted [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 on 2026-11-14 (STA-512 comment `e112485d`). The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
+| Status | Accepted by the lead on 2026-10-21. The student reviews it by 2026-11-06. If that review changes the decision, a new ADR supersedes this ADR. The lead accepted [Amendment 1](#amendment-1-load-reads-silver) of 2026-11-08 on 2026-11-14 ([STA-512 comment `e112485d`](https://linear.app/state-machine/issue/STA-512/docs-replace-the-storage-trait-design-with-an-overview-and-adrs#comment-e112485d)). The amendment comes from the silver prototype, not from the student's review, so it amends this ADR. |
 | Date | 2026-10-21 |
 | Deciders | The project lead. The master's student reviews it after a two-week leave. |
-| Ticket | STA-272 |
+| Ticket | [STA-272](https://linear.app/state-machine/issue/STA-272) |
 | Closes | The deferred decision in `sec/design/data_model/hybrid_data_model.md` §14, for the MVP |
 
 ## Context
 
 `hybrid_data_model.md` §14 deferred the physical store on purpose. The pipeline writes through the
 `storage` ports (§14.F), so the store can change without a pipeline change.
-The Linear document "Choosing the First Storage Backend: Findings"
+The [Linear document "Choosing the First Storage Backend: Findings"](https://linear.app/state-machine/document/choosing-the-first-storage-backend-findings-95eae7d5fbc6)
 chose a filesystem raw store and deferred the structured store.
 
 The May 2027 MVP needs a structured store by January 2027. The screener and the `/v1` API query
@@ -21,14 +21,14 @@ across all companies, and the current ports read one record by key.
 Earlier spikes fixed these inputs:
 
 - The `/v1` API returns fundamentals only. Prices live in a separate store for the screener
-  (STA-270).
+  ([STA-270](https://linear.app/state-machine/issue/STA-270)).
 - Coverage at launch is the S&P 500. The fact tier is append-only, and the newest filing wins
-  (STA-271,
-  STA-284).
+  ([STA-271](https://linear.app/state-machine/issue/STA-271),
+  [STA-284](https://linear.app/state-machine/issue/STA-284)).
 - Every fact keys on a stable internal `company_id`. CIK and LEI are dated identifiers
-  (STA-288).
+  ([STA-288](https://linear.app/state-machine/issue/STA-288)).
 - Data checks gate publishing, not persisting. Quarantine works per company
-  (STA-289).
+  ([STA-289](https://linear.app/state-machine/issue/STA-289)).
 - Supabase already runs Postgres for authentication.
 
 Scale today: about 520 companies, 542 CIK range rows, and a few hundred merger, spin-off, and
