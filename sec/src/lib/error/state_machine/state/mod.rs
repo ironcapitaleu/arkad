@@ -6,7 +6,8 @@
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
 //! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
-//! [`MissingDailyIndex`] carries the failing state's name and the date. The rest are plain markers.
+//! [`MissingDailyIndex`] carries the failing state's name and the date. [`InvalidFiledDateRange`]
+//! carries the failing state's name and both dates. The rest are plain markers.
 //! [`State`] is wrapped by [`StateMachine`](super::StateMachine) for propagation.
 //!
 //! ## Modules
@@ -16,6 +17,7 @@
 //! - [`invalid_index_date`]: The [`InvalidIndexDate`] error wrapping an index date validation failure.
 //! - [`invalid_daily_index`]: The [`InvalidDailyIndex`] error wrapping a daily index that does not parse.
 //! - [`invalid_full_index`]: The [`InvalidFullIndex`] error wrapping a full index that does not parse.
+//! - [`invalid_filed_date_range`]: The [`InvalidFiledDateRange`] error for a range of dates filed that one full index cannot cover.
 //! - [`failed_request_execution`]: The [`FailedRequestExecution`] error wrapping a failed SEC request.
 //! - [`failed_document_selection`]: The [`FailedDocumentSelection`] error for a folder index that names no single XBRL instance or label file.
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
@@ -42,6 +44,8 @@ pub mod invalid_daily_index;
 pub use invalid_daily_index::InvalidDailyIndex;
 pub mod invalid_full_index;
 pub use invalid_full_index::InvalidFullIndex;
+pub mod invalid_filed_date_range;
+pub use invalid_filed_date_range::InvalidFiledDateRange;
 pub mod missing_daily_index;
 pub use missing_daily_index::MissingDailyIndex;
 
@@ -82,6 +86,13 @@ pub enum State {
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
     #[error(transparent)]
     InvalidFullIndex(InvalidFullIndex),
+
+    /// Invalid filed date range: the range of dates filed of a full index selection is not in
+    /// order or not inside one quarter.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidFiledDateRange(InvalidFiledDateRange),
 
     /// Indicates that an SEC request execution has failed.
     ///
