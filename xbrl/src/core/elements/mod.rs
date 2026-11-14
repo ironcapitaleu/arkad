@@ -195,9 +195,11 @@ mod tests {
     }
 
     #[test]
-    fn should_parse_the_name_back_to_the_same_concept_for_every_concept_in_innermost() {
+    fn should_match_innermost_when_parsing_the_name_of_every_concept_back() {
         let elements: Vec<CanonicalElementKind> = INNERMOST.concat();
 
+        // The expected result is INNERMOST itself, the reference path: 36 written-out entries
+        // would repeat the enums.
         let expected_result: Vec<Result<CanonicalElementKind, InvalidValue>> =
             elements.iter().copied().map(Ok).collect();
 
@@ -210,16 +212,19 @@ mod tests {
     }
 
     #[test]
-    fn should_give_36_distinct_names_for_the_concepts_in_innermost() {
+    fn should_give_one_distinct_name_per_concept_for_the_36_concepts_in_innermost() {
         let elements: Vec<CanonicalElementKind> = INNERMOST.concat();
 
-        let expected_result = 36;
+        let expected_result = (36, 36);
 
-        let result = elements
-            .iter()
-            .map(|element| element.name())
-            .collect::<BTreeSet<_>>()
-            .len();
+        let result = (
+            elements.len(),
+            elements
+                .iter()
+                .map(|element| element.name())
+                .collect::<BTreeSet<_>>()
+                .len(),
+        );
 
         assert_eq!(result, expected_result);
     }

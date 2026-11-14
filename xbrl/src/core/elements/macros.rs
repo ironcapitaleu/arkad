@@ -117,7 +117,7 @@ macro_rules! middle_concepts {
                 #[must_use]
                 pub fn name(self) -> &'static str {
                     match self {
-                        $(Self::$variant(concept) => Concept::name(concept),)+
+                        $(Self::$variant(concept) => $crate::core::elements::Concept::name(concept),)+
                     }
                 }
 
@@ -125,26 +125,26 @@ macro_rules! middle_concepts {
                 #[must_use]
                 pub fn label(self) -> &'static str {
                     match self {
-                        $(Self::$variant(concept) => Concept::label(concept),)+
+                        $(Self::$variant(concept) => $crate::core::elements::Concept::label(concept),)+
                     }
                 }
             }
 
-            impl From<$middle> for CanonicalElementKind {
+            impl From<$middle> for $crate::core::elements::CanonicalElementKind {
                 fn from(concept: $middle) -> Self {
                     Self::$top(concept)
                 }
             }
 
-            impl TryFrom<CanonicalElementKind> for $middle {
-                type Error = CanonicalElementKind;
+            impl TryFrom<$crate::core::elements::CanonicalElementKind> for $middle {
+                type Error = $crate::core::elements::CanonicalElementKind;
 
                 /// # Errors
                 ///
                 #[doc = concat!("Returns the element as it is if it holds no [`", stringify!($middle), "`].")]
-                fn try_from(element: CanonicalElementKind) -> Result<Self, Self::Error> {
+                fn try_from(element: $crate::core::elements::CanonicalElementKind) -> Result<Self, Self::Error> {
                     match element {
-                        CanonicalElementKind::$top(concept) => Ok(concept),
+                        $crate::core::elements::CanonicalElementKind::$top(concept) => Ok(concept),
                         other => Err(other),
                     }
                 }
@@ -174,15 +174,15 @@ macro_rules! middle_concepts {
                     }
                 }
 
-                impl TryFrom<CanonicalElementKind> for $inner {
-                    type Error = CanonicalElementKind;
+                impl TryFrom<$crate::core::elements::CanonicalElementKind> for $inner {
+                    type Error = $crate::core::elements::CanonicalElementKind;
 
                     /// # Errors
                     ///
                     #[doc = concat!("Returns the element as it is if it holds no [`", stringify!($inner), "`].")]
-                    fn try_from(element: CanonicalElementKind) -> Result<Self, Self::Error> {
+                    fn try_from(element: $crate::core::elements::CanonicalElementKind) -> Result<Self, Self::Error> {
                         $middle::try_from(element).and_then(|concept| {
-                            Self::try_from(concept).map_err(CanonicalElementKind::from)
+                            Self::try_from(concept).map_err($crate::core::elements::CanonicalElementKind::from)
                         })
                     }
                 }
@@ -193,6 +193,6 @@ macro_rules! middle_concepts {
         ///
         /// The entries follow the order of the middle enums. The parse from the name and the test
         /// for unique names walk this table.
-        pub const INNERMOST: &[&[CanonicalElementKind]] = &[$($($inner::ELEMENTS,)+)+];
+        pub const INNERMOST: &[&[$crate::core::elements::CanonicalElementKind]] = &[$($($inner::ELEMENTS,)+)+];
     };
 }
