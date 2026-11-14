@@ -241,16 +241,16 @@ more Tier 3 rule. A concept that belongs to no sum is a disclosure next to the t
 
 #### Groups
 
-A **group** is one sum: a parent and the concepts that add up to it. Each concept has one
-**placement**:
+A **group** is one sum: a parent and the concepts that add up to it. Each concept of a statement
+has one **placement**:
 
 - `Top`: a total or subtotal on the top level of its statement, such as `Assets` or
   `GrossProfit`.
 - `Child { group, weight }`: a member of one group. The weight is `+1` or `−1`.
-- `Disclosure`: a value outside every sum, such as `EarningsPerShareBasic`.
 
-The statement or disclosure of a concept is its place in the hierarchy of `CanonicalElementKind`.
-The `Concept` trait gives the placement (see "Extension Model").
+A concept of a disclosure, such as `EarningsPerShareBasic`, has no placement. The statement or
+disclosure of a concept is its place in the hierarchy of `CanonicalElementKind`. The `Placed`
+trait gives the placement (see "Extension Model").
 
 A group has one of two kinds:
 
@@ -429,8 +429,9 @@ Duration values. The top line is `NetChangeInCash`.
 
 #### Disclosures
 
-A disclosure holds values that belong to no sum. Its concepts have no parent, no other line, and
-no roll-up check.
+A disclosure is a set of concepts that belong to no sum. Its concepts have no parent, no other
+line, and no roll-up check. EPS sits on the face of the income statement (ASC 260-10-45-2), but it
+adds to no line, so it is a disclosure here.
 
 - `PerShare`: `EarningsPerShareBasic` and `EarningsPerShareDiluted`. A per-share value does not add
   with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
@@ -463,8 +464,8 @@ module and one variant, and its siblings do not change.
 | `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept` |
 | a leaf error | a concept, such as `Assets` |
 
-`CanonicalElement` becomes `CanonicalElementKind`, the top of the hierarchy. The rest of this
-document still says `CanonicalElement`, the name in the code today.
+`CanonicalElement` becomes `CanonicalElementKind`, the top of the hierarchy. The sections that
+describe the code of today still say `CanonicalElement`.
 
 ```rust
 #[non_exhaustive]
@@ -491,14 +492,10 @@ pub enum BalanceSheetConcept { Assets, CurrentAssets, /* … */ }
 impl From<BalanceSheetConcept> for StatementConcept { /* … */ }
 impl From<StatementConcept> for CanonicalElementKind { /* … */ }
 impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
-    type Error = CanonicalElementKind; // gives back a concept of another group
+    type Error = CanonicalElementKind; // gives back a concept of another statement or disclosure
     /* … */
 }
 ```
-
-A **disclosure** is a value that belongs to no sum of a statement. Filers report it next to the
-statements or in the notes. `PerShare` holds the earnings per share. Debt maturities come later as
-a second disclosure.
 
 ```
 xbrl/src/core/elements/
@@ -521,10 +518,12 @@ xbrl/src/core/statement/
 **Each statement module owns its part of the tree.** `balance_sheet.rs` holds the placement of
 each balance sheet concept and the groups whose parent is a balance sheet concept. A group from
 another statement, such as `operating-cash-flow` with its start `NetIncome`, belongs to the
-module of its parent. `statement/mod.rs` joins the groups in the order balance sheet, income
-statement, cash flow. That order is the order of "Derivation From a Closed Group".
+module of its parent. Each module lists its groups in the order of its table. `statement/mod.rs`
+joins the groups in the order balance sheet, income statement, cash flow. That order is the order
+of "Derivation From a Closed Group".
 
-**The `Concept` trait** is implemented by each innermost enum, such as `BalanceSheetConcept`:
+Two traits describe a concept. Each innermost enum, such as `BalanceSheetConcept`, implements
+`Concept`. Each enum of a statement also implements `Placed`:
 
 ```rust
 pub trait Concept: Copy + Eq + 'static {
@@ -534,15 +533,28 @@ pub trait Concept: Copy + Eq + 'static {
     fn name(self) -> &'static str;
     /// The label for people, such as `Net Income`.
     fn label(self) -> &'static str;
-    /// The parent and the weight, or a top line, or a disclosure.
+}
+
+/// A concept with a place in the tree of a statement.
+pub trait Placed: Concept {
+    /// The parent and the weight, or a top line.
     fn placement(self) -> Placement;
 }
 ```
 
+- `Placed` is a subtrait of `Concept`, because every concept with a placement also has a name and
+  a label. A disclosure implements `Concept` only, so the hierarchy alone says that a concept is a
+  disclosure. A later disclosure whose values add up, such as debt maturities, gets its own trait
+  next to these.
+- A declarative macro defines each innermost enum and its `ALL` from one list of variants, so the
+  two cannot drift. `elements/mod.rs` holds `INNERMOST`, a `const` list with one entry for each
+  innermost enum. The parse from the name and the uniqueness test walk it. A test checks that
+  `INNERMOST` holds 52 concepts.
 - A trait method cannot be a `const fn`. The alias lists and the part rules are `const` tables. So
   each innermost enum also has an inherent `const fn element(self) -> CanonicalElementKind`, and a
-  list writes `BalanceSheetConcept::Assets.element()`. `From` serves code that runs at run time.
-- `Concept` is a new trait next to the existing traits, so it changes no trait (`AGENTS.md`,
+  list writes `BalanceSheetConcept::Assets.element()`. Run-time code converts with `From` one level
+  at a time, as in `sec`, or calls `element()`.
+- `Concept` and `Placed` are new traits next to the existing traits, so they change no trait (`AGENTS.md`,
   "Open-Closed Principle").
 - A parent in the tree is a sum, not a container, so the nesting stops at the statement. A sum can
   start from another statement, as `operating-cash-flow` starts from `NetIncome`. `placement()`
@@ -551,8 +563,8 @@ pub trait Concept: Copy + Eq + 'static {
 - The statement of a concept comes from its place in the hierarchy. The placement needs no
   statement.
 - The name in silver stays the name of the innermost variant, such as `NetIncome`, not a path
-  such as `Statement.IncomeStatement.NetIncome`. A test walks `ALL` of every innermost enum and
-  checks that no two concepts share a name. So the parse from the name finds one concept, and every
+  such as `Statement.IncomeStatement.NetIncome`. A test walks `INNERMOST` and checks that no two
+  concepts share a name. So the parse from the name finds one concept, and every
   stored name stays valid.
 - `Serialize` writes `name()`. A derived `Serialize` writes the path, so the implementation writes
   it by hand. The `api` crate derives its concept ID from this name.
@@ -563,11 +575,11 @@ A change touches these places, and no others:
 
 | Change | Adds | Changes |
 | ------ | ---- | ------- |
-| A concept in an existing statement | a variant of its enum, an arm of each method of `Concept`, an alias list | nothing else |
+| A concept in an existing statement | a variant in the macro of its enum, an arm of each method of `Concept` and `Placed`, an alias list | nothing else |
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
-| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
-| A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
+| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, an entry in `INNERMOST`, alias lists | nothing else |
+| A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, an entry in `INNERMOST`, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
 arrives. A new variant is outside the Open-Closed Principle, which covers traits only.
@@ -1510,8 +1522,8 @@ Mode 2 = Validate         (verify all edges hold)
 Decided: static tables of weighted edges in `xbrl::core`, the same for every plug-in. Each
 statement module holds its part, as "Extension Model" describes.
 
-- `Concept::placement()` gives each standard concept its placement. A placement is a top line, a
-  child of one group with a weight of +1 or −1, or a disclosure. Each statement module lists its
+- `Placed::placement()` gives each concept of a statement its placement. A placement is a top line
+  or a child of one group with a weight of +1 or −1. A disclosure has none. Each statement module lists its
   groups: the parent, the start of a step, and whether the group is closed. "Roll-Up Tree" holds
   both.
 - Resolution and validation share the table. Tier 3 derives the one unknown member of a closed
@@ -2169,8 +2181,8 @@ impl TryFrom<Statement> for BalanceSheet {
 - A step can start from a line of another statement. Today `NetIncome` in the cash flow statement
   is the only one. Each view lists these starts in a `const`, such as
   `CashFlowStatement::STARTS`, and gives each one an accessor, such as `net_income()`. A unit test
-  checks that `STARTS` equals the starts that the table gives the statement from another
-  statement. A new start fails the test until it lands in `STARTS`, and that change adds its
+  checks that `STARTS` holds the starts of the groups in `elements/statement/` that come from
+  another statement, in their order. A new start fails the test until it lands in `STARTS`, and that change adds its
   accessor.
 - `line` returns `None` if the statement has no line for the concept: a parent with no value, which
   is transparent. A child with no value has a line with `value: None`.
