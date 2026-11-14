@@ -114,9 +114,11 @@ regulator-specific data.
   `CompanyId` or LEI. The metadata store then routes the query to the source stores that hold data
   for it.
 
-A rank that a person sets (ADR 0007, Decision 5) is in neither ring. No registry checks it, and no
-replay rebuilds it, so a rebuild of the metadata store keeps it. ADR 0007, "Open Questions", leaves
-open how the rank keeps who set it and when.
+A value that a person sets is in neither ring: a rank, a home market, the trust of a source, or a
+verdict on an item of the review queue (ADR 0007, Decisions 3 and 5). No registry checks it, and no
+replay rebuilds it. So a rebuild of the metadata store must keep it. §8, "Recoverability", does not
+cover such a value. ADR 0007, "Open Questions", leaves open how the metadata store records who set
+a rank and when.
 
 **Multi-source rule:** if several source stores hold canonical facts for the same company, no load
 merges them. Each source store keeps its own canonical facts (ADR 0007, Decision 4). Example: a
