@@ -1,6 +1,6 @@
 ---
 source: xbrl/src/core/elements.rs
-last-verified: 2026-11-09
+last-verified: 2026-11-14
 update-frequency: on-code-change
 ---
 
@@ -11,24 +11,27 @@ These are the 42 CanonicalElement enum variants the system resolves to. Grouped 
 ## Level 1 — Roots
 
 The roots are the elements of FASB Concepts Statement 8, Chapter 4. The paragraph numbers below
-point to SFAC 6, which Chapter 4 replaced. They stay until the `accounting` skill holds the
-official text of Chapter 4.
+are those of Chapter 4.
 
-| Element | Statement | Period Type | SFAC 6 Paragraph |
+| Element | Statement | Period Type | Chapter 4 Paragraph |
 | --- | --- | --- | --- |
-| Assets | Balance Sheet | Instant | ¶25 |
-| Liabilities | Balance Sheet | Instant | ¶35 |
-| Equity | Balance Sheet | Instant | ¶49 |
-| Revenue | Income Statement | Duration | ¶78 |
-| Expenses | Income Statement | Duration | ¶80 |
-| Gains | Income Statement | Duration | ¶82 |
-| Losses | Income Statement | Duration | ¶83 |
+| Assets | Balance Sheet | Instant | E16 |
+| Liabilities | Balance Sheet | Instant | E37 |
+| Equity | Balance Sheet | Instant | E61 |
+| Revenue | Income Statement | Duration | E80, see the note below |
+| Expenses | Income Statement | Duration | E81 |
+| Gains | Income Statement | Duration | E82 |
+| Losses | Income Statement | Duration | E83 |
 | NetIncome | Income Statement | Duration | Derived |
-| OtherComprehensiveIncome | Comprehensive Income | Duration | Part of ¶70 |
-| ComprehensiveIncome | Comprehensive Income | Duration | ¶70 |
+| OtherComprehensiveIncome | Comprehensive Income | Duration | Part of E75 |
+| ComprehensiveIncome | Comprehensive Income | Duration | E75 |
 | OperatingCashFlow | Cash Flow | Duration | Activity |
 | InvestingCashFlow | Cash Flow | Duration | Activity |
 | FinancingCashFlow | Cash Flow | Duration | Activity |
+
+Note: the `Revenue` root is narrower than E80. It holds the revenue line the filer reports. It
+leaves out the revenues from "other activities" of E84, such as interest income. `xbrl/DESIGN.md`,
+"Roll-Up Tree", puts interest income in other non-operating income.
 
 ## Level 2 — Balance Sheet
 
