@@ -7,7 +7,7 @@ description: >
   reports of the SEC and of EU issuers, restatements, and which values add over periods. Also use
   when the user asks "does this balance", "how does IFRS treat X", "is this a restatement", "what
   is Q4", or "which period is this".
-version: 0.2.0
+version: 0.2.1
 ---
 
 # Accounting
@@ -30,8 +30,8 @@ The ten US GAAP elements are assets, liabilities, equity, investments by owners,
 owners, comprehensive income, revenue, expenses, gains, and losses. SFAC 6 (1985) defined them.
 Concepts Statement 8, Chapter 4 (December 2021) replaced SFAC 6. It keeps the ten elements. It
 changes the definitions of assets and liabilities: for example, it drops "probable" and "past
-transactions or events". `references/sfac6-elements.md` still quotes the SFAC 6 text. Do not use
-its definitions of assets and liabilities to decide whether an item is one. The five IFRS elements are assets, liabilities, equity, income,
+transactions or events". `references/concepts-statement-8-chapter-4-elements.md` quotes the
+definitions of Chapter 4. The five IFRS elements are assets, liabilities, equity, income,
 and expenses. IFRS income includes gains, and IFRS expenses include losses.
 
 ## Identities
@@ -134,7 +134,7 @@ published by that date.
 
 ## Authoritative Sources
 
-- **SFAC 6 definitions (superseded):** `references/sfac6-elements.md`
+- **Concepts Statement 8, Chapter 4 definitions:** `references/concepts-statement-8-chapter-4-elements.md`
 - **FASB Concepts Statements:** `https://www.fasb.org/standards/concepts-statements`
 - **US GAAP:** FASB Accounting Standards Codification, `https://asc.fasb.org`
 - **IFRS:** IFRS Foundation, `https://www.ifrs.org/issued-standards/`

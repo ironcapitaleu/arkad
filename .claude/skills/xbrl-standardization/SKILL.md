@@ -6,7 +6,7 @@ description: >
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.3
+version: 0.3.4
 ---
 
 # XBRL Standardization
