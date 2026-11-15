@@ -1,3 +1,5 @@
+[ADR 0015](../../../docs/adr/0015-error-hierarchy.md) records the decisions that errors nest by origin, as value types, and how they print.
+
 ```mermaid
 ---
 title: "`sec` Error Type Hierarchy"
