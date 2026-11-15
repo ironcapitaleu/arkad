@@ -1,12 +1,13 @@
 //! # Roll-Up Real Filing Integration Tests
 //!
-//! Runs the derivation from a closed group on the standardized facts of one real filing, the 10-Q
-//! `0001628280-26-068246`, as [`xbrl::adapter::edgar::notes::parse`] and
-//! [`xbrl::adapter::edgar::instance::parse`] give them.
+//! Runs the derivation from a closed group and the checks of the roll-up tree on the standardized
+//! facts of one real filing, the 10-Q `0001628280-26-068246`, as
+//! [`xbrl::adapter::edgar::notes::parse`] and [`xbrl::adapter::edgar::instance::parse`] give them.
 //!
 //! The filing reports no `Liabilities` and no `AssetsNoncurrent` on its balance sheets of
 //! 2026-05-31 and 2026-09-30. It reports no temporary equity and no noncontrolling interest, so both
-//! count as zero.
+//! count as zero. Each checked group and the balance sheet identity hold, so the checks report no
+//! finding.
 //!
 //! ## External Dependencies
 //!
@@ -19,7 +20,9 @@ use xbrl::core::closed_group::derive_from_closed_groups;
 use xbrl::core::dedup::{more_precise, newest_filing};
 use xbrl::core::elements::{BalanceSheetConcept, CanonicalElementKind};
 use xbrl::core::fact::AsIsFact;
+use xbrl::core::finding::Finding;
 use xbrl::core::period_identity::derive_q4;
+use xbrl::core::roll_up_check::check_roll_ups;
 use xbrl::core::taxonomy::registry::Registry;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
@@ -98,6 +101,40 @@ fn should_derive_liabilities_and_non_current_assets_when_the_rules_run_on_the_in
     let expected_result = expected_roll_ups();
 
     let result = roll_ups(&facts);
+
+    assert_eq!(result, expected_result);
+}
+
+/// Runs the rules of [`roll_ups`], then the checks of the roll-up tree, and returns the findings.
+fn findings(facts: &[AsIsFact]) -> Vec<Finding> {
+    let plugin = UsGaap::new();
+    let registry = Registry::new(vec![&plugin])
+        .expect("Given one plug-in with distinct families, the creation should always succeed");
+    let series = newest_filing(&resolve_aliases(&more_precise(facts), &registry).candidates);
+    let mut added = derive_q4(&series, &[]);
+    let derived = derive_from_closed_groups(&series, &added);
+    added.extend(derived);
+    check_roll_ups(&series, &added)
+}
+
+#[test]
+fn should_report_no_finding_when_the_checks_run_on_the_notes_facts() {
+    let facts = parse_notes_fixture().facts;
+
+    let expected_result: Vec<Finding> = Vec::new();
+
+    let result = findings(&facts);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_report_no_finding_when_the_checks_run_on_the_instance_facts() {
+    let facts = parse_instance_fixture().facts;
+
+    let expected_result: Vec<Finding> = Vec::new();
+
+    let result = findings(&facts);
 
     assert_eq!(result, expected_result);
 }

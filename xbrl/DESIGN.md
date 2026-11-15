@@ -620,6 +620,14 @@ fails on the rounding of the members.
 A value that `core/roll-up/<group>@1` derived from a group makes that group hold by construction.
 So the check of that group is skipped for that period.
 
+- `check_roll_ups` in `core/roll_up_check.rs` runs the checks on the series of one entity. It
+  takes the facts of `core/period/q4-from-fy@1` and of `core/roll-up/<group>@1` next to the
+  series.
+- A closed group gets no check for a period if a member has no value and is not zero if absent,
+  or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
+- The negative other check reads the other line of the statement output type (see "7) Financial
+  Statement Output Types"). It computes no other line of its own.
+
 #### Derivation From a Closed Group
 
 A closed group with exactly one unknown member gives that member as a Tier 3 value. The unknown can
@@ -811,7 +819,7 @@ parses it.
   confidence `Derived` and the rule ID in `rule`.
 - `RollUpMismatch` and `NegativeOther` are new values of `findings.kind`. For a group,
   `concepts` holds the parent first, then the start of a step, then the other members in the order
-  of the tables of "Roll-Up Tree". `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
+  of the tables of "Roll-Up Tree". It holds only the members with a value. `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
   `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`. `confidence` holds the weakest
   confidence of the inputs of the check (see "Layer 3").
 
@@ -1685,7 +1693,8 @@ It never fails.
   delisting makes no gap.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
-- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`), the entity, the
+- **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
+  `RollUpMismatch`, `NegativeOther`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
