@@ -9,6 +9,36 @@
 
 use storage::Mic;
 
+/// Each EDGAR exchange code that names an exchange, with the MIC of that exchange.
+///
+/// `NONE` names no exchange, so the table leaves it out.
+const MIC_BY_EDGAR_EXCHANGE_CODE: [(&str, &str); 22] = [
+    ("NYSE", "XNYS"),
+    ("NASDAQ", "XNAS"),
+    // CHX and NYSETX name one exchange: the Chicago Stock Exchange, now NYSE Texas.
+    ("CHX", "XCHI"),
+    ("BOX", "XBOX"),
+    ("BX", "XBOS"),
+    ("C2", "C2OX"),
+    ("CBOE", "XCBO"),
+    ("CboeBYX", "BATY"),
+    ("CboeBZX", "BATS"),
+    ("CboeEDGA", "EDGA"),
+    ("CboeEDGX", "EDGX"),
+    ("GEMX", "GMNI"),
+    ("IEX", "IEXG"),
+    ("ISE", "XISX"),
+    ("MIAX", "XMIO"),
+    ("MRX", "MCRY"),
+    ("NYSEAMER", "XASE"),
+    ("NYSEArca", "ARCX"),
+    ("NYSENAT", "XCIS"),
+    ("NYSETX", "XCHI"),
+    // The MIC of the exchange MIAX PEARL, LLC. Its equities segment has the MIC `EPRL`.
+    ("PEARL", "MPRL"),
+    ("Phlx", "XPHL"),
+];
+
 /// Returns the MIC of the exchange that an EDGAR exchange code names, or `None`.
 ///
 /// The code matches exactly, case included, so `Phlx` maps and `PHLX` does not. `NONE` names no
@@ -30,33 +60,10 @@ use storage::Mic;
 /// ```
 #[must_use]
 pub fn mic_of(code: &str) -> Option<Mic> {
-    let mic = match code {
-        "NYSE" => "XNYS",
-        "NASDAQ" => "XNAS",
-        // CHX and NYSETX name one exchange: the Chicago Stock Exchange, now NYSE Texas.
-        "CHX" | "NYSETX" => "XCHI",
-        "BOX" => "XBOX",
-        "BX" => "XBOS",
-        "C2" => "C2OX",
-        "CBOE" => "XCBO",
-        "CboeBYX" => "BATY",
-        "CboeBZX" => "BATS",
-        "CboeEDGA" => "EDGA",
-        "CboeEDGX" => "EDGX",
-        "GEMX" => "GMNI",
-        "IEX" => "IEXG",
-        "ISE" => "XISX",
-        "MIAX" => "XMIO",
-        "MRX" => "MCRY",
-        "NYSEAMER" => "XASE",
-        "NYSEArca" => "ARCX",
-        "NYSENAT" => "XCIS",
-        // The MIC of the exchange MIAX PEARL, LLC. Its equities segment has the MIC `EPRL`.
-        "PEARL" => "MPRL",
-        "Phlx" => "XPHL",
-        _ => return None,
-    };
-    // Every MIC above parses. The test of every code of the enumeration checks it.
+    let (_, mic) = MIC_BY_EDGAR_EXCHANGE_CODE
+        .iter()
+        .find(|(edgar_code, _)| *edgar_code == code)?;
+    // Every MIC of the table parses. The test of every code of the enumeration checks it.
     mic.parse().ok()
 }
 
