@@ -108,7 +108,8 @@ pub enum Finding {
     RollUpMismatch {
         /// The entity the values are about.
         entity: EntityId,
-        /// The period of the first value. The values share the end and the length in quarters.
+        /// The period of the first value. The values share the end, the length in quarters,
+        /// and the period type.
         period: Period,
         /// The unit of the values.
         unit: Unit,
@@ -128,7 +129,8 @@ pub enum Finding {
     NegativeOther {
         /// The entity the values are about.
         entity: EntityId,
-        /// The period of the first value. The values share the end and the length in quarters.
+        /// The period of the first value. The values share the end, the length in quarters,
+        /// and the period type.
         period: Period,
         /// The unit of the values.
         unit: Unit,

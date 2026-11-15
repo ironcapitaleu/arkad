@@ -23,6 +23,7 @@ use super::finding::{Finding, RollUpCheck};
 use super::period::Period;
 use super::standardized::StandardizedFact;
 use super::statement::{Line, Statement, StatementKind};
+use super::taxonomy::reference::PeriodType;
 use super::unit::Unit;
 
 /// The groups whose other line must not fall below zero.
@@ -78,9 +79,16 @@ pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Findin
     findings
 }
 
-/// The key of a [`Slot`]: the entity, the period end, the length in quarters, the unit, and the
-/// dimensions.
-type SlotKey<'a> = (&'a EntityId, NaiveDate, u16, &'a Unit, &'a Dimensions);
+/// The key of a [`Slot`]: the entity, the period end, the length in quarters, the period type, the
+/// unit, and the dimensions.
+type SlotKey<'a> = (
+    &'a EntityId,
+    NaiveDate,
+    u16,
+    PeriodType,
+    &'a Unit,
+    &'a Dimensions,
+);
 
 /// The values of one entity, period, unit, and set of dimensions, by concept.
 struct Slot<'a> {
@@ -93,12 +101,12 @@ struct Slot<'a> {
 }
 
 impl<'a> Slot<'a> {
-    /// Returns the slots of `series` and `added`, sorted by entity, period end, length in quarters,
-    /// unit, and dimensions.
+    /// Returns the slots of `series` and `added`, sorted by their key.
     ///
-    /// A slot holds the values of one series key, as the derivation from a closed group does, so
-    /// values with another start of their period share a slot. The slot takes the period of its
-    /// first value.
+    /// A slot holds the values of one series key and one period type. So values whose periods
+    /// differ only in the start fit one slot, as in the derivation from a closed group. An instant
+    /// and a duration of 0 quarters with the same end fit two slots. The slot takes the period of
+    /// its first value.
     fn all(series: &'a Series, added: &'a [StandardizedFact]) -> Vec<Self> {
         let mut slots: BTreeMap<SlotKey<'a>, Self> = BTreeMap::new();
         for fact in series.facts.iter().chain(added) {
@@ -106,6 +114,7 @@ impl<'a> Slot<'a> {
                 &fact.entity,
                 fact.period.end(),
                 fact.period.quarters(),
+                fact.period.period_type(),
                 &fact.unit,
                 &fact.dimensions,
             );
@@ -122,16 +131,21 @@ impl<'a> Slot<'a> {
                 .values
                 .insert(fact.concept, fact);
         }
+        // A series key has no period type, so the blocked concept marks the slot of each type. A
+        // concept belongs to one statement, so the mark in the other slot changes no check.
         for key in &series.blocked {
-            let slot_key = (
-                &key.entity,
-                key.period_end,
-                key.quarters,
-                &key.unit,
-                &key.dimensions,
-            );
-            if let Some(slot) = slots.get_mut(&slot_key) {
-                slot.blocked.insert(key.concept);
+            for period_type in [PeriodType::Instant, PeriodType::Duration] {
+                let slot_key = (
+                    &key.entity,
+                    key.period_end,
+                    key.quarters,
+                    period_type,
+                    &key.unit,
+                    &key.dimensions,
+                );
+                if let Some(slot) = slots.get_mut(&slot_key) {
+                    slot.blocked.insert(key.concept);
+                }
             }
         }
         slots.into_values().collect()
@@ -213,8 +227,8 @@ impl<'a> Slot<'a> {
     /// Builds the [`Statement`] of `kind` from the values of the slot that `kind` places, or
     /// returns `None` if the slot has no such value.
     ///
-    /// Each value takes the period of the slot, so values with another start of their period
-    /// share the statement.
+    /// Each value takes the period of the slot, so values whose periods differ only in the start
+    /// fit one statement.
     fn statement(&self, kind: StatementKind) -> Option<Statement> {
         let facts: Vec<StandardizedFact> = self
             .values
@@ -476,6 +490,47 @@ mod tests {
         let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_roll_ups(&facts, &[noncontrolling]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_negative_other_when_a_zero_quarter_duration_ends_on_a_balance_sheet_date() {
+        let stub = Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 0));
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::Assets, "100000"),
+            value(
+                IncomeStatementConcept::OperatingExpenses.element(),
+                stub,
+                "100",
+            ),
+            value(
+                IncomeStatementConcept::SellingGeneralAdmin.element(),
+                stub,
+                "80",
+            ),
+            value(
+                IncomeStatementConcept::ResearchDevelopment.element(),
+                stub,
+                "30",
+            ),
+        ]);
+
+        let expected_result = vec![Finding::NegativeOther {
+            entity: entity(),
+            period: stub,
+            unit: unit(),
+            dimensions: Dimensions::default(),
+            concepts: vec![
+                IncomeStatementConcept::OperatingExpenses.element(),
+                IncomeStatementConcept::SellingGeneralAdmin.element(),
+                IncomeStatementConcept::ResearchDevelopment.element(),
+            ],
+            reason: IncomeStatementGroup::OperatingExpenses.name(),
+            confidence: Confidence::Exact,
+        }];
+
+        let result = check_roll_ups(&facts, &[]);
 
         assert_eq!(result, expected_result);
     }
