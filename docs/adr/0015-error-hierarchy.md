@@ -129,8 +129,8 @@ ImpreciseRollup stays at all, so a fix now may be thrown away."
 - A caller that needs the deviation of a roll-up reads the `RollUpMismatch` finding and the
   values of its concepts.
 - `InconsistentIdentity` still holds its values as `i64`. This amendment does not cover them.
-- If a publish gate needs a hard error for a failed roll-up, it adds a new variant. A reopen of
-  this amendment is the event.
+- If a publish gate needs a hard error for a failed roll-up, it adds a new variant. That change
+  reopens this amendment.
 
 ## Options Considered
 

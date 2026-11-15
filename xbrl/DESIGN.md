@@ -2098,10 +2098,8 @@ A violation of an invariant produces `InconsistentIdentity`. An exact invariant 
 tolerance. A non-exact invariant must hold within the tolerance of "Precision Threshold".
 
 The series step does not fail on a broken identity. It records each failed check of the roll-up tree
-as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
-validates one statement, such as a publish gate. The checks of the series step use the tolerance of "Checks the Tree Gives",
-for every group and identity. `is_exact()` applies only to a caller that validates one statement,
-such as a publish gate.
+as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors and `is_exact()` are for a
+caller that validates one statement, such as a publish gate.
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
