@@ -6,9 +6,11 @@
 //!   list of variants and labels.
 //! - `middle_concepts!` defines the middle enums, `StatementConcept` and `DisclosureConcept`, the
 //!   conversions between the levels, and `INNERMOST`.
+//! - `group_names!` defines the group enum of one statement, such as `BalanceSheetGroup`, from one
+//!   list of variants and their text.
 //!
 //! One list feeds each enum and its tables, so a variant cannot miss `ALL`, `ELEMENTS`, `name()`,
-//! or `INNERMOST`.
+//! `as_str()`, or `INNERMOST`.
 
 /// Defines an innermost concept enum and its `impl Concept`.
 ///
@@ -196,5 +198,55 @@ macro_rules! middle_concepts {
         /// The entries follow the order of the middle enums. The parse from the name and the test
         /// for unique names walk this table.
         pub const INNERMOST: &[&[$crate::core::elements::CanonicalElementKind]] = &[$($($inner::ELEMENTS,)+)+];
+    };
+}
+
+/// Defines the group enum of one statement.
+///
+/// The input names the enum, the variant of `GroupName` that holds it, and each variant with its
+/// kebab-case text. The macro writes:
+///
+/// - the enum, `#[non_exhaustive]`, with the derives of every concept enum,
+/// - `ALL`, in the order of the list,
+/// - `as_str()`, the text of each variant,
+/// - the inherent `const fn name()`, the `GroupName` of the variant.
+macro_rules! group_names {
+    (
+        $(#[$meta:meta])*
+        pub enum $name:ident in $wrap:ident {
+            $(
+                $(#[$variant_meta:meta])*
+                $variant:ident => $text:literal
+            ),+ $(,)?
+        }
+    ) => {
+        $(#[$meta])*
+        #[non_exhaustive]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+        pub enum $name {
+            $(
+                $(#[$variant_meta])*
+                $variant,
+            )+
+        }
+
+        impl $name {
+            /// Every group, in the order of the variants.
+            pub const ALL: &'static [Self] = &[$(Self::$variant,)+];
+
+            /// Returns the name of the group in rule IDs and findings, such as `current-assets`.
+            #[must_use]
+            pub const fn as_str(self) -> &'static str {
+                match self {
+                    $(Self::$variant => $text,)+
+                }
+            }
+
+            /// Returns the [`GroupName`](crate::core::elements::GroupName) that holds this group.
+            #[must_use]
+            pub const fn name(self) -> $crate::core::elements::GroupName {
+                $crate::core::elements::GroupName::$wrap(self)
+            }
+        }
     };
 }

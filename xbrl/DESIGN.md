@@ -505,12 +505,12 @@ xbrl/src/core/elements/
   mod.rs                         CanonicalElementKind, Concept, Placed, and the call of the middle
                                  macro: StatementConcept, DisclosureConcept, the conversions
   macros.rs                      the innermost macro and the middle macro
-  roll_up.rs                     Placement, Weight, Group, GroupKind
+  roll_up.rs                     Placement, Weight, Group, GroupKind, GroupName
   statement/
     mod.rs                       the groups of every statement joined
-    balance_sheet.rs             BalanceSheetConcept, its placements and its groups
-    income_statement.rs          IncomeStatementConcept, its placements and its groups
-    cash_flow.rs                 CashFlowConcept, its placements and its groups
+    balance_sheet.rs             BalanceSheetConcept, its placements, BalanceSheetGroup, its groups
+    income_statement.rs          IncomeStatementConcept, its placements, IncomeStatementGroup, its groups
+    cash_flow.rs                 CashFlowConcept, its placements, CashFlowGroup, its groups
   disclosure/
     mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
