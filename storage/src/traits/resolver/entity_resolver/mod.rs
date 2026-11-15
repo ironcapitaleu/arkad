@@ -66,7 +66,7 @@ mod tests {
     use super::*;
     use crate::error::BackendError;
     use crate::shared::CompanyScheme;
-    use crate::tests::fixtures::fake_entity_resolver::{FakeEntityResolver, IdentifierRow};
+    use crate::tests::fixtures::fake_entity_resolver::{CompanyIdentifierRow, FakeEntityResolver};
 
     /// Google Inc. filed under CIK 1288776 up to the period end 2015-06-30. Alphabet Inc. became
     /// its successor issuer in an `8-K12B` of 2015-10-02, and files under CIK 1652044 from the
@@ -91,8 +91,8 @@ mod tests {
     /// period end 2015-09-30, with an open end.
     fn alphabet_resolver() -> FakeEntityResolver {
         FakeEntityResolver::new(vec![
-            IdentifierRow::new(cik(GOOGLE_CIK), alphabet(), None, Some(date(2015, 6, 30))),
-            IdentifierRow::new(cik(ALPHABET_CIK), alphabet(), Some(date(2015, 9, 30)), None),
+            CompanyIdentifierRow::new(cik(GOOGLE_CIK), alphabet(), None, Some(date(2015, 6, 30))),
+            CompanyIdentifierRow::new(cik(ALPHABET_CIK), alphabet(), Some(date(2015, 9, 30)), None),
         ])
     }
 
