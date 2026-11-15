@@ -63,7 +63,8 @@ No option was measured. The facts follow from the `Cargo.toml` files at `b2e400e
 
 ## Open Questions
 
-- The licence of the ISO 10383 list. STA-519 checks the licence of every scheme.
+- The licence of the ISO 10383 list. STA-519 checked it on 2026-11-15.
+  [ADR 0010](0010-identifier-schemes-by-licence.md), Amendment 1, holds the result.
 
 ## Sources
 
