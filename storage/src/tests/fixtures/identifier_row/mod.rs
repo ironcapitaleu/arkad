@@ -51,7 +51,7 @@ impl<I: PartialEq, K: Copy> IdentifierRow<I, K> {
     /// `valid_to`.
     ///
     /// The identifier rows of the metadata store cover their first day and end before `valid_to`,
-    /// because `valid_to` is the start of the next record.
+    /// the day the next record or an end rule starts.
     pub fn covers_before_valid_to(&self, identifier: &I, at: NaiveDate) -> bool {
         self.starts_by(identifier, at) && self.valid_to.is_none_or(|to| at < to)
     }
@@ -95,11 +95,12 @@ mod tests {
     #[test]
     fn should_cover_the_date_through_valid_to_when_the_date_is_the_first_day() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2020, 1, 1);
 
         let expected_result = true;
 
-        let result = row.covers_through_valid_to(&"cik:0000315293", at);
+        let result = row.covers_through_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -107,11 +108,12 @@ mod tests {
     #[test]
     fn should_cover_the_date_through_valid_to_when_the_date_is_valid_to() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2020, 12, 31);
 
         let expected_result = true;
 
-        let result = row.covers_through_valid_to(&"cik:0000315293", at);
+        let result = row.covers_through_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -119,11 +121,12 @@ mod tests {
     #[test]
     fn should_not_cover_the_date_through_valid_to_when_the_date_is_before_the_first_day() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2019, 12, 31);
 
         let expected_result = false;
 
-        let result = row.covers_through_valid_to(&"cik:0000315293", at);
+        let result = row.covers_through_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -131,11 +134,12 @@ mod tests {
     #[test]
     fn should_not_cover_the_date_through_valid_to_when_the_date_is_after_valid_to() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2021, 1, 1);
 
         let expected_result = false;
 
-        let result = row.covers_through_valid_to(&"cik:0000315293", at);
+        let result = row.covers_through_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -143,11 +147,12 @@ mod tests {
     #[test]
     fn should_not_cover_the_date_through_valid_to_when_the_identifier_differs() {
         let row = row_of_2020();
+        let identifier = "cik:0000858877";
         let at = date(2020, 6, 30);
 
         let expected_result = false;
 
-        let result = row.covers_through_valid_to(&"cik:0000858877", at);
+        let result = row.covers_through_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -155,11 +160,12 @@ mod tests {
     #[test]
     fn should_cover_every_date_through_valid_to_when_both_ends_are_open() {
         let row = IdentifierRow::new("cik:0000315293", 1_u8, None, None);
+        let identifier = "cik:0000315293";
         let at = date(1990, 1, 1);
 
         let expected_result = true;
 
-        let result = row.covers_through_valid_to(&"cik:0000315293", at);
+        let result = row.covers_through_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -167,11 +173,12 @@ mod tests {
     #[test]
     fn should_cover_the_date_before_valid_to_when_the_date_is_the_first_day() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2020, 1, 1);
 
         let expected_result = true;
 
-        let result = row.covers_before_valid_to(&"cik:0000315293", at);
+        let result = row.covers_before_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -179,11 +186,12 @@ mod tests {
     #[test]
     fn should_cover_the_date_before_valid_to_when_the_date_is_the_day_before_valid_to() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2020, 12, 30);
 
         let expected_result = true;
 
-        let result = row.covers_before_valid_to(&"cik:0000315293", at);
+        let result = row.covers_before_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -191,11 +199,12 @@ mod tests {
     #[test]
     fn should_not_cover_the_date_before_valid_to_when_the_date_is_valid_to() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2020, 12, 31);
 
         let expected_result = false;
 
-        let result = row.covers_before_valid_to(&"cik:0000315293", at);
+        let result = row.covers_before_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -203,11 +212,12 @@ mod tests {
     #[test]
     fn should_not_cover_the_date_before_valid_to_when_the_date_is_before_the_first_day() {
         let row = row_of_2020();
+        let identifier = "cik:0000315293";
         let at = date(2019, 12, 31);
 
         let expected_result = false;
 
-        let result = row.covers_before_valid_to(&"cik:0000315293", at);
+        let result = row.covers_before_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -215,11 +225,12 @@ mod tests {
     #[test]
     fn should_not_cover_the_date_before_valid_to_when_the_identifier_differs() {
         let row = row_of_2020();
+        let identifier = "cik:0000858877";
         let at = date(2020, 6, 30);
 
         let expected_result = false;
 
-        let result = row.covers_before_valid_to(&"cik:0000858877", at);
+        let result = row.covers_before_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }
@@ -227,11 +238,12 @@ mod tests {
     #[test]
     fn should_cover_every_date_before_valid_to_when_both_ends_are_open() {
         let row = IdentifierRow::new("cik:0000315293", 1_u8, None, None);
+        let identifier = "cik:0000315293";
         let at = date(2100, 1, 1);
 
         let expected_result = true;
 
-        let result = row.covers_before_valid_to(&"cik:0000315293", at);
+        let result = row.covers_before_valid_to(&identifier, at);
 
         assert_eq!(result, expected_result);
     }

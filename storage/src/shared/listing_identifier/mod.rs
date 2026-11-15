@@ -85,7 +85,7 @@ impl ListingIdentifier {
 }
 
 impl Display for ListingIdentifier {
-    /// Writes the scheme and the value, separated by a colon, such as `figi:BBG000MM2P62`.
+    /// Writes the scheme and the value, separated by a colon, such as `figi:BBG000000001`.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.scheme, self.value)
     }
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn should_return_the_scheme_for_a_listing_identifier() {
-        let identifier = ListingIdentifier::new(ListingScheme::Figi, "BBG000MM2P62");
+        let identifier = ListingIdentifier::new(ListingScheme::Figi, "BBG000000001");
 
         let expected_result = ListingScheme::Figi;
 
@@ -160,9 +160,9 @@ mod tests {
 
     #[test]
     fn should_return_the_value_for_a_listing_identifier() {
-        let identifier = ListingIdentifier::new(ListingScheme::Figi, "BBG000MM2P62");
+        let identifier = ListingIdentifier::new(ListingScheme::Figi, "BBG000000001");
 
-        let expected_result = "BBG000MM2P62";
+        let expected_result = "BBG000000001";
 
         let result = identifier.value();
 
@@ -171,9 +171,9 @@ mod tests {
 
     #[test]
     fn should_display_the_scheme_and_the_value_for_a_listing_identifier() {
-        let identifier = ListingIdentifier::new(ListingScheme::Figi, "BBG000MM2P62");
+        let identifier = ListingIdentifier::new(ListingScheme::Figi, "BBG000000001");
 
-        let expected_result = "figi:BBG000MM2P62";
+        let expected_result = "figi:BBG000000001";
 
         let result = identifier.to_string();
 

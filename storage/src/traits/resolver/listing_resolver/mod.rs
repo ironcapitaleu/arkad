@@ -29,8 +29,8 @@ use crate::shared::{ListingId, ListingIdentifier};
 /// Returns the [`ListingId`] of a listing identifier at a date.
 ///
 /// An implementor holds dated identifier rows: a `(scheme, value)` pair, a [`ListingId`], and a
-/// validity from one date to another. A row covers its first day, and ends before `valid_to`,
-/// because `valid_to` is the start of the next record. It returns at most one [`ListingId`] for
+/// validity from one date to another. A row covers its first day and ends before `valid_to`, the
+/// day the next record or an end rule starts. It returns at most one [`ListingId`] for
 /// one identifier and one date. If two sources that disagree give two rows for one date, the
 /// implementor picks one. The port does not fix which.
 ///
@@ -107,7 +107,8 @@ mod tests {
         ])
     }
 
-    /// The rows after a `figi` row links the two tickers: both name the older listing.
+    /// The rows after the load links the two tickers through a `figi` row: all three name the
+    /// older listing.
     fn resolver_with_figi() -> FakeListingResolver {
         FakeListingResolver::new(vec![
             ListingIdentifierRow::new(ticker(FB), fb_listing(), None, Some(date(2022, 7, 27))),
@@ -145,12 +146,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_resolve_fb_and_meta_to_one_listing_when_a_figi_row_links_them() {
+    async fn should_resolve_fb_meta_and_the_figi_to_one_listing_when_their_rows_share_a_listing_id()
+    {
         let resolver = resolver_with_figi();
         let before_the_change = date(2022, 6, 1);
         let after_the_change = date(2022, 7, 27);
 
-        let expected_result = (Some(fb_listing()), Some(fb_listing()));
+        let expected_result = (Some(fb_listing()), Some(fb_listing()), Some(fb_listing()));
 
         let result = (
             resolver
@@ -159,6 +161,10 @@ mod tests {
                 .expect("Given a fake that never fails, the resolve should always succeed"),
             resolver
                 .resolve(&ticker(META), after_the_change)
+                .await
+                .expect("Given a fake that never fails, the resolve should always succeed"),
+            resolver
+                .resolve(&figi(FIGI), after_the_change)
                 .await
                 .expect("Given a fake that never fails, the resolve should always succeed"),
         );
