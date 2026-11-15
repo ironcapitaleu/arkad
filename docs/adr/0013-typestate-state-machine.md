@@ -48,9 +48,12 @@ The choice binds:
    `Self::NewStateMachine` (`transition/mod.rs:20-31`). A move that no `Transition` impl allows does
    not compile, and the old state cannot be used again (`transition/mod.rs:5-6`).
 4. **The framework is a crate of its own, with no domain code.** `state_maschine` knows no SEC
-   type. `sec` adds its own `State` trait on top, with an async `compute_output_data_async` that
-   returns a `StateError`, because its states do network I/O
-   (`sec/src/lib/traits/state_machine/state/mod.rs:28-40`, added in #23 on 2025-06-04).
+   type. `sec` adds its own traits on top, with typed errors:
+   - `State`, with an async `compute_output_data_async` that returns a `StateError`, because its
+     states do network I/O (`sec/src/lib/traits/state_machine/state/mod.rs:28-40`, added in #23 on
+     2025-06-04).
+   - `Transition`, with `transition_to_next_state_sec` that returns a `TransitionError`
+     (`sec/src/lib/traits/state_machine/transition/mod.rs:23-38`, added in #34 on 2025-10-12).
 
 The project lead gave these reasons on 2026-11-15, in the session that wrote this ADR:
 
@@ -81,25 +84,23 @@ comparison.
   `ExtractFilingSuperState<S, X, I, L, C>` has five (`filing/mod.rs:356`).
 - The core `State::compute_output_data` is synchronous and returns no error. Every async or
   fallible step goes through the `sec` trait of decision 4.
-- `Transition` returns its error as a `&'static str` (`transition/mod.rs:30`), so a failed transition
-  carries no typed cause.
+- The core `Transition` returns its error as a `&'static str` (`transition/mod.rs:30`). Each of the
+  24 transitions of `sec` also implements the `sec` trait of decision 4, which returns a typed
+  `TransitionError`.
 - Only `sec` depends on the framework. The `api` and `xbrl` crates do not use it.
-
-## Open Questions
-
-- Whether `Transition` returns a typed error instead of `&'static str`. A change touches the trait
-  and its 24 impls in `sec`, so it needs its own decision.
 
 ## Sources
 
 - `state_maschine/src/state_machine/`: `mod.rs:28-39`, `state/mod.rs:35-67`,
   `state/context/mod.rs:3-35`, `transition/mod.rs:5-31`, `super_state/mod.rs:19`, on `main` at
   `a9d57d1`.
-- `sec/src/lib/traits/state_machine/state/mod.rs:28-40` and
+- `sec/src/lib/traits/state_machine/state/mod.rs:28-40`,
+  `sec/src/lib/traits/state_machine/transition/mod.rs:23-38`, and
   `sec/src/lib/implementations/states/extract/filing/mod.rs:356`, on `main` at `a9d57d1`.
 - `git log`: `e33b0e6` (2024-09-03, "init: setup workspace") adds the framework. `2b58dac`
   (2024-09-03, #3) makes it a dependency of `sec`. `26b1d58` (2024-09-08, #6) adds the first
-  super-state. `cdff125` (2025-04-29, #19) adds the first working state.
+  super-state. `cdff125` (2025-04-29, #19) adds the first working state. `de2ac46` (2025-10-12, #34) adds the
+  typed `sec` `Transition` trait.
 - `rg` counts of `SMState`, `SMTransition`, and `SMSuperState` impls in `sec/src`, test code left
   out, on 2026-11-15.
 - The reasons of the project lead, stated on 2026-11-15 and quoted in the description of
