@@ -24,6 +24,7 @@ pub use constants::CIK_LENGTH;
 use std::fmt::{self, Display, Formatter};
 
 use serde::Serialize;
+use storage::{CompanyIdentifier, CompanyScheme};
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
 /// A validated SEC Central Index Key: exactly ten zero-padded digits.
@@ -158,9 +159,18 @@ impl TryFrom<String> for Cik {
     }
 }
 
+impl From<&Cik> for CompanyIdentifier {
+    /// Converts a [`Cik`] into a `cik` identifier with the 10-digit value, the form that the
+    /// identifier rows hold.
+    fn from(cik: &Cik) -> Self {
+        Self::new(CompanyScheme::Cik, cik.value())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::{assert_eq, assert_ne};
+    use storage::{CompanyIdentifier, CompanyScheme};
 
     use super::Cik;
     use super::{CikError, InvalidCikReason};
@@ -361,6 +371,18 @@ mod tests {
         });
 
         let result = Cik::new(cik);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_to_a_cik_identifier_with_ten_digits_when_the_input_lacks_leading_zeros() {
+        let cik = Cik::new("1652044")
+            .expect("Given a hardcoded numeric CIK, Cik creation should always succeed");
+
+        let expected_result = CompanyIdentifier::new(CompanyScheme::Cik, "0001652044");
+
+        let result = CompanyIdentifier::from(&cik);
 
         assert_eq!(result, expected_result);
     }
