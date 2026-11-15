@@ -7,12 +7,28 @@
 //! enumeration `edgarExchangeCodeItemType` of the `dei` schema. The MICs come from the ISO 10383
 //! list of 2026-11-09.
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
 use storage::Mic;
 
-/// Each EDGAR exchange code that names an exchange, with the MIC of that exchange.
+/// Maps each EDGAR exchange code that names an exchange to the MIC of that exchange.
 ///
-/// `NONE` names no exchange, so the table leaves it out.
-const MIC_BY_EDGAR_EXCHANGE_CODE: [(&str, &str); 22] = [
+/// `NONE` names no exchange, so the map leaves it out.
+static MIC_BY_EDGAR_EXCHANGE_CODE: LazyLock<HashMap<&'static str, Mic>> = LazyLock::new(|| {
+    EDGAR_EXCHANGE_CODE_MIC_PAIRS
+        .iter()
+        .map(|(code, mic)| {
+            let mic = mic.parse().expect(
+                "Given a MIC copied from the ISO 10383 list, parsing should always succeed",
+            );
+            (*code, mic)
+        })
+        .collect()
+});
+
+/// The pairs that [`MIC_BY_EDGAR_EXCHANGE_CODE`] holds, as written in the source.
+const EDGAR_EXCHANGE_CODE_MIC_PAIRS: [(&str, &str); 22] = [
     ("NYSE", "XNYS"),
     ("NASDAQ", "XNAS"),
     // CHX and NYSETX name one exchange: the Chicago Stock Exchange, now NYSE Texas.
@@ -60,11 +76,7 @@ const MIC_BY_EDGAR_EXCHANGE_CODE: [(&str, &str); 22] = [
 /// ```
 #[must_use]
 pub fn mic_of(code: &str) -> Option<Mic> {
-    let (_, mic) = MIC_BY_EDGAR_EXCHANGE_CODE
-        .iter()
-        .find(|(edgar_code, _)| *edgar_code == code)?;
-    // Every MIC of the table parses. The test of every code of the enumeration checks it.
-    mic.parse().ok()
+    MIC_BY_EDGAR_EXCHANGE_CODE.get(code).cloned()
 }
 
 #[cfg(test)]
@@ -107,6 +119,22 @@ mod tests {
         let expected_result = DEI_EXCHANGE_CODES;
 
         let result = enumeration_of_the_vendored_schema();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_each_code_of_the_enumeration_but_none_once_for_the_map() {
+        let map = &*MIC_BY_EDGAR_EXCHANGE_CODE;
+
+        let expected_result = vec![
+            "BOX", "BX", "C2", "CBOE", "CHX", "CboeBYX", "CboeBZX", "CboeEDGA", "CboeEDGX", "GEMX",
+            "IEX", "ISE", "MIAX", "MRX", "NASDAQ", "NYSE", "NYSEAMER", "NYSEArca", "NYSENAT",
+            "NYSETX", "PEARL", "Phlx",
+        ];
+
+        let mut result: Vec<&str> = map.keys().copied().collect();
+        result.sort_unstable();
 
         assert_eq!(result, expected_result);
     }
