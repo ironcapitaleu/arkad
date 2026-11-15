@@ -1,4 +1,4 @@
-[ADR 0014](../../../docs/adr/0014-error-hierarchy.md) records why the errors nest by origin, as value types.
+[ADR 0014](../../../docs/adr/0014-error-hierarchy.md) records the decision that errors nest by origin, as value types.
 
 ```mermaid
 ---

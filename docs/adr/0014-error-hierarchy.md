@@ -21,7 +21,7 @@ Other decisions already rest on this one:
 
 - ADR 0006 makes the `storage` errors "mirror the `sec` error hierarchy".
 - ADR 0011 nests the standard concepts "as the `sec` errors nest by level".
-- `xbrl/src/error/` copies the shape (`xbrl/src/error/mod.rs:31-40`).
+- `xbrl/src/error/` copies the nesting, `From`, and `TryFrom` (`xbrl/src/error/mod.rs:31-40`).
 
 A **value type** in this ADR is a type that derives `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`,
 and `Hash`, as ADR 0006 defines it.
@@ -60,6 +60,8 @@ written one, and it covers `storage` only.
   the boundary, as ADR 0006 states for `storage`.
 - A caller that walks `source()` meets a pass-through layer in place of its inner error, so a
   downcast of `source()` to the inner type does not match (`AGENTS.md`, "Error Display Format").
+- The `xbrl` errors are no value types. They derive only `Debug`, `PartialEq`, and `Error`
+  (`xbrl/src/error/mod.rs:30`, `xbrl/src/error/validation/mod.rs:16`), so they break decision 3.
 - The `api` crate does not follow this shape. Its `ApiError` is one flat enum with `From` impls
   (`api/src/error/mod.rs:28`). This ADR does not cover `api`.
 

@@ -38,11 +38,14 @@ is the general rule that ADR 0005 applies to storage.
 2. **Code takes the port, and a composition root picks the adapter.** A state, a builder, or a
    function takes a generic parameter or an associated type, such as
    `ExtractCompanyFactsSuperStateContext<R, C = SecClient>`
-   (`sec/src/lib/implementations/states/extract/company_facts/mod.rs:125-129`). Library code names
-   no concrete adapter.
-3. **Unit tests use hand-written fakes, and integration tests use the real adapter.** Fakes live in
-   `tests/fixtures/` of each crate, such as `FakeSecClient`, `AlwaysReadyRateLimiter`, and
-   `FakeWriteRepository`. Fakes are for unit tests only (`.claude/skills/testing/SKILL.md:349-350`).
+   (`sec/src/lib/implementations/states/extract/company_facts/mod.rs:125-129`). The client
+   parameter has a default: `C = SecClient` names the real adapter in 14 type parameters of 10 files
+   of `sec/src/lib`, so a caller that injects no client gets the real one. A repository parameter
+   has no default.
+3. **Tests use hand-written fakes, not a mock library.** Fakes live in `tests/fixtures/` of each
+   crate, such as `FakeSecClient`, `AlwaysReadyRateLimiter`, and `FakeWriteRepository`. Unit tests
+   use them. Six integration tests of `sec` also use a fake client, such as `RoutingSecClient`
+   (`sec/tests/daily_filings.rs:23`).
 
 The `testing` and `domain-concept` skills hold the rules on how to write a port and a fake, and the
 names of fakes. Those rules set how code is written, so the skills are their record.
@@ -55,8 +58,8 @@ flags. This ADR records the decision and its consequences only.
 
 ## Consequences
 
-- A unit test runs with no network, no file system, and no timer, and its result does not change
-  between runs.
+- A unit test needs no remote system. Some unit tests use a temporary directory or a local TCP
+  server (`sec/src/lib/tests/fixtures/sample_server.rs`).
 - A fake tests the design of a port before any third-party dependency exists
   (`.claude/skills/domain-concept/SKILL.md:229-231`).
 - Each port needs fakes, and each fake needs upkeep when the port changes. The Open-Closed rule of
@@ -67,10 +70,18 @@ flags. This ADR records the decision and its consequences only.
 - The `api` and `xbrl` crates have no ports on `main` at `a9d57d1`. `xbrl` has `Taxonomy`, a plug-in
   for taxonomy data, not an I/O boundary.
 
+## Open Questions
+
+- The `testing` skill says fakes are "never in integration tests"
+  (`.claude/skills/testing/SKILL.md:349-350`), but six integration tests of `sec` use a fake
+  client. The project lead decides whether the skill or those tests change.
+
 ## Sources
 
 - The trait files named in "Decision", on `main` at `a9d57d1`.
 - `sec/src/lib/tests/fixtures/` and `storage/src/tests/fixtures/`, on `main` at `a9d57d1`.
+- `rg` on `main` at `a9d57d1`, 2026-11-15: 14 type parameters `C = SecClient` in 10 files of
+  `sec/src/lib`, test code left out, and 6 files in `sec/tests/` that use a fake client.
 - `git log`: `f3ad724` (2025-07-22, #30) adds `SecClient` as a struct. `33ca542` (2026-04-16, #59,
   "refactor: extract") adds the `SecClient` and `InnerClient` traits and the first fakes.
   `6c52da1` (2026-07-12, #101) adds `RateLimiter`. `7b765e6` (2026-08-17, #138) adds the first
