@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the lead on 2026-11-14 ([STA-501 comment `af013d35`](https://linear.app/state-machine/issue/STA-501/design-identifiers-and-classifications-of-companies-securities-and#comment-af013d35)). Amendment 1: Proposed. The project lead confirms. |
+| Status | Accepted by the lead on 2026-11-14 ([STA-501 comment `af013d35`](https://linear.app/state-machine/issue/STA-501/design-identifiers-and-classifications-of-companies-securities-and#comment-af013d35)). Amendment 1: Accepted by the project lead on 2026-11-15 ([STA-519 comment `9c781b3a`](https://linear.app/state-machine/issue/STA-519#comment-9c781b3a)). |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-501](https://linear.app/state-machine/issue/STA-501) |
@@ -35,7 +35,7 @@ a licensed code, a reversal deletes stored data.
 | `cik`, `us_ticker`, `sic` | The SEC says that anyone can access and download EDGAR data for free. No SEC page names a licence. A third party calls EDGAR content a work of the US government, in the public domain under 17 USC §105 | Checked 2026-11-15. The SEC says that information on sec.gov "is considered public information and may be copied or further distributed by users of the web site without the SEC's permission". [SEC, privacy information](https://www.sec.gov/about/privacy-information), "Website Dissemination" |
 | `lei` | CC0, as the AWS Open Data registry lists the GLEIF data | Checked 2026-11-15. GLEIF says that "the data available through the Access Service are provided under the CC0 licence". [GLEIF, LEI data terms of use](https://www.gleif.org/en/meta/lei-data-terms-of-use), "II. Access Service" |
 | `figi`, `figi_share_class` | The OpenFIGI terms of service are a public domain dedication. Bloomberg describes FIGI as offered under the MIT licence, with no restriction on use or redistribution | Checked 2026-11-15. Bloomberg "dedicates FIGI Identifiers to the public domain", and allows their redistribution to customers. The terms name no MIT licence. [OpenFIGI terms of service](https://www.openfigi.com/docs/terms-of-service), last updated 2018-11-27, "1. Public Domain Dedication" |
-| MIC (ISO 10383) | The ISO 10383 registration authority publishes the list for free download | Checked 2026-11-15. The terms add a limit on copies. Amendment 1 (Proposed) covers it. [ISO 10383 terms of use](https://www.iso20022.org/sites/default/files/2020-02/ISO10383_Terms_of_use.pdf), version October 2016 |
+| MIC (ISO 10383) | The ISO 10383 registration authority publishes the list for free download | Checked 2026-11-15. The terms add a limit on copies. Amendment 1 covers it. [ISO 10383 terms of use](https://www.iso20022.org/sites/default/files/2020-02/ISO10383_Terms_of_use.pdf), version October 2016 |
 
 ### Not Kept
 
@@ -44,7 +44,7 @@ a licensed code, a reversal deletes stored data.
 | `cusip`, `isin` | The terms of the ANNA DSB say that any use outside clearing and settlement needs a licence from CUSIP Global Services, with a fee based on usage. A US ISIN holds the CUSIP | Checked 2026-11-15 for CUSIPs and US ISINs. The CGS terms on the ANNA DSB page say: "Any use by Subscriber outside of the clearing and settlement of transactions requires a license from CGS, along with an associated fee based on usage." [ANNA DSB, third party data terms](https://www.anna-dsb.com/dsb-third-party-data/). CGS says that its CUSIP database holds "CGS ISINs". [CGS, license fees](https://www.cusip.com/services/license-fees.html). The ISINs of other numbering agencies are unverified |
 | `gics` | MSCI and S&P own GICS. A user agreement governs its use, and GICS Direct sells the codes per company | Unverified. Web search, 2026-11-14 |
 
-## Amendment 1: The Stores Keep MICs, Not the MIC List
+## Amendment 1: No Endpoint Serves the MIC List
 
 Date: 2026-11-15.
 
@@ -54,16 +54,17 @@ website for the purpose of making such reproductions available to third parties"
 "this website" as the MIC list that the website publishes. Decision 1 allows MIC with no limit on
 copies. The terms give no number for "substantial part".
 
-**Decision.** MIC stays in the table "Allowed". A store and `/v1` keep and serve a MIC only as an
-attribute of an exchange or a listing. No store and no endpoint serves the ISO 10383 list, or a
-substantial part of it, as a list of its own.
+**Decision.** MIC stays in the table "Allowed". A store can keep the whole ISO 10383 list as the
+reference data of `Exchange`, because the limit covers only copies for third parties. `/v1` serves
+a MIC only as an attribute of the exchange that a listing names. No endpoint serves the ISO 10383
+list, or a substantial part of it, as a list of its own.
 
 **Consequences.**
 
 - The repository maps 22 EDGAR exchange codes to 21 MICs in
   `sec/src/lib/shared/edgar_exchange_code/mod.rs`, read on 2026-11-15. The
   [ISO 10383 list](https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.csv),
-  downloaded on 2026-11-15, holds 2,893 MICs, of which 2,304 are active. The project lead decides
+  downloaded on 2026-11-15, holds 2,893 MICs, of which 2,304 have status `ACTIVE`. The project lead decides
   whether 21 of 2,893 is a substantial part.
 - An endpoint that lists exchanges with their MICs needs a check of its size against the list. The
   project lead decides the size.
@@ -110,7 +111,8 @@ No option was measured.
 - SEC, [privacy information](https://www.sec.gov/about/privacy-information), "Website
   Dissemination", last reviewed 2023-11-29, read on 2026-11-15.
 - SEC, [Accessing EDGAR Data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data):
-  "Anyone can access and download this information for free", read on 2026-11-15.
+  "Anyone can access and download this information for free", read on 2026-11-15. The URL of the
+  web search below redirects here.
 - GLEIF, [LEI data terms of use](https://www.gleif.org/en/meta/lei-data-terms-of-use), read on
   2026-11-15.
 - [OpenFIGI terms of service](https://www.openfigi.com/docs/terms-of-service), last updated
