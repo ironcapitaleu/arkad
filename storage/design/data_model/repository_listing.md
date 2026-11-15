@@ -314,8 +314,9 @@ Each limit comes from a constraint of a consumer. Feature 2 applies these rules:
    measured time of `list` as an input.
 5. **Memory.** The peak memory of a listing grows with the widest directory, not with the count of
    files. The widest directory is the root of `sec/filings/`, with one name per CIK. Feature 2
-   lists a store and a copy with twice the filings for the same companies, and the peaks must
-   match within 10%. A size in MB belongs to the settings of the job, not to this design.
+   lists a store and a copy with four times the filings for the same companies, and the peaks
+   must match within 50%. [ADR 0019](../../../docs/adr/0019-listing-peak-memory-tolerance.md)
+   records why. A size in MB belongs to the settings of the job, not to this design.
 
 ## Ordering and Consistency
 

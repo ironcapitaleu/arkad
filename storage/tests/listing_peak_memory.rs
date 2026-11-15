@@ -1,8 +1,13 @@
 //! # Listing Peak Memory Integration Test
 //!
 //! Lists two stores through [`ListRepository::list`] and compares the peak heap of each. The
-//! second store holds twice the filings for the same companies. The peak of a listing grows with
-//! the widest directory, not with the count of files, so the two peaks stay within 10%.
+//! second store holds four times the filings for the same companies. The peak of a listing grows
+//! with the widest directory, not with the count of files, so the two peaks stay within 50%.
+//!
+//! The tolerance covers the reads that a listing keeps in flight. How many of them hold their
+//! buffers at the peak depends on how the threads run, so one store gives peaks up to 35% apart on
+//! a busy machine. A listing that kept one allocation of 16 bytes per key would exceed 50%: the
+//! second store holds 2,700 more keys than the first.
 //!
 //! A global allocator applies to a whole test binary, so this file holds one test.
 //!
@@ -149,29 +154,29 @@ async fn peak_bytes_of_listing(root: &Path) -> usize {
 }
 
 #[tokio::test]
-async fn should_peak_within_ten_percent_when_the_store_holds_twice_the_filings_per_company() {
+async fn should_peak_within_half_when_the_store_holds_four_times_the_filings_per_company() {
     let store = TempDir::new().expect(
         "Given a writable system temp directory, creating a directory in it should always succeed",
     );
-    let store_with_twice_the_filings = TempDir::new().expect(
+    let store_with_four_times_the_filings = TempDir::new().expect(
         "Given a writable system temp directory, creating a directory in it should always succeed",
     );
     write_store(store.path(), 1);
-    write_store(store_with_twice_the_filings.path(), 2);
+    write_store(store_with_four_times_the_filings.path(), 4);
     // Starts the blocking threads of the runtime, so neither measured listing pays for them.
     peak_bytes_of_listing(store.path()).await;
 
     let expected_result = true;
 
     let peak_bytes = peak_bytes_of_listing(store.path()).await;
-    let peak_bytes_with_twice_the_filings =
-        peak_bytes_of_listing(store_with_twice_the_filings.path()).await;
-    let result = peak_bytes_with_twice_the_filings * 10 <= peak_bytes * 11
-        && peak_bytes * 10 <= peak_bytes_with_twice_the_filings * 11;
+    let peak_bytes_with_four_times_the_filings =
+        peak_bytes_of_listing(store_with_four_times_the_filings.path()).await;
+    let result = peak_bytes_with_four_times_the_filings * 2 <= peak_bytes * 3
+        && peak_bytes * 2 <= peak_bytes_with_four_times_the_filings * 3;
 
     assert_eq!(
         result, expected_result,
-        "peak of the store: {peak_bytes} bytes, peak with twice the filings: \
-         {peak_bytes_with_twice_the_filings} bytes"
+        "peak of the store: {peak_bytes} bytes, peak with four times the filings: \
+         {peak_bytes_with_four_times_the_filings} bytes"
     );
 }
