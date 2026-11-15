@@ -1406,9 +1406,14 @@ StandardizedFact {
 - The label, data type, and balance of an element are not on the fact. They live once per release
   in a reference table, from `Taxonomy::elements()`.
 
-**`FactSet`** stays. It holds one entity, one period, and one `StandardizedFact` per standard
-concept. Resolution fills it, and validation checks it. It is a working set, not a storage type.
-The fact store stores rows of facts.
+**`FactSet`** stays. It holds one entity, named by `EntityId`, one period, and one
+`StandardizedFact` per standard concept. Resolution fills it, and validation checks it. It is a
+working set, not a storage type. The fact store stores rows of facts.
+
+`FactSet::insert` returns a `FactSetError` and leaves the set unchanged if a fact does not belong
+to the set. It checks in this order: the entity of the fact, its period, and its dimensions. A fact
+with dimensions never belongs to the set, because a standardized fact has no dimensions in the MVP.
+A fact of a standard concept that the set holds replaces the held fact.
 
 ### Rule IDs
 
