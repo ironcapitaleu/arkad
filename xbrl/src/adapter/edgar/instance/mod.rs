@@ -292,6 +292,9 @@ mod tests {
 
     use super::*;
     use crate::core::concept::NamespaceFamily;
+    use crate::core::entity_name::EntityName;
+    use crate::core::filing::Ticker;
+    use crate::core::form::Form;
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     const ADSH: &str = "0000000001-26-000001";
@@ -702,6 +705,207 @@ mod tests {
             .filing
             .company
             .fiscal_year_end;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_period_of_report_when_the_fact_is_nil() {
+        let body = r#"<dei:DocumentPeriodEndDate contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .period_of_report;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_fiscal_year_when_the_fact_is_nil() {
+        let body = r#"<dei:DocumentFiscalYearFocus contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .fiscal_year;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_fiscal_period_when_the_fact_is_nil() {
+        let body = r#"<dei:DocumentFiscalPeriodFocus contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .fiscal_period;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_company_name_when_the_fact_is_nil() {
+        let body = r#"<dei:EntityRegistrantName contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .name;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_ticker_when_the_trading_symbol_is_nil() {
+        let body = r#"<dei:TradingSymbol contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result: Vec<Ticker> = vec![];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_exchange_when_the_exchange_fact_is_nil() {
+        let body = r#"<dei:TradingSymbol contextRef="q3">ABC</dei:TradingSymbol>
+            <dei:SecurityExchangeName contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = vec![Ticker {
+            symbol: "ABC".to_owned(),
+            exchange: None,
+        }];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_company_name_when_a_nil_copy_comes_first() {
+        let body = r#"<dei:EntityRegistrantName contextRef="q3" xsi:nil="true"/>
+            <dei:EntityRegistrantName contextRef="q3">ABC Corp</dei:EntityRegistrantName>"#;
+
+        let expected_result = Some(EntityName::new("ABC Corp"));
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .name;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_exchange_when_a_nil_copy_comes_first() {
+        let body = r#"<dei:TradingSymbol contextRef="q3">ABC</dei:TradingSymbol>
+            <dei:SecurityExchangeName contextRef="q3" xsi:nil="true"/>
+            <dei:SecurityExchangeName contextRef="q3">NYSE</dei:SecurityExchangeName>"#;
+
+        let expected_result = vec![Ticker {
+            symbol: "ABC".to_owned(),
+            exchange: Some("NYSE".to_owned()),
+        }];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_ticker_when_the_trading_symbol_is_whitespace() {
+        let body = r#"<dei:TradingSymbol contextRef="q3"> </dei:TradingSymbol>"#;
+
+        let expected_result: Vec<Ticker> = vec![];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_form_when_a_nil_document_type_comes_first() {
+        let body = r#"<dei:DocumentType contextRef="q3">10-K</dei:DocumentType>"#;
+        let text = format!(
+            "{}{body}{FOOTER}",
+            HEADER.replace(
+                r#"<dei:DocumentType contextRef="q3">10-Q</dei:DocumentType>"#,
+                r#"<dei:DocumentType contextRef="q3" xsi:nil="true"/>"#
+            )
+        );
+        let plugin = registry_plugin();
+        let registry = Registry::new(vec![&plugin])
+            .expect("Given one plug-in with two families, the creation should always succeed");
+        let input = InstanceFiling {
+            document: &text,
+            id: filing_id(),
+            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
+                .expect("Given a hardcoded valid date, the creation should always succeed"),
+        };
+
+        let expected_result = Form::new("10-K")
+            .expect("Given a hardcoded form type, the creation should always succeed");
+
+        let result = parse(&input, &registry)
+            .expect("Given a document with a document type that has text, the parse should always succeed")
+            .filing
+            .form;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_the_filing_when_the_document_type_is_nil() {
+        let text = format!(
+            "{}{FOOTER}",
+            HEADER.replace(
+                r#"<dei:DocumentType contextRef="q3">10-Q</dei:DocumentType>"#,
+                r#"<dei:DocumentType contextRef="q3" xsi:nil="true"/>"#
+            )
+        );
+        let plugin = registry_plugin();
+        let registry = Registry::new(vec![&plugin])
+            .expect("Given one plug-in with two families, the creation should always succeed");
+        let input = InstanceFiling {
+            document: &text,
+            id: filing_id(),
+            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
+                .expect("Given a hardcoded valid date, the creation should always succeed"),
+        };
+
+        let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'Form', Reason: 'The value is empty', Input: ''";
+
+        let result = parse(&input, &registry)
+            .expect_err("Given a nil document type, the parse should always fail")
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
