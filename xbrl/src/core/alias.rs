@@ -39,8 +39,8 @@ pub struct FilingCandidates {
 /// [`Confidence::Synonym`]. A fact counts only if the registry routes its family to the plug-in of
 /// the list, and only if it has a unit and a numeric value.
 ///
-/// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the parts
-/// that the filing reports, the first that no other part blocks wins, with the part rule and
+/// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the
+/// parts that the filing reports, the first that no other part blocks wins, with the part rule and
 /// confidence [`Confidence::Synonym`]. If the filing reports an other part in the period, the other
 /// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
 /// other. A value of zero does not block. A conflict does. The check covers every dimension of the
