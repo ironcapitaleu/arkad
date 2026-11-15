@@ -2,10 +2,10 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#572](https://github.com/ironcapitaleu/arkad/pull/572)) |
+| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#577](https://github.com/ironcapitaleu/arkad/pull/577)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
-| Ticket | None. [ironcapitaleu/arkad#572](https://github.com/ironcapitaleu/arkad/pull/572) acts on it |
+| Ticket | None. [ironcapitaleu/arkad#577](https://github.com/ironcapitaleu/arkad/pull/577) acts on it |
 
 ## Context
 
