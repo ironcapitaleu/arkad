@@ -625,11 +625,12 @@ So the check of that group is skipped for that period.
   series.
 - A closed group gets no check for a period if a member has no value and is not zero if absent,
   or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
-- The values of one period end and length in quarters share a slot. If two values of a slot have
-  different exact starts, such as a quarter and a 4-month stub, the slot gets no check, gives no
-  derived value, and reports a `MixedStarts` finding. A value without an exact start joins the
-  slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this
-  rule.
+- The values of one period end and length in quarters share a slot, which holds every group of
+  that period. If two members of one group have different exact starts, such as a quarter and a
+  4-month stub, that group gets no check, gives no derived value, and reports a `MixedStarts`
+  finding. The other groups of the slot keep their checks. A value without an exact start joins
+  the slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold
+  this rule.
 - The negative other check reads the other line of the statement output type (see "7) Financial
   Statement Output Types"). It computes no other line of its own.
 
@@ -827,9 +828,9 @@ parses it.
   of the tables of "Roll-Up Tree". It holds only the members with a value. `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
   `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`. `confidence` holds the weakest
   confidence of the inputs of the check (see "Layer 3").
-- `MixedStarts` is a value of `findings.kind`. `concepts` holds the standard concepts of the slot
-  in the order of the tables of "Roll-Up Tree". `periods` holds the period end and length of the
-  slot. `reason` holds no value
+- `MixedStarts` is a value of `findings.kind`. `concepts` holds the members of the group with a
+  value, in the order of `RollUpMismatch`. `periods` holds the period end and length of the slot.
+  `reason` holds the name of the group, such as `operating-cash-flow`
   ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this kind.
 
 #### Worked Example
@@ -885,8 +886,10 @@ filing reports its cash flow lines only for this period:
 Net income and D&A have a three-month and a four-month fact under one value key. The exact start
 tells them apart, so dedup takes the three-month fact (see "Dedup Rules"). The cash flow lines
 have only the four-month fact, so the series stores them under `quarters` 1. The example takes
-every line from the four-month fact to show the arithmetic only. In the series, the slot of this
-quarter holds two exact starts, so the roll-up tree derives nothing for it and checks nothing.
+every line from the four-month fact to show the arithmetic only. In the series,
+`operating-cash-flow` mixes the three-month net income with four-month lines, so that group gets
+no check and reports `MixedStarts`. `net-change-in-cash` holds only four-month values and keeps
+its check.
 
 #### Decided Points
 

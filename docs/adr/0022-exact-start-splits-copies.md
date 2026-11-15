@@ -53,14 +53,15 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
    `startDate`.
 4. **The value key stays as it is:** filing, concept, taxonomy version, exact end, length in
    quarters, unit, dimensions, copy rank. The start is not part of it.
-5. **A slot with two exact starts derives nothing, checks nothing, and reports it.** The slots of
-   `core::closed_group` and `core::roll_up_check` stay keyed by the period end and the length in
-   quarters. If two values of one slot both have an exact start and the starts differ, the slot
-   gives no derived value and no `RollUpMismatch`. It reports a `MixedStarts` finding, so a
-   reader sees that the slot has no check. In `findings`, `concepts` holds the standard concepts of
-   the slot in the order of the roll-up tables, `periods` holds the period end and length of the
-   slot, and `reason` holds no value. A value without an exact start still joins the
-   slot of its end and length.
+5. **A group with two exact starts derives nothing, checks nothing, and reports it.** The slots
+   of `core::closed_group` and `core::roll_up_check` stay keyed by the period end and the length
+   in quarters. A slot holds every group of its period. If two members of one group in a slot
+   both have an exact start and the starts differ, that group gives no derived value, no
+   `RollUpMismatch`, and no `NegativeOther`. It reports a `MixedStarts` finding, so a reader sees
+   that the group has no check. The other groups of the slot keep their checks. In `findings`,
+   `concepts` holds the members of the group with a value, in the order of the roll-up tables,
+   `periods` holds the period end and length of the slot, and `reason` holds the name of the
+   group. A value without an exact start joins the slot of its end and length.
 
 ## Options Considered
 
@@ -70,7 +71,7 @@ rank 0 by the rule "Agreement of copies", after the parser drops equal rows.
 
 | Option | Splits conflicts | Changes stored keys | Changes the series and slot keys |
 | ------ | ---------------- | ------------------- | -------------------------------- |
-| **A (chosen): the exact start tells copies apart** | Fixture: 99 of 99. 2026_10: 329 of 329. 2023q1: 136 of 140 | No. `period_start` gets a value for Notes durations | No. One guard on the slot |
+| **A (chosen): the exact start tells copies apart** | Fixture: 99 of 99. 2026_10: 329 of 329. 2023q1: 136 of 140 | No. `period_start` gets a value for Notes durations | No. One guard per group of the roll-up tree |
 | B: the exact start in the value key | The same as A | Yes: every key of a duration | Yes, or the series and slots of one period split by start |
 | C: keep the block | None | No | No |
 
@@ -100,9 +101,12 @@ How the sources agree:
   quarter get the 3-month value.
 - The 4-month stub stays an as-is fact. No standardized fact holds it.
 - A concept that the filer reports only for the stub keeps the stub as rank 0. It enters the
-  series with 1 quarter. In the fixture, the cash flow lines do this, so the quarter slot holds two
-  exact starts. Decision 5 gives the slot no derived value and no check, and reports
-  `MixedStarts`. `Statement::build` already rejects facts of two periods.
+  series with 1 quarter. In the fixture, the cash flow lines do this. The group
+  `operating-cash-flow` starts from the 3-month `NetIncome` and holds 4-month lines, so decision 5
+  gives it no check and reports `MixedStarts`. `net-change-in-cash` holds only 4-month values, and
+  the income statement groups hold only 3-month values, so they keep their checks.
+- The roll-up check gives each fact the period of its slot before it builds a statement. So
+  decision 5 is the only guard against two starts in the roll-up check.
 - `period_start` of `as_is_facts` holds a value for every Notes duration. The Q4 rule and the
   short-year guard then read an exact start for Notes values too.
 - The length in quarters of 39 of 4,469,730 Notes durations of 2023q1 changes from `qtrs` to the
