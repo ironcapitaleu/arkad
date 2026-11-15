@@ -1,12 +1,12 @@
 ---
 source: xbrl/src/core/elements/
-last-verified: 2026-11-14
+last-verified: 2026-11-15
 update-frequency: on-code-change
 ---
 
 # Standard Concepts
 
-These are the 36 standard concepts the system resolves to. `CanonicalElementKind` nests them by
+These are the 52 standard concepts the system resolves to. `CanonicalElementKind` nests them by
 statement and disclosure:
 
 - `CanonicalElementKind::Statement(StatementConcept)`: `BalanceSheetConcept`,
@@ -36,12 +36,21 @@ Each value is an instant.
 | PropertyPlantEquipment | `non-current-assets`, +1 |
 | Goodwill | `non-current-assets`, +1 |
 | IntangibleAssets | `non-current-assets`, +1 |
+| LiabilitiesAndEquity | Top |
 | Liabilities | `liabilities-and-equity`, +1 |
+| TemporaryEquity | `liabilities-and-equity`, +1 |
 | Equity | `liabilities-and-equity`, +1 |
 | CurrentLiabilities | `liabilities`, +1 |
 | NonCurrentLiabilities | `liabilities`, +1 |
+| AccountsPayable | `current-liabilities`, +1 |
+| ShortTermDebt | `current-liabilities`, +1 |
 | LongTermDebt | `non-current-liabilities`, +1 |
+| EquityAttributableToParent | `equity`, +1 |
+| NoncontrollingInterest | `equity`, +1 |
+| AdditionalPaidInCapital | `equity-attributable-to-parent`, +1 |
 | RetainedEarnings | `equity-attributable-to-parent`, +1 |
+| TreasuryStock | `equity-attributable-to-parent`, −1 |
+| AccumulatedOtherComprehensiveIncome | `equity-attributable-to-parent`, +1 |
 
 ## Income Statement (`IncomeStatementConcept`)
 
@@ -52,11 +61,16 @@ Each value is a duration. The cascade ends with comprehensive income.
 | Revenue | Top |
 | CostOfRevenue | `gross-profit`, −1 |
 | GrossProfit | Top |
+| OperatingExpenses | `operating-income`, −1 |
 | SellingGeneralAdmin | `operating-expenses`, +1 |
 | ResearchDevelopment | `operating-expenses`, +1 |
 | OperatingIncome | Top |
 | InterestExpense | `pretax-income`, −1 |
+| PretaxIncome | Top |
+| IncomeTaxExpense | `net-income`, −1 |
 | NetIncome | Top |
+| NetIncomeAttributableToParent | `net-income-attribution`, +1 |
+| NetIncomeAttributableToNoncontrollingInterest | `net-income-attribution`, +1 |
 | OtherComprehensiveIncome | `comprehensive-income`, +1 |
 | ComprehensiveIncome | Top |
 
@@ -70,9 +84,11 @@ Each value is a duration.
 
 | Concept | Placement |
 | --- | --- |
+| NetChangeInCash | Top |
 | OperatingCashFlow | `net-change-in-cash`, +1 |
 | InvestingCashFlow | `net-change-in-cash`, +1 |
 | FinancingCashFlow | `net-change-in-cash`, +1 |
+| ExchangeRateEffect | `net-change-in-cash`, +1 |
 | DepreciationAmortization | `operating-cash-flow`, +1 |
 | ShareBasedCompensation | `operating-cash-flow`, +1 |
 | CapitalExpenditures | `investing-cash-flow`, −1 |
@@ -91,8 +107,11 @@ A disclosure. Its concepts have no placement, and they do not add over periods.
 ## Groups
 
 `statement::groups()` lists a group only if its parent, its start if it is a step, and at least
-one child are standard concepts, in this order:
-`assets`, `current-assets`, `non-current-assets`, `liabilities`, `non-current-liabilities`,
-`gross-profit`, `comprehensive-income`, `operating-cash-flow`, `investing-cash-flow`,
-`financing-cash-flow`. A placement can name a group that the list does not hold, such as
-`liabilities-and-equity`, whose parent `LiabilitiesAndEquity` is no standard concept.
+one child are standard concepts. Each statement lists its groups in the order of the first row
+that names each group in its table
+([ADR 0013](../../../../docs/adr/0013-order-of-the-groups.md)):
+`assets`, `current-assets`, `non-current-assets`, `liabilities-and-equity`, `liabilities`,
+`current-liabilities`, `non-current-liabilities`, `equity`, `equity-attributable-to-parent`,
+`gross-profit`, `operating-income`, `operating-expenses`, `pretax-income`, `net-income`,
+`net-income-attribution`, `comprehensive-income`, `net-change-in-cash`, `operating-cash-flow`,
+`investing-cash-flow`, `financing-cash-flow`.

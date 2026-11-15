@@ -92,8 +92,10 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
 
 /// The count of standardized facts per standard concept in the fixture filing, for both sources.
 ///
-/// Equity has 3 facts, and interest expense has 1, because a conflict blocks the 2026 quarter.
-/// Every other concept has 2. Facts with dimensions give no standardized fact.
+/// Equity and equity attributable to parent have 3 facts each, because the filing reports
+/// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
+/// Interest expense has 1, because a conflict blocks the 2026 quarter. Every other concept has 2.
+/// Facts with dimensions give no standardized fact.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
         (BalanceSheetConcept::Assets.element(), 2),
@@ -116,6 +118,23 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
         (CashFlowConcept::DepreciationAmortization.element(), 2),
         (CashFlowConcept::CapitalExpenditures.element(), 2),
         (CashFlowConcept::ShareBasedCompensation.element(), 2),
+        (IncomeStatementConcept::PretaxIncome.element(), 2),
+        (IncomeStatementConcept::IncomeTaxExpense.element(), 2),
+        (
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            2,
+        ),
+        (CashFlowConcept::NetChangeInCash.element(), 2),
+        (CashFlowConcept::ExchangeRateEffect.element(), 2),
+        (BalanceSheetConcept::LiabilitiesAndEquity.element(), 2),
+        (BalanceSheetConcept::AccountsPayable.element(), 2),
+        (BalanceSheetConcept::ShortTermDebt.element(), 2),
+        (BalanceSheetConcept::EquityAttributableToParent.element(), 3),
+        (BalanceSheetConcept::AdditionalPaidInCapital.element(), 2),
+        (
+            BalanceSheetConcept::AccumulatedOtherComprehensiveIncome.element(),
+            2,
+        ),
     ])
 }
 
@@ -352,7 +371,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_63_standardized_facts_in_31_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -363,7 +382,7 @@ fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_63_standardized_facts_in_31_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
@@ -374,12 +393,15 @@ fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_
     assert_eq!(result, expected_result);
 }
 
+// The test writes out the rule of every standardized concept of the fixture in one place, so a
+// concept that changes its rule fails it.
+#[allow(clippy::too_many_lines)]
 #[test]
-fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_resolve_seven_concepts_by_their_part_rules_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // For revenue, net income, equity, cash, and interest expense, the filer reports a part and no
-    // other part.
+    // For revenue, net income, equity, cash, interest expense, short-term debt, and additional
+    // paid-in capital, the filer reports a part and no other part.
     let expected_result = BTreeSet::from([
         (
             BalanceSheetConcept::Assets.element(),
@@ -460,6 +482,50 @@ fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_
         (
             CashFlowConcept::ShareBasedCompensation.element(),
             rule("us-gaap/alias/share-based-compensation@1"),
+        ),
+        (
+            IncomeStatementConcept::PretaxIncome.element(),
+            rule("us-gaap/alias/pretax-income@1"),
+        ),
+        (
+            IncomeStatementConcept::IncomeTaxExpense.element(),
+            rule("us-gaap/alias/income-tax-expense@1"),
+        ),
+        (
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            rule("us-gaap/alias/net-income-attributable-to-parent@1"),
+        ),
+        (
+            CashFlowConcept::NetChangeInCash.element(),
+            rule("us-gaap/alias/net-change-in-cash@1"),
+        ),
+        (
+            CashFlowConcept::ExchangeRateEffect.element(),
+            rule("us-gaap/alias/exchange-rate-effect@1"),
+        ),
+        (
+            BalanceSheetConcept::LiabilitiesAndEquity.element(),
+            rule("us-gaap/alias/liabilities-and-equity@1"),
+        ),
+        (
+            BalanceSheetConcept::AccountsPayable.element(),
+            rule("us-gaap/alias/accounts-payable@1"),
+        ),
+        (
+            BalanceSheetConcept::ShortTermDebt.element(),
+            rule("us-gaap/part/short-term-debt@1"),
+        ),
+        (
+            BalanceSheetConcept::EquityAttributableToParent.element(),
+            rule("us-gaap/alias/equity-attributable-to-parent@1"),
+        ),
+        (
+            BalanceSheetConcept::AdditionalPaidInCapital.element(),
+            rule("us-gaap/part/additional-paid-in-capital@1"),
+        ),
+        (
+            BalanceSheetConcept::AccumulatedOtherComprehensiveIncome.element(),
+            rule("us-gaap/alias/accumulated-other-comprehensive-income@1"),
         ),
     ]);
 
