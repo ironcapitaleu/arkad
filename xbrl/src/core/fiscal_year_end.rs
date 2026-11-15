@@ -14,8 +14,8 @@ use super::period::TOLERANCE_DAYS;
 /// The fiscal year end of a company: a month and a day with no year, as the filing writes it.
 ///
 /// The text keeps its form, `0930` from the Notes data set or `--09-27` from an instance document.
-/// Two values are equal only if their texts are equal, so `0930` and `--09-30` differ. Compare
-/// [`FiscalYearEnd::month`] to compare the two forms.
+/// Two values are equal only if their texts are equal, so `0930` and `--09-30` differ. To match
+/// the two forms, compare [`FiscalYearEnd::month`].
 ///
 /// # Examples
 ///
