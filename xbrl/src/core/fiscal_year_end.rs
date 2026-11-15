@@ -1,8 +1,9 @@
 //! # Fiscal Year End
 //!
-//! Provides [`FiscalYearEnd`], the month and day on which the fiscal year of a company ends, and
-//! the month of its nearest month end.
+//! Provides [`FiscalYearEnd`], the month and day on which the fiscal year of a company ends, as a
+//! filing states it.
 
+use std::fmt;
 use std::str::FromStr;
 
 use chrono::{Datelike, Months, NaiveDate, NaiveTime};
@@ -10,9 +11,33 @@ use chrono::{Datelike, Months, NaiveDate, NaiveTime};
 use super::invalid_value::{InvalidValue, InvalidValueReason};
 use super::period::TOLERANCE_DAYS;
 
-/// A fiscal year end: a month and a day, as the day of a leap year.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FiscalYearEnd(u32);
+/// The fiscal year end of a company: a month and a day with no year, as the filing writes it.
+///
+/// The text keeps its form, `0930` from the Notes data set or `--09-27` from an instance document.
+/// [`FiscalYearEnd::month`] gives the month of the nearest month end, so both forms compare.
+///
+/// # Examples
+///
+/// ```
+/// use std::str::FromStr;
+///
+/// use xbrl::core::fiscal_year_end::FiscalYearEnd;
+///
+/// let text = "--09-27";
+///
+/// let expected_result = 9;
+///
+/// let year_end = FiscalYearEnd::from_str(text).expect("Given a hardcoded month and day, the parse should always succeed");
+/// let result = year_end.month();
+///
+/// assert_eq!(result, expected_result);
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct FiscalYearEnd {
+    text: String,
+    day_of_year: u32,
+    month: u8,
+}
 
 impl FiscalYearEnd {
     /// The type name that [`InvalidValue`] names when an input breaks a rule.
@@ -40,25 +65,37 @@ impl FiscalYearEnd {
     /// The days of a leap year.
     const LEAP_YEAR_DAYS: u32 = 366;
 
-    /// Returns `true` if the two year ends lie more than 7 days apart, around the year.
-    pub(super) fn differs_from(self, other: Self) -> bool {
-        let distance = self.0.abs_diff(other.0);
-        i64::from(distance.min(Self::LEAP_YEAR_DAYS - distance)) > TOLERANCE_DAYS
+    /// Returns the text as the filing writes it, for example `0930` or `--09-27`.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.text
     }
 
     /// Returns the month of the month end nearest to the year end, from 1 to 12.
     ///
-    /// A 52-53 week year ends on a weekday near a month end, so `--09-27` gives 9 and `--01-02`
-    /// gives 12. February counts 29 days. If the day lies as far from the end of the previous
-    /// month as from the end of its own month, as `0415` does, the month of the day wins.
-    pub(super) fn month(self) -> Option<u8> {
-        let date = NaiveDate::from_yo_opt(Self::LEAP_YEAR, self.0)?;
-        let month = if 2 * date.day() >= u32::from(date.num_days_in_month()) {
-            date.month()
+    /// A 52-53 week year ends on a weekday near a month end, so `--09-27` gives 9 and `0102`
+    /// gives 12. February counts 29 days, so `0215` gives 2 and `0214` gives 1. If the day lies as
+    /// far from the end of the previous month as from the end of its own month, as `0415` does,
+    /// the month of the day wins.
+    #[must_use]
+    pub const fn month(&self) -> u8 {
+        self.month
+    }
+
+    /// Returns `true` if the two year ends lie more than 7 days apart, around the year.
+    pub(super) fn differs_from(&self, other: &Self) -> bool {
+        let distance = self.day_of_year.abs_diff(other.day_of_year);
+        i64::from(distance.min(Self::LEAP_YEAR_DAYS - distance)) > TOLERANCE_DAYS
+    }
+
+    /// Returns the month of the month end nearest to `date`, as [`Self::month`] states the rule.
+    fn nearest_month_end(date: NaiveDate) -> Option<u32> {
+        if 2 * date.day() >= u32::from(date.num_days_in_month()) {
+            Some(date.month())
         } else {
-            date.checked_sub_months(Months::new(1))?.month()
-        };
-        u8::try_from(month).ok()
+            date.checked_sub_months(Months::new(1))
+                .map(|previous| previous.month())
+        }
     }
 
     /// Returns the text without the time zone that an instance form can carry, as in `--09-30Z`
@@ -87,17 +124,38 @@ impl FromStr for FiscalYearEnd {
 
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let dated = format!("{}{}", Self::LEAP_YEAR, Self::without_time_zone(text));
-        Self::FORMATS
+        let date = Self::FORMATS
             .iter()
             .find_map(|format| NaiveDate::parse_from_str(&dated, format).ok())
-            .map(|date| Self(date.ordinal()))
             .ok_or_else(|| {
                 InvalidValue::new(
                     Self::TYPE_NAME,
                     InvalidValueReason::NotADate(Self::EXPECTED_FORM),
                     text,
                 )
-            })
+            })?;
+        let month = Self::nearest_month_end(date)
+            .and_then(|month| u8::try_from(month).ok())
+            .ok_or_else(|| {
+                InvalidValue::new(Self::TYPE_NAME, InvalidValueReason::OutOfRange, text)
+            })?;
+        Ok(Self {
+            text: text.to_owned(),
+            day_of_year: date.ordinal(),
+            month,
+        })
+    }
+}
+
+impl fmt::Display for FiscalYearEnd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.text)
+    }
+}
+
+impl serde::Serialize for FiscalYearEnd {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.text)
     }
 }
 
@@ -107,7 +165,7 @@ mod tests {
 
     use super::*;
 
-    fn month(text: &str) -> Option<u8> {
+    fn month(text: &str) -> u8 {
         FiscalYearEnd::from_str(text)
             .expect("Given a hardcoded month and day, the parse should always succeed")
             .month()
@@ -117,9 +175,9 @@ mod tests {
     fn should_parse_instance_form_to_day_of_leap_year_when_end_is_september_30() {
         let instance = "--09-30";
 
-        let expected_result = Ok(FiscalYearEnd(274));
+        let expected_result = Ok(274);
 
-        let result = FiscalYearEnd::from_str(instance);
+        let result = FiscalYearEnd::from_str(instance).map(|year_end| year_end.day_of_year);
 
         assert_eq!(result, expected_result);
     }
@@ -148,7 +206,7 @@ mod tests {
 
         let expected_result = false;
 
-        let result = old.differs_from(new);
+        let result = old.differs_from(&new);
 
         assert_eq!(result, expected_result);
     }
@@ -157,9 +215,9 @@ mod tests {
     fn should_parse_notes_form_to_day_of_leap_year_when_end_is_september_30() {
         let notes = "0930";
 
-        let expected_result = Ok(FiscalYearEnd(274));
+        let expected_result = Ok(274);
 
-        let result = FiscalYearEnd::from_str(notes);
+        let result = FiscalYearEnd::from_str(notes).map(|year_end| year_end.day_of_year);
 
         assert_eq!(result, expected_result);
     }
@@ -173,7 +231,7 @@ mod tests {
 
         let expected_result = true;
 
-        let result = old.differs_from(new);
+        let result = old.differs_from(&new);
 
         assert_eq!(result, expected_result);
     }
@@ -187,7 +245,7 @@ mod tests {
 
         let expected_result = false;
 
-        let result = old.differs_from(new);
+        let result = old.differs_from(&new);
 
         assert_eq!(result, expected_result);
     }
@@ -196,7 +254,7 @@ mod tests {
     fn should_round_to_january_when_day_is_february_14() {
         let text = "0214";
 
-        let expected_result = Some(1);
+        let expected_result = 1;
 
         let result = month(text);
 
@@ -207,7 +265,7 @@ mod tests {
     fn should_keep_month_of_day_when_day_is_as_far_from_both_month_ends() {
         let text = "0415";
 
-        let expected_result = Some(4);
+        let expected_result = 4;
 
         let result = month(text);
 
@@ -218,7 +276,7 @@ mod tests {
     fn should_round_to_previous_month_when_day_is_april_14() {
         let text = "0414";
 
-        let expected_result = Some(3);
+        let expected_result = 3;
 
         let result = month(text);
 
@@ -229,7 +287,7 @@ mod tests {
     fn should_keep_february_when_day_is_february_29() {
         let text = "0229";
 
-        let expected_result = Some(2);
+        let expected_result = 2;
 
         let result = month(text);
 
@@ -240,7 +298,7 @@ mod tests {
     fn should_round_to_august_when_costco_ends_on_september_1() {
         let text = "--09-01";
 
-        let expected_result = Some(8);
+        let expected_result = 8;
 
         let result = month(text);
 
@@ -251,7 +309,7 @@ mod tests {
     fn should_round_to_february_when_day_is_march_15() {
         let text = "0315";
 
-        let expected_result = Some(2);
+        let expected_result = 2;
 
         let result = month(text);
 
@@ -262,7 +320,7 @@ mod tests {
     fn should_keep_march_when_day_is_march_16() {
         let text = "0316";
 
-        let expected_result = Some(3);
+        let expected_result = 3;
 
         let result = month(text);
 
@@ -273,9 +331,9 @@ mod tests {
     fn should_parse_instance_form_when_time_zone_is_utc() {
         let instance = "--09-30Z";
 
-        let expected_result = Ok(FiscalYearEnd(274));
+        let expected_result = Ok(274);
 
-        let result = FiscalYearEnd::from_str(instance);
+        let result = FiscalYearEnd::from_str(instance).map(|year_end| year_end.day_of_year);
 
         assert_eq!(result, expected_result);
     }
@@ -284,9 +342,9 @@ mod tests {
     fn should_parse_instance_form_when_time_zone_is_an_offset() {
         let instance = "--09-30-05:00";
 
-        let expected_result = Ok(FiscalYearEnd(274));
+        let expected_result = Ok(274);
 
-        let result = FiscalYearEnd::from_str(instance);
+        let result = FiscalYearEnd::from_str(instance).map(|year_end| year_end.day_of_year);
 
         assert_eq!(result, expected_result);
     }
@@ -304,5 +362,35 @@ mod tests {
         let result = FiscalYearEnd::from_str(instance);
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_as_the_text_of_the_filing_when_form_is_instance() {
+        let year_end = FiscalYearEnd::from_str("--09-27")
+            .expect("Given a hardcoded month and day, the parse should always succeed");
+
+        let expected_result = Some(r#""--09-27""#.to_owned());
+
+        let result = serde_json::to_string(&year_end).ok();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_the_text_of_the_filing_when_form_is_notes() {
+        let year_end = FiscalYearEnd::from_str("0930")
+            .expect("Given a hardcoded month and day, the parse should always succeed");
+
+        let expected_result = "0930";
+
+        let result = year_end.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+    #[test]
+    const fn should_implement_auto_traits_for_fiscal_year_end() {
+        implements_auto_traits::<FiscalYearEnd>();
     }
 }

@@ -29,10 +29,10 @@ a tie occurs only on day 15 of a 30-day month: April, June, September, or Novemb
 
 Distances in days, counted on 2026-11-15 by hand and checked by the unit tests in Sources.
 
-| Option | `0415` | `0915` |
-| ------ | ------ | ------ |
-| **A (chosen): the month of the day** | 4 | 9 |
-| B: the previous month | 3 | 8 |
+| Option | `0415` |
+| ------ | ------ |
+| **A (chosen): the month of the day** | 4 |
+| B: the previous month | 3 |
 
 - A keeps the month the filer wrote. B moves a day the filer placed in April to March.
 

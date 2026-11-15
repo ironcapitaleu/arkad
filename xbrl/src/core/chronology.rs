@@ -5,7 +5,6 @@
 //! findings.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::str::FromStr;
 
 use chrono::{Months, NaiveDate};
 
@@ -427,14 +426,9 @@ fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
         (left.filed, left.accepted, &left.id).cmp(&(right.filed, right.accepted, &right.id))
     });
     let mut changes = Vec::new();
-    let mut current: Option<(FiscalYearEnd, Option<NaiveDate>)> = None;
+    let mut current: Option<(&FiscalYearEnd, Option<NaiveDate>)> = None;
     for filing in filings {
-        let Some(year_end) = filing
-            .company
-            .fiscal_year_end
-            .as_deref()
-            .and_then(|text| FiscalYearEnd::from_str(text).ok())
-        else {
+        let Some(year_end) = filing.company.fiscal_year_end.as_ref() else {
             continue;
         };
         let report = filing.period_of_report;

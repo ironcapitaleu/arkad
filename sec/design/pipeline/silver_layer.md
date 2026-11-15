@@ -691,7 +691,8 @@ Rules for the open points of the company data:
   `sub.tsv` `0831` gives 8. [ADR 0022](../../../docs/adr/0022-fiscal-year-end-february-counts-29-days.md)
   holds the rule for February, and
   [ADR 0023](../../../docs/adr/0023-fiscal-year-end-tie-keeps-the-month.md) the rule for a day as
-  far from two month ends.
+  far from two month ends. A text that is not a month and a day rejects the filing, as a value
+  that breaks any other core type does.
 - **Change of fiscal year.** A change of `fiscal_year_end_month` between two filings is a change of
   the fiscal year. A day that moves within the month, as in a 52- or 53-week year, is not.
 - **Missing value.** If a source has no value, for example an empty `fye` or no `dei` tag, the

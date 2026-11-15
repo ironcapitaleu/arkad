@@ -24,6 +24,7 @@
 //! - [`finding`]: A fact about the data that a step reports without failing the run.
 //! - [`fiscal_period`]: The fiscal period of a filing as filed.
 //! - [`fiscal_year`]: The fiscal year of a filing as filed.
+//! - [`fiscal_year_end`]: The fiscal year end of a company as a filing states it.
 //! - [`form`]: The form type of a filing as filed.
 //! - [`graph`]: The resolution and validation engine.
 //! - [`invalid_value`]: The error of a core value type.
@@ -54,7 +55,7 @@ pub mod filing;
 pub mod finding;
 pub mod fiscal_period;
 pub mod fiscal_year;
-mod fiscal_year_end;
+pub mod fiscal_year_end;
 pub mod form;
 pub mod graph;
 pub mod invalid_value;

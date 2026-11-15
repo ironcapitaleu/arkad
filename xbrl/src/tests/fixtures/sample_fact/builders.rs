@@ -16,6 +16,7 @@ use crate::core::fact::{
     AsIsFact, Context, Decimals, Dimensions, FactValue, FilingSource, TaxonomyVersion,
 };
 use crate::core::filing::{CompanyAttributes, EntityId, Filing, FilingId};
+use crate::core::fiscal_year_end::FiscalYearEnd;
 use crate::core::form::Form;
 use crate::core::period::{Duration, Period};
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
@@ -236,7 +237,9 @@ pub fn filing(form: &str, period_of_report: NaiveDate, fiscal_year_end: &str) ->
         fiscal_year: None,
         fiscal_period: None,
         company: CompanyAttributes {
-            fiscal_year_end: Some(fiscal_year_end.to_owned()),
+            fiscal_year_end: Some(FiscalYearEnd::from_str(fiscal_year_end).expect(
+                "Given a hardcoded month and day, the parse of a fiscal year end should always succeed",
+            )),
             ..CompanyAttributes::default()
         },
     }

@@ -21,6 +21,7 @@ use crate::core::fact::{Decimals, Dimensions, FactValue};
 use crate::core::filing::{CompanyAttributes, EntityId, Filing, FilingId, IndustryCode};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
+use crate::core::fiscal_year_end::FiscalYearEnd;
 use crate::core::form::Form;
 use crate::core::invalid_value::{InvalidValue, InvalidValueReason};
 use crate::core::period::{Duration, Period};
@@ -160,7 +161,7 @@ impl SubRow {
                     IndustryCode::new(IndustryCode::SIC_SCHEME, text)
                 })?,
                 tickers: Vec::new(),
-                fiscal_year_end: optional(&self.fye, |text| Ok(text.to_owned()))?,
+                fiscal_year_end: optional(&self.fye, FiscalYearEnd::from_str)?,
             },
         })
     }
@@ -1033,6 +1034,28 @@ mod tests {
             "SubRow",
             InvalidValueReason::NotADate("%Y%m%d"),
             "2026-10-29",
+        ));
+
+        let result = sub.filing().err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_filing_when_the_fiscal_year_end_is_not_a_date() {
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260115".to_owned(),
+            fye: "Sept".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(InvalidValue::new(
+            "FiscalYearEnd",
+            InvalidValueReason::NotADate("%m%d or --%m-%d with an optional time zone"),
+            "Sept",
         ));
 
         let result = sub.filing().err();

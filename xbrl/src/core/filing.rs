@@ -245,26 +245,25 @@ pub struct CompanyAttributes {
     /// One entry per listed share class.
     pub tickers: Vec<Ticker>,
     /// The fiscal year end as the source writes it, for example `0930` or `--09-27`.
-    pub fiscal_year_end: Option<String>,
+    pub fiscal_year_end: Option<FiscalYearEnd>,
 }
 
 impl CompanyAttributes {
-    /// Returns the month of the month end nearest to [`Self::fiscal_year_end`], from 1 to 12.
+    /// Returns the month of the month end nearest to [`Self::fiscal_year_end`], from 1 to 12, as
+    /// [`FiscalYearEnd::month`] states the rule.
     ///
-    /// The text can read `0930` or `--09-30`. A 52-53 week year ends near a month end, so `0927`
-    /// gives 9 and `0102` gives 12. February counts 29 days, so `0215` gives 2 and `0214` gives 1.
-    /// If the day lies as far from the end of the previous month as from the end of its own
-    /// month, as `0415` does, the month of the day wins.
-    ///
-    /// Returns `None` if there is no fiscal year end or the text is not a month and a day.
+    /// Returns `None` if there is no fiscal year end.
     ///
     /// # Examples
     ///
     /// ```
+    /// use std::str::FromStr;
+    ///
     /// use xbrl::core::filing::CompanyAttributes;
+    /// use xbrl::core::fiscal_year_end::FiscalYearEnd;
     ///
     /// let company = CompanyAttributes {
-    ///     fiscal_year_end: Some("--09-27".to_owned()),
+    ///     fiscal_year_end: Some(FiscalYearEnd::from_str("--09-27").expect("Given a hardcoded month and day, the parse should always succeed")),
     ///     ..CompanyAttributes::default()
     /// };
     ///
@@ -276,11 +275,7 @@ impl CompanyAttributes {
     /// ```
     #[must_use]
     pub fn fiscal_year_end_month(&self) -> Option<u8> {
-        self.fiscal_year_end
-            .as_deref()?
-            .parse::<FiscalYearEnd>()
-            .ok()?
-            .month()
+        self.fiscal_year_end.as_ref().map(FiscalYearEnd::month)
     }
 }
 
@@ -320,7 +315,10 @@ mod tests {
 
     fn company(fiscal_year_end: Option<&str>) -> CompanyAttributes {
         CompanyAttributes {
-            fiscal_year_end: fiscal_year_end.map(str::to_owned),
+            fiscal_year_end: fiscal_year_end.map(|text| {
+                FiscalYearEnd::from_str(text)
+                    .expect("Given a hardcoded month and day, the parse should always succeed")
+            }),
             ..CompanyAttributes::default()
         }
     }
@@ -394,17 +392,6 @@ mod tests {
     #[test]
     fn should_return_none_when_fiscal_year_end_is_missing() {
         let attributes = company(None);
-
-        let expected_result = None;
-
-        let result = attributes.fiscal_year_end_month();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_none_when_fiscal_year_end_is_not_a_date() {
-        let attributes = company(Some("Sept"));
 
         let expected_result = None;
 
