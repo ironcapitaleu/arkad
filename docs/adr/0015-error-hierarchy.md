@@ -95,9 +95,9 @@ written one, and it covers `storage` only.
 
 - Whether an error gets a hint on how to fix it, and where. STA-454 compared a `Hint: '…'` segment
   on the leaf error with a `hint` field in the JSON log line, set by the binary. On 2026-11-06 the
-  project lead deferred both. Today only the two variants of
-  `InvalidRunDates` in `daily_filings` name their fix in their text
-  (`sec/src/bin/daily_filings/dates.rs:24-35`).
+  project lead deferred both. Today only two of the four variants of `InvalidRunDates` in
+  `daily_filings` name their fix in their text, `MissingStartDate` and `InvalidDate`
+  (`sec/src/bin/daily_filings/dates.rs:27-36`).
 
 ## Sources
 
