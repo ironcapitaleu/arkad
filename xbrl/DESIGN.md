@@ -2023,26 +2023,28 @@ ErrorKind
     ::FailedValidation(ValidationErrorKind)
       ::IncompleteData { missing_elements: Vec<CanonicalElementKind> }
       ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
-      ::ImpreciseRollup { parent: CanonicalElementKind, parent_value: i64, children_sum: i64, deviation_pct: f64, threshold_pct: f64 }
 ```
+
+Every error is a value type: it derives `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, and
+`Hash` ([ADR 0015](../docs/adr/0015-error-hierarchy.md), Amendment 1). A failed check of the
+roll-up tree is a finding, not an error (see "Roll-Up Tree", "Checks the Tree Gives").
 
 ### Error Severity
 
 - **`FailedParsing`** — Fatal. Bad input, cannot proceed.
 - **`IncompleteData`** — Fatal. Missing required elements, cannot validate or produce statements.
 - **`InconsistentIdentity`** — Hard error. A financial identity is broken.
-- **`ImpreciseRollup`** — Warning when within tolerance, error when exceeded.
 
 ### Types
 
 ```rust
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, thiserror::Error)]
 pub enum ErrorKind {
     #[error(transparent)]
     Xbrl(XbrlErrorKind),
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, thiserror::Error)]
 pub enum XbrlErrorKind {
     #[error(transparent)]
     FailedParsing(ParseErrorKind),
@@ -2051,7 +2053,7 @@ pub enum XbrlErrorKind {
     FailedValidation(ValidationErrorKind),
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, thiserror::Error)]
 pub enum ParseErrorKind {
     #[error("[InvalidJson] Failed to parse JSON body, Reason: '{reason}'")]
     InvalidJson { reason: String },
@@ -2072,7 +2074,7 @@ pub enum ParseErrorKind {
     InvalidSubmissionRow { adsh: String, #[source] source: InvalidValue },
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, thiserror::Error)]
 pub enum ValidationErrorKind {
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
     IncompleteData {
@@ -2085,15 +2087,6 @@ pub enum ValidationErrorKind {
         left_value: i64,
         right_value: i64,
     },
-
-    #[error("[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'")]
-    ImpreciseRollup {
-        parent: CanonicalElementKind,
-        parent_value: i64,
-        children_sum: i64,
-        deviation_pct: f64,
-        threshold_pct: f64,
-    },
 }
 ```
 
@@ -2101,17 +2094,15 @@ pub enum ValidationErrorKind {
 
 All financial relationships are invariants — the only difference is whether they must hold exactly or within a tolerance. `is_exact()` distinguishes the two.
 
-Exact invariant violations produce `InconsistentIdentity` (hard error). Non-exact invariant violations produce `ImpreciseRollup` (tolerance-based).
+A violation of an invariant produces `InconsistentIdentity`. An exact invariant must hold with zero
+tolerance. A non-exact invariant must hold within the tolerance of "Precision Threshold".
 
 The series step does not fail on a broken identity. It records each failed check of the roll-up tree
-as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors are for a caller that
-validates one statement, such as a publish gate. The checks of the series step name no `Expenses`,
-`Gains`, or `Losses`, so they have no `NetIncomeIdentity`. The checks of the series step use the tolerance of "Checks the Tree Gives",
-for every group and identity. `is_exact()` applies only to a caller that validates one statement,
-such as a publish gate.
+as a finding (see "Roll-Up Tree", "Checks the Tree Gives"). These errors and `is_exact()` are for a
+caller that validates one statement, such as a publish gate.
 
 ```rust
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Invariant {
     // Exact — accounting identities, must hold with zero tolerance
     BalanceSheetIdentity,        // Assets = LiabilitiesAndEquity
@@ -2138,8 +2129,6 @@ impl Invariant {
 
 ```
 [InconsistentIdentity] Invariant 'BalanceSheetIdentity' violated, left=500000000, right=490000000
-
-[ImpreciseRollup] Roll-up mismatch for 'Assets', reported=500000000, computed=499998000, Reason: 'Deviation of 0.0004% exceeds threshold of 0.0000%'
 ```
 
 ---

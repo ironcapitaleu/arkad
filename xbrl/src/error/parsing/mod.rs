@@ -12,7 +12,7 @@ pub mod invalid_json;
 pub mod missing_top_level_key;
 
 /// Specific parsing failure variants.
-#[derive(Debug, PartialEq, Eq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Error)]
 pub enum ParseErrorKind {
     /// The input cannot be parsed as valid JSON (malformed bytes).
     #[error("[InvalidJson] Failed to parse JSON body, Reason: '{reason}'")]
@@ -93,4 +93,18 @@ pub enum ParseErrorKind {
         #[source]
         source: InvalidValue,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::Hash;
+
+    use super::*;
+
+    const fn is_value_type<T: Clone + Eq + Ord + Hash>() {}
+
+    #[test]
+    const fn should_be_a_value_type_for_parse_error_kind() {
+        is_value_type::<ParseErrorKind>();
+    }
 }
