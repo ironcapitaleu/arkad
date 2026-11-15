@@ -1051,9 +1051,10 @@ of the larger absolute value:
   most filings. A check would give a finding for most filers.
 - Of the 590 revenue values with an elimination role alone, 444 are negative, 88 positive, and 58
   zero. A flip of the sign of the positive ones closes 7 more groups. So the sign stays as filed.
-- Of 6,819 keys with a corporate role, 343 carry both `CorporateNonSegment` and
-  `MaterialReconcilingItems`. In 49 of them the two values are equal, so the corporate role likely
-  counts one amount twice. The unreconciled line then shows the double count as a negative amount.
+- Of 6,819 cases of one filing, concept, period, and unit with a corporate role, 343 carry both
+  `CorporateNonSegment` and `MaterialReconcilingItems`. In 49 of them the two values are equal, so
+  the corporate role likely counts one amount twice. The unreconciled line then holds that amount
+  with the opposite sign.
 - Of 1,750 segment values filed in both forms, 1,103 are equal. Plain values close more revenue
   groups than values with `OperatingSegments`: 1,489 against 1,430.
 - Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the

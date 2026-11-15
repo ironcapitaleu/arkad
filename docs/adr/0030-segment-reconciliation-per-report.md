@@ -42,7 +42,8 @@ load.
 3. **Silver stores no line of the reconciliation.** A read type computes the lines, as the
    statement output type computes the other lines.
 4. **An unreconciled line other than zero gives no finding.**
-5. **If a segment is filed in both forms, the value without `ConsolidationItems` counts.**
+5. **If a segment is filed in both forms, the value without `ConsolidationItems` counts, even if it
+   is blocked.**
 
 ## Options Considered
 
@@ -95,9 +96,9 @@ Facts behind decisions 2 and 5:
 - Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
   consolidated value.
 - A series view over many reports shows no reconciliation.
-- 343 of 6,819 keys with a corporate role carry both corporate members, and 49 of them carry
-  equal values. The corporate role then likely counts one amount twice, and the unreconciled line
-  shows it as a negative amount.
+- 343 of 6,819 cases of one filing, concept, period, and unit with a corporate role carry both
+  corporate members, and 49 of them carry equal values. The corporate role then likely counts one
+  amount twice, and the unreconciled line holds that amount with the opposite sign.
 
 ## Open Questions
 
