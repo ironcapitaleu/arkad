@@ -112,7 +112,7 @@ async fn should_send_the_maximum_attempts_when_every_attempt_gets_a_503() {
     let expected_result = BTreeMap::from([(NOTES_URL.to_string(), 3)]);
 
     let _ = sec_client.execute_sec_request(request).await;
-    let result = sec_client.inner.request_counts.per_url();
+    let result = sec_client.inner.request_counts.per_key();
 
     assert_eq!(result, expected_result);
 }

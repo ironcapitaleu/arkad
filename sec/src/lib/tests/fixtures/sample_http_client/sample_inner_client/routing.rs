@@ -48,7 +48,8 @@ impl InnerClient for RoutingHttpClient {
     }
 }
 
-/// The number of requests each URL has received, shared by all clones of a client.
+/// The number of times each key was counted, shared by all clones of a client. A routing client
+/// counts each request under its URL.
 ///
 /// Deviation: [`SecClient`](crate::shared::http_client::SecClient) requires `Eq`, `Ord`, and `Hash`
 /// of its inner client. A count changes while a test runs, so two counts always compare equal and
@@ -57,36 +58,36 @@ impl InnerClient for RoutingHttpClient {
 pub struct RequestCounts(Arc<Mutex<HashMap<String, usize>>>);
 
 impl RequestCounts {
-    /// Returns the number of earlier requests to `url`, and counts this one.
+    /// Returns the number of earlier counts of `key`, and counts this one.
     ///
     /// # Panics
     ///
     /// Panics if another thread panicked while it held the lock.
     #[must_use]
-    pub fn increment(&self, url: &str) -> usize {
+    pub fn increment(&self, key: &str) -> usize {
         let mut counts = self
             .0
             .lock()
             .expect("Given a lock that no thread poisoned, locking should always succeed");
-        let count = counts.entry(url.to_string()).or_insert(0);
+        let count = counts.entry(key.to_string()).or_insert(0);
         let earlier = *count;
         *count += 1;
         drop(counts);
         earlier
     }
 
-    /// Returns each URL that received a request, with its number of requests, sorted by URL.
+    /// Returns each key with its count, sorted by key.
     ///
     /// # Panics
     ///
     /// Panics if another thread panicked while it held the lock.
     #[must_use]
-    pub fn per_url(&self) -> BTreeMap<String, usize> {
+    pub fn per_key(&self) -> BTreeMap<String, usize> {
         self.0
             .lock()
             .expect("Given a lock that no thread poisoned, locking should always succeed")
             .iter()
-            .map(|(url, count)| (url.clone(), *count))
+            .map(|(key, count)| (key.clone(), *count))
             .collect()
     }
 }
@@ -158,7 +159,7 @@ mod tests {
 
         let expected_result = BTreeMap::from([(OTHER_URL.to_string(), 1), (URL.to_string(), 2)]);
 
-        let result = counts.per_url();
+        let result = counts.per_key();
 
         assert_eq!(result, expected_result);
     }

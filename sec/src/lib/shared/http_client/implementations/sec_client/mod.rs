@@ -129,8 +129,8 @@ impl Default for SecClient {
 
 // Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose comparable or hashable
 // state, and a function pointer has no stable order. Equality, ordering and hashing use only the
-// `UserAgent` the client sends. This satisfies
-// trait bounds that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
+// `UserAgent` the client sends. This satisfies trait bounds that require `Eq + Ord + Hash`, for
+// example for use in collections or state machines.
 
 impl PartialEq for SecClient {
     fn eq(&self, other: &Self) -> bool {
@@ -195,6 +195,12 @@ mod tests {
 
     use super::SecClient;
     use crate::shared::http_client::implementations::reqwest_client::ReqwestClient;
+    use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+    use crate::shared::http_client::{RetryPolicy, SecClient as SecClientTrait};
+    use crate::shared::response::implementations::sec_response::error::{
+        ErrorReason, InvalidSecResponse,
+    };
+    use crate::shared::status_code::StatusCode;
     use crate::shared::user_agent::UserAgent;
     use crate::shared::user_agent::constants::DEFAULT_SEC_USER_AGENT;
 
@@ -248,6 +254,47 @@ mod tests {
         let expected_result = true;
 
         let result = client == other;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_retry_under_the_default_policy_when_created_with_default() {
+        let client = SecClient::default();
+
+        let expected_result = RetryPolicy::default();
+
+        let result = SecClientTrait::retry_policy(&client);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_treat_a_503_as_transient_for_sec_client() {
+        let client = SecClient::default();
+        let error =
+            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+                status_code: StatusCode::ServiceUnavailable,
+            }));
+
+        let expected_result = true;
+
+        let result = SecClientTrait::is_transient(&client, &error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_treat_a_404_as_permanent_for_sec_client() {
+        let client = SecClient::default();
+        let error =
+            FailedSecRequest::from(InvalidSecResponse::new(ErrorReason::InvalidStatusCode {
+                status_code: StatusCode::NotFound,
+            }));
+
+        let expected_result = false;
+
+        let result = SecClientTrait::is_transient(&client, &error);
 
         assert_eq!(result, expected_result);
     }
