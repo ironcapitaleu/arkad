@@ -533,7 +533,9 @@ impl Tree {
         self.placements
             .iter()
             .filter_map(move |(concept, placement)| match placement {
-                Placement::Child { group: of, weight } if *of == group => Some((*concept, *weight)),
+                Placement::Child {
+                    group: of, weight, ..
+                } if *of == group => Some((*concept, *weight)),
                 _ => None,
             })
     }
