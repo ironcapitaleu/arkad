@@ -466,5 +466,6 @@ hybrid `ingest` and the §8 reconciliation job. The shared pool stays, because t
 | Trigger threshold of 50 GB, response sizes, and cache shares | Unverified, assumptions | Cost model of 2026-10-19 |
 | Trigger thresholds of 500 ms and a quarter of the database CPU | Unverified, placeholders | This ADR |
 | Supabase reports database CPU per query | Unverified | Not checked |
-| GLEIF publishes RDF, GLEIF data is CC0 | Unverified | gleif.org is blocked from the container |
+| GLEIF data is CC0 | Verified | [GLEIF, LEI data terms of use](https://www.gleif.org/en/meta/lei-data-terms-of-use), read on 2026-11-15 |
+| GLEIF publishes RDF | Unverified | Not checked |
 | Aura limits plugins, Neo4j Community has only uniqueness constraints | Unverified | neo4j.com is blocked from the container |
