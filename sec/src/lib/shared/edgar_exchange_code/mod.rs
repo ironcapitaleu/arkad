@@ -27,7 +27,7 @@ static MIC_BY_EDGAR_EXCHANGE_CODE: LazyLock<HashMap<&'static str, Mic>> = LazyLo
         .collect()
 });
 
-/// The pairs that [`MIC_BY_EDGAR_EXCHANGE_CODE`] holds, as written in the source.
+/// The code and MIC of each pair, as text. [`MIC_BY_EDGAR_EXCHANGE_CODE`] parses them.
 const EDGAR_EXCHANGE_CODE_MIC_PAIRS: [(&str, &str); 22] = [
     ("NYSE", "XNYS"),
     ("NASDAQ", "XNAS"),
@@ -60,6 +60,11 @@ const EDGAR_EXCHANGE_CODE_MIC_PAIRS: [(&str, &str); 22] = [
 /// The code matches exactly, case included, so `Phlx` maps and `PHLX` does not. `NONE` names no
 /// exchange, so it returns `None`. A code outside the enumeration also returns `None`, and the
 /// caller keeps the code as filed.
+///
+/// # Panics
+///
+/// Panics if a MIC in `EDGAR_EXCHANGE_CODE_MIC_PAIRS` is not a valid MIC. The tests of this
+/// module parse every pair, so a released build does not panic.
 ///
 /// # Examples
 ///
@@ -124,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_each_code_of_the_enumeration_but_none_once_for_the_map() {
+    fn should_hold_each_exchange_code_once_for_the_map() {
         let map = &*MIC_BY_EDGAR_EXCHANGE_CODE;
 
         let expected_result = vec![
