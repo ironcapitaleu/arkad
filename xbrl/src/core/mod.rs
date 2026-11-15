@@ -31,6 +31,7 @@
 //! - [`release`]: The taxonomy release of a plug-in.
 //! - [`rule`]: The ID of a rule.
 //! - [`standardized`]: One value of one standard concept.
+//! - [`statement`]: The financial statements, laid out by their roll-up trees.
 //! - [`suspicious_period`]: The check for periods that are most likely typos of the filer.
 //! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
@@ -58,6 +59,7 @@ pub mod period_identity;
 pub mod release;
 pub mod rule;
 pub mod standardized;
+pub mod statement;
 pub mod suspicious_period;
 pub mod taxonomy;
 pub mod unit;
