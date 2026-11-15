@@ -633,8 +633,8 @@ So the check of that group is skipped for that period.
   that period. If two members of one group have different exact starts, such as a quarter and a
   4-month stub, that group gets no check, gives no derived value, gets no other line in the
   statement, and reports a `MixedStarts` finding. The members of a group are the values that the
-  statement counts in it: the start of a step, and the children of a transparent parent that
-  join the group. The other groups of the slot keep their checks. A value without an exact start
+  statement counts in it: the start of a step, the members that stand for a start with no value,
+  and the children of a transparent parent that join the group. The other groups of the slot keep their checks. A value without an exact start
   joins the slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold
   this rule.
 - The negative other check reads the other line of the statement output type (see "7) Financial

@@ -57,8 +57,8 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
    reports it.** The slots
    of `core::closed_group` and `core::roll_up_check` stay keyed by the period end and the length
    in quarters. A slot holds every group of its period. The members of a group are the
-   values that the statement counts in it: the start of a step, and the children of a
-   transparent parent that join the group. If two members of one group in a slot both have an exact start and the starts differ, that group gives
+   values that the statement counts in it: the start of a step, the members that stand for a
+   start with no value, and the children of a transparent parent that join the group. If two members of one group in a slot both have an exact start and the starts differ, that group gives
    no derived value, no `RollUpMismatch`, and no `NegativeOther`. It reports a `MixedStarts`
    finding, so a reader sees that the group has no check. `Statement::build` accepts facts whose
    periods differ only in the start, and gives such a group no other line. The other groups of
