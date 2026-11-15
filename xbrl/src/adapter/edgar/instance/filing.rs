@@ -38,7 +38,8 @@ mod name {
 /// The ID and the filed date come from the input, because the document holds neither. The entity
 /// is the entity of the context of `dei:DocumentType`. A cover fact counts only in a context with no
 /// dimensions, except `dei:TradingSymbol`, which names a class of stock. The document holds no
-/// industry code and no acceptance time.
+/// industry code and no acceptance time. A cover fact with empty text, such as a nil fact, gives no
+/// value, except `dei:DocumentType`.
 ///
 /// # Errors
 ///
@@ -104,7 +105,6 @@ pub fn filing(
             tickers: cover.tickers(),
             fiscal_year_end: cover
                 .text(name::CURRENT_FISCAL_YEAR_END_DATE)
-                .filter(|text| !text.is_empty())
                 .as_deref()
                 .map(FiscalYearEnd::from_str)
                 .transpose()?,
@@ -127,10 +127,10 @@ impl<'a, 'input> Cover<'_, 'a, 'input> {
         })
     }
 
-    /// Returns the trimmed text of [`Cover::fact`].
+    /// Returns the trimmed text of [`Cover::fact`], or `None` if the text is empty, as for a nil
+    /// fact.
     fn text(&self, local_name: &str) -> Option<String> {
-        self.fact(local_name)
-            .map(|fact| text(fact).trim().to_owned())
+        self.fact(local_name).and_then(value)
     }
 
     /// Returns every cover fact with the local name, in document order.
@@ -144,19 +144,24 @@ impl<'a, 'input> Cover<'_, 'a, 'input> {
         })
     }
 
-    /// Returns one ticker per `dei:TradingSymbol`, with the exchange of the same context.
+    /// Returns one ticker per `dei:TradingSymbol` with text, with the exchange of the same context.
     fn tickers(&self) -> Vec<Ticker> {
         self.all(name::TRADING_SYMBOL)
-            .map(|symbol| {
+            .filter_map(|symbol| {
                 let context = symbol.attribute(xml_name::CONTEXT_REF);
-                Ticker {
-                    symbol: text(symbol).trim().to_owned(),
+                Some(Ticker {
+                    symbol: value(symbol)?,
                     exchange: self
                         .all(name::SECURITY_EXCHANGE_NAME)
                         .find(|exchange| exchange.attribute(xml_name::CONTEXT_REF) == context)
-                        .map(|exchange| text(exchange).trim().to_owned()),
-                }
+                        .and_then(value),
+                })
             })
             .collect()
     }
+}
+
+/// Returns the trimmed text of the fact, or `None` if the text is empty, as for a nil fact.
+fn value(fact: Node<'_, '_>) -> Option<String> {
+    Some(text(fact).trim().to_owned()).filter(|text| !text.is_empty())
 }

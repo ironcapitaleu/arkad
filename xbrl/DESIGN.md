@@ -1994,7 +1994,9 @@ The instance parser maps the cover facts in the `dei` namespace into the `Filing
 `dei:DocumentType` gives the form and, through its context, the entity. `dei:AmendmentFlag`,
 `dei:DocumentPeriodEndDate`, `dei:DocumentFiscalYearFocus`, `dei:DocumentFiscalPeriodFocus`,
 `dei:EntityRegistrantName`, `dei:CurrentFiscalYearEndDate`, `dei:TradingSymbol`, and
-`dei:SecurityExchangeName` give the rest. The instance has no industry code. Its period of report
+`dei:SecurityExchangeName` give the rest. A cover fact other than `dei:DocumentType` with empty
+text, such as a nil fact, gives no value, as an empty Notes field does. The instance has no industry
+code. Its period of report
 is the exact date, where Notes `sub.period` is the month end.
 
 States and errors:

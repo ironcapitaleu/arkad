@@ -292,6 +292,7 @@ mod tests {
 
     use super::*;
     use crate::core::concept::NamespaceFamily;
+    use crate::core::filing::Ticker;
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     const ADSH: &str = "0000000001-26-000001";
@@ -702,6 +703,97 @@ mod tests {
             .filing
             .company
             .fiscal_year_end;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_period_of_report_when_the_fact_is_nil() {
+        let body = r#"<dei:DocumentPeriodEndDate contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .period_of_report;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_fiscal_year_when_the_fact_is_nil() {
+        let body = r#"<dei:DocumentFiscalYearFocus contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .fiscal_year;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_fiscal_period_when_the_fact_is_nil() {
+        let body = r#"<dei:DocumentFiscalPeriodFocus contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .fiscal_period;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_company_name_when_the_fact_is_nil() {
+        let body = r#"<dei:EntityRegistrantName contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .name;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_ticker_when_the_trading_symbol_is_nil() {
+        let body = r#"<dei:TradingSymbol contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result: Vec<Ticker> = vec![];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_exchange_when_the_exchange_fact_is_nil() {
+        let body = r#"<dei:TradingSymbol contextRef="q3">ABC</dei:TradingSymbol>
+            <dei:SecurityExchangeName contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = vec![Ticker {
+            symbol: "ABC".to_owned(),
+            exchange: None,
+        }];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
 
         assert_eq!(result, expected_result);
     }
