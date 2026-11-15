@@ -120,17 +120,23 @@ struct Cover<'d, 'a, 'input> {
 impl<'a, 'input> Cover<'_, 'a, 'input> {
     /// Returns the first cover fact with the local name in a context with no dimensions.
     fn fact(&self, local_name: &str) -> Option<Node<'a, 'input>> {
-        self.all(local_name).find(|fact| {
+        self.undimensioned(local_name).next()
+    }
+
+    /// Returns the trimmed text of the first cover fact with the local name in a context with no
+    /// dimensions that has text. A fact with empty text, as a nil fact has, is skipped.
+    fn text(&self, local_name: &str) -> Option<String> {
+        self.undimensioned(local_name).find_map(value)
+    }
+
+    /// Returns every cover fact with the local name in a context with no dimensions, in document
+    /// order.
+    fn undimensioned(&self, local_name: &str) -> impl Iterator<Item = Node<'a, 'input>> {
+        self.all(local_name).filter(|fact| {
             self.document
                 .context(fact.attribute(xml_name::CONTEXT_REF).unwrap_or_default())
                 .is_ok_and(|context| context.dimensions.is_empty())
         })
-    }
-
-    /// Returns the trimmed text of [`Cover::fact`], or `None` if the text is empty, as for a nil
-    /// fact.
-    fn text(&self, local_name: &str) -> Option<String> {
-        self.fact(local_name).and_then(value)
     }
 
     /// Returns every cover fact with the local name, in document order.
@@ -153,8 +159,8 @@ impl<'a, 'input> Cover<'_, 'a, 'input> {
                     symbol: value(symbol)?,
                     exchange: self
                         .all(name::SECURITY_EXCHANGE_NAME)
-                        .find(|exchange| exchange.attribute(xml_name::CONTEXT_REF) == context)
-                        .and_then(value),
+                        .filter(|exchange| exchange.attribute(xml_name::CONTEXT_REF) == context)
+                        .find_map(value),
                 })
             })
             .collect()

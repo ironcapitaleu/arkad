@@ -292,6 +292,7 @@ mod tests {
 
     use super::*;
     use crate::core::concept::NamespaceFamily;
+    use crate::core::entity_name::EntityName;
     use crate::core::filing::Ticker;
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
@@ -788,6 +789,57 @@ mod tests {
             symbol: "ABC".to_owned(),
             exchange: None,
         }];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_company_name_when_a_nil_copy_comes_first() {
+        let body = r#"<dei:EntityRegistrantName contextRef="q3" xsi:nil="true"/>
+            <dei:EntityRegistrantName contextRef="q3">ABC Corp</dei:EntityRegistrantName>"#;
+
+        let expected_result = Some(EntityName::new("ABC Corp"));
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .name;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_exchange_when_a_nil_copy_comes_first() {
+        let body = r#"<dei:TradingSymbol contextRef="q3">ABC</dei:TradingSymbol>
+            <dei:SecurityExchangeName contextRef="q3" xsi:nil="true"/>
+            <dei:SecurityExchangeName contextRef="q3">NYSE</dei:SecurityExchangeName>"#;
+
+        let expected_result = vec![Ticker {
+            symbol: "ABC".to_owned(),
+            exchange: Some("NYSE".to_owned()),
+        }];
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_ticker_when_the_trading_symbol_is_whitespace() {
+        let body = r#"<dei:TradingSymbol contextRef="q3"> </dei:TradingSymbol>"#;
+
+        let expected_result: Vec<Ticker> = vec![];
 
         let result = parse_body(body)
             .expect("Given a document with a document type, the parse should always succeed")
