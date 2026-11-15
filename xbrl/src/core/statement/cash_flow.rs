@@ -63,12 +63,20 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_net_income_in_starts_for_the_cash_flow_statement() {
-        let starts = CashFlowStatement::STARTS;
+    fn should_hold_every_start_from_another_statement_of_the_cash_flow_groups_in_starts() {
+        let groups = GROUPS;
 
-        let expected_result = vec![IncomeStatementConcept::NetIncome.element()];
+        let expected_result = CashFlowStatement::STARTS.to_vec();
 
-        let result = starts.to_vec();
+        let result: Vec<CanonicalElementKind> = groups
+            .iter()
+            .filter_map(|group| match group.kind {
+                GroupKind::Step { start } if CashFlowConcept::try_from(start).is_err() => {
+                    Some(start)
+                }
+                _ => None,
+            })
+            .collect();
 
         assert_eq!(result, expected_result);
     }
