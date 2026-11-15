@@ -1,6 +1,6 @@
 //! # US-GAAP Concept Mappings
 //!
-//! Rule IDs and the alias lists that map US GAAP concept names to standard concepts.
+//! Rule IDs, alias lists, and part lists that map US GAAP concept names to standard concepts.
 //!
 //! An alias list holds only concepts that equal the whole standard concept, such as the names of
 //! one total across releases. It holds no wider concept and no part of the total.
@@ -17,13 +17,13 @@ use crate::core::elements::{
     PerShareConcept,
 };
 
-/// A mapping from one or more XBRL concept names to a canonical financial element.
+/// A mapping from one or more XBRL concept names to a standard concept.
 ///
 /// The `xbrl_keys` array is ordered by priority: the first key that matches
 /// in the SEC JSON wins. This handles taxonomy version changes over time.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConceptDefinition {
-    /// The canonical element this concept maps to.
+    /// The standard concept this definition maps to.
     canonical_element: CanonicalElementKind,
     /// XBRL concept names to search for, in priority order.
     xbrl_keys: &'static [&'static str],
@@ -50,7 +50,7 @@ impl ConceptDefinition {
         }
     }
 
-    /// Returns the canonical element this definition maps to.
+    /// Returns the standard concept this definition maps to.
     #[must_use]
     pub const fn canonical_element(&self) -> CanonicalElementKind {
         self.canonical_element
