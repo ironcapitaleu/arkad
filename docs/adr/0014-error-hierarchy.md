@@ -1,4 +1,4 @@
-# ADR 0014: Errors Nest by Origin, as Value Types
+# ADR 0014: Errors Nest by Origin, as Value Types, and Print One Fact per Segment
 
 | Field | Value |
 | ----- | ----- |
@@ -40,17 +40,19 @@ and `Hash`, as ADR 0006 defines it.
 4. **An error prints its chain on one line, one segment per layer.** Since #81 (2026-04-26):
    - Each segment starts with the name of its error type in brackets, such as `[StateError]`.
    - A segment that wraps an inner error ends with `Caused by:` and the inner error.
-   - A leaf ends with `Reason: '…'` if its fields do not already say the cause.
+   - A leaf ends with `Reason: '…'`. Since #93 (2026-06-18), a leaf leaves it out if its fields
+     already say the cause.
    - Commas separate the parts. No inner error sits inside quotes.
 
-   The reader is an operator. The project lead gave the reason on 2026-11-15: an operator finds
-   and greps the exact layer in a log by its type name, and reads the whole chain in order, from the
-   outermost layer to the root cause, in one log line. STA-452 (#416, 2026-11-03) fixed a segment
-   with no name that hid its inner error in quotes, found in a `backfill` run that filled the disk.
+   The reader is an operator. The project lead gave the reason on 2026-11-15. An operator greps a
+   log for the type name of a layer. An operator also reads the whole chain in one log line, from
+   the outermost layer to the root cause. #416 (2026-11-06, STA-452) fixed a segment with no name
+   that hid its inner error in quotes. STA-452 found it in a `backfill` run that filled the disk.
 
-   An error carries no hint on how to fix it. The project lead decided this on 2026-11-06 in
-   STA-454: few errors are fixable by an operator, and the date and environment errors of the
-   binaries already name their fix.
+   The format has no `Hint:` segment. On 2026-11-06 the project lead decided in STA-454 to build
+   no hints for now: few errors are fixable by an operator. The environment errors of the binaries
+   name their fix in their text, such as `InvalidRunDates`
+   (`sec/src/bin/daily_filings/dates.rs:24-35`).
 5. **`Display` never uses `Debug` formatting.** Since #84 (2026-05-05). `Debug` output is internal
    to Rust and can change between versions, so code that reads an error text cannot parse it. A
    field that is a collection gets a newtype with its own `Display`.
@@ -62,8 +64,7 @@ and `Hash`, as ADR 0006 defines it.
 
    The goal of STA-454: an operator reads what failed, on what, and why, in as few segments as
    possible. Before the rule, a disk-full write printed 7 segments. Five said only that something
-   failed, the state name appeared twice, and the cause came last. After it, the chain has 3
-   segments.
+   failed, and the state name appeared twice. After it, the chain has 3 segments.
 
    The project lead confirmed on 2026-11-06 that `source()` of a pass-through layer returns the
    source of its inner error, not the inner error. Otherwise a caller that walks `source()` prints
@@ -74,8 +75,13 @@ examples for decisions 4 to 6.
 
 ## Options Considered
 
-No record names the options that were weighed in 2025. The repository mentions neither `anyhow` nor
-one flat error enum for `sec`.
+No record names the options that were weighed for decisions 1 to 6. The repository mentions
+neither `anyhow` nor one flat error enum for `sec`.
+
+STA-454 weighed two places for a hint on how to fix an error, on 2026-11-06: a `Hint: '…'` segment
+on the leaf error, or a `hint` field in the context of the JSON log line, set by the binary. The
+project lead built neither (decision 4). If hints return, the log field is the recommended path,
+because only the binary knows the deployment.
 
 ADR 0006 weighed options later, for the `storage` errors, on 2026-08-10. A boxed `source()` lost
 `PartialEq`, `Clone`, `Eq`, and `Hash`, so no `sec` error could hold it. That comparison is the only
