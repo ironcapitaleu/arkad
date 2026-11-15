@@ -10,12 +10,18 @@ use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
 innermost_concepts! {
     /// A standard concept of the cash flow statement. Each value is a duration.
     pub enum CashFlowConcept in Statement(StatementConcept::CashFlow) {
+        /// The net change in cash, cash equivalents, and restricted cash, including the effect of
+        /// exchange rates.
+        NetChangeInCash => "Net Change in Cash",
         /// Net cash from operating activities.
         OperatingCashFlow => "Operating Cash Flow",
         /// Net cash from investing activities.
         InvestingCashFlow => "Investing Cash Flow",
         /// Net cash from financing activities.
         FinancingCashFlow => "Financing Cash Flow",
+        /// The effect of exchange rates on cash, cash equivalents, and restricted cash, including
+        /// the cash of disposal groups and discontinued operations.
+        ExchangeRateEffect => "Exchange Rate Effect",
         /// Depreciation, depletion, and amortization: the add-back of the cash flow statement
         /// (`DepreciationDepletionAndAmortization`).
         DepreciationAmortization => "Depreciation & Amortization",
@@ -36,7 +42,7 @@ innermost_concepts! {
 group_names! {
     /// A group whose parent is a cash flow concept.
     pub enum CashFlowGroup in CashFlow {
-        /// The group whose parent is `NetChangeInCash`.
+        /// The group whose parent is [`CashFlowConcept::NetChangeInCash`].
         NetChangeInCash => "net-change-in-cash",
         /// The group whose parent is [`CashFlowConcept::OperatingCashFlow`].
         OperatingCashFlow => "operating-cash-flow",
@@ -50,7 +56,11 @@ group_names! {
 impl Placed for CashFlowConcept {
     fn placement(self) -> Placement {
         match self {
-            Self::OperatingCashFlow | Self::InvestingCashFlow | Self::FinancingCashFlow => {
+            Self::NetChangeInCash => Placement::Top,
+            Self::OperatingCashFlow
+            | Self::InvestingCashFlow
+            | Self::FinancingCashFlow
+            | Self::ExchangeRateEffect => {
                 Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus)
             }
             Self::DepreciationAmortization | Self::ShareBasedCompensation => {
@@ -66,13 +76,20 @@ impl Placed for CashFlowConcept {
     }
 }
 
-/// The groups whose parent is a cash flow concept, in the order in which the cash flow statement
-/// presents the first child of each group. `docs/adr/0013-order-of-the-groups.md` records the
-/// order.
+/// The groups whose parent is a cash flow concept.
+///
+/// The list follows the order of the first row that names each group in the table of the cash
+/// flow statement. `docs/adr/0013-order-of-the-groups.md` records the order.
 ///
 /// `operating-cash-flow` starts from `NetIncome` of the income statement, because the indirect
 /// method starts from net income.
 pub const GROUPS: &[Group] = &[
+    Group {
+        name: CashFlowGroup::NetChangeInCash.name(),
+        parent: CashFlowConcept::NetChangeInCash.element(),
+        kind: GroupKind::Breakdown,
+        closed: true,
+    },
     Group {
         name: CashFlowGroup::OperatingCashFlow.name(),
         parent: CashFlowConcept::OperatingCashFlow.element(),
@@ -114,6 +131,7 @@ mod tests {
         let concepts = CashFlowConcept::ALL;
 
         let expected_result = vec![
+            (CashFlowConcept::NetChangeInCash, Placement::Top),
             (
                 CashFlowConcept::OperatingCashFlow,
                 Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
@@ -124,6 +142,10 @@ mod tests {
             ),
             (
                 CashFlowConcept::FinancingCashFlow,
+                Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
+            ),
+            (
+                CashFlowConcept::ExchangeRateEffect,
                 Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
             ),
             (

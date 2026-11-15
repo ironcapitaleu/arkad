@@ -39,12 +39,13 @@ pub struct FilingCandidates {
 /// [`Confidence::Synonym`]. A fact counts only if the registry routes its family to the plug-in of
 /// the list, and only if it has a unit and a numeric value.
 ///
-/// If no concept of the list resolves, the first part of [`ConceptAliases::parts`] that the filing
-/// reports and that no other part blocks wins, with the part rule and confidence
-/// [`Confidence::Synonym`]. An other part blocks a part if the filing reports it in the period. A
-/// part never blocks itself, so two parts can each be an other part of the other. A value of zero
-/// does not block. A conflict does. The check covers every dimension of the period, so an other part with a member,
-/// such as the noncontrolling interest on the equity components axis, also stops the part.
+/// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the parts
+/// that the filing reports, the first that no other part blocks wins, with the part rule and
+/// confidence [`Confidence::Synonym`]. If the filing reports an other part in the period, the other
+/// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
+/// other. A value of zero does not block. A conflict does. The check covers every dimension of the
+/// period, so an other part with a member, such as the noncontrolling interest on the equity
+/// components axis, also stops the part.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
 /// lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict gives a
