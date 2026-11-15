@@ -1,4 +1,4 @@
-# ADR 0015: Every I/O Boundary Is a Trait, Injected, and Faked in Unit Tests
+# ADR 0016: Every I/O Boundary Is a Trait, Injected, and Faked in Unit Tests
 
 | Field | Value |
 | ----- | ----- |
@@ -64,7 +64,7 @@ flags. This ADR records the decision and its consequences only.
   (`.claude/skills/domain-concept/SKILL.md:229-231`).
 - Each port needs fakes, and each fake needs upkeep when the port changes. The Open-Closed rule of
   `AGENTS.md` limits such changes.
-- Generic parameters add up. A super-state carries one per injected port (ADR 0013, "Consequences").
+- Generic parameters add up. A super-state carries one per injected port (ADR 0014, "Consequences").
 - A fake checks only what it was written to return. Some integration tests use the real adapter,
   such as `sec/tests/sec_client.rs`.
 - The `api` and `xbrl` crates have no ports on `main` at `a9d57d1`. `xbrl` has `Taxonomy`, a plug-in

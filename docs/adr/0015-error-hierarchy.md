@@ -1,4 +1,4 @@
-# ADR 0014: Errors Nest by Origin, as Value Types, and Print One Fact per Segment
+# ADR 0015: Errors Nest by Origin, as Value Types, and Print One Fact per Segment
 
 | Field | Value |
 | ----- | ----- |
@@ -10,7 +10,7 @@
 ## Context
 
 A pipeline of the `sec` crate fails in a state, in a transition between states, or in the setup of
-the state machine (ADR 0013). A caller needs one error type to propagate, and a test needs the exact
+the state machine (ADR 0014). A caller needs one error type to propagate, and a test needs the exact
 cause to compare.
 
 The `sec` crate holds an error hierarchy in `sec/src/lib/error/` since #23 (2025-06-04). This ADR
@@ -95,8 +95,9 @@ written one, and it covers `storage` only.
 
 - Whether an error gets a hint on how to fix it, and where. STA-454 compared a `Hint: '…'` segment
   on the leaf error with a `hint` field in the JSON log line, set by the binary. On 2026-11-06 the
-  project lead deferred both. Today only the environment errors of the binaries name their fix in
-  their text, such as `InvalidRunDates` (`sec/src/bin/daily_filings/dates.rs:24-35`).
+  project lead deferred both. Today only the two variants of
+  `InvalidRunDates` in `daily_filings` name their fix in their text
+  (`sec/src/bin/daily_filings/dates.rs:24-35`).
 
 ## Sources
 

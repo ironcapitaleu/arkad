@@ -41,7 +41,7 @@ never imports the adapters.
 backend is one more adapter. Same shape the codebase uses for `SecClient` (port) over
 `InnerClient`.
 
-[ADR 0015](../../../docs/adr/0015-ports-and-fakes.md) records the decision that every I/O boundary is
+[ADR 0016](../../../docs/adr/0016-ports-and-fakes.md) records the decision that every I/O boundary is
 a port, injected, and faked in unit tests.
 
 ## Clean Architecture (the dependency rule)

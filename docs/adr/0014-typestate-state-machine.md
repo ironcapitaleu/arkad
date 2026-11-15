@@ -1,4 +1,4 @@
-# ADR 0013: The Pipelines Run on a Typestate Hierarchical State Machine
+# ADR 0014: The Pipelines Run on a Typestate Hierarchical State Machine
 
 | Field | Value |
 | ----- | ----- |
