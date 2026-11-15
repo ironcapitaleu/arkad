@@ -303,8 +303,8 @@ other = parent − start − Σ(weight × child)
 - A closed group gets no other line. Its members must add up, and the check of "Checks the Tree
   Gives" tests it.
 - A group whose members have two exact starts gets no other line and reports a `MixedStarts`
-  finding. The members include the start of a step and the children of a transparent parent
-  that join the group ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does
+  finding. The members include the start of a step, the members that stand for a start with no
+  value, and the children of a transparent parent that join the group ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does
   not hold this rule.
 - If a member of a closed group has no value and is not zero if absent, the group gets no check.
   If the children of a transparent member count in a closed group, the group becomes open for that
@@ -835,7 +835,8 @@ parses it.
   `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`. `confidence` holds the weakest
   confidence of the inputs of the check (see "Layer 3").
 - `MixedStarts` is a value of `findings.kind`. `concepts` holds the members of the group with a
-  value, in the order of `RollUpMismatch`. `periods` holds the period end and length of the slot.
+  value, in the order of `RollUpMismatch`. The members that stand for a start with no value take
+  the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
   ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this kind.
 
