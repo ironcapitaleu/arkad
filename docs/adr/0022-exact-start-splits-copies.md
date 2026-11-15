@@ -53,10 +53,12 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
    `startDate`.
 4. **The value key stays as it is:** filing, concept, taxonomy version, exact end, length in
    quarters, unit, dimensions, copy rank. The start is not part of it.
-5. **A group with two exact starts derives nothing, checks nothing, and reports it.** The slots
+5. **A group with two exact starts derives nothing, checks nothing, gets no other line, and
+   reports it.** The slots
    of `core::closed_group` and `core::roll_up_check` stay keyed by the period end and the length
-   in quarters. A slot holds every group of its period. If two members of one group in a slot,
-   the start of a step included, both have an exact start and the starts differ, that group gives
+   in quarters. A slot holds every group of its period. The members of a group are the
+   values that the statement counts in it: the start of a step, and the children of a
+   transparent parent that join the group. If two members of one group in a slot both have an exact start and the starts differ, that group gives
    no derived value, no `RollUpMismatch`, and no `NegativeOther`. It reports a `MixedStarts`
    finding, so a reader sees that the group has no check. `Statement::build` accepts facts whose
    periods differ only in the start, and gives such a group no other line. The other groups of
