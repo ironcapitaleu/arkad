@@ -228,7 +228,7 @@ impl<'a> Slot<'a> {
     /// returns `None` if the slot has no such value.
     ///
     /// Each value takes the period of the slot, so values whose periods differ only in the start
-    /// fit one statement.
+    /// can share one statement.
     fn statement(&self, kind: StatementKind) -> Option<Statement> {
         let facts: Vec<StandardizedFact> = self
             .values
