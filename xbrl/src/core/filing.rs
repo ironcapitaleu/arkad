@@ -12,6 +12,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use super::entity_name::EntityName;
 use super::fiscal_period::FiscalPeriod;
 use super::fiscal_year::FiscalYear;
+use super::fiscal_year_end::FiscalYearEnd;
 use super::form::Form;
 use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 
@@ -247,6 +248,42 @@ pub struct CompanyAttributes {
     pub fiscal_year_end: Option<String>,
 }
 
+impl CompanyAttributes {
+    /// Returns the month of the month end nearest to [`Self::fiscal_year_end`], from 1 to 12.
+    ///
+    /// The text can read `0930` or `--09-30`. A 52-53 week year ends near a month end, so `0927`
+    /// gives 9 and `0102` gives 12. February counts 29 days, so `0215` gives 2 and `0214` gives 1.
+    /// If the day lies as far from the end of the previous month as from the end of its own
+    /// month, as `0415` does, the month of the day wins.
+    ///
+    /// Returns `None` if there is no fiscal year end or the text is not a month and a day.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use xbrl::core::filing::CompanyAttributes;
+    ///
+    /// let company = CompanyAttributes {
+    ///     fiscal_year_end: Some("--09-27".to_owned()),
+    ///     ..CompanyAttributes::default()
+    /// };
+    ///
+    /// let expected_result = Some(9);
+    ///
+    /// let result = company.fiscal_year_end_month();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    #[must_use]
+    pub fn fiscal_year_end_month(&self) -> Option<u8> {
+        self.fiscal_year_end
+            .as_deref()?
+            .parse::<FiscalYearEnd>()
+            .ok()?
+            .month()
+    }
+}
+
 /// One filing and its attributes as filed.
 ///
 /// Every field is public, because a filing is a record of what the source says, and each field
@@ -280,6 +317,101 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    fn company(fiscal_year_end: Option<&str>) -> CompanyAttributes {
+        CompanyAttributes {
+            fiscal_year_end: fiscal_year_end.map(str::to_owned),
+            ..CompanyAttributes::default()
+        }
+    }
+
+    #[test]
+    fn should_return_september_when_notes_year_end_is_september_27() {
+        let attributes = company(Some("0927"));
+
+        let expected_result = Some(9);
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_september_when_notes_year_end_is_october_3() {
+        let attributes = company(Some("1003"));
+
+        let expected_result = Some(9);
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_december_when_notes_year_end_is_december_31() {
+        let attributes = company(Some("1231"));
+
+        let expected_result = Some(12);
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_december_when_notes_year_end_is_january_2() {
+        let attributes = company(Some("0102"));
+
+        let expected_result = Some(12);
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_september_when_instance_year_end_is_september_27() {
+        let attributes = company(Some("--09-27"));
+
+        let expected_result = Some(9);
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_february_when_notes_year_end_is_february_15() {
+        let attributes = company(Some("0215"));
+
+        let expected_result = Some(2);
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_fiscal_year_end_is_missing() {
+        let attributes = company(None);
+
+        let expected_result = None;
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_none_when_fiscal_year_end_is_not_a_date() {
+        let attributes = company(Some("Sept"));
+
+        let expected_result = None;
+
+        let result = attributes.fiscal_year_end_month();
+
+        assert_eq!(result, expected_result);
+    }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]

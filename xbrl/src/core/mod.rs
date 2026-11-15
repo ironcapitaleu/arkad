@@ -54,6 +54,7 @@ pub mod filing;
 pub mod finding;
 pub mod fiscal_period;
 pub mod fiscal_year;
+mod fiscal_year_end;
 pub mod form;
 pub mod graph;
 pub mod invalid_value;

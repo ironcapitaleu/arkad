@@ -688,7 +688,8 @@ Rules for the open points of the company data:
 - **Fiscal year end.** Silver keeps the raw text in `fiscal_year_end_raw`. It also stores
   `fiscal_year_end_month`, the month of the month end nearest to the raw day. `sub.tsv` rounds the
   same way. Apple `--09-27` gives 9, and `sub.tsv` `0930` gives 9. Costco `--09-01` gives 8, and
-  `sub.tsv` `0831` gives 8.
+  `sub.tsv` `0831` gives 8. February counts 29 days, so `0215` gives 2 and `0214` gives 1. If a
+  day lies as far from two month ends, as `0415` does, the month of the day wins.
 - **Change of fiscal year.** A change of `fiscal_year_end_month` between two filings is a change of
   the fiscal year. A day that moves within the month, as in a 52- or 53-week year, is not.
 - **Missing value.** If a source has no value, for example an empty `fye` or no `dei` tag, the
