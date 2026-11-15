@@ -654,7 +654,10 @@ mod tests {
             equity.clone(),
         ]);
 
-        let expected_result = vec![[liabilities_and_equity.inputs, equity.inputs].concat()];
+        let expected_result = vec![vec![
+            liabilities_and_equity.inputs[0].clone(),
+            equity.inputs[0].clone(),
+        ]];
 
         let result: Vec<Vec<FactKey>> = derive_from_closed_groups(&facts, &[])
             .into_iter()
