@@ -76,8 +76,9 @@ and the report date of the accession of each value. An annual ladder is a value 
 - The ladder adds seven concepts and no column. `CanonicalElementKind` holds 59 standard concepts.
 - The gap check expects only fiscal year ends for the six buckets. Without the rule, every 10-Q
   filer gets three `Gap` findings per bucket and year. The trait `Timed` marks the buckets.
-- A filter after `resolve_aliases` reads the `Filing` and `Timed`. `resolve_aliases` and the
-  `Taxonomy` trait do not change.
+- A filter after `resolve_aliases` reads the `Filing` and `CanonicalElementKind::cadence`, which
+  the middle macro generates from `Timed`. `resolve_aliases` and the `Taxonomy` trait do not
+  change.
 - A reader cannot tell "no debt" from "schedule not tagged". It shows a bucket with no row as "not
   reported in machine-readable form".
 - The decision does not cover interim ladders, ladders with finance leases, ladders per legal

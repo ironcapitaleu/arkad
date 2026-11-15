@@ -566,7 +566,8 @@ pub trait Placed: Concept {
 - A second macro defines each middle enum, `StatementConcept` and `DisclosureConcept`, from its
   list of innermost enums. The same macro builds `INNERMOST: &[&[CanonicalElementKind]]`, one entry
   per innermost enum, each built with `element()`. So a variant of a middle enum cannot miss
-  `INNERMOST`. The parse from the name and the uniqueness test walk it.
+  `INNERMOST`. The parse from the name and the uniqueness test walk it. Each entry also lists the
+  traits of the enum beyond `Concept`, such as `Summed` and `Timed` (see "Debt Maturities").
 - A trait method cannot be a `const fn`. The alias lists and the part rules are `const` tables. So
   each innermost enum also has an inherent `const fn element(self) -> CanonicalElementKind`, and a
   list writes `BalanceSheetConcept::Assets.element()`. Run-time code converts with `From` one level
@@ -1010,7 +1011,7 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   principal. The total holds the carrying amount, net of discounts, premiums, and issuance costs.
 - All seven values must have the same unit. Otherwise the check does not run. The derivation
   from a closed group has the same rule.
-- A failure is a `MaturityMismatch` finding. `concepts` holds the total first, then the buckets in
+- A failure is a `SumMismatch` finding. `concepts` holds the total first, then the buckets in
   the order of the table. `periods` holds the instant. `reason` holds the `SUM_NAME` of the sum,
   here `debt-maturities`.
   `confidence` holds the weakest confidence of the inputs.
@@ -1086,7 +1087,6 @@ pub trait Timed: Concept {
 - `DebtMaturityConcept` implements `Concept`, `Summed`, and `Timed`. `SUM_NAME` is
   `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
   `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
-- A concept enum without `Timed` has values at every period.
 - The middle macro registers the traits of each innermost enum, as in
   `DebtMaturities(DebtMaturityConcept): Summed, Timed`. From this list it generates
   `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
@@ -1094,6 +1094,12 @@ pub trait Timed: Concept {
 - The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
   series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
   adds its enum, its impls, and its macro entry. None of the three callers changes.
+- A test in each module with `impl Timed` walks `ALL` and compares
+  `CanonicalElementKind::from(c).cadence()` with `c.cadence()`. A test in each module with
+  `impl Summed` shows that `check_all_sums` gives a `SumMismatch` for a sum that does not add up.
+  So a missing macro entry fails a test.
+- `SumMismatch` is the finding of every sum. Its `reason` holds the `SUM_NAME`, so a reader
+  filters on the kind and the reason.
 - `Summed` and `Timed` are subtraits of `Concept`, because every such concept also has a name and
   a label. `Timed` is not a subtrait of `Summed`, because a concept can have a cadence without a
   sum.
@@ -1676,7 +1682,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
-- `core/check/debt-maturities@1`: a check that gives findings and no value.
+- `core/check/debt-maturities@1`: the check of a sum of a disclosure, `core/check/<SUM_NAME>@1`. It
+  gives findings and no value.
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
@@ -1939,7 +1946,7 @@ It never fails.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `MaturityMismatch`), the entity, the
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the

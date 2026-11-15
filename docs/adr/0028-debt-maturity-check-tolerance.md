@@ -18,13 +18,13 @@ A check of a filer's own sums uses ±0.1% of the largest absolute value in the g
 total by more than rounding. The buckets hold principal. The total holds the carrying amount, net
 of discounts, premiums, issuance costs, and hedge adjustments.
 
-The tolerance decides how many filers get a `MaturityMismatch` finding. It rests on a measurement
+The tolerance decides how many filers get a `SumMismatch` finding. It rests on a measurement
 that changes with new filings.
 
 ## Decision
 
 1. **The check uses ±5% of the largest absolute value in the group.** A difference above it is a
-   `MaturityMismatch` finding.
+   `SumMismatch` finding.
 2. **The check runs only if all six buckets and the total have a value.** A missing bucket never
    counts as zero.
 3. **The check derives no value.** The ladder has no other line.
@@ -65,7 +65,8 @@ rolling concept if the filer tags only that. The total is `LongTermDebt` at the 
 - A ladder that is off by less than 5% passes, even if one bucket is wrong.
 - A filer that tags no "after year five" gets no check. 151 filers tag the years one to five and
   `LongTermDebt`, but no "after year five".
-- `MaturityMismatch` is a new value of `findings.kind`.
+- `SumMismatch` is a new value of `findings.kind`. Its `reason` holds `debt-maturities`, the name
+  of the sum.
 
 ## Open Questions
 

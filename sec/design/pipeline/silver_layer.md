@@ -119,7 +119,7 @@ store holds today.
 | `filings` | `Filing`, with the company attributes as filed | Notes `sub.tsv` and `txt.tsv`, or the instance and `submissions` | Parse filing |
 | `candidates` | Standardized candidate of one filing, blocked ones included | `as_is_facts` | Standardize filing |
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
-| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `MaturityMismatch` finding | Both standardize steps | Standardize filing, standardize series |
+| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` finding | Both standardize steps | Standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
 | `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
 
@@ -278,14 +278,14 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
-| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `MaturityMismatch` |
+| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` |
 | `entity_scheme`, `entity_id` | `utf8` | |
-| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table. For `MaturityMismatch`, the total of the sum, then its parts, for example `LongTermDebtIncludingCurrentMaturities` and the six buckets of the ladder in the order of `xbrl/DESIGN.md`, "Debt Maturities" |
+| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table. For `SumMismatch`, the total of the sum, then its parts, for example `LongTermDebtIncludingCurrentMaturities` and the six buckets of the ladder in the order of `xbrl/DESIGN.md`, "Debt Maturities" |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity. For `MaturityMismatch`, the name of the sum, for example `debt-maturities` |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity. For `SumMismatch`, the name of the sum, for example `debt-maturities` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
-| `confidence` | `utf8`, nullable | For `RollUpMismatch`, `NegativeOther`, and `MaturityMismatch`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
+| `confidence` | `utf8`, nullable | For `RollUpMismatch`, `NegativeOther`, and `SumMismatch`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
 | `step` | `utf8` | `filing` or `series` |
 | `change` | `utf8`, nullable | `new`, `changed`, or `resolved` for a series row. Null for a filing row |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
