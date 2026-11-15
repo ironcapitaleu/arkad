@@ -17,10 +17,6 @@
 //! - [`linkbase`]: Reads labels and calculation arcs.
 //! - [`render`]: Writes the Rust source of the tables.
 //! - [`schema`]: Reads the concepts of the element schema.
-//!
-//! ## See Also
-//!
-//! - `xbrl/DESIGN.md`, "Taxonomy Data in Code".
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
