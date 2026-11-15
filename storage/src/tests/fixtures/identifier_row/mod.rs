@@ -50,8 +50,8 @@ impl<I: PartialEq, K: Copy> IdentifierRow<I, K> {
     /// Returns whether the row names the identifier on the date, with the row ending before
     /// `valid_to`.
     ///
-    /// The identifier rows of the metadata store cover their first day and end before `valid_to`,
-    /// the day the next record or an end rule starts.
+    /// The identifier rows of the metadata store cover their first day and end before `valid_to`:
+    /// the day the next record starts, or the end that an end rule sets.
     pub fn covers_before_valid_to(&self, identifier: &I, at: NaiveDate) -> bool {
         self.starts_by(identifier, at) && self.valid_to.is_none_or(|to| at < to)
     }

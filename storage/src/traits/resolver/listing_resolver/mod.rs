@@ -29,9 +29,9 @@ use crate::shared::{ListingId, ListingIdentifier};
 /// Returns the [`ListingId`] of a listing identifier at a date.
 ///
 /// An implementor holds dated identifier rows: a `(scheme, value)` pair, a [`ListingId`], and a
-/// validity from one date to another. A row covers its first day and ends before `valid_to`, the
-/// day the next record or an end rule starts. It returns at most one [`ListingId`] for
-/// one identifier and one date. If two sources that disagree give two rows for one date, the
+/// validity from one date to another. A row covers its first day and ends before `valid_to`: the
+/// day the next record starts, or the end that an end rule sets. It returns at most one
+/// [`ListingId`] for one identifier and one date. If two sources that disagree give two rows for one date, the
 /// implementor picks one. The port does not fix which.
 ///
 /// Two identifiers resolve to one [`ListingId`] only if rows of one listing hold both. A ticker
