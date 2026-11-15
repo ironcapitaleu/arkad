@@ -75,9 +75,8 @@ To write an ADR:
      the `Status` row to the PR.
    - If the decider wants time, or no person is in the chat, as in a CI job, keep "Proposed".
 
-The same steps hold for an amendment. Write it, then ask the decider at once with the form, and
-recommend "Accept" if the context supports it. Record the answer in the `Status` row of the
-amendment.
+The same steps hold for an amendment. Write it, then ask the decider at once with the form.
+Record the answer in the `Status` row of the ADR, as "Amend or Supersede" says.
 
 ## Template
 
