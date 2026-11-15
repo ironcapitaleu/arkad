@@ -302,6 +302,10 @@ other = parent − start − Σ(weight × child)
   `NetIncome`.
 - A closed group gets no other line. Its members must add up, and the check of "Checks the Tree
   Gives" tests it.
+- A group whose members have two exact starts gets no other line and reports a `MixedStarts`
+  finding. The members include the start of a step and the children of a transparent parent
+  that join the group ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does
+  not hold this rule.
 - If a member of a closed group has no value and is not zero if absent, the group gets no check.
   If the children of a transparent member count in a closed group, the group becomes open for that
   period and gets an other line. For example, a bank reports no `CurrentAssets` and no
@@ -626,11 +630,12 @@ So the check of that group is skipped for that period.
 - A closed group gets no check for a period if a member has no value and is not zero if absent,
   or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
 - The values of one period end and length in quarters share a slot, which holds every group of
-  that period. If two members of one group, the start of a step included, have different exact
-  starts, such as a quarter and a 4-month stub, that group gets no check, gives no derived value,
-  gets no other line in the statement, and reports a `MixedStarts` finding. The other groups of
-  the slot keep their checks. A value without an exact start joins
-  the slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold
+  that period. If two members of one group have different exact starts, such as a quarter and a
+  4-month stub, that group gets no check, gives no derived value, gets no other line in the
+  statement, and reports a `MixedStarts` finding. The members of a group are the values that the
+  statement counts in it: the start of a step, and the children of a transparent parent that
+  join the group. The other groups of the slot keep their checks. A value without an exact start
+  joins the slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold
   this rule.
 - The negative other check reads the other line of the statement output type (see "7) Financial
   Statement Output Types"). It computes no other line of its own.
@@ -2207,8 +2212,8 @@ pub struct StatementLine {
 }
 ```
 
-- `Statement::build(kind, facts)` takes the current standardized facts of one entity and one
-  period. It orders the lines by the table, computes the other lines, and skips a parent with no
+- `Statement::build(kind, facts)` takes the current standardized facts of one entity, one period
+  end, and one length in quarters. It orders the lines by the table, computes the other lines, and skips a parent with no
   value as "Roll-Up Tree" describes.
 - A breakdown shows its parent first, then its children one level deeper. A step shows its items
   one level deeper, then its parent. A step whose start belongs to another statement shows the
@@ -2222,8 +2227,9 @@ pub struct StatementLine {
 - `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
   period end, length in quarters, period type, unit, or dimensions. Facts whose periods differ
   only in the exact start build one statement. A group whose members have two exact starts gets
-  no other line ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code rejects
-  two starts and does not hold this rule.
+  no other line ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The statement
+  marks no such group. The `MixedStarts` finding names it, and the fact of each line shows its
+  start. The code rejects two starts and does not hold this rule.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
   takes the concepts of its statement, and the start of a step from another statement, such as
   `NetIncome` in the cash flow statement. It rejects every other fact.
