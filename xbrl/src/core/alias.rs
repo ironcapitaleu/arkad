@@ -39,11 +39,13 @@ pub struct FilingCandidates {
 /// [`Confidence::Synonym`]. A fact counts only if the registry routes its family to the plug-in of
 /// the list, and only if it has a unit and a numeric value.
 ///
-/// If no concept of the list resolves, the first part of [`ConceptAliases::parts`] that the filing
-/// reports wins, with the part rule and confidence [`Confidence::Synonym`]. A part wins only if the
-/// filing reports none of the other parts in the period. A value of zero does not count. A
-/// conflict does. The check covers every dimension of the period, so an other part with a member,
-/// such as the noncontrolling interest on the equity components axis, also stops the part.
+/// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the
+/// parts that the filing reports, the first that no other part blocks wins, with the part rule and
+/// confidence [`Confidence::Synonym`]. If the filing reports an other part in the period, the other
+/// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
+/// other. A value of zero does not block. A conflict does. The check covers every dimension of the
+/// period, so an other part with a member, such as the noncontrolling interest on the equity
+/// components axis, also stops the part.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
 /// lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict gives a
@@ -213,11 +215,19 @@ fn pick(
             })
             .or_else(|| {
                 let parts = aliases.parts.as_ref()?;
-                if parts.other_parts.iter().any(other_part_reported) {
-                    return None;
-                }
-                let (_, reported) = first_reported(&parts.parts, plugin, concepts, registry)?;
-                Some((Confidence::Synonym, reported, &parts.rule))
+                parts
+                    .parts
+                    .iter()
+                    .filter(|part| routes_to(part, plugin, registry))
+                    .filter_map(|part| Some((part, *concepts.get(part)?)))
+                    .find(|(part, _)| {
+                        !parts
+                            .other_parts
+                            .iter()
+                            .filter(|other| other != part)
+                            .any(other_part_reported)
+                    })
+                    .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
             })?;
     let fact = reported.first();
     let (value, inputs) = match reported {
@@ -371,6 +381,34 @@ mod tests {
                 true,
             )],
             vec![equity],
+        )
+    }
+
+    /// Returns a plug-in whose short-term debt list holds the total, with two parts that are each
+    /// an other part of the other.
+    fn short_term_debt_plugin() -> FakeTaxonomy {
+        let parts = vec![
+            concept_of("us-gaap", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
+            concept_of("us-gaap", "ShortTermBorrowings"),
+        ];
+        let short_term_debt = ConceptAliases {
+            element: BalanceSheetConcept::ShortTermDebt.element(),
+            rule: rule_of("us-gaap/alias/short-term-debt@1"),
+            concepts: vec![concept_of("us-gaap", "DebtCurrent")],
+            parts: Some(PartAliases {
+                rule: rule_of("us-gaap/part/short-term-debt@1"),
+                parts: parts.clone(),
+                other_parts: parts,
+            }),
+        };
+        plugin_with_aliases(
+            "us-gaap/2026",
+            vec![declaration(
+                "us-gaap",
+                "http://fasb.org/us-gaap/{release}",
+                true,
+            )],
+            vec![short_term_debt],
         )
     }
 
@@ -933,6 +971,117 @@ mod tests {
                 confidence: Confidence::Synonym,
             },
         )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_first_part_when_the_filing_reports_it_alone_and_it_is_an_other_part_of_the_second()
+     {
+        let plugin = short_term_debt_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "LongTermDebtAndCapitalLeaseObligationsCurrent",
+            "45000000",
+        )];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/short-term-debt@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(45_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_second_part_when_the_filing_reports_it_alone_and_it_is_an_other_part_of_the_first()
+     {
+        let plugin = short_term_debt_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(&filing, "ShortTermBorrowings", "45000000")];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/short-term-debt@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(45_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_second_part_when_the_first_part_is_zero_and_each_is_an_other_part_of_the_other()
+     {
+        let plugin = short_term_debt_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "LongTermDebtAndCapitalLeaseObligationsCurrent",
+                "0",
+            ),
+            fact(&filing, "ShortTermBorrowings", "500000000"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/short-term-debt@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(500_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_filing_reports_two_parts_that_are_each_an_other_part_of_the_other()
+     {
+        let plugin = short_term_debt_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "LongTermDebtAndCapitalLeaseObligationsCurrent",
+                "45000000",
+            ),
+            fact(&filing, "ShortTermBorrowings", "756000000"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
 
         let result = rules_and_values(&resolve_aliases(&copies, &registry));
 

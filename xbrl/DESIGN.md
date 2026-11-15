@@ -747,6 +747,8 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 - `DebtCurrent` holds the current finance lease obligations. `LongTermDebt` leaves out the
   noncurrent ones. No US GAAP concept holds current debt without leases. So the two differ in scope, as
   "Decided Points" records. A net debt figure can subtract `FinanceLeaseLiabilityCurrent`.
+  On 2026-11-15, 126 of the 368 filers of `DebtCurrent` in the frame `CY2025Q4I` also reported
+  `FinanceLeaseLiabilityCurrent`. 121 of them reported a value other than zero (SEC frames API).
 - `StockholdersEquity` stays the part of `Equity` and becomes the alias of
   `EquityAttributableToParent`. `NetIncomeLoss` stays the part of `NetIncome` and becomes the alias
   of `NetIncomeAttributableToParent`. A concept in two lists is allowed, as "`us_gaap`" says.
@@ -1188,11 +1190,16 @@ ticket decides where the removed elements live.
     them outside D&A as their own add-back.
   - A concept can sit in two alias lists, as `EarningsPerShareBasicAndDiluted` does. A conflict
     finding then names the first of the two standard concepts, in the order of `aliases()`.
-  - The part rule runs only if no concept of the alias list resolves. The first part that the
-    filing reports wins, with confidence `Synonym`.
+  - The part rule runs only if no concept of the alias list resolves. Of the parts that the filing
+    reports, the first that no other part blocks wins, with confidence `Synonym`.
   - An other part in the same period and unit blocks the part, in any dimension. Then the
     standard concept gets no value from tiers 1 and 2. A value of zero does not block, because
     then the part equals the whole.
+  - Two parts that are siblings, such as `ShortTermBorrowings` and
+    `LongTermDebtAndCapitalLeaseObligationsCurrent` below `DebtCurrent`, are each an other part of
+    the other. A part never blocks itself. So a part of zero loses to a sibling with a value. The
+    concepts below the two parts do not count, because filers report them in the notes next to
+    the part.
   - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
     `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
     equivalents.
@@ -1628,9 +1635,10 @@ Rules the code fixes where the table above leaves a choice:
   candidate. It still counts as an other part in the part rule, and its conflict still gives a
   `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
   name order wins.
-- If no concept of an alias list resolves, the first part of its `PartAliases` that the filing
-  reports wins, with `Synonym`. An other part in the same period and unit blocks it, in any
-  dimension. A value of zero does not block. A conflict does.
+- If no concept of an alias list resolves, the part rule runs on its `PartAliases`. Of the parts
+  that the filing reports, the first that no other part blocks wins, with `Synonym`. An other part
+  in the same period and unit blocks a part, in any dimension. A value of zero does not block. A
+  conflict does.
 
 Other cases:
 
