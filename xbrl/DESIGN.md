@@ -1637,7 +1637,8 @@ Rules the code fixes where the table above leaves a choice:
   name order wins.
 - If no concept of an alias list resolves, the part rule runs on its `PartAliases`. Of the parts
   that the filing reports, the first that no other part blocks wins, with `Synonym`. An other part
-  in the same period and unit blocks a part, in any dimension. A value of zero does not block. A conflict does.
+  in the same period and unit blocks a part, in any dimension. A value of zero does not block. A
+  conflict does.
 
 Other cases:
 

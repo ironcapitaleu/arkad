@@ -92,8 +92,10 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
 
 /// The count of standardized facts per standard concept in the fixture filing, for both sources.
 ///
-/// Equity has 3 facts, and interest expense has 1, because a conflict blocks the 2026 quarter.
-/// Every other concept has 2. Facts with dimensions give no standardized fact.
+/// Equity and equity attributable to parent have 3 facts each, because the filing reports
+/// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
+/// Interest expense has 1, because a conflict blocks the 2026 quarter. Every other concept has 2.
+/// Facts with dimensions give no standardized fact.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
         (BalanceSheetConcept::Assets.element(), 2),
