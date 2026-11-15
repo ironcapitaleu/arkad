@@ -30,11 +30,12 @@ load.
 
 ## Decision
 
-1. **The reconciliation runs on the candidates of one filing.** The segments, the eliminations, the
-   corporate items, and the consolidated value come from one report.
+1. **The reconciliation runs on the candidates of one filing, over the business-segment axes.** The
+   segments, the eliminations, the corporate items, and the consolidated value come from one report.
 2. **An unreconciled line holds the rest:** consolidated − segments − eliminations − corporate items,
-   each with the sign of the filing. Its rule ID is `core/segment/unreconciled@1`. The roles carry
-   `core/segment/elimination@1` and `core/segment/corporate@1`.
+   each with the sign of the filing. Its role rule ID is `core/segment/unreconciled@1`. A reported
+   line keeps the rule of its candidate, and an elimination or corporate line carries the role rule
+   ID `core/segment/elimination@1` or `core/segment/corporate@1` next to it.
 3. **Silver stores no line of the reconciliation.** A read type computes the lines, as the
    statement output type computes the other lines.
 4. **An unreconciled line other than zero gives no finding.**
@@ -64,8 +65,8 @@ Measured on 2026-11-15 on `2026_10_notes.zip` of the SEC, 978 10-K and 10-Q fili
 - B mixes filings. After a reorganization, the newest consolidated value meets segments of older
   filings under other names. ASC 280 recasts the earlier years in one report, so the values of one
   report fit together.
-- C gives a finding for most filers, because 60% of operating income groups tag no elimination or
-  corporate item.
+- C gives a finding for most filers, because 458 of 851 operating income groups (54%) do not add
+  up.
 - D needs a member for the line in `dimensions` that no filer uses, and a stored copy goes stale
   when a candidate changes. The other lines of the tree follow the same rule
   (`xbrl/DESIGN.md`, "\"Other\" Lines").
@@ -78,16 +79,18 @@ Facts behind decisions 2 and 5:
 
 ## Consequences
 
-- A reader sees the unreconciled line next to the tagged roles and can tell a derived line from a
-  reported one by its rule ID.
+- A reader sees the unreconciled line next to the tagged roles. Only the unreconciled line has no
+  candidate rule, so a reader tells it from a reported line.
 - Members of a company on `ConsolidationItems`, such as `CorporateAndEliminations`, have no role.
   Their amount lands in the unreconciled line.
 - A value of a segment with a second pair, such as its inter-segment revenue, has no role. A filer
   can report the segment revenue with or without it, so the unreconciled line absorbs the
   difference.
-- The reconciliation runs on `Geographical` and `ProductOrService` too, with no elimination or
-  corporate role.
-- Of 456 revenue groups with one segment, 425 (93%) equal the consolidated value.
+- The reconciliation runs only on the business-segment axes. Members on `Geographical` and
+  `ProductOrService` can overlap, such as `US`, `NonUs`, and `Americas` in one filing. A sum then
+  counts an amount twice, so these axes get no reconciliation.
+- Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
+  consolidated value.
 - A series view over many reports shows no reconciliation.
 
 ## Open Questions

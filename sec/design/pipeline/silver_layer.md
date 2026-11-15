@@ -236,8 +236,10 @@ the rule that picked the conflicting concept. The segment view of a report and i
 read the rows of one filing, see [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values).
 
 The owner decided on 2026-11-08 that `candidates` stays a dataset of its own. When a new filing arrives,
-the series step runs again over every filing of the entity. It reads about 50 candidate rows per
-past filing instead of about 1,000 as-is rows, and it does not run steps 1 and 2 again.
+the series step runs again over every filing of the entity. It reads about 50 candidate rows of
+consolidated values per past filing instead of about 1,000 as-is rows, and it does not run steps 1
+and 2 again. Segment values add candidate rows. In `2026_10_notes.zip`, a 10-K or 10-Q had a mean
+of 79 segment values on concepts of an alias list (2026-11-15).
 
 Inside a `candidates` part, rows sort by `entity_bucket`, then by `filing_id`. The writer starts a
 new row group at each change of `entity_bucket`, so a series task reads only the row groups of its

@@ -28,7 +28,7 @@ Terms in this ADR:
 - **Segment axes:** the seven axes of `xbrl/DESIGN.md`, "Segment Axes".
 - **Segment fact:** a fact with dimensions whose axes are all segment axes.
 - **The tree:** the roll-up tree, its closed-group rule, its checks, and its other lines, with the
-  balance sheet identity and the period identity `core/period/q4-from-fy@1`.
+  balance sheet identity, the period identity `core/period/q4-from-fy@1`, and the sums of Tier 4.
 
 The decision binds `core::alias`, `core::closed_group`, `core::roll_up_check`,
 `core::period_identity`, `core::chronology`, the silver writer, and the rows of `candidates` and
@@ -40,7 +40,7 @@ The decision binds `core::alias`, `core::closed_group`, `core::roll_up_check`,
    alias lists of the consolidated value. The candidate keeps the pairs as filed, with no mapping
    and no change of form. A fact with any other axis gives no candidate.
 2. **The tree and chronology run only on values without dimensions.** A segment value gets no
-   derived value, no check, no other line, no Q4 from the fiscal year, and no chronology finding.
+   derived or computed value, no check, no other line, no Q4 from the fiscal year, and no chronology finding.
    It still gets `restated`.
 3. **A segment value is a row of `standardized_facts`.** The table and its key stay as they are.
    The key holds `dimensions` already, and `dimensions` is empty for a consolidated value.

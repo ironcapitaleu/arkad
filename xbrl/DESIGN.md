@@ -984,24 +984,26 @@ segments. No standard concept holds them, so they stay as-is facts.
   consolidated value stays.
 - **`core/dedup/newest-filing@1`** keys on the dimensions already. A segment series is one entity,
   standard concept, period end, length in quarters, unit, and set of dimensions.
-- **The tree, the identities, and the period identity** run only on values without dimensions:
-  `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`, and the
-  checks of "Checks the Tree Gives". A segment value gets no derived value, no check, no other
-  line, and no `MixedStarts` finding.
+- **The tree, the identities, the period identity, and Tier 4** run only on values without
+  dimensions: `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`,
+  the sums along the calculation tree of a plug-in, and the checks of "Checks the Tree Gives". A
+  segment value gets no derived or computed value, no check, no other line, and no `MixedStarts`
+  finding.
 - **Chronology** runs only on values without dimensions. A segment value still gets `restated`.
 - `FactSet` and the statement output types take only values without dimensions. A segment value
   enters no statement.
 
 #### Reconciliation
 
-The reconciliation shows how the segments add up to the consolidated value. It runs on the
-candidates of one filing, for one standard concept, period, and unit. Each value takes a role from
+The reconciliation shows how the business segments add up to the consolidated value. It runs on
+the candidates of one filing, for one standard concept, period, and unit. A **business-segment
+axis** is `BusinessSegments` or `SegmentReportingInformationBySegment`. Each value takes a role from
 its dimensions:
 
-| Role | Dimensions | Rule ID |
-| ---- | ---------- | ------- |
-| Segment | `BusinessSegments` = *m* alone, or with `ConsolidationItems` = `OperatingSegments` | The rule of the value |
-| Elimination | `ConsolidationItems` = `IntersegmentElimination`, `IntersubsegmentEliminations`, or `ConsolidationEliminations`, alone | `core/segment/elimination@1` |
+| Role | Dimensions | Role rule ID |
+| ---- | ---------- | ------------ |
+| Segment | A business-segment axis = *m* alone, or with `ConsolidationItems` = `OperatingSegments` | None |
+| Elimination | `ConsolidationItems` = `IntersegmentElimination` or `ConsolidationEliminations`, alone | `core/segment/elimination@1` |
 | Corporate | `ConsolidationItems` = `CorporateNonSegment` or `MaterialReconcilingItems`, alone | `core/segment/corporate@1` |
 | Unreconciled | None, a line of the reconciliation | `core/segment/unreconciled@1` |
 
@@ -1009,25 +1011,32 @@ its dimensions:
 unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
 ```
 
+- A segment, elimination, or corporate line is a reported candidate. It keeps the rule that
+  resolved it, such as `us-gaap/alias/revenue@1`. The line carries the role rule ID next to it.
+- The unreconciled line has no candidate. Its role rule ID is its only rule. So a reader tells the
+  derived line from a reported one by the role rule ID `core/segment/unreconciled@1`.
 - Each role has the weight `+1`, and each value keeps the sign of the filing. An elimination is
   mostly negative.
-- If a segment *m* has both forms, the value with `BusinessSegments` alone counts.
+- If a segment *m* has both forms, the value without `ConsolidationItems` counts.
 - The roles take only the members of the `us-gaap` and `srt` taxonomies. A value with a member of
   the company on `ConsolidationItems`, such as `CorporateAndEliminations`, has no role. Its amount
   lands in the unreconciled line.
-- The unreconciled line exists only if the filing has the consolidated value and at least one
-  segment. It holds every reconciling item that the filer does not tag with a role.
-- A segment value with a second pair, such as `ConsolidationItems` = `IntersegmentElimination`
+- A blocked candidate counts as absent. The unreconciled line exists only if the consolidated
+  candidate and every segment candidate of the filing hold a value. It holds every reconciling item
+  that the filer does not tag with a role.
+- A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
   (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
 - A single-segment company gets the same reconciliation with one segment.
-- `Geographical` and `ProductOrService` get the same reconciliation, with the segments on that axis
-  and no elimination or corporate role.
+- `Geographical` and `ProductOrService` get no reconciliation. Their members can overlap, such as
+  `US`, `NonUs`, and `Americas` in one filing, so a sum counts an amount twice. A reader shows their
+  values as reported.
 - An unreconciled line other than zero gives no finding. The line itself shows the difference.
 - **Silver stores no line of the reconciliation**, as for the other lines. A read type in `core`
   computes the lines from the candidates of one filing.
 
-Measured on `2026_10_notes.zip` on 2026-11-15, over groups of one filing, concept, period, and unit
-with two or more segments. A group adds up if the difference is within 0.1% of the larger value:
+Measured on `2026_10_notes.zip` on 2026-11-15. A group is one filing, concept, period, and unit
+with two or more segments on `BusinessSegments`. A group adds up if the difference is within 0.1%
+of the larger absolute value:
 
 | Concept | Groups | Segments alone add up | Add up with elimination and corporate | Do not add up | No elimination or corporate tagged |
 | ------- | ------ | --------------------- | ------------------------------------- | ------------- | ---------------------------------- |
@@ -1041,18 +1050,21 @@ with two or more segments. A group adds up if the difference is within 0.1% of t
   zero. A flip of the sign of the positive ones closes 7 more groups. So the sign stays as filed.
 - Of 1,750 segment values filed in both forms, 1,103 are equal. Plain values close more revenue
   groups than values with `OperatingSegments`: 1,489 against 1,430.
-- Of 456 revenue groups with one segment, 425 (93%) equal the consolidated value.
+- Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
+  consolidated value.
 
 #### Values With Two Axes
 
-`Dimensions` holds a set of pairs. No axis comes first. A value with two segment axes, such as
-segment × product, is a series of its own. It enters no reconciliation. A reader shows it below the
-value whose dimensions are its own less one axis: `BusinessSegments` = `Cloud` and
-`ProductOrService` = `Software` sit below `BusinessSegments` = `Cloud`.
+`Dimensions` holds a set of pairs. No axis comes first in storage. A value with two segment axes,
+such as segment × product, is a series of its own. It takes no role in the reconciliation, except
+the segment form with `ConsolidationItems` = `OperatingSegments` of the role table. A reader shows
+it below the value whose dimensions are its own less the axis that comes last in the table of
+"Segment Axes". `BusinessSegments` = `Cloud` and `ProductOrService` = `Software` sit below
+`BusinessSegments` = `Cloud`.
 
-In `2026_10_notes.zip`, 73,383 of 142,142 values on segment axes only have two or more axes. Most
-pair a segment with a role: 46,452 values are `BusinessSegments` × `ConsolidationItems`. Segment ×
-product has 6,776 values, and segment × geography 2,983.
+Of 142,142 values in `2026_10_notes.zip` whose axes are all segment axes, 73,383 have two or more
+axes. Most pair a segment with a role: 46,452 values are `BusinessSegments` × `ConsolidationItems`.
+Segment × product has 6,776 values, and segment × geography 2,983.
 
 #### Renamed and Merged Segments
 
@@ -1605,7 +1617,7 @@ the set. It checks in this order: the entity of the fact, its period, and its di
 periods are the same if they are of one kind and have the same end and length, and the same exact
 start if both give one. So an instant fact never belongs to a set of a duration, and a fiscal year
 needs one set for its duration and one for the instant at its end. A fact with dimensions never
-belongs to the set. A segment value stays outside every fact set (see "Segment Values"). A fact of a standard
+belongs to the set (see "Segment Values"). A fact of a standard
 concept that the set holds replaces the held fact.
 
 ### Rule IDs
@@ -1619,7 +1631,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
-- `core/segment/unreconciled@1`: a line of the segment reconciliation (see "Segment Values").
+- `core/segment/elimination@1`, `core/segment/corporate@1`, `core/segment/unreconciled@1`: the
+  roles of the segment reconciliation (see "Segment Values").
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
@@ -1796,7 +1809,8 @@ The order of resolution and dedup, per entity and period. A period here is an ex
 and a length in quarters, as in the value key:
 
 1. `core/dedup/more-precise@1` on the as-is facts of each filing.
-2. Tiers 1 and 2 on each filing: at most one candidate per standard concept and filing.
+2. Tiers 1 and 2 on each filing: at most one candidate per standard concept, set of dimensions,
+   and filing.
 3. `core/dedup/newest-filing@1` across filings, on the standard concept. A newer filing wins over
    the alias order, so a restatement under a renamed concept wins.
 4. Tiers 3 and 4 on the values that remain.
