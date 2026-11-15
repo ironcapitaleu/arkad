@@ -81,7 +81,7 @@ When a company does not report a parent concept, sum its children along the calc
 4. Store with `confidence: Computed`
 
 Tier 4 is not built. It must fill only a concept that Tier 3 leaves without a value. For example, `core/roll-up/liabilities@1`
-derives `Liabilities` from `CurrentLiabilities` and `NonCurrentLiabilities`, so Tier 4 does not
+derives `Liabilities` from `CurrentLiabilities` and `NonCurrentLiabilities`, so Tier 4 must not
 compute it.
 
 ## Dedup and Gap Check

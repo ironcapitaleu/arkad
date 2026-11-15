@@ -268,6 +268,7 @@ mod tests {
     use crate::core::elements::BalanceSheetConcept;
     use crate::core::fact::FactKey;
     use crate::core::period::{Duration, Period};
+    use crate::core::release::{Sha256, TaxonomyRelease};
     use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, standardized};
 
@@ -645,7 +646,8 @@ mod tests {
     fn should_take_the_inputs_of_every_known_member_when_it_derives_a_member() {
         let liabilities_and_equity =
             balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216");
-        let equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        let mut equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        equity.inputs[0].copy_rank = 1;
         let facts = series(vec![
             liabilities_and_equity.clone(),
             balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
@@ -657,6 +659,28 @@ mod tests {
         let result: Vec<Vec<FactKey>> = derive_from_closed_groups(&facts, &[])
             .into_iter()
             .map(|fact| fact.inputs)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_release_of_the_first_known_member_when_it_derives_a_member() {
+        let liabilities_and_equity =
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216");
+        let mut equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        equity.release.checksum = Sha256::new([1; 32]);
+        let facts = series(vec![
+            liabilities_and_equity.clone(),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+            equity,
+        ]);
+
+        let expected_result = vec![liabilities_and_equity.release];
+
+        let result: Vec<TaxonomyRelease> = derive_from_closed_groups(&facts, &[])
+            .into_iter()
+            .map(|fact| fact.release)
             .collect();
 
         assert_eq!(result, expected_result);
