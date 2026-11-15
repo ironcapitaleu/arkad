@@ -116,7 +116,7 @@ fn members(group: Group) -> Vec<Member> {
             sign: Weight::Minus,
             zero_if_absent: false,
         }),
-        _ => None,
+        GroupKind::Breakdown => None,
     };
     let children = placements().filter_map(|(concept, placement)| match placement {
         Placement::Child {
@@ -139,14 +139,14 @@ fn members(group: Group) -> Vec<Member> {
 const fn opposite(weight: Weight) -> Weight {
     match weight {
         Weight::Minus => Weight::Plus,
-        _ => Weight::Minus,
+        Weight::Plus => Weight::Minus,
     }
 }
 
 fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
     match sign {
         Weight::Minus => -value,
-        _ => value.clone(),
+        Weight::Plus => value.clone(),
     }
 }
 
@@ -175,19 +175,23 @@ impl Slot {
 #[derive(Debug)]
 struct KnownValues {
     values: BTreeMap<Slot, BTreeMap<CanonicalElementKind, Vec<StandardizedFact>>>,
-    blocked: BTreeSet<(Slot, CanonicalElementKind)>,
+    blocked: BTreeMap<Slot, BTreeSet<CanonicalElementKind>>,
 }
 
 impl KnownValues {
     fn of(series: &Series, fourth_quarters: &[StandardizedFact]) -> Self {
         let mut known = Self {
             values: BTreeMap::new(),
-            blocked: series
-                .blocked
-                .iter()
-                .map(|key| (Slot::of(key.clone()), key.concept))
-                .collect(),
+            blocked: BTreeMap::new(),
         };
+        for key in &series.blocked {
+            let concept = key.concept;
+            known
+                .blocked
+                .entry(Slot::of(key.clone()))
+                .or_default()
+                .insert(concept);
+        }
         for fact in series.facts.iter().chain(fourth_quarters) {
             known.insert(Slot::of(fact.series_key()), fact.clone());
         }
@@ -211,10 +215,11 @@ impl KnownValues {
     /// `slot`, or `None` if the group gives no value.
     fn derive(&self, name: GroupName, members: &[Member], slot: &Slot) -> Option<StandardizedFact> {
         let values = self.values.get(slot)?;
+        let blocked = self.blocked.get(slot);
         let mut unknown = None;
         let mut inputs: Vec<(Weight, &StandardizedFact)> = Vec::new();
         for member in members {
-            if self.blocked.contains(&(slot.clone(), member.concept)) {
+            if blocked.is_some_and(|concepts| concepts.contains(&member.concept)) {
                 return None;
             }
             match values.get(&member.concept).map(Vec::as_slice) {
@@ -261,6 +266,7 @@ mod tests {
 
     use super::*;
     use crate::core::elements::BalanceSheetConcept;
+    use crate::core::fact::FactKey;
     use crate::core::period::{Duration, Period};
     use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, standardized};
@@ -342,7 +348,7 @@ mod tests {
     }
 
     #[test]
-    fn should_derive_non_current_liabilities_from_derived_liabilities_when_the_chain_needs_two_passes()
+    fn should_derive_non_current_liabilities_from_derived_liabilities_when_the_chain_holds_in_one_pass()
      {
         let facts = series(vec![
             balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "100"),
@@ -361,6 +367,31 @@ mod tests {
                 BalanceSheetConcept::NonCurrentLiabilities.element(),
                 35,
                 "core/roll-up/liabilities@1",
+            ),
+        ];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_liabilities_from_derived_equity_when_a_later_group_feeds_an_earlier_group() {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "100"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "40"),
+        ]);
+
+        let expected_result = vec![
+            derived(
+                BalanceSheetConcept::Equity.element(),
+                40,
+                "core/roll-up/equity@1",
+            ),
+            derived(
+                BalanceSheetConcept::Liabilities.element(),
+                60,
+                "core/roll-up/liabilities-and-equity@1",
             ),
         ];
 
@@ -568,6 +599,65 @@ mod tests {
         let expected_result: Vec<Summary> = Vec::new();
 
         let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_a_member_has_values_in_two_units() {
+        let mut equity_in_euro = balance_sheet(BalanceSheetConcept::Equity, "-230");
+        equity_in_euro.unit = Unit::from_str("EUR")
+            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216"),
+            balance_sheet(BalanceSheetConcept::Equity, "-252"),
+            equity_in_euro,
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_mark_the_derived_fact_restated_when_an_input_is_restated() {
+        let mut equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        equity.restated = true;
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+            equity,
+        ]);
+
+        let expected_result = vec![true];
+
+        let result: Vec<bool> = derive_from_closed_groups(&facts, &[])
+            .into_iter()
+            .map(|fact| fact.restated)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_inputs_of_every_known_member_when_it_derives_a_member() {
+        let liabilities_and_equity =
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216");
+        let equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        let facts = series(vec![
+            liabilities_and_equity.clone(),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+            equity.clone(),
+        ]);
+
+        let expected_result = vec![[liabilities_and_equity.inputs, equity.inputs].concat()];
+
+        let result: Vec<Vec<FactKey>> = derive_from_closed_groups(&facts, &[])
+            .into_iter()
+            .map(|fact| fact.inputs)
+            .collect();
 
         assert_eq!(result, expected_result);
     }

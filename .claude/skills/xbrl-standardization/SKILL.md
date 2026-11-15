@@ -80,7 +80,7 @@ When a company does not report a parent concept, sum its children along the calc
 3. Compute: `parent = Σ(child_i × weight_i)`, where the weight is +1 or −1
 4. Store with `confidence: Computed`
 
-Tier 4 fills only a concept that Tier 3 leaves without a value. For example, `core/roll-up/liabilities@1`
+Tier 4 is not built. It must fill only a concept that Tier 3 leaves without a value. For example, `core/roll-up/liabilities@1`
 derives `Liabilities` from `CurrentLiabilities` and `NonCurrentLiabilities`, so Tier 4 does not
 compute it.
 
