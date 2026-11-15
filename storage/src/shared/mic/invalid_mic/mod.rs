@@ -6,7 +6,7 @@ use thiserror::Error;
 
 /// Error raised when a string is not four upper-case ASCII letters or digits.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[error("[InvalidMic] MIC '{value}' is not four upper-case letters or digits")]
+#[error("[InvalidMic] MIC '{value}' is not four upper-case ASCII letters or digits")]
 pub struct InvalidMic {
     /// The string that was rejected.
     pub value: String,
@@ -50,7 +50,8 @@ mod tests {
     fn should_format_display_as_expected_for_an_invalid_mic() {
         let error = InvalidMic::new("xnas");
 
-        let expected_result = "[InvalidMic] MIC 'xnas' is not four upper-case letters or digits";
+        let expected_result =
+            "[InvalidMic] MIC 'xnas' is not four upper-case ASCII letters or digits";
 
         let result = error.to_string();
 

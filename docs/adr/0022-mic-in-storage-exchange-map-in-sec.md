@@ -57,8 +57,8 @@ No option was measured. The facts follow from the `Cargo.toml` files at `b2e400e
 ## Consequences
 
 - A caller imports `storage::Mic`. The map is `sec::shared::edgar_exchange_code::mic_of`.
-- `storage` holds a third key type that a resolver does not return: a MIC is an identifier of an
-  exchange, not a key that the load assigns.
+- `storage::shared` holds `Mic` next to `CompanyId` and `ListingId`. The load assigns those two
+  keys, and a resolver returns them. A MIC comes from ISO 10383, and no resolver returns it.
 - A loader of another source with its own exchange codes adds its own map in its own crate.
 
 ## Open Questions
