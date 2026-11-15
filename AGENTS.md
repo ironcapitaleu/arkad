@@ -86,7 +86,9 @@ This file or the skill that holds the rule is its record.
 - If the test says ADR, write the ADR in the PR that first acts on the decision. A decision from a
   ticket without a PR, such as a SPIKE, gets its ADR in the first PR that changes the code. If the
   choice is already on `main`, write the ADR in the PR where a person questions it.
-- Set the status of a new ADR to "Proposed" and say who confirms it. An agent never accepts an ADR.
+- Set the status of a new ADR to "Proposed" and say who confirms it. Then ask the decider in the
+  chat whether they accept it now. If they accept, record it in the same PR, as the `adr` skill
+  says. An agent never accepts an ADR on its own.
 - If the test is unclear, name the decision and both options in the PR description, and ask the
   owner.
 - A design doc explains how the code works. An ADR explains why one option won. Link from the

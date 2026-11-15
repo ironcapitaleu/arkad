@@ -8,7 +8,7 @@ description: >
   long-term trade-offs for the system or the team. Also use for one that a later engineer will
   question. Also use when you remove history or a past decision from a document, to check whether
   the decision needs an ADR first.
-version: 0.5.0
+version: 0.6.0
 ---
 
 # ADR Skill
@@ -55,6 +55,15 @@ To write an ADR:
    such as a SPIKE, ships in the first PR that changes the code. A past decision that leaves a
    document ships in the PR that removes it. Name the ADR in the PR description, and say who
    confirms it.
+8. **Ask the decider.** As soon as the ADR is written, ask the decider in the chat whether they
+   accept it now. Name the ADR and state its decision in one or two sentences. Do not wait for a
+   review or a merge.
+   - If the decider accepts, record it in the same PR. Post a comment on the ticket that names the
+     ADR, the decider, and the date. Set the `Status` row to "Accepted by <who> on YYYY-MM-DD", with
+     a link to that comment. Say so in the PR description.
+   - If the decider wants time, or no person is in the chat, as in a CI job, keep "Proposed".
+
+The same steps hold for an amendment: write it, then ask the decider.
 
 ## Template
 
@@ -119,7 +128,8 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
 ## Critical Invariants
 
 - One ADR holds one decision. Two decisions that can change apart from each other get two ADRs.
-- An agent sets the status "Proposed". Only the decider named in the ADR accepts it.
+- An agent sets the status "Proposed" and asks the decider. Only the decider named in the ADR
+  accepts it, in their own words.
 - Never rewrite the decision of an accepted ADR. Amend it or supersede it.
 - Every count, size, and time has a date and a source.
 - If an ADR links a Linear item, the link text names the item: a ticket by its ID, a comment by its
