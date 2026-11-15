@@ -63,6 +63,10 @@ impl fmt::Display for Period {
     }
 }
 
+/// The days by which two period ends can differ and still name the same period. A 52-53 week
+/// fiscal year ends up to 6 days away from the end of its month.
+pub(super) const TOLERANCE_DAYS: i64 = 7;
+
 /// A quarter is `QUARTER_NUMERATOR / QUARTER_DENOMINATOR` days, that is 91.3125 days.
 const QUARTER_NUMERATOR: i64 = 1461;
 

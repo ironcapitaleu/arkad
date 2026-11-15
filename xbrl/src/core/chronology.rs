@@ -5,9 +5,8 @@
 //! findings.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::str::FromStr;
 
-use chrono::{Datelike, Months, NaiveDate};
+use chrono::{Months, NaiveDate};
 
 use super::candidate::SeriesKey;
 use super::dedup::Series;
@@ -16,15 +15,11 @@ use super::fact::Dimensions;
 use super::filing::{EntityId, Filing};
 use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
+use super::fiscal_year_end::FiscalYearEnd;
 use super::form::Form;
-use super::invalid_value::{InvalidValue, InvalidValueReason};
-use super::period::{Duration, Period, days_of_quarters};
+use super::period::{Duration, Period, TOLERANCE_DAYS, days_of_quarters};
 use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
-
-/// The days by which two period ends can differ and still name the same period. A 52-53 week
-/// fiscal year ends up to 6 days away from the end of its month.
-const TOLERANCE_DAYS: i64 = 7;
 
 /// The forms of a quarterly report. A `10-QT` reports a transition period.
 const QUARTERLY_FORMS: [&str; 2] = ["10-Q", "10-QT"];
@@ -431,14 +426,9 @@ fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
         (left.filed, left.accepted, &left.id).cmp(&(right.filed, right.accepted, &right.id))
     });
     let mut changes = Vec::new();
-    let mut current: Option<(FiscalYearEnd, Option<NaiveDate>)> = None;
+    let mut current: Option<(&FiscalYearEnd, Option<NaiveDate>)> = None;
     for filing in filings {
-        let Some(year_end) = filing
-            .company
-            .fiscal_year_end
-            .as_deref()
-            .and_then(|text| FiscalYearEnd::from_str(text).ok())
-        else {
+        let Some(year_end) = filing.company.fiscal_year_end.as_ref() else {
             continue;
         };
         let report = filing.period_of_report;
@@ -458,53 +448,6 @@ fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
         });
     }
     changes
-}
-
-/// A fiscal year end: a month and a day, as the day of a leap year.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct FiscalYearEnd(u32);
-
-impl FiscalYearEnd {
-    /// The type name that [`InvalidValue`] names when an input breaks a rule.
-    const TYPE_NAME: &'static str = "FiscalYearEnd";
-
-    /// A leap year, so that `0229` is a valid fiscal year end.
-    const LEAP_YEAR: &'static str = "2000";
-
-    /// The forms of the text after [`Self::LEAP_YEAR`]: `0930` as in the Notes data set, and
-    /// `--09-30` as in an instance document.
-    const FORMATS: [&'static str; 2] = ["%Y%m%d", "%Y--%m-%d"];
-
-    /// The form that [`InvalidValueReason::NotADate`] names.
-    const EXPECTED_FORM: &'static str = "%m%d or --%m-%d";
-
-    /// The days of a leap year.
-    const LEAP_YEAR_DAYS: u32 = 366;
-
-    /// Returns `true` if the two year ends lie more than 7 days apart, around the year.
-    fn differs_from(self, other: Self) -> bool {
-        let distance = self.0.abs_diff(other.0);
-        i64::from(distance.min(Self::LEAP_YEAR_DAYS - distance)) > TOLERANCE_DAYS
-    }
-}
-
-impl FromStr for FiscalYearEnd {
-    type Err = InvalidValue;
-
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        let dated = format!("{}{text}", Self::LEAP_YEAR);
-        Self::FORMATS
-            .iter()
-            .find_map(|format| NaiveDate::parse_from_str(&dated, format).ok())
-            .map(|date| Self(date.ordinal()))
-            .ok_or_else(|| {
-                InvalidValue::new(
-                    Self::TYPE_NAME,
-                    InvalidValueReason::NotADate(Self::EXPECTED_FORM),
-                    text,
-                )
-            })
-    }
 }
 
 #[cfg(test)]
@@ -748,85 +691,6 @@ mod tests {
         }];
 
         let result = check_chronology(series(vec![restated], Vec::new()), &[], Vec::new()).findings;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_parse_instance_form_to_day_of_leap_year_when_end_is_september_30() {
-        let instance = "--09-30";
-
-        let expected_result = Ok(FiscalYearEnd(274));
-
-        let result = FiscalYearEnd::from_str(instance);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_reject_fiscal_year_end_when_text_is_not_a_date() {
-        let text = "Sept";
-
-        let expected_result = Err(InvalidValue::new(
-            "FiscalYearEnd",
-            InvalidValueReason::NotADate("%m%d or --%m-%d"),
-            "Sept",
-        ));
-
-        let result = FiscalYearEnd::from_str(text);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_not_change_fiscal_year_end_when_52_53_week_year_drifts() {
-        let old = FiscalYearEnd::from_str("--09-24")
-            .expect("Given a hardcoded month and day, the parse should always succeed");
-        let new = FiscalYearEnd::from_str("--09-30")
-            .expect("Given a hardcoded month and day, the parse should always succeed");
-
-        let expected_result = false;
-
-        let result = old.differs_from(new);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_parse_notes_form_to_day_of_leap_year_when_end_is_september_30() {
-        let notes = "0930";
-
-        let expected_result = Ok(FiscalYearEnd(274));
-
-        let result = FiscalYearEnd::from_str(notes);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_change_fiscal_year_end_when_month_changes() {
-        let old = FiscalYearEnd::from_str("1231")
-            .expect("Given a hardcoded month and day, the parse should always succeed");
-        let new = FiscalYearEnd::from_str("0630")
-            .expect("Given a hardcoded month and day, the parse should always succeed");
-
-        let expected_result = true;
-
-        let result = old.differs_from(new);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_not_change_fiscal_year_end_when_end_drifts_across_new_year() {
-        let old = FiscalYearEnd::from_str("1231")
-            .expect("Given a hardcoded month and day, the parse should always succeed");
-        let new = FiscalYearEnd::from_str("0102")
-            .expect("Given a hardcoded month and day, the parse should always succeed");
-
-        let expected_result = false;
-
-        let result = old.differs_from(new);
 
         assert_eq!(result, expected_result);
     }

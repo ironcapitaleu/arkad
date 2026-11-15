@@ -8,6 +8,8 @@
 //!
 //! None. The fixture lives in `src/tests/fixtures/data/instance/0001628280-26-068246/`.
 
+use std::str::FromStr;
+
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
@@ -16,6 +18,7 @@ use xbrl::core::fact::FactValue;
 use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, Ticker};
 use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
+use xbrl::core::fiscal_year_end::FiscalYearEnd;
 use xbrl::core::form::Form;
 use xbrl::tests::fixtures::data::instance::{filed, filing_id, parse_instance_fixture};
 
@@ -56,7 +59,10 @@ fn should_map_the_cover_facts_into_the_filing_for_a_real_filing() {
                 symbol: "FDXF".to_owned(),
                 exchange: Some("NYSE".to_owned()),
             }],
-            fiscal_year_end: Some("--12-31".to_owned()),
+            fiscal_year_end: Some(
+                FiscalYearEnd::from_str("--12-31")
+                    .expect("Given a hardcoded month and day, the parse should always succeed"),
+            ),
         },
     };
 

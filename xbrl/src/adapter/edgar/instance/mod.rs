@@ -692,6 +692,35 @@ mod tests {
     }
 
     #[test]
+    fn should_give_no_fiscal_year_end_when_the_fact_is_nil() {
+        let body = r#"<dei:CurrentFiscalYearEndDate contextRef="q3" xsi:nil="true"/>"#;
+
+        let expected_result = None;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .filing
+            .company
+            .fiscal_year_end;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_the_filing_when_the_fiscal_year_end_is_not_a_date() {
+        let body = r#"<dei:CurrentFiscalYearEndDate contextRef="q3">--13-01</dei:CurrentFiscalYearEndDate>"#;
+
+        let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'FiscalYearEnd', Reason: 'The value is not a date in the format %m%d or --%m-%d with an optional time zone', Input: '--13-01'";
+
+        let result = parse_body(body)
+            .err()
+            .map(|error| error.to_string())
+            .unwrap_or_default();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_the_filing_when_the_text_is_not_xml() {
         let text = "<xbrl>";
         let plugin = registry_plugin();

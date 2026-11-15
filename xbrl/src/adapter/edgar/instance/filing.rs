@@ -2,6 +2,8 @@
 //!
 //! Maps the cover facts of an instance document, in the `dei` namespace, into one [`Filing`].
 
+use std::str::FromStr;
+
 use roxmltree::Node;
 
 use super::InstanceFiling;
@@ -10,6 +12,7 @@ use crate::core::entity_name::EntityName;
 use crate::core::filing::{CompanyAttributes, Filing, Ticker};
 use crate::core::fiscal_period::FiscalPeriod;
 use crate::core::fiscal_year::FiscalYear;
+use crate::core::fiscal_year_end::FiscalYearEnd;
 use crate::core::form::Form;
 use crate::core::invalid_value::{InvalidValue, InvalidValueReason};
 
@@ -99,7 +102,12 @@ pub fn filing(
                 .map(EntityName::new),
             industry: None,
             tickers: cover.tickers(),
-            fiscal_year_end: cover.text(name::CURRENT_FISCAL_YEAR_END_DATE),
+            fiscal_year_end: cover
+                .text(name::CURRENT_FISCAL_YEAR_END_DATE)
+                .filter(|text| !text.is_empty())
+                .as_deref()
+                .map(FiscalYearEnd::from_str)
+                .transpose()?,
         },
     })
 }

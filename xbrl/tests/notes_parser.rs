@@ -8,6 +8,8 @@
 //!
 //! None. The fixture lives in `src/tests/fixtures/data/notes/0001628280-26-068246/`.
 
+use std::str::FromStr;
+
 use chrono::{NaiveDate, TimeZone, Utc};
 use pretty_assertions::assert_eq;
 use xbrl::core::entity_name::EntityName;
@@ -15,6 +17,7 @@ use xbrl::core::fact::FactValue;
 use xbrl::core::filing::{CompanyAttributes, EntityId, Filing, FilingId, IndustryCode};
 use xbrl::core::fiscal_period::FiscalPeriod;
 use xbrl::core::fiscal_year::FiscalYear;
+use xbrl::core::fiscal_year_end::FiscalYearEnd;
 use xbrl::core::form::Form;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 
@@ -57,7 +60,10 @@ fn should_map_the_sub_row_into_the_filing_for_a_real_filing() {
                     "Given a hardcoded scheme and code, the creation should always succeed",
                 )),
                 tickers: vec![],
-                fiscal_year_end: Some("1231".to_owned()),
+                fiscal_year_end: Some(
+                    FiscalYearEnd::from_str("1231")
+                        .expect("Given a hardcoded month and day, the parse should always succeed"),
+                ),
             },
         };
 
