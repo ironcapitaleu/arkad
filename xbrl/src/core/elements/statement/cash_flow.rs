@@ -66,8 +66,9 @@ impl Placed for CashFlowConcept {
     }
 }
 
-/// The groups whose parent is a cash flow concept, in the order of their parents in
-/// [`Concept::ALL`](crate::core::elements::Concept::ALL).
+/// The groups whose parent is a cash flow concept, in the order in which the cash flow statement
+/// presents the first child of each group. `docs/adr/0013-order-of-the-groups.md` records the
+/// order.
 ///
 /// `operating-cash-flow` starts from `NetIncome` of the income statement, because the indirect
 /// method starts from net income.

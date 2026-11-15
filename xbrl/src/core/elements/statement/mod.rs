@@ -25,12 +25,13 @@ pub use income_statement::IncomeStatementConcept;
 /// Returns every group of the roll-up tree.
 ///
 /// The groups of the balance sheet come first, then those of the income statement, then those of
-/// the cash flow statement. Each statement lists its groups in the order of
-/// their parents in [`Concept::ALL`](crate::core::elements::Concept::ALL).
+/// the cash flow statement. Each statement lists its groups in the order in which it presents the
+/// first child of each group, so a pass over the list follows each statement from the top down.
+/// `docs/adr/0013-order-of-the-groups.md` records the order.
 ///
 /// The list holds a group only if its parent, its start if it is a step, and at least one child
 /// are standard concepts. So a placement can name a group that the list does not hold, such as
-/// `liabilities-and-equity`.
+/// `operating-expenses`.
 pub fn groups() -> impl Iterator<Item = &'static Group> {
     balance_sheet::GROUPS
         .iter()
@@ -45,7 +46,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::{CanonicalElementKind, Concept, GroupName, Placed, Placement};
+    use crate::core::elements::{Concept, GroupName, Placed, Placement};
 
     #[test]
     fn should_join_the_groups_in_the_order_of_the_statements_and_their_tables() {
@@ -53,8 +54,12 @@ mod tests {
             "assets",
             "current-assets",
             "non-current-assets",
+            "liabilities-and-equity",
             "liabilities",
+            "current-liabilities",
             "non-current-liabilities",
+            "equity",
+            "equity-attributable-to-parent",
             "gross-profit",
             "comprehensive-income",
             "operating-cash-flow",
@@ -102,7 +107,7 @@ mod tests {
     fn should_give_each_group_a_unique_name_for_every_listed_group() {
         let names: Vec<&str> = groups().map(|group| group.name.as_str()).collect();
 
-        let expected_result = (10, 10);
+        let expected_result = (14, 14);
 
         let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
 
@@ -110,21 +115,7 @@ mod tests {
     }
 
     #[test]
-    fn should_match_the_order_of_concepts_when_listing_the_parents_of_the_groups() {
-        let parents: Vec<CanonicalElementKind> = groups().map(|group| group.parent).collect();
-
-        // `Ord` sorts by statement, then by the order of `Concept::ALL`, so the sorted list is
-        // the reference path.
-        let mut expected_result = parents.clone();
-        expected_result.sort();
-
-        let result = parents;
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_give_a_distinct_name_to_each_of_the_15_group_names() {
+    fn should_give_a_distinct_name_to_each_of_the_17_group_names() {
         let names: Vec<&str> = balance_sheet::BalanceSheetGroup::ALL
             .iter()
             .map(|group| group.as_str())
@@ -140,7 +131,7 @@ mod tests {
             )
             .collect();
 
-        let expected_result = (15, 15);
+        let expected_result = (17, 17);
 
         let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
 

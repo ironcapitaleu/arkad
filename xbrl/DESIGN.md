@@ -641,7 +641,8 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
   no alias. If it counted as zero, the rule would derive a wrong `NetChangeInCash` for every
   multinational before 2018.
 - In each pass, the rule visits the groups in the order in which they first appear in the tables
-  of "Roll-Up Tree". The first group that gives a value wins. The rule still checks every other
+  of "Roll-Up Tree" ([ADR 0013](../docs/adr/0013-order-of-the-groups.md)). The first group that
+  gives a value wins. The rule still checks every other
   group that holds the member, so a disagreement is a `RollUpMismatch` finding.
 - The series key (`period_end`, `quarters`) does not tell a three-month value from a four-month
   value in Notes. If one concept has only a three-month copy and another has only a four-month

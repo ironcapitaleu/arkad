@@ -77,8 +77,9 @@ impl Placed for IncomeStatementConcept {
     }
 }
 
-/// The groups whose parent is an income statement concept, in the order of their parents in
-/// [`Concept::ALL`](crate::core::elements::Concept::ALL).
+/// The groups whose parent is an income statement concept, in the order in which the income
+/// statement presents the first child of each group. `docs/adr/0013-order-of-the-groups.md` records
+/// the order.
 pub const GROUPS: &[Group] = &[
     Group {
         name: IncomeStatementGroup::GrossProfit.name(),
