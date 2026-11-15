@@ -147,8 +147,10 @@ row covers its first day and ends before `valid_to`. ADR 0018, "Amendment 1", re
   Decision 2). The `cik` rows of the metadata store use the start of the record, as every other
   scheme does.
 - **An exchange code maps to a MIC.** `dei:SecurityExchangeName` holds an EDGAR exchange code, for
-  example `NASDAQ`. A reference table maps each code to its MIC (ISO 10383), for example `XNAS`.
-  Silver keeps the code as filed.
+  example `NASDAQ`. `sec::shared::edgar_exchange_code::mic_of` maps each code to its
+  `storage::Mic` (ISO 10383), for example `XNAS`. `NONE` and an unknown code map to no MIC.
+  Silver keeps the code as filed. [ADR 0022](../../../docs/adr/0022-mic-in-storage-exchange-map-in-sec.md)
+  records the crate of each.
 
 ### Claims Come From Records That Silver Keeps
 
