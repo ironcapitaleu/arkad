@@ -1,4 +1,4 @@
-# ADR 0027: Segment Values Keep Their Dimensions and Stay Out of the Tree
+# ADR 0029: Segment Values Keep Their Dimensions and Stay Out of the Tree
 
 | Field | Value |
 | ----- | ----- |
@@ -31,7 +31,7 @@ Terms in this ADR:
   balance sheet identity, the period identity `core/period/q4-from-fy@1`, and the sums of Tier 4.
 
 The decision binds `core::alias`, `core::closed_group`, `core::roll_up_check`,
-`core::period_identity`, `core::chronology`, the silver writer, and the rows of `candidates` and
+`core::period_identity`, `core::chronology`, the Tier 4 engine in `core::graph`, the silver writer, and the rows of `candidates` and
 `standardized_facts`.
 
 ## Decision
@@ -85,7 +85,7 @@ a rule that merges the two forms loses values.
 - Silver stores no label of a member. The company labels of `lab.xml` stay out of the MVP, so a
   reader shows the member name, such as `AmazonWebServices`.
 - A company that reports segments only on an axis of its own gets no segment values.
-- The decision does not cover the reconciliation. ADR 0028 holds it.
+- The decision does not cover the reconciliation. ADR 0030 holds it.
 
 ## Open Questions
 

@@ -1,4 +1,4 @@
-# ADR 0028: The Segment Reconciliation Runs per Report With an Unreconciled Line
+# ADR 0030: The Segment Reconciliation Runs per Report With an Unreconciled Line
 
 | Field | Value |
 | ----- | ----- |
@@ -14,13 +14,14 @@ segments, the inter-segment eliminations, and the corporate items add up to the 
 Filers tag the eliminations and the corporate items on `srt:ConsolidationItemsAxis`, but often they
 tag none.
 
-ADR 0027 makes each segment value a standardized fact with its dimensions. This ADR decides how a
+ADR 0029 makes each segment value a standardized fact with its dimensions. This ADR decides how a
 reader gets the reconciliation from those values.
 
 Terms in this ADR:
 
+- **Business-segment axis:** `BusinessSegments` or `SegmentReportingInformationBySegment`.
 - **Group:** the values of one filing, one standard concept, one period, and one unit, with two or
-  more segments.
+  more segments on `BusinessSegments`. The measurement counts only this axis.
 - **Adds up:** the difference is within 0.1% of the larger absolute value.
 - **Role:** segment, elimination, or corporate, by the member of `ConsolidationItems`
   (`xbrl/DESIGN.md`, "Reconciliation").
@@ -39,7 +40,7 @@ load.
 3. **Silver stores no line of the reconciliation.** A read type computes the lines, as the
    statement output type computes the other lines.
 4. **An unreconciled line other than zero gives no finding.**
-5. **If a segment is filed in both forms, the value with `BusinessSegments` alone counts.**
+5. **If a segment is filed in both forms, the value without `ConsolidationItems` counts.**
 
 ## Options Considered
 
@@ -92,6 +93,8 @@ Facts behind decisions 2 and 5:
 - Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
   consolidated value.
 - A series view over many reports shows no reconciliation.
+- If the consolidated candidate or a candidate with a role is blocked, the reconciliation has no
+  unreconciled line. Otherwise a blocked amount looks like an untagged item.
 
 ## Open Questions
 
@@ -108,4 +111,4 @@ Facts behind decisions 2 and 5:
 - `xbrl/DESIGN.md`, "Segment Values" and "\"Other\" Lines".
 - The members of `ConsolidationItems`: `xbrl/taxonomy/us-gaap/2026/elts/us-gaap-2026.xsd` and
   `xbrl/taxonomy/srt/2026/elts/srt-2026.xsd`.
-- ADR 0027.
+- ADR 0029.

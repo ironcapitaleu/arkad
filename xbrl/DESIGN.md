@@ -920,9 +920,9 @@ The owner decided these on 2026-11-14.
 A segment value is the value of a standard concept for one part of the company, such as a business
 segment, a region, or a product line. The standardized layer holds it as a `StandardizedFact` whose
 `dimensions` hold the axis and member pairs as filed. A value without dimensions is the consolidated
-value. [ADR 0027](../docs/adr/0027-segment-values-keep-their-dimensions.md) records why segment
+value. [ADR 0029](../docs/adr/0029-segment-values-keep-their-dimensions.md) records why segment
 values keep their dimensions and stay out of the tree.
-[ADR 0028](../docs/adr/0028-segment-reconciliation-per-report.md) records why the reconciliation
+[ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md) records why the reconciliation
 runs per report. The code does not hold the rules of this section.
 
 #### Segment Axes
@@ -954,8 +954,8 @@ A segment value can carry every standard concept of a statement, with the alias 
 consolidated value. It carries no concept of a disclosure. A per-share value counts the shares of
 the whole company, so `EarningsPerShareBasic` with a segment member gives no candidate.
 
-In the Notes file `2026_10_notes.zip`, 665 of 978 10-K and 10-Q filings report a value on the
-business-segment axis (2026-11-15). The concepts that most filings use:
+In the Notes file `2026_10_notes.zip`, 665 of 978 10-K and 10-Q filings report a value on
+`BusinessSegments` (2026-11-15). The concepts that most filings use:
 
 | Concept | Filings | Standard concept |
 | ------- | ------- | ---------------- |
@@ -1012,7 +1012,8 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
 ```
 
 - A segment, elimination, or corporate line is a reported candidate. It keeps the rule that
-  resolved it, such as `us-gaap/alias/revenue@1`. The line carries the role rule ID next to it.
+  resolved it, such as `us-gaap/alias/revenue@1`. An elimination or corporate line carries its role
+  rule ID next to it. A segment line carries none.
 - The unreconciled line has no candidate. Its role rule ID is its only rule. So a reader tells the
   derived line from a reported one by the role rule ID `core/segment/unreconciled@1`.
 - Each role has the weight `+1`, and each value keeps the sign of the filing. An elimination is
@@ -1021,9 +1022,10 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
 - The roles take only the members of the `us-gaap` and `srt` taxonomies. A value with a member of
   the company on `ConsolidationItems`, such as `CorporateAndEliminations`, has no role. Its amount
   lands in the unreconciled line.
-- A blocked candidate counts as absent. The unreconciled line exists only if the consolidated
-  candidate and every segment candidate of the filing hold a value. It holds every reconciling item
-  that the filer does not tag with a role.
+- The unreconciled line exists only if the filing has the consolidated candidate and at least one
+  segment candidate, and no candidate with a role and no consolidated candidate is blocked. A
+  blocked candidate shows as blocked, so a reader tells a block from an untagged item.
+- The unreconciled line holds every reconciling item that the filer does not tag with a role.
 - A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
   (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
 - A single-segment company gets the same reconciliation with one segment.
@@ -1813,7 +1815,8 @@ and a length in quarters, as in the value key:
    and filing.
 3. `core/dedup/newest-filing@1` across filings, on the standard concept. A newer filing wins over
    the alias order, so a restatement under a renamed concept wins.
-4. Tiers 3 and 4 on the values that remain.
+4. Tiers 3 and 4 on the values that remain, only on values without dimensions (see "Segment
+   Values").
 
 **Conflict.** If a copy disagrees with rank 0, the ranks are two or more facts with one exact
 period.
