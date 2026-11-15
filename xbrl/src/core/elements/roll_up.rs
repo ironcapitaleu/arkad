@@ -156,6 +156,8 @@ pub enum GroupKind {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
