@@ -32,16 +32,16 @@ a licensed code, a reversal deletes stored data.
 
 | Scheme | Licence found | Checked |
 | ------ | ------------- | ------- |
-| `cik`, `us_ticker`, `sic` | The SEC says that information on sec.gov "is considered public information and may be copied or further distributed by users of the web site without the SEC's permission". It asks for a citation of the SEC as the source | Checked 2026-11-15. [SEC, privacy information](https://www.sec.gov/about/privacy-information), "Website Dissemination" |
-| `lei` | CC0 1.0. GLEIF says that "the data available through the Access Service are provided under the CC0 licence" | Checked 2026-11-15. [GLEIF, LEI data terms of use](https://www.gleif.org/en/meta/lei-data-terms-of-use), "II. Access Service" |
-| `figi`, `figi_share_class` | Public domain. Bloomberg "dedicates FIGI Identifiers to the public domain", and allows their redistribution to customers | Checked 2026-11-15. [OpenFIGI terms of service](https://www.openfigi.com/docs/terms-of-service), last updated 2018-11-27, "1. Public Domain Dedication" |
-| MIC (ISO 10383) | Free use, "excluding the right to reproduce all or substantial part of this website for the purpose of making such reproductions available to third parties". See Amendment 1 | Checked 2026-11-15. [ISO 10383 terms of use](https://www.iso20022.org/sites/default/files/2020-02/ISO10383_Terms_of_use.pdf), version October 2016 |
+| `cik`, `us_ticker`, `sic` | The SEC says that anyone can access and download EDGAR data for free. No SEC page names a licence. A third party calls EDGAR content a work of the US government, in the public domain under 17 USC §105 | Checked 2026-11-15. The SEC says that information on sec.gov "is considered public information and may be copied or further distributed by users of the web site without the SEC's permission". [SEC, privacy information](https://www.sec.gov/about/privacy-information), "Website Dissemination" |
+| `lei` | CC0, as the AWS Open Data registry lists the GLEIF data | Checked 2026-11-15. GLEIF says that "the data available through the Access Service are provided under the CC0 licence". [GLEIF, LEI data terms of use](https://www.gleif.org/en/meta/lei-data-terms-of-use), "II. Access Service" |
+| `figi`, `figi_share_class` | The OpenFIGI terms of service are a public domain dedication. Bloomberg describes FIGI as offered under the MIT licence, with no restriction on use or redistribution | Checked 2026-11-15. Bloomberg "dedicates FIGI Identifiers to the public domain", and allows their redistribution to customers. The terms name no MIT licence. [OpenFIGI terms of service](https://www.openfigi.com/docs/terms-of-service), last updated 2018-11-27, "1. Public Domain Dedication" |
+| MIC (ISO 10383) | The ISO 10383 registration authority publishes the list for free download | Checked 2026-11-15. The terms add a limit on copies. Amendment 1 (Proposed) covers it. [ISO 10383 terms of use](https://www.iso20022.org/sites/default/files/2020-02/ISO10383_Terms_of_use.pdf), version October 2016 |
 
 ### Not Kept
 
 | Scheme | Licence found | Checked |
 | ------ | ------------- | ------- |
-| `cusip`, `isin` | CUSIP Global Services (CGS) says that "the use of CGS Data, including storage in databases and distribution to third parties, may require such user to first enter into a license agreement directly with CGS". The CUSIP database holds CUSIPs and CGS ISINs. A US ISIN holds the CUSIP | Checked 2026-11-15 for CUSIPs and US ISINs. [CGS, license fees](https://www.cusip.com/services/license-fees.html). The ISINs of other numbering agencies are unverified |
+| `cusip`, `isin` | The terms of the ANNA DSB say that any use outside clearing and settlement needs a licence from CUSIP Global Services, with a fee based on usage. A US ISIN holds the CUSIP | Checked 2026-11-15 for CUSIPs and US ISINs. The CGS terms on the ANNA DSB page say: "Any use by Subscriber outside of the clearing and settlement of transactions requires a license from CGS, along with an associated fee based on usage." [ANNA DSB, third party data terms](https://www.anna-dsb.com/dsb-third-party-data/). CGS says that its CUSIP database holds "CGS ISINs". [CGS, license fees](https://www.cusip.com/services/license-fees.html). The ISINs of other numbering agencies are unverified |
 | `gics` | MSCI and S&P own GICS. A user agreement governs its use, and GICS Direct sells the codes per company | Unverified. Web search, 2026-11-14 |
 
 ## Amendment 1: The Stores Keep MICs, Not the MIC List
@@ -50,8 +50,9 @@ Date: 2026-11-15.
 
 **Reason.** The ISO 10383 terms of use grant "a non-exclusive right to access and use the
 information on this website excluding the right to reproduce all or substantial part of this
-website for the purpose of making such reproductions available to third parties". The table
-"Allowed" lists MIC as free, with no such limit. The terms give no number for "substantial part".
+website for the purpose of making such reproductions available to third parties". This ADR reads
+"this website" as the MIC list that the website publishes. Decision 1 allows MIC with no limit on
+copies. The terms give no number for "substantial part".
 
 **Decision.** MIC stays in the table "Allowed". A store and `/v1` keep and serve a MIC only as an
 attribute of an exchange or a listing. No store and no endpoint serves the ISO 10383 list, or a
@@ -60,9 +61,12 @@ substantial part of it, as a list of its own.
 **Consequences.**
 
 - The repository maps 22 EDGAR exchange codes to 21 MICs in
-  `sec/src/lib/shared/edgar_exchange_code/mod.rs`, read on 2026-11-15.
+  `sec/src/lib/shared/edgar_exchange_code/mod.rs`, read on 2026-11-15. The
+  [ISO 10383 list](https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.csv),
+  downloaded on 2026-11-15, holds 2,893 MICs, of which 2,304 are active. The project lead decides
+  whether 21 of 2,893 is a substantial part.
 - An endpoint that lists exchanges with their MICs needs a check of its size against the list. The
-  project lead decides the size, with a lawyer if needed.
+  project lead decides the size.
 - This amendment does not cover the other columns of the MIC list, such as the operating MIC or the
   country.
 
@@ -88,11 +92,10 @@ No option was measured.
 ## Open Questions
 
 - Whether bronze can keep a raw file that holds ISINs, such as the GLEIF and ANNA map from LEI to
-  ISIN, which the FIGI path of the fog log reads. The owner decides with a lawyer. Asked on
-  2026-11-15, the owner kept it open. Bronze keeps no such file until the owner decides.
+  ISIN, which the FIGI path of the fog log reads. The owner decides with a lawyer. Open on
+  2026-11-15.
 - Whether a loader can hold an ISIN in memory as a temporary key to reach a FIGI. The owner decides
-  with a lawyer. Asked on 2026-11-15, the owner kept it open. No loader does so until the owner
-  decides.
+  with a lawyer. Open on 2026-11-15.
 - Whether the licence of an ISIN from a numbering agency outside the US allows storing it. The ANNA
   DSB third party data page, read on 2026-11-15, covers only CUSIP, SEDOL, and FIGI data in the
   DSB services. A check of the terms of each numbering agency answers it.
@@ -117,9 +120,19 @@ No option was measured.
 - CUSIP Global Services, [license fees](https://www.cusip.com/services/license-fees.html), read on
   2026-11-15.
 - [ANNA DSB, third party data terms](https://www.anna-dsb.com/dsb-third-party-data/), read on
-  2026-11-15. It quotes the CGS terms: "Any use by Subscriber outside of the clearing and
-  settlement of transactions requires a license from CGS, along with an associated fee based on
-  usage."
+  2026-11-15.
+- [ISO 10383 MIC list](https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.csv),
+  downloaded on 2026-11-15: 2,893 rows, 2,304 with status `ACTIVE`.
+- SEC, [Accessing EDGAR Data](https://www.sec.gov/os/accessing-edgar-data), web search result,
+  2026-11-14.
+- [Cybersyn, SEC filings](https://docs.cybersyn.com/public-domain/public-domain-data-sources/sec-filings):
+  the 17 USC §105 claim, web search result, 2026-11-14.
+- [AWS Open Data registry, LEI](https://registry.opendata.aws/lei/): CC0, web search result,
+  2026-11-14.
+- [Bloomberg press release](https://www.bloomberg.com/company/press/bloomberg-launches-online-request-utility-and-new-mapping-tools-for-the-financial-instrument-global-identifier-figi):
+  the MIT claim, web search result, 2026-11-14.
+- [ISO 20022, market identifier codes](https://www.iso20022.org/market-identifier-codes), web
+  search result, 2026-11-14.
 - [WatersTechnology, ISIN licensing](https://www.waterstechnology.com/inside-reference-data/news/1634255/understanding-isin-licensing-practices):
   the waiver of option B, web search result, 2026-11-14.
 - [MSCI, GICS](https://msci.com/indexes/index-resources/gics) and
