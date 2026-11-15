@@ -68,9 +68,9 @@ mod tests {
     use crate::shared::CompanyScheme;
     use crate::tests::fixtures::fake_entity_resolver::{FakeEntityResolver, IdentifierRow};
 
-    /// The dates of the two CIKs of Alphabet come from `cik_map.csv`, attached to STA-285 under
-    /// "Final: all scripts, results, CIK map, and RUN.md (2026-10-17)". The Linear document
-    /// "Entity Resolution: the Company Key, LEI, and Dated CIKs: Findings" names the two CIKs.
+    /// Google Inc. filed under CIK 1288776 up to the period end 2015-06-30. Alphabet Inc. became
+    /// its successor issuer in an `8-K12B` of 2015-10-02, and files under CIK 1652044 from the
+    /// period end 2015-09-30.
     const GOOGLE_CIK: &str = "0001288776";
     const ALPHABET_CIK: &str = "0001652044";
 
