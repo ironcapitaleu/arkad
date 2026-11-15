@@ -6,6 +6,8 @@
 //! The types are records. A plug-in fills them from static data compiled into the binary, so every
 //! field is public.
 
+use std::fmt;
+
 use bigdecimal::BigDecimal;
 
 use crate::core::concept::ConceptName;
@@ -77,13 +79,26 @@ pub enum Balance {
     Credit,
 }
 
-/// The period type that the taxonomy declares for an element.
+/// The period type of an element or a value: a point in time or a span of time.
+///
+/// The taxonomy declares it for each element. A [`Period`](crate::core::period::Period) and a
+/// [`StatementKind`](crate::core::statement::StatementKind) each give theirs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum PeriodType {
     /// The element is reported at a point in time.
     Instant,
     /// The element is reported over a span of time.
     Duration,
+}
+
+impl fmt::Display for PeriodType {
+    /// Writes the name of the XBRL specification: `instant` or `duration`.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(match self {
+            Self::Instant => "instant",
+            Self::Duration => "duration",
+        })
+    }
 }
 
 /// The reference data of one element of a release, or of a retired element.

@@ -22,6 +22,7 @@ use super::elements::{
 use super::filing::EntityId;
 use super::period::Period;
 use super::standardized::StandardizedFact;
+use super::taxonomy::reference::PeriodType;
 
 /// The kind of a financial statement.
 ///
@@ -38,9 +39,16 @@ pub enum StatementKind {
 }
 
 impl StatementKind {
-    /// Returns `true` if the statement takes instants, and `false` if it takes durations.
-    const fn takes_instants(self) -> bool {
-        matches!(self, Self::BalanceSheet)
+    /// Returns the period type of each value of the statement.
+    ///
+    /// The balance sheet takes [`PeriodType::Instant`]. The income statement and the cash flow
+    /// statement take [`PeriodType::Duration`].
+    #[must_use]
+    pub const fn period_type(self) -> PeriodType {
+        match self {
+            Self::BalanceSheet => PeriodType::Instant,
+            Self::IncomeStatement | Self::CashFlow => PeriodType::Duration,
+        }
     }
 }
 
@@ -257,7 +265,7 @@ pub enum InvalidStatementFacts {
         concept: CanonicalElementKind,
     },
     /// A fact covers a duration in a balance sheet, or an instant in another statement.
-    #[error("[UnexpectedPeriodType] Fact of '{}' covers '{period}', which the {kind} does not take", .concept.name())]
+    #[error("[UnexpectedPeriodType] Fact of '{}' covers '{period}', but the {kind} takes the period type '{}'", .concept.name(), .kind.period_type())]
     UnexpectedPeriodType {
         /// The kind of the statement.
         kind: StatementKind,
@@ -345,7 +353,7 @@ impl Tree {
             if !self.holds(concept) {
                 return Err(InvalidStatementFacts::UnexpectedConcept { kind, concept });
             }
-            if matches!(fact.period, Period::Instant { .. }) != kind.takes_instants() {
+            if fact.period.period_type() != kind.period_type() {
                 let period = fact.period;
                 return Err(InvalidStatementFacts::UnexpectedPeriodType {
                     kind,
@@ -939,6 +947,25 @@ mod tests {
     }
 
     #[test]
+    fn should_give_instants_to_the_balance_sheet_and_durations_to_the_other_statements() {
+        let kinds = [
+            StatementKind::BalanceSheet,
+            StatementKind::IncomeStatement,
+            StatementKind::CashFlow,
+        ];
+
+        let expected_result = vec![
+            PeriodType::Instant,
+            PeriodType::Duration,
+            PeriodType::Duration,
+        ];
+
+        let result: Vec<PeriodType> = kinds.iter().map(|kind| kind.period_type()).collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_reject_the_facts_when_there_is_none() {
         let facts: [StandardizedFact; 0] = [];
 
@@ -1101,7 +1128,7 @@ mod tests {
             },
         };
 
-        let expected_result = "[UnexpectedPeriodType] Fact of 'Revenue' covers '2026-09-30', which the income statement does not take";
+        let expected_result = "[UnexpectedPeriodType] Fact of 'Revenue' covers '2026-09-30', but the income statement takes the period type 'duration'";
 
         let result = error.to_string();
 
