@@ -36,7 +36,9 @@ load.
 2. **An unreconciled line holds the rest:** consolidated − segments − eliminations − corporate items,
    each with the sign of the filing. Its role rule ID is `core/segment/unreconciled@1`. A reported
    line keeps the rule of its candidate, and an elimination or corporate line carries the role rule
-   ID `core/segment/elimination@1` or `core/segment/corporate@1` next to it.
+   ID `core/segment/elimination@1` or `core/segment/corporate@1` next to it. If the consolidated
+   candidate or a candidate with a role is blocked, the reconciliation has no unreconciled line.
+   Otherwise a blocked amount looks like an untagged item.
 3. **Silver stores no line of the reconciliation.** A read type computes the lines, as the
    statement output type computes the other lines.
 4. **An unreconciled line other than zero gives no finding.**
@@ -93,8 +95,9 @@ Facts behind decisions 2 and 5:
 - Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
   consolidated value.
 - A series view over many reports shows no reconciliation.
-- If the consolidated candidate or a candidate with a role is blocked, the reconciliation has no
-  unreconciled line. Otherwise a blocked amount looks like an untagged item.
+- 343 of 6,819 keys with a corporate role carry both corporate members, and 49 of them carry
+  equal values. The corporate role then likely counts one amount twice, and the unreconciled line
+  shows it as a negative amount.
 
 ## Open Questions
 

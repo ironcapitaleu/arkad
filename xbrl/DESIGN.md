@@ -1018,13 +1018,14 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
   derived line from a reported one by the role rule ID `core/segment/unreconciled@1`.
 - Each role has the weight `+1`, and each value keeps the sign of the filing. An elimination is
   mostly negative.
-- If a segment *m* has both forms, the value without `ConsolidationItems` counts.
+- If a segment *m* has both forms, the value without `ConsolidationItems` counts, even if it is
+  blocked.
 - The roles take only the members of the `us-gaap` and `srt` taxonomies. A value with a member of
   the company on `ConsolidationItems`, such as `CorporateAndEliminations`, has no role. Its amount
   lands in the unreconciled line.
 - The unreconciled line exists only if the filing has the consolidated candidate and at least one
-  segment candidate, and no candidate with a role and no consolidated candidate is blocked. A
-  blocked candidate shows as blocked, so a reader tells a block from an untagged item.
+  segment candidate, and neither the consolidated candidate nor a candidate with a role is blocked.
+  A blocked candidate shows as blocked, so a reader tells a block from an untagged item.
 - The unreconciled line holds every reconciling item that the filer does not tag with a role.
 - A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
   (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
@@ -1050,6 +1051,9 @@ of the larger absolute value:
   most filings. A check would give a finding for most filers.
 - Of the 590 revenue values with an elimination role alone, 444 are negative, 88 positive, and 58
   zero. A flip of the sign of the positive ones closes 7 more groups. So the sign stays as filed.
+- Of 6,819 keys with a corporate role, 343 carry both `CorporateNonSegment` and
+  `MaterialReconcilingItems`. In 49 of them the two values are equal, so the corporate role likely
+  counts one amount twice. The unreconciled line then shows the double count as a negative amount.
 - Of 1,750 segment values filed in both forms, 1,103 are equal. Plain values close more revenue
   groups than values with `OperatingSegments`: 1,489 against 1,430.
 - Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
