@@ -85,14 +85,14 @@ pub enum Balance {
 /// [`StatementKind`](crate::core::statement::StatementKind) each give theirs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub enum PeriodType {
-    /// The element is reported at a point in time.
+    /// A point in time.
     Instant,
-    /// The element is reported over a span of time.
+    /// A span of time.
     Duration,
 }
 
 impl fmt::Display for PeriodType {
-    /// Writes the name of the XBRL specification: `instant` or `duration`.
+    /// Writes the value of `periodType` in the XBRL specification: `instant` or `duration`.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::Instant => "instant",
@@ -123,9 +123,23 @@ pub struct ElementReference {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+
+    #[test]
+    fn should_write_the_xbrl_name_when_displaying_a_period_type() {
+        let period_types = [PeriodType::Instant, PeriodType::Duration];
+
+        let expected_result = vec!["instant".to_string(), "duration".to_string()];
+
+        let result: Vec<String> = period_types.iter().map(ToString::to_string).collect();
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     const fn should_implement_auto_traits_for_concept_aliases() {
         implements_auto_traits::<ConceptAliases>();
