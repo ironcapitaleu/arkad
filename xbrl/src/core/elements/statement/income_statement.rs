@@ -96,8 +96,11 @@ impl Placed for IncomeStatementConcept {
             Self::IncomeTaxExpense => {
                 Placement::child(IncomeStatementGroup::NetIncome.name(), Weight::Minus)
             }
-            Self::NetIncomeAttributableToParent
-            | Self::NetIncomeAttributableToNoncontrollingInterest => Placement::child(
+            Self::NetIncomeAttributableToParent => Placement::child(
+                IncomeStatementGroup::NetIncomeAttribution.name(),
+                Weight::Plus,
+            ),
+            Self::NetIncomeAttributableToNoncontrollingInterest => Placement::child_zero_if_absent(
                 IncomeStatementGroup::NetIncomeAttribution.name(),
                 Weight::Plus,
             ),
@@ -225,7 +228,7 @@ mod tests {
             ),
             (
                 IncomeStatementConcept::NetIncomeAttributableToNoncontrollingInterest,
-                Placement::child(
+                Placement::child_zero_if_absent(
                     IncomeStatementGroup::NetIncomeAttribution.name(),
                     Weight::Plus,
                 ),

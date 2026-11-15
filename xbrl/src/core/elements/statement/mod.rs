@@ -1,7 +1,7 @@
 //! # Statement Concepts
 //!
-//! Provides the concept enums of the three statements and [`groups`], the groups of the roll-up
-//! tree.
+//! Provides the concept enums of the three statements, [`groups`], the groups of the roll-up tree,
+//! and [`placements`], the place of each concept in the tree.
 //!
 //! Each statement module holds the placements of its concepts and the groups whose parent it
 //! holds.
@@ -12,7 +12,8 @@
 //! - [`income_statement`]: The concepts of the income statement and their groups.
 //! - [`cash_flow`]: The concepts of the cash flow statement and their groups.
 
-use super::roll_up::Group;
+use super::roll_up::{Group, Placement};
+use super::{CanonicalElementKind, Concept, Placed};
 
 pub mod balance_sheet;
 pub mod cash_flow;
@@ -38,6 +39,23 @@ pub fn groups() -> impl Iterator<Item = &'static Group> {
         .chain(cash_flow::GROUPS)
 }
 
+/// Returns each concept of the three statements with its placement.
+///
+/// The concepts of the balance sheet come first, then those of the income statement, then those of
+/// the cash flow statement. Each statement keeps the order of the variants of its enum.
+pub fn placements() -> impl Iterator<Item = (CanonicalElementKind, Placement)> {
+    let balance_sheet = BalanceSheetConcept::ALL
+        .iter()
+        .map(|&concept| (concept.element(), concept.placement()));
+    let income_statement = IncomeStatementConcept::ALL
+        .iter()
+        .map(|&concept| (concept.element(), concept.placement()));
+    let cash_flow = CashFlowConcept::ALL
+        .iter()
+        .map(|&concept| (concept.element(), concept.placement()));
+    balance_sheet.chain(income_statement).chain(cash_flow)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;
@@ -45,7 +63,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::{Concept, GroupName, Placed, Placement};
+    use crate::core::elements::GroupName;
 
     #[test]
     fn should_join_the_groups_in_the_order_of_the_statements_and_their_tables() {
@@ -79,20 +97,7 @@ mod tests {
 
     #[test]
     fn should_give_at_least_one_child_for_every_listed_group() {
-        let placements: Vec<Placement> = BalanceSheetConcept::ALL
-            .iter()
-            .map(|concept| concept.placement())
-            .chain(
-                IncomeStatementConcept::ALL
-                    .iter()
-                    .map(|concept| concept.placement()),
-            )
-            .chain(
-                CashFlowConcept::ALL
-                    .iter()
-                    .map(|concept| concept.placement()),
-            )
-            .collect();
+        let placements: Vec<Placement> = placements().map(|(_, placement)| placement).collect();
 
         let expected_result: Vec<GroupName> = Vec::new();
 
@@ -103,6 +108,25 @@ mod tests {
                     matches!(placement, Placement::Child { group, .. } if group == name)
                 })
             })
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_four_children_as_zero_if_absent_for_the_concepts_of_the_statements() {
+        let concepts = placements();
+
+        let expected_result = vec![
+            BalanceSheetConcept::TemporaryEquity.element(),
+            BalanceSheetConcept::NoncontrollingInterest.element(),
+            IncomeStatementConcept::NetIncomeAttributableToNoncontrollingInterest.element(),
+            CashFlowConcept::ExchangeRateEffect.element(),
+        ];
+
+        let result: Vec<CanonicalElementKind> = concepts
+            .filter(|(_, placement)| placement.is_zero_if_absent())
+            .map(|(concept, _)| concept)
             .collect();
 
         assert_eq!(result, expected_result);

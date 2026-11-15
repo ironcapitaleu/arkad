@@ -279,7 +279,8 @@ A child of a closed group can count as **zero if absent**. Most filers have no t
 noncontrolling interest, and no exchange rate effect, and they report no zero for it. If such a
 child has no value for the period, the group uses zero. `ExchangeRateEffect` is an exception: with
 no value, it counts as zero for the check, but the group derives nothing (see "Derivation From a Closed
-Group").
+Group"). The field `zero_if_absent` of `Placement::Child` records it
+([ADR 0019](../docs/adr/0019-zero-if-absent-in-the-placement.md)).
 
 #### "Other" Lines
 

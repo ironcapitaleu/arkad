@@ -104,9 +104,13 @@ impl Placed for BalanceSheetConcept {
             Self::PropertyPlantEquipment | Self::Goodwill | Self::IntangibleAssets => {
                 Placement::child(BalanceSheetGroup::NonCurrentAssets.name(), Weight::Plus)
             }
-            Self::Liabilities | Self::TemporaryEquity | Self::Equity => {
+            Self::Liabilities | Self::Equity => {
                 Placement::child(BalanceSheetGroup::LiabilitiesAndEquity.name(), Weight::Plus)
             }
+            Self::TemporaryEquity => Placement::child_zero_if_absent(
+                BalanceSheetGroup::LiabilitiesAndEquity.name(),
+                Weight::Plus,
+            ),
             Self::CurrentLiabilities | Self::NonCurrentLiabilities => {
                 Placement::child(BalanceSheetGroup::Liabilities.name(), Weight::Plus)
             }
@@ -117,8 +121,11 @@ impl Placed for BalanceSheetConcept {
                 BalanceSheetGroup::NonCurrentLiabilities.name(),
                 Weight::Plus,
             ),
-            Self::EquityAttributableToParent | Self::NoncontrollingInterest => {
+            Self::EquityAttributableToParent => {
                 Placement::child(BalanceSheetGroup::Equity.name(), Weight::Plus)
+            }
+            Self::NoncontrollingInterest => {
+                Placement::child_zero_if_absent(BalanceSheetGroup::Equity.name(), Weight::Plus)
             }
             Self::AdditionalPaidInCapital
             | Self::RetainedEarnings
@@ -261,7 +268,10 @@ mod tests {
             ),
             (
                 BalanceSheetConcept::TemporaryEquity,
-                Placement::child(BalanceSheetGroup::LiabilitiesAndEquity.name(), Weight::Plus),
+                Placement::child_zero_if_absent(
+                    BalanceSheetGroup::LiabilitiesAndEquity.name(),
+                    Weight::Plus,
+                ),
             ),
             (
                 BalanceSheetConcept::Equity,
@@ -296,7 +306,7 @@ mod tests {
             ),
             (
                 BalanceSheetConcept::NoncontrollingInterest,
-                Placement::child(BalanceSheetGroup::Equity.name(), Weight::Plus),
+                Placement::child_zero_if_absent(BalanceSheetGroup::Equity.name(), Weight::Plus),
             ),
             (
                 BalanceSheetConcept::AdditionalPaidInCapital,

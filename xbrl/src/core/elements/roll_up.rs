@@ -29,14 +29,45 @@ pub enum Placement {
         group: GroupName,
         /// The sign with which the child adds to the parent.
         weight: Weight,
+        /// `true` if a closed group uses zero for the child when it has no value for a period.
+        /// Most filers have no temporary equity, for example, and report no zero for it.
+        zero_if_absent: bool,
     },
 }
 
 impl Placement {
-    /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`.
+    /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`. The child
+    /// has no value when the filer reports none.
     #[must_use]
     pub const fn child(group: GroupName, weight: Weight) -> Self {
-        Self::Child { group, weight }
+        Self::Child {
+            group,
+            weight,
+            zero_if_absent: false,
+        }
+    }
+
+    /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`. The child
+    /// counts as zero when the filer reports no value.
+    #[must_use]
+    pub const fn child_zero_if_absent(group: GroupName, weight: Weight) -> Self {
+        Self::Child {
+            group,
+            weight,
+            zero_if_absent: true,
+        }
+    }
+
+    /// Returns `true` if the placement is a child that counts as zero when it has no value.
+    #[must_use]
+    pub const fn is_zero_if_absent(self) -> bool {
+        matches!(
+            self,
+            Self::Child {
+                zero_if_absent: true,
+                ..
+            }
+        )
     }
 }
 
