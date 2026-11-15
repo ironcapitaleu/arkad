@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-14 ([STA-500 comment `dd86cbdf`](https://linear.app/state-machine/issue/STA-500#comment-dd86cbdf)). Amendment 1: Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-14 ([STA-500 comment `dd86cbdf`](https://linear.app/state-machine/issue/STA-500#comment-dd86cbdf)). Amendment 1: accepted by the project lead on 2026-11-15 ([STA-500 comment `cf3af7a7`](https://linear.app/state-machine/issue/STA-500#comment-cf3af7a7)) |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-500](https://linear.app/state-machine/issue/STA-500) acts on the decision. [STA-499](https://linear.app/state-machine/issue/STA-499) made the design |
