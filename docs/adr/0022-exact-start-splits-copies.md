@@ -38,14 +38,15 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
 
 1. **Two ranks of one value key are copies only if their exact starts are equal.** A rank whose
    exact start differs from the start of rank 0 is another fact. `core/dedup/more-precise@1` does
-   not compare it with rank 0 or with another rank, reports no `Conflict` for it, and gives it no
-   candidate. The as-is layer keeps it. If a rank or rank 0 has no exact start, the two ranks
+   not compare it with rank 0 or with another rank, and gives it no candidate. It reports no
+   `Conflict` for it, except by decision 2. The as-is layer keeps it. If a rank or rank 0 has no exact start, the two ranks
    compare by value, as copies.
 2. **Rank 0 is the fact of the series, unless a stub would take the place of the quarter.** The
    series holds one value per period end and length in quarters, so only one of the facts can
    enter it. The parsers rank by precision first, and `adapter::edgar` ranks in the order of the
-   JSON. So rank 0 can be the stub. If a rank with another exact start has a length nearer to a
-   full quarter than rank 0, the rule reports a `Conflict`, as for copies that disagree.
+   JSON. So rank 0 can be the stub. If a rank with another exact start has a length nearer to its
+   whole number of quarters than rank 0 (`Period::distance_to_full_quarters`), the rule reports a
+   `Conflict`, as for copies that disagree.
 3. **The Notes parser sets the exact start from `durp`.** The start is the exact end less
    `round((qtrs − durp) × 91.25)` days. The parser builds the duration from the two dates, so the
    length in quarters follows the rule of the instance parser. The instance parser keeps
@@ -56,7 +57,9 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
    `core::closed_group` and `core::roll_up_check` stay keyed by the period end and the length in
    quarters. If two values of one slot both have an exact start and the starts differ, the slot
    gives no derived value and no `RollUpMismatch`. It reports a `MixedStarts` finding, so a
-   reader sees that the slot has no check. A value without an exact start still joins the
+   reader sees that the slot has no check. In `findings`, `concepts` holds the standard concepts of
+   the slot in the order of the roll-up tables, `periods` holds the period end and length of the
+   slot, and `reason` holds no value. A value without an exact start still joins the
    slot of its end and length.
 
 ## Options Considered
@@ -84,7 +87,7 @@ How the sources agree:
 | `(qtrs − durp) × 91.25` is a whole number of days | 817,516 durations of 2026_10, 4,469,730 of 2023q1 | Every one, within 0.01 days |
 | The start from `durp` equals the start of an instance fact with the same concept and end | The fixture and the 13 other filings of 2026_10 with a conflict: 7,173 Notes durations | 7,173 match, 0 differ |
 | `round(days / 91.3125)` equals `qtrs` | The durations of 2023q1 | All but 39. Each of the 39 spans 20 quarters or more |
-| Rank 0 has the length nearest to a full quarter | The conflict keys | 2026_10: 327 of 329. 2023q1: 136 of 140. By decision 2, the others stay conflicts |
+| Rank 0 has the length nearest to its whole number of quarters | The conflict keys | Fixture: 99 of 99. 2026_10: 327 of 329. 2023q1: 136 of 140. By decision 2, the others stay conflicts |
 
 - The 4 conflict keys of 2023q1 that do not split come from one filing. Their two ranks have the
   same length and the same dimensions hash, and they disagree. They stay conflicts.
@@ -98,8 +101,8 @@ How the sources agree:
 - The 4-month stub stays an as-is fact. No standardized fact holds it.
 - A concept that the filer reports only for the stub keeps the stub as rank 0. It enters the
   series with 1 quarter. In the fixture, the cash flow lines do this, so the quarter slot holds two
-  exact starts, and decision 5 stops its derivations and checks and reports `MixedStarts`. `Statement::build` already
-  rejects facts of two periods.
+  exact starts. Decision 5 gives the slot no derived value and no check, and reports
+  `MixedStarts`. `Statement::build` already rejects facts of two periods.
 - `period_start` of `as_is_facts` holds a value for every Notes duration. The Q4 rule and the
   short-year guard then read an exact start for Notes values too.
 - The length in quarters of 39 of 4,469,730 Notes durations of 2023q1 changes from `qtrs` to the

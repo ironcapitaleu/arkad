@@ -827,6 +827,10 @@ parses it.
   of the tables of "Roll-Up Tree". It holds only the members with a value. `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
   `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`. `confidence` holds the weakest
   confidence of the inputs of the check (see "Layer 3").
+- `MixedStarts` is a value of `findings.kind`. `concepts` holds the standard concepts of the slot
+  in the order of the tables of "Roll-Up Tree". `periods` holds the period end and length of the
+  slot. `reason` holds no value
+  ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this kind.
 
 #### Worked Example
 
@@ -1614,11 +1618,12 @@ Agreement of copies:
   equal.
 - A rank is a copy of rank 0 only if both have the same exact start. A rank with another exact
   start is another fact, such as a 4-month stub next to a quarter. The rule does not compare it
-  with rank 0 or with another rank, reports no `Conflict` for it, and gives it no candidate. Rank 0
-  enters the series. If either rank has no exact start, the ranks compare as copies
+  with rank 0 or with another rank, and gives it no candidate. It reports a `Conflict` only by the
+  next rule. Rank 0 enters the series. If either rank has no exact start, the ranks compare as copies
   ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this rule.
-- A rank with another exact start whose length lies nearer to a full quarter than the length of
-  rank 0 is a `Conflict`, as for disagreeing copies. So a stub never enters the series in place of
+- A rank with another exact start whose length lies nearer to its whole number of quarters than
+  the length of rank 0 (`Period::distance_to_full_quarters`) is a `Conflict`, as for disagreeing
+  copies. So a stub never enters the series in place of
   the quarter. The parsers rank by precision first, so a more precise stub can be rank 0.
 - For `adapter::edgar` facts, rank 0 is the first copy in the JSON, not the most precise one.
 
@@ -1712,7 +1717,7 @@ It never fails.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`), the entity, the
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
