@@ -41,19 +41,33 @@ and `Hash`, as ADR 0006 defines it.
    - Each segment starts with the name of its error type in brackets, such as `[StateError]`.
    - A segment that wraps an inner error ends with `Caused by:` and the inner error.
    - A leaf ends with `Reason: '…'` if its fields do not already say the cause.
-   - Commas separate the parts.
+   - Commas separate the parts. No inner error sits inside quotes.
 
-   The project lead gave the reason on 2026-11-15: a reader finds and greps the exact layer in a
-   log by its type name, and reads the whole chain in order, from the outermost layer to the root
-   cause, in one log line.
+   The reader is an operator. The project lead gave the reason on 2026-11-15: an operator finds
+   and greps the exact layer in a log by its type name, and reads the whole chain in order, from the
+   outermost layer to the root cause, in one log line. STA-452 (#416, 2026-11-03) fixed a segment
+   with no name that hid its inner error in quotes, found in a `backfill` run that filled the disk.
+
+   An error carries no hint on how to fix it. The project lead decided this on 2026-11-06 in
+   STA-454: few errors are fixable by an operator, and the date and environment errors of the
+   binaries already name their fix.
 5. **`Display` never uses `Debug` formatting.** Since #84 (2026-05-05). `Debug` output is internal
    to Rust and can change between versions, so code that reads an error text cannot parse it. A
    field that is a collection gets a newtype with its own `Display`.
-6. **A layer prints a segment only if it adds a fact.** Since #418 (2026-11-06). A fact is an
-   action, an object, a cause, or an ID. A layer that adds no fact is `#[error(transparent)]` and
-   prints its inner error in its place. In #418, 5 of the 7 segments of a disk-full chain said only
-   that something failed. On `main` at `a9d57d1`, 18 variants in `sec/src/lib/error/` pass
-   through, such as `ErrorKind::StateMachine` (`sec/src/lib/error/mod.rs:40`).
+6. **A layer prints a segment only if it adds a fact.** Since #418 (2026-11-06, STA-454). A fact
+   is an action, an object, a cause, or an ID. A layer that adds no fact is `#[error(transparent)]`
+   and prints its inner error in its place. On `main` at `a9d57d1`, 18 variants in
+   `sec/src/lib/error/` pass through, such as `ErrorKind::StateMachine`
+   (`sec/src/lib/error/mod.rs:40`).
+
+   The goal of STA-454: an operator reads what failed, on what, and why, in as few segments as
+   possible. Before the rule, a disk-full write printed 7 segments. Five said only that something
+   failed, the state name appeared twice, and the cause came last. After it, the chain has 3
+   segments.
+
+   The project lead confirmed on 2026-11-06 that `source()` of a pass-through layer returns the
+   source of its inner error, not the inner error. Otherwise a caller that walks `source()` prints
+   the inner segment twice.
 
 `AGENTS.md`, "Error Naming Conventions" and "Error Display Format", holds the detailed rules and
 examples for decisions 4 to 6.
@@ -91,6 +105,9 @@ written one, and it covers `storage` only.
   `bcf5316` (2026-05-05, #84) forbids `Debug` in `Display`. `b3282ad` (2026-06-18, #93) moves the
   rules to `AGENTS.md`. `87aa21e` (2026-11-06, #418) adds the pass-through rule, and `3426b79`
   (2026-11-06, #420) applies it to the state and transition errors of `sec`.
+- STA-452 and ironcapitaleu/arkad#416: the unnamed, quoted segment of the disk-full run.
+- STA-454, its description and the comments of the project lead of 2026-11-06 (`source()` of a
+  pass-through layer, no hints), and ironcapitaleu/arkad#418: the 7-segment chain and its goal.
 - The reason for decision 4, stated by the project lead on 2026-11-15 and quoted in the
   description of ironcapitaleu/arkad#561.
 - ADR 0006, "Context" and "Options Considered". ADR 0011, "Context" and "Decision".
