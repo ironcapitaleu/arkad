@@ -658,7 +658,7 @@ mod tests {
             .retry_delays(Vec::new())
             .run(|_, _| {})
             .await;
-        let result = counted_client.inner.request_counts.per_url();
+        let result = counted_client.inner.request_counts.per_key();
 
         assert_eq!(result, expected_result);
     }

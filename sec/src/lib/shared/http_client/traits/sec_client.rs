@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_send_once_when_the_fixture_has_no_retry_policy() {
+    async fn should_send_once_when_the_fixture_keeps_its_send_once_policy() {
         let client = responding_client(503, "text/html", NOTES_FILE_BODY);
 
         let expected_result = (true, 1);
@@ -511,7 +511,7 @@ mod tests {
         ]);
 
         let _ = client.execute_sec_request(company_facts_request()).await;
-        let result = client.retries.per_url();
+        let result = client.retries.per_key();
 
         assert_eq!(result, expected_result);
     }

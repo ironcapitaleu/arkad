@@ -259,7 +259,7 @@ mod tests {
     }
 
     #[test]
-    fn should_retry_under_the_default_policy_when_created_with_new() {
+    fn should_retry_under_the_default_policy_when_created_with_default() {
         let client = SecClient::default();
 
         let expected_result = RetryPolicy::default();

@@ -252,7 +252,7 @@ mod run_loop {
         let expected_result =
             BTreeMap::from([(INDEX_URL.to_string(), 1), (SUBMISSIONS_URL.to_string(), 1)]);
 
-        let result = second_client.inner.request_counts.per_url();
+        let result = second_client.inner.request_counts.per_key();
 
         assert_eq!(result, expected_result);
     }
@@ -429,7 +429,7 @@ mod run_loop {
         let expected_result =
             BTreeMap::from([(INDEX_URL.to_string(), 1), (SUBMISSIONS_URL.to_string(), 1)]);
 
-        let result = second_client.inner.request_counts.per_url();
+        let result = second_client.inner.request_counts.per_key();
 
         assert_eq!(result, expected_result);
     }
@@ -481,7 +481,7 @@ mod run_loop {
         let expected_result =
             BTreeMap::from([(INDEX_URL.to_string(), 1), (SUBMISSIONS_URL.to_string(), 1)]);
 
-        let result = second_client.inner.request_counts.per_url();
+        let result = second_client.inner.request_counts.per_key();
 
         assert_eq!(result, expected_result);
     }

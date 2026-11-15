@@ -155,7 +155,7 @@ mod tests {
         ]);
 
         let _ = client.execute(request).await;
-        let result = client.inner.request_counts.per_url();
+        let result = client.inner.request_counts.per_key();
 
         assert_eq!(result, expected_result);
     }
