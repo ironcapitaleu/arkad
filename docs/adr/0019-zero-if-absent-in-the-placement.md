@@ -64,8 +64,8 @@ Read on 2026-11-15, on `main` at `97dd816`.
   equal. A comparison of placements now compares the flag too.
 - A crate outside `xbrl` that matches `Placement::Child` already uses `..`, because the variant is
   `#[non_exhaustive]`. No caller changes.
-- The decision does not cover how the checks use zero for `ExchangeRateEffect`. The ticket of the
-  checks decides it.
+- The checks use zero for `ExchangeRateEffect` when it has no value, as Decision 2 says. How
+  `RollUpMismatch` and `NegativeOther` report that zero is for the ticket of the checks.
 
 ## Open Questions
 

@@ -133,6 +133,28 @@ mod tests {
     }
 
     #[test]
+    fn should_place_every_zero_if_absent_child_in_a_closed_group_for_the_concepts_of_the_statements()
+     {
+        let concepts = placements();
+
+        let expected_result: Vec<GroupName> = Vec::new();
+
+        let result: Vec<GroupName> = concepts
+            .filter_map(|(_, placement)| match placement {
+                Placement::Child {
+                    group,
+                    zero_if_absent: true,
+                    ..
+                } => Some(group),
+                _ => None,
+            })
+            .filter(|name| !groups().any(|group| group.name == *name && group.closed))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_each_group_a_unique_name_for_every_listed_group() {
         let names: Vec<&str> = groups().map(|group| group.name.as_str()).collect();
 
