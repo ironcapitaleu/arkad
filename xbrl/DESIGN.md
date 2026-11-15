@@ -2373,8 +2373,8 @@ The table in "Order of the Pull Requests" names the ticket of each step.
 | `Period` | Replace | `xbrl::core::period::Period` |
 | `Unit` | Replace | `xbrl::core::unit::Unit` |
 
-`AccessionNumber` and `Form` are extraction types. On `main` at `dee3756`, 37 files of `sec/src`
-outside their own module name `AccessionNumber`.
+`AccessionNumber` and `Form` are extraction types. On `main` at `dee3756`, 35 files of `sec/src`
+outside `sec::shared::financial` name `AccessionNumber`.
 
 ### `CompanyData`
 
@@ -2394,16 +2394,23 @@ CIK as its `EntityId`, with the scheme `CIK_SCHEME`. The map keyed by `&'static 
 goes away. A later state resolves the as-is facts with `resolve_aliases` and keys each standardized
 fact by `CanonicalElementKind`.
 
+`CompanyData` stays the output of `ParseCompanyFacts` until `CreateFinancialStatements` emits
+`FactSet` values. That later step retires `CompanyData`, as
+`sec/design/data_model/hybrid_data_model.md`, "Migration From the Current (Immature) Skeleton",
+step 5, says.
+
 ### `ParseCompanyFacts`
 
 `compute_output_data_async` runs four steps:
 
 1. Call `xbrl::adapter::edgar::company_facts::parse` on the JSON body. A `ParseErrorKind` becomes a
    state error.
-2. Read the entity name with `company_facts::extract_entity_name`, and the CIK from the context.
+2. Read the entity name with `company_facts::extract_entity_name`. Compare the CIK of the context
+   with the `EntityId` of the facts. If they differ, return a state error.
 3. Check each definition of `xbrl::us_gaap::mappings::REQUIRED_CONCEPTS`. A definition passes if a
    `us-gaap` fact has a local name in its `xbrl_keys`. If one fails, return
-   `IncompleteCompanyFacts` with the names of the missing standard concepts.
+   `IncompleteCompanyFacts` with the names of the missing standard concepts. The check reads no
+   unit.
 4. Build `CompanyData` from the `CompanyFacts` of step 1.
 
 `resolve_concept`, `parse_observation`, `build_period`, `build_filing_source`, and
@@ -2419,7 +2426,9 @@ let filing_id = FilingId::new(SEC_FILING_SOURCE, accession_number.value())?;
 ```
 
 `SEC_FILING_SOURCE` is the constant of `xbrl::adapter::edgar::company_facts`. `FilingId::new`
-fails only on empty text, and an `AccessionNumber` is never empty. `parse` builds the `FilingId`
+fails on empty text or whitespace, and an `AccessionNumber` has neither. The other way can fail:
+`parse` accepts any `accn` text with no whitespace, so `AccessionNumber::new(filing_id.id())`
+rejects an `accn` of the wrong shape. `parse` builds the `FilingId`
 from the `accn` text, so the migration needs no conversion. The first state that joins a filing of
 the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec`.
 
@@ -2431,7 +2440,10 @@ the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec
 - The transition from `ParseCompanyFacts` to `CreateFinancialStatements`, and the `Transform`
   super state.
 - The 37 files that name the paths `financial::accession_number` or `financial::form` change
-  83 lines.
+  83 lines. This set holds `sec/tests/extract_filing.rs`, and files that name only `Form`.
+- PR 2 updates the docs that describe the parse: `sec/README.md`, "ParseCompanyFacts", and
+  `sec/design/data_model/hybrid_data_model.md`. PR 3 updates the docs that name
+  `sec::shared::financial`, such as `sec/design/pipeline/ingestion_paths.md`.
 
 No binary and no integration test names a fact-model type. The pipeline coverage test ends before
 `Transform`.

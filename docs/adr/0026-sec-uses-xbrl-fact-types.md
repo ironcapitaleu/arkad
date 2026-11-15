@@ -48,7 +48,8 @@ Measured on 2026-11-15 on `main` at `dee3756`.
 | Option | Lines of `sec` types that stay | Fact models | Conversion of each fact |
 | ------ | ------------------------------ | ----------- | ----------------------- |
 | **A: direct replacement (chosen)** | 0 of 1,246 | One | None |
-| B: thin wrappers with `From` | 1,246 of 1,246, plus the `From` impls | Two | Can fail |
+| B1: keep the `sec` types, with `From` from `xbrl` | 1,246 of 1,246, plus the `From` impls | Two | Can fail |
+| B2: newtype wrappers around the `xbrl` types | 0 of 1,246, plus one newtype per type | One | None |
 | C: re-exports | 0 of 1,246, plus one `pub use` per type | One | None |
 
 "Lines of `sec` types" counts the lines before `#[cfg(test)]` in the 12 fact-model modules of
@@ -57,9 +58,12 @@ Measured on 2026-11-15 on `main` at `dee3756`.
 - A removes the second parser and the second model. Its cost is the import edits at each call
   site. Outside `shared/financial`, seven files name a fact-model type: six of the transform states
   and one transition. No binary and no integration test names one.
-- B keeps both models, so they still drift apart. A wrapper keeps the `sec` shape, so each
-  conversion from `xbrl` can fail: a `BigDecimal` value such as `1.23` does not fit `i64`, and an
-  open form such as `20-F` has no variant in the `Form` enum.
+- B1 keeps both models, so they still drift apart. It keeps the `sec` shape, so each conversion
+  from `xbrl` can fail: a `BigDecimal` value such as `1.23` does not fit `i64`, and an open form
+  such as `20-F` has no variant in the `Form` enum.
+- B2 wraps each `xbrl` type in a newtype, such as `struct Observation(AsIsFact)`. Its `From`
+  cannot fail. It adds a second name for each `xbrl` type, as C does, and an accessor or `Deref`
+  per type.
 - C needs the same call-site edits as A, because the shapes differ. It then adds a second path,
   `sec::shared::financial::X`, for a type of `xbrl`. A reader must look up which crate owns it.
 
@@ -68,12 +72,21 @@ Measured on 2026-11-15 on `main` at `dee3756`.
 - `CompanyData` holds the `Cik`, the `xbrl` `EntityName`, and the `AsIsFact` and `Filing` values
   of the parse. It has no map keyed by `&'static ConceptDefinition`. A later state keys standardized
   facts by `CanonicalElementKind`.
-- `ParseCompanyFacts` keeps every form, amendment, unit, and namespace. Today it keeps only 10-K
-  and 10-Q filings with no amendment. The newest-filing dedup rule of `xbrl` picks one value per
+- `CompanyData` stays the output of `ParseCompanyFacts` until `CreateFinancialStatements` emits
+  `FactSet` values. That later step retires it, as `sec/design/data_model/hybrid_data_model.md`
+  plans. This decision does not retire it.
+- `ParseCompanyFacts` keeps every form, amendment, unit, and namespace. At `dee3756` it keeps only
+  10-K and 10-Q filings with no amendment. The newest-filing dedup rule of `xbrl` picks one value per
   period.
-- `ParseCompanyFacts` keeps values that are not integers, such as earnings per share. Today it
-  drops them.
-- `ParseCompanyFacts` fails on a data point that `parse` rejects. Today it drops that data point.
+- `ParseCompanyFacts` keeps values that are not integers, such as earnings per share. At
+  `dee3756` it drops them.
+- `ParseCompanyFacts` fails on a data point that `parse` rejects. At `dee3756` it drops that data
+  point.
+- `parse` accepts an `accn` of any shape with no whitespace. At `dee3756`, `ParseCompanyFacts`
+  drops a data point whose `accn` is not an `AccessionNumber`. A later conversion from `FilingId`
+  to `AccessionNumber` can fail.
+- The required check reads no unit. At `dee3756`, a required concept with no fact in its expected
+  unit counts as missing.
 - The required list has 9 concepts in place of 11. Income tax becomes optional. `xbrl` maps no
   standard concept to shares outstanding. The `dei` fact stays an as-is fact.
 - The `frame` field of a data point is not kept. No `sec` code reads it after the parse.
