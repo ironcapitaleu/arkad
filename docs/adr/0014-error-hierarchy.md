@@ -48,11 +48,6 @@ and `Hash`, as ADR 0006 defines it.
    log for the type name of a layer. An operator also reads the whole chain in one log line, from
    the outermost layer to the root cause. #416 (2026-11-06, STA-452) fixed a segment with no name
    that hid its inner error in quotes. STA-452 found it in a `backfill` run that filled the disk.
-
-   The format has no `Hint:` segment. On 2026-11-06 the project lead decided in STA-454 to build
-   no hints for now: few errors are fixable by an operator. The environment errors of the binaries
-   name their fix in their text, such as `InvalidRunDates`
-   (`sec/src/bin/daily_filings/dates.rs:24-35`).
 5. **`Display` never uses `Debug` formatting.** Since #84 (2026-05-05). `Debug` output is internal
    to Rust and can change between versions, so code that reads an error text cannot parse it. A
    field that is a collection gets a newtype with its own `Display`.
@@ -78,11 +73,6 @@ examples for decisions 4 to 6.
 No record names the options that were weighed for decisions 1 to 6. The repository mentions
 neither `anyhow` nor one flat error enum for `sec`.
 
-STA-454 weighed two places for a hint on how to fix an error, on 2026-11-06: a `Hint: '…'` segment
-on the leaf error, or a `hint` field in the context of the JSON log line, set by the binary. The
-project lead built neither (decision 4). If hints return, the log field is the recommended path,
-because only the binary knows the deployment.
-
 ADR 0006 weighed options later, for the `storage` errors, on 2026-08-10. A boxed `source()` lost
 `PartialEq`, `Clone`, `Eq`, and `Hash`, so no `sec` error could hold it. That comparison is the only
 written one, and it covers `storage` only.
@@ -101,6 +91,13 @@ written one, and it covers `storage` only.
 - The `api` crate does not follow this shape. Its `ApiError` is one flat enum with `From` impls
   (`api/src/error/mod.rs:28`). This ADR does not cover `api`.
 
+## Open Questions
+
+- Whether an error gets a hint on how to fix it, and where. STA-454 compared a `Hint: '…'` segment
+  on the leaf error with a `hint` field in the JSON log line, set by the binary. On 2026-11-06 the
+  project lead deferred both. Today only the environment errors of the binaries name their fix in
+  their text, such as `InvalidRunDates` (`sec/src/bin/daily_filings/dates.rs:24-35`).
+
 ## Sources
 
 - `sec/src/lib/error/mod.rs:5-104` and `sec/src/lib/error/state_machine/mod.rs:32-95`, on `main` at
@@ -113,7 +110,7 @@ written one, and it covers `storage` only.
   (2026-11-06, #420) applies it to the state and transition errors of `sec`.
 - STA-452 and ironcapitaleu/arkad#416: the unnamed, quoted segment of the disk-full run.
 - STA-454, its description and the comments of the project lead of 2026-11-06 (`source()` of a
-  pass-through layer, no hints), and ironcapitaleu/arkad#418: the 7-segment chain and its goal.
+  pass-through layer, hints deferred), and ironcapitaleu/arkad#418: the 7-segment chain and its goal.
 - The reason for decision 4, stated by the project lead on 2026-11-15 and quoted in the
   description of ironcapitaleu/arkad#561.
 - ADR 0006, "Context" and "Options Considered". ADR 0011, "Context" and "Decision".
