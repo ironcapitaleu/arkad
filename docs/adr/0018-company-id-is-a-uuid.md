@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([STA-516 comment `e93ddee0`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-e93ddee0), under its first number 0017. [STA-516 comment `43252aa6`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-43252aa6) records the renumbering). |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-516 comment `e93ddee0`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-e93ddee0), under its first number 0017. [STA-516 comment `43252aa6`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-43252aa6) records the renumbering). Amendment 1: Accepted by the project lead on 2026-11-15 ([STA-517 comment `c2cb2241`](https://linear.app/state-machine/issue/STA-517/feature-listingresolver-port-and-its-fake#comment-c2cb2241)). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-516](https://linear.app/state-machine/issue/STA-516) |
@@ -28,6 +28,26 @@ Facts on `main` at `a9d57d1`, read on 2026-11-15:
 1. **`CompanyId` wraps a `Uuid`.** The value carries no meaning, and no code reads one from it.
 2. **The load that assigns a `company_id` picks the UUID version.** `CompanyId` takes any `Uuid`,
    so this decision does not fix the version.
+
+## Amendment 1: `listing_id` Is a UUID Too
+
+Date: 2026-11-15.
+
+**Reason.** [STA-517](https://linear.app/state-machine/issue/STA-517) adds `ListingId`, the key of
+a listing, so the type needs an inner value. The facts above hold for `listing_id` too: the
+backfill loads in parallel, and a change of format migrates every stored key. The identifier rows
+and the prices of a listing key on `listing_id` ([ADR 0009](0009-three-levels-of-identity.md),
+"Consequences").
+
+**Decision.** `ListingId` wraps a `Uuid`, under both decisions above. The load that assigns a
+`listing_id` picks the UUID version.
+
+**Consequences.**
+
+- `company_id` and `listing_id` have one format, so a store or a log treats both keys the same way.
+- A key of one level cannot pass for a key of another level in code: `CompanyId` and `ListingId`
+  are two types.
+- The key of a security, `security_id`, is not covered. Its ticket decides its format.
 
 ## Options Considered
 
