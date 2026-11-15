@@ -63,8 +63,8 @@ fn mic(value: &str) -> Mic {
 ///
 /// # Panics
 ///
-/// Panics if a MIC in the map of codes is not a valid MIC. The tests of this
-/// module parse every pair, so a released build does not panic.
+/// Panics if a MIC in `MIC_BY_EDGAR_EXCHANGE_CODE` is not a valid MIC. The tests of this module
+/// build the map, so a released build does not panic.
 ///
 /// # Examples
 ///
@@ -129,7 +129,7 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_each_exchange_code_once_for_the_map() {
+    fn should_hold_every_exchange_code_but_none_for_the_map() {
         let map = &*MIC_BY_EDGAR_EXCHANGE_CODE;
 
         let expected_result = vec![
