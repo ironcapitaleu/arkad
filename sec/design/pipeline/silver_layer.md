@@ -119,7 +119,7 @@ store holds today.
 | `filings` | `Filing`, with the company attributes as filed | Notes `sub.tsv` and `txt.tsv`, or the instance and `submissions` | Parse filing |
 | `candidates` | Standardized candidate of one filing, blocked ones included | `as_is_facts` | Standardize filing |
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
-| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, or `NegativeOther` finding | Both standardize steps | Standardize filing, standardize series |
+| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, or `MixedStarts` finding | Both standardize steps | Standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
 | `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
 
@@ -142,7 +142,10 @@ Silver stores three kinds of values:
   (`ddate`, `qtrs`). The instance gives exact dates. So a Notes value and an instance value of the
   same period get the same key.
 - `period_start` keeps the exact start of an instance value, for example a 52/53-week quarter or a
-  stub period after a merger. It is null for Notes values and for instants.
+  stub period after a merger. It is null for instants. For a Notes value, the start is the end
+  less `round((qtrs − durp) × 91.25)` days
+  ([ADR 0022](../../../docs/adr/0022-exact-start-splits-copies.md)). The Notes parser does not
+  compute it, so the column is null for Notes values.
 - The period says which time a value describes. `accepted` says when the value became public. A
   restatement has the period of the original and a later `accepted` time.
 - A ticker can change between two filings. Silver keeps the values as filed. A later design adds
@@ -270,11 +273,11 @@ its row with the latest `computed_at`, unless that row has `change` = `removed`.
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
-| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, or `NegativeOther` |
+| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, or `MixedStarts` |
 | `entity_scheme`, `entity_id` | `utf8` | |
-| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity` |
+| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch` and `NegativeOther`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
 | `confidence` | `utf8`, nullable | For `RollUpMismatch` and `NegativeOther`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
