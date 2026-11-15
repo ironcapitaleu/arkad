@@ -68,7 +68,7 @@ pub enum Line {
     },
 }
 
-/// One line of a [`Statement`]: its content, its depth in the tree, and its value.
+/// One line of a [`Statement`]: its content, its depth in the tree, its value, and its fact.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatementLine {
     line: Line,
@@ -131,15 +131,16 @@ impl Statement {
     /// other line, unless a transparent member opens it.
     ///
     /// A parent with no value is transparent: it has no line, its children keep their depth, and
-    /// its members count in the group above it. A transparent start of a step counts as the step that makes it, so the step
-    /// starts from the previous subtotal. A start with no value and no step that makes it counts as
-    /// zero, so the other line holds it.
+    /// its members count in the group above it. If the start of a step has no value, the step uses
+    /// the members of the step that makes the start, so it starts from the previous subtotal. A
+    /// start with no value and no step that makes it counts as zero, so the other line holds it.
     ///
     /// # Errors
     ///
     /// Returns an [`InvalidStatementFacts`] if `facts` is empty, if a fact has no line in the
     /// statement, if a fact has the wrong period type, if two facts differ in entity, period,
-    /// unit, or dimensions, or if two facts have the same concept.
+    /// unit, or dimensions, or if two facts have the same concept. It returns the first error in
+    /// the order of `facts`.
     ///
     /// # Examples
     ///
@@ -220,7 +221,8 @@ impl Statement {
         self.period_end
     }
 
-    /// Returns the length of the period in quarters. A balance sheet has 0.
+    /// Returns the length of the period in quarters. A balance sheet has 0, and so does a duration
+    /// shorter than half a quarter.
     #[must_use]
     pub const fn quarters(&self) -> u16 {
         self.quarters
@@ -511,10 +513,22 @@ mod tests {
     use crate::core::elements::statement::balance_sheet::BalanceSheetGroup;
     use crate::core::elements::statement::cash_flow::CashFlowGroup;
     use crate::core::elements::statement::income_statement::IncomeStatementGroup;
+    use crate::core::fact::Dimensions;
     use crate::core::period::Duration;
+    use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, standardized};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+
+    #[test]
+    const fn should_implement_auto_traits_for_statement_kind() {
+        implements_auto_traits::<StatementKind>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_line() {
+        implements_auto_traits::<Line>();
+    }
 
     #[test]
     const fn should_implement_auto_traits_for_statement() {
@@ -911,7 +925,7 @@ mod tests {
     }
 
     #[test]
-    fn should_take_the_period_of_the_facts_for_the_cash_flow_statement() {
+    fn should_take_the_kind_and_the_period_of_the_facts_for_the_cash_flow_statement() {
         let facts = [fact(CashFlowConcept::OperatingCashFlow, "390")];
 
         let expected_result = Ok((StatementKind::CashFlow, date(2026, 9, 30), 1));
@@ -998,6 +1012,123 @@ mod tests {
         });
 
         let result = Statement::build(StatementKind::BalanceSheet, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns a balance sheet of assets, and a goodwill fact that `change` makes differ from it.
+    fn assets_and_goodwill(change: fn(&mut StandardizedFact)) -> [StandardizedFact; 2] {
+        let mut goodwill = fact(BalanceSheetConcept::Goodwill, "602");
+        change(&mut goodwill);
+        [fact(BalanceSheetConcept::Assets, "100"), goodwill]
+    }
+
+    #[test]
+    fn should_reject_a_fact_when_its_entity_differs_from_the_first_fact() {
+        let facts = assets_and_goodwill(|goodwill| {
+            goodwill.entity = EntityId::new("cik", "0000789019")
+                .expect("Given a hardcoded scheme and CIK, the creation should always succeed");
+        });
+
+        let expected_result = Some(InvalidStatementFacts::MismatchedFact {
+            concept: BalanceSheetConcept::Goodwill.element(),
+            first: BalanceSheetConcept::Assets.element(),
+        });
+
+        let result = Statement::build(StatementKind::BalanceSheet, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_fact_when_its_unit_differs_from_the_first_fact() {
+        let facts = assets_and_goodwill(|goodwill| {
+            goodwill.unit = Unit::from_str("EUR")
+                .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+        });
+
+        let expected_result = Some(InvalidStatementFacts::MismatchedFact {
+            concept: BalanceSheetConcept::Goodwill.element(),
+            first: BalanceSheetConcept::Assets.element(),
+        });
+
+        let result = Statement::build(StatementKind::BalanceSheet, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_fact_when_its_dimensions_differ_from_the_first_fact() {
+        let facts = assets_and_goodwill(|goodwill| {
+            goodwill.dimensions =
+                Dimensions::new([("StatementBusinessSegmentsAxis", "FreightMember")]).expect(
+                    "Given one hardcoded axis and member, the creation should always succeed",
+                );
+        });
+
+        let expected_result = Some(InvalidStatementFacts::MismatchedFact {
+            concept: BalanceSheetConcept::Goodwill.element(),
+            first: BalanceSheetConcept::Assets.element(),
+        });
+
+        let result = Statement::build(StatementKind::BalanceSheet, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_statement_when_displaying_missing_facts() {
+        let error = InvalidStatementFacts::MissingFacts {
+            kind: StatementKind::BalanceSheet,
+        };
+
+        let expected_result = "[MissingFacts] No standardized fact to build the balance sheet from";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_concept_and_the_period_when_displaying_an_unexpected_period_type() {
+        let error = InvalidStatementFacts::UnexpectedPeriodType {
+            kind: StatementKind::IncomeStatement,
+            concept: IncomeStatementConcept::Revenue.element(),
+            period: Period::Instant {
+                end: date(2026, 9, 30),
+            },
+        };
+
+        let expected_result = "[UnexpectedPeriodType] Fact of 'Revenue' covers '2026-09-30', which the income statement does not take";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_both_concepts_when_displaying_a_mismatched_fact() {
+        let error = InvalidStatementFacts::MismatchedFact {
+            concept: BalanceSheetConcept::Goodwill.element(),
+            first: BalanceSheetConcept::Assets.element(),
+        };
+
+        let expected_result = "[MismatchedFact] Fact of 'Goodwill' differs from the fact of 'Assets' in entity, period, unit, or dimensions";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_concept_when_displaying_a_duplicate_concept() {
+        let error = InvalidStatementFacts::DuplicateConcept {
+            concept: BalanceSheetConcept::Assets.element(),
+        };
+
+        let expected_result = "[DuplicateConcept] Two facts of 'Assets'";
+
+        let result = error.to_string();
 
         assert_eq!(result, expected_result);
     }

@@ -2175,8 +2175,8 @@ pub struct StatementLine {
 - A breakdown shows its parent first, then its children one level deeper. A step shows its items
   one level deeper, then its parent. A step whose start belongs to another statement shows the
   start first, at the depth of the parent.
-- A transparent start of a step counts as the step that makes it. So `ComprehensiveIncome` with no
-  `NetIncome` starts from `PretaxIncome` less `IncomeTaxExpense`.
+- If the start of a step has no value, the step uses the members of the step that makes the start.
+  So `ComprehensiveIncome` with no `NetIncome` starts from `PretaxIncome` less `IncomeTaxExpense`.
 - A line of `Line::Standard` with a value holds its standardized fact, so a reader can see its
   confidence, rule, and inputs.
 - `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
