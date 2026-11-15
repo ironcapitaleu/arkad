@@ -10,6 +10,7 @@
 //! access it needs, so a write from a read-only caller does not compile.
 //!
 //! [`EntityResolver`] returns the [`CompanyId`] of a [`CompanyIdentifier`] at a date.
+//! [`ListingResolver`] returns the [`ListingId`] of a [`ListingIdentifier`] at a date.
 //!
 //! The traits are expressed in domain types and name no concrete database or backend. Each backend
 //! lives under [`implementations`] and depends on the traits, never the other way round.
@@ -44,11 +45,14 @@ pub mod shared;
 pub mod traits;
 
 pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
-pub use shared::{CompanyId, CompanyIdentifier, CompanyScheme, InvalidSha256Digest, Sha256Digest};
+pub use shared::{
+    CompanyId, CompanyIdentifier, CompanyScheme, InvalidSha256Digest, ListingId, ListingIdentifier,
+    ListingScheme, Sha256Digest,
+};
 pub use traits::repository::{
     ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
 };
-pub use traits::resolver::EntityResolver;
+pub use traits::resolver::{EntityResolver, ListingResolver};
 
 #[cfg(test)]
 pub mod tests;

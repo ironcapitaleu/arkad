@@ -121,6 +121,10 @@ The port `storage::EntityResolver` returns the `company_id` of a company identif
 in `storage`, and [ADR 0018](../../../docs/adr/0018-company-id-is-a-uuid.md) records why
 `company_id` is a UUID.
 
+The port `storage::ListingResolver` returns the `listing_id` of a listing identifier at a date. A
+row covers its first day and ends before `valid_to`. ADR 0018, "Amendment 1", records why
+`listing_id` is a UUID.
+
 - **Validity is per source.** If two sources give different values for one subject and scheme,
   the metadata store keeps both rows (ADR 0007, Decision 6). The claim resolution spec of ADR 0001,
   "Open Questions", fixes which row a reader gets.

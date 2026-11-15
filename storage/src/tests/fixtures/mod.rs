@@ -5,7 +5,9 @@
 //! ## Modules
 //!
 //! - [`fake_entity_resolver`]: A fake [`EntityResolver`](crate::EntityResolver) that holds dated
-//!   identifier rows.
+//!   company identifier rows.
+//! - [`fake_listing_resolver`]: A fake [`ListingResolver`](crate::ListingResolver) that holds
+//!   dated listing identifier rows.
 //! - [`fake_list_repository`]: A fake that lists and reads its seeded entries, in byte order of
 //!   the key text.
 //! - [`fake_read_repository`]: A fake [`ReadRepository`](crate::ReadRepository) initialized
@@ -15,13 +17,17 @@
 //!   and round-trips a record.
 //! - [`fake_write_repository`]: A fake [`WriteRepository`](crate::WriteRepository) that records
 //!   what it persists.
+//! - [`identifier_row`]: One dated identifier row of any level of identity, for the fake
+//!   resolvers.
 //! - [`sample_document`]: A document type that exists only for tests, and fixed metadata of it.
 //! - [`ticker`]: A future that counts how often the task polls it while another future runs.
 
 pub mod fake_entity_resolver;
 pub mod fake_list_repository;
+pub mod fake_listing_resolver;
 pub mod fake_read_repository;
 pub mod fake_read_write_repository;
 pub mod fake_write_repository;
+pub mod identifier_row;
 pub mod sample_document;
 pub mod ticker;
