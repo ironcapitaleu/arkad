@@ -700,6 +700,13 @@ The concepts of `CanonicalElementKind` take these places in the trees and disclo
 | `DividendsPaid` | child of `financing-cash-flow` |
 | `ShareRepurchases` | child of `financing-cash-flow` |
 | `ShareBasedCompensation` | item of `operating-cash-flow` |
+| `OperatingExpenses` | item of `operating-income` |
+| `PretaxIncome` | top of the income statement |
+| `IncomeTaxExpense` | item of `net-income` |
+| `NetIncomeAttributableToParent` | child of `net-income-attribution` |
+| `NetIncomeAttributableToNoncontrollingInterest` | child of `net-income-attribution` |
+| `NetChangeInCash` | top of the cash flow statement |
+| `ExchangeRateEffect` | child of `net-change-in-cash` |
 
 No standard concept holds expenses, gains, or losses. No US GAAP concept holds their totals, no
 rule fills them, and no filer presents them. The cascade holds them in `OperatingExpenses`,
@@ -725,7 +732,7 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 | `TreasuryStock` | `TreasuryStockValue` | `TreasuryStockCommonValue` (1,056), other part `TreasuryStockPreferredValue` | 854 |
 | `AccumulatedOtherComprehensiveIncome` | `AccumulatedOtherComprehensiveIncomeLossNetOfTax` | | 3,821 |
 | `OperatingExpenses` | `OperatingExpenses` | | 2,929 |
-| `PretaxIncome` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` (382), other part `IncomeLossFromEquityMethodInvestments` | 4,561 |
+| `PretaxIncome` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` (382), other part `IncomeLossFromEquityMethodInvestments` and the concept below it | 4,561 |
 | `IncomeTaxExpense` | `IncomeTaxExpenseBenefit` | | 4,848 |
 | `NetIncomeAttributableToParent` | `NetIncomeLoss` | | 5,707 |
 | `NetIncomeAttributableToNoncontrollingInterest` | `NetIncomeLossAttributableToNoncontrollingInterest` | | 1,471 |
@@ -1194,7 +1201,10 @@ ticket decides where the removed elements live.
     interest. Then the parent part is not the whole.
   - The other parts leave out a sibling that filers also report outside the total, such as
     `GainsLossesOnSalesOfAssets` below `Revenues`. Its fact does not show a second part of the
-    total, so it blocks the part with no cause.
+    total, so it blocks the part with no cause. `IncomeLossFromEquityMethodInvestments` is the
+    exception for `PretaxIncome`. Some filers report it after income tax, and then the part gives
+    no value. Without it, a filer that reports this income before income tax gets a pretax value
+    that leaves the income out.
   - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
     parts. So the filing reports no other part, and the check passes with the wrong value.
 - `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the

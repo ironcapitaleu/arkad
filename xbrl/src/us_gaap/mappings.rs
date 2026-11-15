@@ -630,7 +630,8 @@ pub const COMPREHENSIVE_INCOME_PART_RULE: &str = "us-gaap/part/comprehensive-inc
 /// An other part in `other_part_trees` also counts with each concept below it, because filers
 /// often report the concepts below it instead. A sibling that filers also report outside the
 /// total is left out, because its fact does not show a second part of the total. A comment names
-/// each sibling that is left out.
+/// each sibling that is left out. `IncomeLossFromEquityMethodInvestments` of `PretaxIncome` is the
+/// one exception, and its comment says why.
 pub const PART_CONCEPTS: &[PartDefinition] = &[
     PartDefinition::new(
         IncomeStatementConcept::Revenue.element(),
@@ -785,12 +786,12 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &[
             "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
         ],
-        // `IncomeLossFromEquityMethodInvestments` counts, although some filers report it after
-        // income tax. Such a filer gets no value from the part. Without it, a filer that reports
-        // the income of equity method investments before income tax gets a value that leaves it
-        // out.
-        &["IncomeLossFromEquityMethodInvestments"],
+        // `IncomeLossFromEquityMethodInvestments` counts with the income of affordable housing
+        // projects below it, although some filers report this income after income tax. Such a
+        // filer gets no value from the part. Without it, a filer that reports the income of
+        // equity method investments before income tax gets a value that leaves it out.
         &[],
+        &["IncomeLossFromEquityMethodInvestments"],
         PRETAX_INCOME_PART_RULE,
     ),
     PartDefinition::new(

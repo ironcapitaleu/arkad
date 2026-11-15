@@ -2004,7 +2004,13 @@ mod tests {
                         "us-gaap",
                         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
                     )],
-                    other_parts: vec![concept("us-gaap", "IncomeLossFromEquityMethodInvestments")],
+                    other_parts: vec![
+                        concept("us-gaap", "IncomeLossFromEquityMethodInvestments"),
+                        concept(
+                            "us-gaap",
+                            "IncomeLossFromAffordableHousingProjectsEquityMethodInvestments",
+                        ),
+                    ],
                 },
             ),
         ];
@@ -2470,6 +2476,60 @@ mod tests {
             rule("us-gaap/part/exchange-rate-effect@1"),
             Some(Confidence::Synonym),
         )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_pretax_income_when_the_filing_reports_the_part_next_to_affordable_housing_income()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+                "100000000",
+            ),
+            fact(
+                &filing,
+                "IncomeLossFromAffordableHousingProjectsEquityMethodInvestments",
+                "8000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_exchange_rate_effect_when_the_filing_reports_the_part_next_to_the_disposal_group_effect()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                "-2000000",
+            ),
+            fact(
+                &filing,
+                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+                "-100000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
