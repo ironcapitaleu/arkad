@@ -104,6 +104,7 @@ pub fn filing(
             tickers: cover.tickers(),
             fiscal_year_end: cover
                 .text(name::CURRENT_FISCAL_YEAR_END_DATE)
+                .filter(|text| !text.is_empty())
                 .as_deref()
                 .map(FiscalYearEnd::from_str)
                 .transpose()?,

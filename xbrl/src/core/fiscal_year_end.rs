@@ -14,7 +14,8 @@ use super::period::TOLERANCE_DAYS;
 /// The fiscal year end of a company: a month and a day with no year, as the filing writes it.
 ///
 /// The text keeps its form, `0930` from the Notes data set or `--09-27` from an instance document.
-/// [`FiscalYearEnd::month`] gives the month of the nearest month end, so both forms compare.
+/// Two values are equal only if their texts are equal, so `0930` and `--09-30` differ. Compare
+/// [`FiscalYearEnd::month`] to compare the two forms.
 ///
 /// # Examples
 ///
@@ -134,6 +135,7 @@ impl FromStr for FiscalYearEnd {
                     text,
                 )
             })?;
+        // The month of a date of 2000 always exists and fits a `u8`, so this error cannot occur.
         let month = Self::nearest_month_end(date)
             .and_then(|month| u8::try_from(month).ok())
             .ok_or_else(|| {
