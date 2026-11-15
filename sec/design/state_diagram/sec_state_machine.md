@@ -1,3 +1,5 @@
+[ADR 0013](../../../docs/adr/0013-typestate-state-machine.md) records why the pipelines run on a typestate hierarchical state machine.
+
 ```mermaid
 ---
 title: "SEC Data Processing Pipeline: State Machine Overview"
