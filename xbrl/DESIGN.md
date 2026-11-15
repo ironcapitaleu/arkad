@@ -626,6 +626,8 @@ A closed group with exactly one unknown member gives that member as a Tier 3 val
 be the parent, the start, or a child. A child that is zero if absent counts as known, except
 `ExchangeRateEffect` (see below).
 
+- `derive_from_closed_groups` in `core/closed_group.rs` applies the rule to the series of one
+  entity.
 - The rule ID is `core/roll-up/<group>@1`, for example `core/roll-up/liabilities@1`. The balance
   sheet identity keeps `core/identity/balance-sheet@1`.
 - The rule runs after `core/period/q4-from-fy@1` and fills only a period that has no value.

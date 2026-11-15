@@ -339,9 +339,8 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         BalanceSheetConcept::NonCurrentAssets.element(),
-        // Most filers report no noncurrent total. Tier 4, which is not built yet, sums the
-        // children of `AssetsNoncurrent` along the calculation tree only if the filing reports
-        // every child. So most filings give no value for this concept.
+        // Most filers report no noncurrent total. For them, `core/roll-up/assets@1` derives it
+        // as `Assets` less `CurrentAssets`.
         &["AssetsNoncurrent"],
         NON_CURRENT_ASSETS_RULE,
         false,
@@ -421,9 +420,8 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         BalanceSheetConcept::NonCurrentLiabilities.element(),
-        // Most filers report no noncurrent total. Tier 4, which is not built yet, sums the
-        // children of `LiabilitiesNoncurrent` along the calculation tree only if the filing
-        // reports every child. So most filings give no value for this concept.
+        // Most filers report no noncurrent total. For them, `core/roll-up/liabilities@1` derives
+        // it as `Liabilities` less `CurrentLiabilities`.
         &["LiabilitiesNoncurrent"],
         NON_CURRENT_LIABILITIES_RULE,
         false,

@@ -11,6 +11,7 @@
 //! - [`alias`]: Tiers 1 and 2 of resolution on one filing.
 //! - [`candidate`]: The value one filing gives for one standard concept.
 //! - [`chronology`]: The gap check over time.
+//! - [`closed_group`]: The derivation of a member of a closed group of the roll-up tree.
 //! - [`concept`]: Concept names, namespace families, and namespaces.
 //! - [`confidence`]: How a standardized value was resolved.
 //! - [`currency_codes`]: The tables of currency codes.
@@ -39,6 +40,7 @@
 pub mod alias;
 pub mod candidate;
 pub mod chronology;
+pub mod closed_group;
 pub mod concept;
 pub mod confidence;
 pub mod currency_codes;
