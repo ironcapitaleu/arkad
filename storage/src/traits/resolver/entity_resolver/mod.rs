@@ -30,8 +30,8 @@ use crate::shared::{CompanyId, CompanyIdentifier};
 ///
 /// An implementor holds dated identifier rows: a `(scheme, value)` pair, a [`CompanyId`], and a
 /// validity from one date to another. It returns at most one [`CompanyId`] for one identifier and
-/// one date. Two sources that disagree can give two rows for one date. No rule picks one of them
-/// yet.
+/// one date. If two sources that disagree give two rows for one date, the implementor picks one.
+/// The port does not fix which.
 ///
 /// The implementor fixes what the date means. The caller passes a date on that axis:
 ///
@@ -40,7 +40,7 @@ use crate::shared::{CompanyId, CompanyIdentifier};
 /// - The identifier rows of the metadata store are on the start of the record that gives each
 ///   value. A row covers its first day, and ends before `valid_to`.
 ///
-/// The port covers the company level only. Securities and listings have resolvers of their own.
+/// The port covers the company level only. It takes no security or listing identifier.
 #[async_trait]
 pub trait EntityResolver: Send + Sync {
     /// Returns the [`CompanyId`] of the row of the identifier that covers the date.
