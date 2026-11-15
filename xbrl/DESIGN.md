@@ -1410,9 +1410,17 @@ StandardizedFact {
 - The label, data type, and balance of an element are not on the fact. They live once per release
   in a reference table, from `Taxonomy::elements()`.
 
-**`FactSet`** stays. It holds one entity, one period, and one `StandardizedFact` per standard
-concept. Resolution fills it, and validation checks it. It is a working set, not a storage type.
-The fact store stores rows of facts.
+**`FactSet`** holds one entity, named by `EntityId`, one period, and one `StandardizedFact` per
+standard concept. Resolution fills it, and validation checks it. It is a working set, not a storage
+type. The fact store stores rows of facts.
+
+`FactSet::insert` returns a `FactSetError` and leaves the set unchanged if a fact does not belong to
+the set. It checks in this order: the entity of the fact, its period, and its dimensions. Two
+periods are the same if they are of one kind and have the same end and length, and the same exact
+start if both give one. So an instant fact never belongs to a set of a duration, and a fiscal year
+needs one set for its duration and one for the instant at its end. A fact with dimensions never
+belongs to the set, because a standardized fact has no dimensions in the MVP. A fact of a standard
+concept that the set holds replaces the held fact.
 
 ### Rule IDs
 
@@ -2160,25 +2168,41 @@ pub struct Statement {
     lines: Vec<StatementLine>,
 }
 
+pub enum Line {
+    Standard(CanonicalElementKind),
+    Other { group: GroupName },
+}
+
 pub struct StatementLine {
-    pub line: Line, // Line::Standard(CanonicalElementKind) or Line::Other { group }
-    pub depth: u8,
-    pub value: Option<BigDecimal>,
+    line: Line,
+    depth: u8,
+    value: Option<BigDecimal>,
+    fact: Option<StandardizedFact>, // the fact of a standard line with a value
 }
 ```
 
 - `Statement::build(kind, facts)` takes the current standardized facts of one entity and one
   period. It orders the lines by the table, computes the other lines, and skips a parent with no
   value as "Roll-Up Tree" describes.
-- A line of `Line::Standard` points to its standardized fact, so a reader can see its confidence,
-  rule, and inputs.
+- A breakdown shows its parent first, then its children one level deeper. A step shows its items
+  one level deeper, then its parent. A step whose start belongs to another statement shows the
+  start first, at the depth of the parent.
+- If the start of a step has no value, the step uses the members of the step that makes the start.
+  So `ComprehensiveIncome` with no `NetIncome` starts from `PretaxIncome` less `IncomeTaxExpense`.
+  [ADR 0020](../docs/adr/0020-missing-start-uses-the-step.md) records why the step wins over the
+  split of `NetIncome`.
+- A line of `Line::Standard` with a value holds its standardized fact, so a reader can see its
+  confidence, rule, and inputs.
+- `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
+  period, unit, or dimensions.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
   takes the concepts of its statement, and the start of a step from another statement, such as
   `NetIncome` in the cash flow statement. It rejects every other fact.
 - The layout, the other lines, and the checks all come from the table. A new concept adds a row to
   the table and a variant to the concept enum of its statement.
 - The fields are private, so a `Statement` cannot change its kind after a check. Getters give
-  `kind()`, `entity()`, `period_end()`, `quarters()`, and `lines()`.
+  `kind()`, `entity()`, `period_end()`, `quarters()`, and `lines()`. `StatementLine` has a getter
+  for each field.
 
 ### Typed Views
 
@@ -2209,16 +2233,19 @@ impl TryFrom<Statement> for BalanceSheet {
   rejects a concept of another statement, and no list of accessors can drift from the table. If a
   concept moves to another statement, its variant moves to another enum, and each caller that asks
   the old view for it fails to compile.
-- A step can start from a line of another statement. Today `NetIncome` in the cash flow statement
-  is the only one. Each view lists these starts in a `const`, such as
-  `CashFlowStatement::STARTS`, and gives each one an accessor, such as `net_income()`. A unit test
-  checks that `STARTS` holds the starts from another statement of the groups in the module of its
-  statement, such as `cash_flow.rs`, in their order. A new start fails the test until it lands in
-  `STARTS`, and that change adds its accessor.
+- A step can start from a line of another statement. `NetIncome` in the cash flow statement is the
+  only one. A view with such starts lists them in a `const`, such as `CashFlowStatement::STARTS`,
+  and gives each one an accessor, such as `net_income()`. A unit test of each view checks the starts
+  from another statement of the groups in the module of its statement, such as `cash_flow.rs`, in
+  their order. A new start fails the test until it lands in the `const` of its view, and that change
+  adds its accessor. The balance sheet and the income statement have no such start, so their tests
+  expect none.
 - `line` returns `None` if the statement has no line for the concept: a parent with no value, which
   is transparent. A child with no value has a line with `value: None`.
 - `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
   lines.
+- `From<Statement> for FinancialStatement` wraps a statement in the view of its kind, and
+  `FinancialStatement::as_statement` gives the generic `Statement` of any view.
 - `TryFrom<Statement>` checks the kind. A function that takes a `&BalanceSheet` cannot receive an
   income statement, so the compiler catches a wrong statement and a wrong period type.
 - `FinancialStatement` holds any of the three. It has `#[non_exhaustive]`, so a later statement,

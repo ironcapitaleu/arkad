@@ -7,6 +7,7 @@ use std::fmt;
 use chrono::NaiveDate;
 
 use super::invalid_value::{InvalidValue, InvalidValueReason};
+use super::taxonomy::reference::PeriodType;
 
 /// The time a fact covers.
 ///
@@ -40,6 +41,15 @@ impl Period {
         match self {
             Self::Instant { .. } => 0,
             Self::Duration(duration) => duration.quarters,
+        }
+    }
+
+    /// Returns the period type: [`PeriodType::Instant`] or [`PeriodType::Duration`].
+    #[must_use]
+    pub const fn period_type(&self) -> PeriodType {
+        match self {
+            Self::Instant { .. } => PeriodType::Instant,
+            Self::Duration(_) => PeriodType::Duration,
         }
     }
 }
@@ -196,6 +206,22 @@ mod tests {
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
+
+    #[test]
+    fn should_give_the_period_type_for_an_instant_and_a_duration() {
+        let periods = [
+            Period::Instant {
+                end: date(2026, 9, 30),
+            },
+            Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1)),
+        ];
+
+        let expected_result = vec![PeriodType::Instant, PeriodType::Duration];
+
+        let result: Vec<PeriodType> = periods.iter().map(Period::period_type).collect();
+
+        assert_eq!(result, expected_result);
+    }
     #[test]
     const fn should_implement_auto_traits_for_period() {
         implements_auto_traits::<Period>();
