@@ -1,0 +1,651 @@
+//! # Closed Group
+//!
+//! Provides [`derive_from_closed_groups`], the rules `core/roll-up/<group>@1`: a closed group of the
+//! roll-up tree with exactly one unknown member gives that member.
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::str::FromStr;
+
+use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
+
+use super::candidate::SeriesKey;
+use super::confidence::Confidence;
+use super::dedup::Series;
+use super::elements::statement::{groups, placements};
+use super::elements::{
+    CanonicalElementKind, CashFlowConcept, Group, GroupKind, GroupName, IncomeStatementConcept,
+    Placement, Weight,
+};
+use super::fact::Dimensions;
+use super::filing::EntityId;
+use super::rule::RuleId;
+use super::standardized::StandardizedFact;
+
+/// The concepts that no group derives.
+///
+/// `gross-profit` never derives `GrossProfit`. A single-step filer chooses not to present gross
+/// profit, and its cost of revenue can leave out depreciation.
+const NEVER_DERIVED: [CanonicalElementKind; 1] = [IncomeStatementConcept::GrossProfit.element()];
+
+/// The children that are zero if absent only in the check, not in the derivation.
+///
+/// Filings before 2018 report the exchange rate effect under
+/// `EffectOfExchangeRateOnCashAndCashEquivalents`, which leaves out restricted cash and is no
+/// alias. If the effect counted as zero, the rule would derive a wrong `NetChangeInCash` for every
+/// multinational before 2018.
+const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
+    [CashFlowConcept::ExchangeRateEffect.element()];
+
+/// Applies the rules `core/roll-up/<group>@1` to the series of one entity, and returns the derived
+/// facts.
+///
+/// `fourth_quarters` holds the facts of `core/period/q4-from-fy@1` for the same series. The rule
+/// reads them as it reads `series.facts`.
+///
+/// A closed group with exactly one unknown member gives that member: the parent, the start of a
+/// step, or a child. The members satisfy parent = start + Σ(weight × child). A member is unknown if
+/// the series holds no value for it at the period. A child that is zero if absent counts as known
+/// with zero, except `ExchangeRateEffect`. Open groups derive nothing, and `gross-profit` never
+/// derives `GrossProfit`.
+///
+/// The group derives nothing for a period if a member is blocked by a dedup conflict, has values in
+/// two units, or has another unit than the other members.
+///
+/// The rule repeats until no group gives a new value, so a derived value can feed another group. In
+/// each pass, it visits the closed groups in the order of
+/// [`groups`]. The first group that gives a value wins.
+/// `docs/adr/0013-order-of-the-groups.md` records the order.
+///
+/// The fact takes the period, the unit, and the release of its first known member. The confidence
+/// is [`Confidence::Derived`], or the weakest confidence of an input. The fact has `restated` if an
+/// input has it.
+#[must_use]
+pub fn derive_from_closed_groups(
+    series: &Series,
+    fourth_quarters: &[StandardizedFact],
+) -> Vec<StandardizedFact> {
+    let closed: Vec<(&Group, Vec<Member>)> = groups()
+        .filter(|group| group.closed)
+        .map(|group| (group, members(*group)))
+        .collect();
+    let mut known = KnownValues::of(series, fourth_quarters);
+    let mut derived = Vec::new();
+    loop {
+        let before = derived.len();
+        for (group, members) in &closed {
+            for slot in known.slots() {
+                if let Some(fact) = known.derive(group.name, members, &slot) {
+                    known.insert(slot, fact.clone());
+                    derived.push(fact);
+                }
+            }
+        }
+        if derived.len() == before {
+            return derived;
+        }
+    }
+}
+
+/// Returns the ID of the rule that derives a member of `group`, such as
+/// `core/roll-up/liabilities@1`.
+fn roll_up_rule(group: GroupName) -> RuleId {
+    RuleId::from_str(&format!("core/roll-up/{group}@1"))
+        .expect("Given a kebab-case group name without whitespace, the rule ID should always parse")
+}
+
+/// One member of a group, with its sign in the sum that equals zero: parent − start − Σ(weight ×
+/// child) = 0.
+#[derive(Debug)]
+struct Member {
+    concept: CanonicalElementKind,
+    sign: Weight,
+    zero_if_absent: bool,
+}
+
+/// Returns the parent, the start of a step, and the children of `group`, in this order.
+fn members(group: Group) -> Vec<Member> {
+    let parent = Member {
+        concept: group.parent,
+        sign: Weight::Plus,
+        zero_if_absent: false,
+    };
+    let start = match group.kind {
+        GroupKind::Step { start } => Some(Member {
+            concept: start,
+            sign: Weight::Minus,
+            zero_if_absent: false,
+        }),
+        _ => None,
+    };
+    let children = placements().filter_map(|(concept, placement)| match placement {
+        Placement::Child {
+            group: name,
+            weight,
+            zero_if_absent,
+        } if name == group.name => Some(Member {
+            concept,
+            sign: opposite(weight),
+            zero_if_absent: zero_if_absent && !ZERO_IN_CHECK_ONLY.contains(&concept),
+        }),
+        _ => None,
+    });
+    std::iter::once(parent)
+        .chain(start)
+        .chain(children)
+        .collect()
+}
+
+const fn opposite(weight: Weight) -> Weight {
+    match weight {
+        Weight::Minus => Weight::Plus,
+        _ => Weight::Minus,
+    }
+}
+
+fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
+    match sign {
+        Weight::Minus => -value,
+        _ => value.clone(),
+    }
+}
+
+/// The period of a value, without its concept and unit. Each member of a group has one value per
+/// slot.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Slot {
+    entity: EntityId,
+    period_end: NaiveDate,
+    quarters: u16,
+    dimensions: Dimensions,
+}
+
+impl Slot {
+    fn of(key: SeriesKey) -> Self {
+        Self {
+            entity: key.entity,
+            period_end: key.period_end,
+            quarters: key.quarters,
+            dimensions: key.dimensions,
+        }
+    }
+}
+
+/// The values of each slot by concept, and the concepts that dedup blocks in each slot.
+#[derive(Debug)]
+struct KnownValues {
+    values: BTreeMap<Slot, BTreeMap<CanonicalElementKind, Vec<StandardizedFact>>>,
+    blocked: BTreeSet<(Slot, CanonicalElementKind)>,
+}
+
+impl KnownValues {
+    fn of(series: &Series, fourth_quarters: &[StandardizedFact]) -> Self {
+        let mut known = Self {
+            values: BTreeMap::new(),
+            blocked: series
+                .blocked
+                .iter()
+                .map(|key| (Slot::of(key.clone()), key.concept))
+                .collect(),
+        };
+        for fact in series.facts.iter().chain(fourth_quarters) {
+            known.insert(Slot::of(fact.series_key()), fact.clone());
+        }
+        known
+    }
+
+    fn slots(&self) -> Vec<Slot> {
+        self.values.keys().cloned().collect()
+    }
+
+    fn insert(&mut self, slot: Slot, fact: StandardizedFact) {
+        self.values
+            .entry(slot)
+            .or_default()
+            .entry(fact.concept)
+            .or_default()
+            .push(fact);
+    }
+
+    /// Returns the value that the group `name` with `members` gives for its one unknown member in
+    /// `slot`, or `None` if the group gives no value.
+    fn derive(&self, name: GroupName, members: &[Member], slot: &Slot) -> Option<StandardizedFact> {
+        let values = self.values.get(slot)?;
+        let mut unknown = None;
+        let mut inputs: Vec<(Weight, &StandardizedFact)> = Vec::new();
+        for member in members {
+            if self.blocked.contains(&(slot.clone(), member.concept)) {
+                return None;
+            }
+            match values.get(&member.concept).map(Vec::as_slice) {
+                Some([fact]) => inputs.push((member.sign, fact)),
+                None if member.zero_if_absent => {}
+                None if unknown.is_none() => unknown = Some(member),
+                _ => return None,
+            }
+        }
+        let unknown = unknown.filter(|member| !NEVER_DERIVED.contains(&member.concept))?;
+        let (_, first) = *inputs.first()?;
+        if inputs.iter().any(|(_, fact)| fact.unit != first.unit) {
+            return None;
+        }
+        let sum: BigDecimal = inputs
+            .iter()
+            .map(|(sign, fact)| signed(*sign, &fact.value))
+            .sum();
+        Some(StandardizedFact {
+            entity: first.entity.clone(),
+            concept: unknown.concept,
+            period: first.period,
+            unit: first.unit.clone(),
+            dimensions: first.dimensions.clone(),
+            value: signed(opposite(unknown.sign), &sum),
+            confidence: inputs
+                .iter()
+                .map(|(_, fact)| fact.confidence)
+                .fold(Confidence::Derived, Confidence::max),
+            rule: roll_up_rule(name),
+            release: first.release.clone(),
+            inputs: inputs
+                .iter()
+                .flat_map(|(_, fact)| fact.inputs.iter().cloned())
+                .collect(),
+            restated: inputs.iter().any(|(_, fact)| fact.restated),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::core::elements::BalanceSheetConcept;
+    use crate::core::period::{Duration, Period};
+    use crate::core::unit::Unit;
+    use crate::tests::fixtures::sample_fact::{date, standardized};
+
+    /// The concept, value, confidence, and rule of a derived fact.
+    type Summary = (CanonicalElementKind, BigDecimal, Confidence, String);
+
+    fn instant() -> Period {
+        Period::Instant {
+            end: date(2026, 9, 30),
+        }
+    }
+
+    fn quarter() -> Period {
+        Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1))
+    }
+
+    fn value(
+        concept: impl Into<CanonicalElementKind>,
+        period: Period,
+        amount: &str,
+    ) -> StandardizedFact {
+        let mut fact = standardized(period, amount);
+        fact.concept = concept.into();
+        fact
+    }
+
+    fn balance_sheet(concept: BalanceSheetConcept, amount: &str) -> StandardizedFact {
+        value(concept.element(), instant(), amount)
+    }
+
+    fn series(facts: Vec<StandardizedFact>) -> Series {
+        Series {
+            facts,
+            blocked: Vec::new(),
+        }
+    }
+
+    fn summary(facts: Vec<StandardizedFact>) -> Vec<Summary> {
+        facts
+            .into_iter()
+            .map(|fact| {
+                (
+                    fact.concept,
+                    fact.value,
+                    fact.confidence,
+                    fact.rule.to_string(),
+                )
+            })
+            .collect()
+    }
+
+    fn derived(concept: CanonicalElementKind, amount: i64, rule: &str) -> Summary {
+        (
+            concept,
+            BigDecimal::from(amount),
+            Confidence::Derived,
+            rule.to_string(),
+        )
+    }
+
+    #[test]
+    fn should_derive_liabilities_when_temporary_equity_is_absent() {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216"),
+            balance_sheet(BalanceSheetConcept::Equity, "-252"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+        ]);
+
+        let expected_result = vec![derived(
+            BalanceSheetConcept::Liabilities.element(),
+            7468,
+            "core/roll-up/liabilities-and-equity@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_non_current_liabilities_from_derived_liabilities_when_the_chain_needs_two_passes()
+     {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "100"),
+            balance_sheet(BalanceSheetConcept::Equity, "40"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "40"),
+            balance_sheet(BalanceSheetConcept::CurrentLiabilities, "25"),
+        ]);
+
+        let expected_result = vec![
+            derived(
+                BalanceSheetConcept::Liabilities.element(),
+                60,
+                "core/roll-up/liabilities-and-equity@1",
+            ),
+            derived(
+                BalanceSheetConcept::NonCurrentLiabilities.element(),
+                35,
+                "core/roll-up/liabilities@1",
+            ),
+        ];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_liabilities_from_the_first_group_when_two_closed_groups_can_derive_it() {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "100"),
+            balance_sheet(BalanceSheetConcept::Equity, "40"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "40"),
+            balance_sheet(BalanceSheetConcept::CurrentLiabilities, "10"),
+            balance_sheet(BalanceSheetConcept::NonCurrentLiabilities, "20"),
+        ]);
+
+        let expected_result = vec![derived(
+            BalanceSheetConcept::Liabilities.element(),
+            60,
+            "core/roll-up/liabilities-and-equity@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_net_income_when_the_noncontrolling_interest_is_absent() {
+        let facts = series(vec![value(
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            quarter(),
+            "230",
+        )]);
+
+        let expected_result = vec![derived(
+            IncomeStatementConcept::NetIncome.element(),
+            230,
+            "core/roll-up/net-income-attribution@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_exchange_rate_effect_is_absent() {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                quarter(),
+                "-114",
+            ),
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_the_net_change_in_cash_when_the_exchange_rate_effect_is_known() {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                quarter(),
+                "-114",
+            ),
+            value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                quarter(),
+                "-1",
+            ),
+        ]);
+
+        let expected_result = vec![derived(
+            CashFlowConcept::NetChangeInCash.element(),
+            137,
+            "core/roll-up/net-change-in-cash@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_gross_profit_is_the_unknown_member() {
+        let facts = series(vec![
+            value(IncomeStatementConcept::Revenue.element(), quarter(), "1000"),
+            value(
+                IncomeStatementConcept::CostOfRevenue.element(),
+                quarter(),
+                "600",
+            ),
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_the_cost_of_revenue_when_revenue_and_gross_profit_are_known() {
+        let facts = series(vec![
+            value(IncomeStatementConcept::Revenue.element(), quarter(), "1000"),
+            value(
+                IncomeStatementConcept::GrossProfit.element(),
+                quarter(),
+                "400",
+            ),
+        ]);
+
+        let expected_result = vec![derived(
+            IncomeStatementConcept::CostOfRevenue.element(),
+            600,
+            "core/roll-up/gross-profit@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_revenue_when_gross_profit_and_the_cost_of_revenue_are_known() {
+        let facts = series(vec![
+            value(
+                IncomeStatementConcept::GrossProfit.element(),
+                quarter(),
+                "400",
+            ),
+            value(
+                IncomeStatementConcept::CostOfRevenue.element(),
+                quarter(),
+                "600",
+            ),
+        ]);
+
+        let expected_result = vec![derived(
+            IncomeStatementConcept::Revenue.element(),
+            1000,
+            "core/roll-up/gross-profit@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_group_is_open() {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::CashAndEquivalents, "388"),
+            balance_sheet(BalanceSheetConcept::ShortTermInvestments, "0"),
+            balance_sheet(BalanceSheetConcept::AccountsReceivable, "1262"),
+            balance_sheet(BalanceSheetConcept::Inventory, "0"),
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_two_members_have_different_units() {
+        let mut equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        equity.unit = Unit::from_str("EUR")
+            .expect("Given a hardcoded unit with one measure, the parse should always succeed");
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+            equity,
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_dedup_blocks_the_zero_if_absent_child() {
+        let liabilities_and_equity =
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216");
+        let mut temporary_equity = liabilities_and_equity.series_key();
+        temporary_equity.concept = BalanceSheetConcept::TemporaryEquity.element();
+        let facts = Series {
+            facts: vec![
+                liabilities_and_equity,
+                balance_sheet(BalanceSheetConcept::Equity, "-252"),
+                balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+            ],
+            blocked: vec![temporary_equity],
+        };
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_every_member_is_known() {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::Assets, "7216"),
+            balance_sheet(BalanceSheetConcept::CurrentAssets, "1846"),
+            balance_sheet(BalanceSheetConcept::NonCurrentAssets, "5000"),
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_weakest_confidence_when_an_input_is_computed() {
+        let mut equity = balance_sheet(BalanceSheetConcept::Equity, "-252");
+        equity.confidence = Confidence::Computed;
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+            equity,
+        ]);
+
+        let expected_result = vec![Confidence::Computed];
+
+        let result: Vec<Confidence> = derive_from_closed_groups(&facts, &[])
+            .into_iter()
+            .map(|fact| fact.confidence)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_from_a_fourth_quarter_when_the_period_identity_gave_it() {
+        let facts = series(Vec::new());
+        let fourth_quarters = vec![value(
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            quarter(),
+            "230",
+        )];
+
+        let expected_result = vec![derived(
+            IncomeStatementConcept::NetIncome.element(),
+            230,
+            "core/roll-up/net-income-attribution@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &fourth_quarters));
+
+        assert_eq!(result, expected_result);
+    }
+}

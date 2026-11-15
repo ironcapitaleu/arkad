@@ -64,7 +64,12 @@ A Tier 3 value comes from an identity the core knows, not from the calculation t
 1. An accounting identity, for example `Assets = Liabilities + Equity`
 2. A period identity, for example `core/period/q4-from-fy@1`: Q4 = FY − 9-month year to date.
    It applies only to duration concepts in one currency, with no per-share unit
-3. Store with `confidence: Derived`, or the weaker level of an input
+3. A closed group of the roll-up tree, `core/roll-up/<group>@1` in `core/closed_group.rs`. It runs
+   after the period identity. A closed group with exactly one unknown member gives that member. A
+   child that is zero if absent counts as zero, except `ExchangeRateEffect`. `gross-profit` never
+   derives `GrossProfit`. The rule repeats until no group gives a value, and the first group in
+   `statement::groups()` order wins
+4. Store with `confidence: Derived`, or the weakest level of an input
 
 ## Computation Rules (Tier 4)
 
@@ -75,8 +80,9 @@ When a company does not report a parent concept, sum its children along the calc
 3. Compute: `parent = Σ(child_i × weight_i)`, where the weight is +1 or −1
 4. Store with `confidence: Computed`
 
-Example: Amazon does not report `Liabilities` but reports `LiabilitiesCurrent` and
-`LiabilitiesNoncurrent`. Compute: `Liabilities = LiabilitiesCurrent(+1) + LiabilitiesNoncurrent(+1)`
+Tier 4 fills only a concept that Tier 3 leaves without a value. For example, `core/roll-up/liabilities@1`
+derives `Liabilities` from `CurrentLiabilities` and `NonCurrentLiabilities`, so Tier 4 does not
+compute it.
 
 ## Dedup and Gap Check
 
