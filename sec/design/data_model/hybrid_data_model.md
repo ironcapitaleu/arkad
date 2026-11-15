@@ -20,7 +20,7 @@ requirements drive the design:
    `us-gaap` tags, and form types are first-class *within their adapter*, joinable to the
    universal model but never leaking into it.
 3. **Accounting correctness** — normalization obeys the element definitions of FASB Concepts
-   Statement 8, Chapter 4, and the five accounting identities; every
+   Statement 8, Chapter 4, and the four accounting identities; every
    normalized fact is traceable back to the raw filing tag it came from.
 
 ### 1.1 The current codebase is an immature seed, not the target
@@ -161,13 +161,12 @@ layer; US-GAAP and IFRS are two **dialects** that resolve into it.
 
 ### 3.2 Universal validation (accounting identities)
 
-The core enforces the five identities as data-quality checks (`xbrl::Invariant`):
+The core enforces four identities as data-quality checks (`xbrl::Invariant`):
 
 1. Assets = Liabilities + Equity
-2. Net Income = Revenue − Expenses + Gains − Losses
-3. Comprehensive Income = Net Income + OCI
-4. ΔEquity = Comprehensive Income + Investments − Distributions
-5. Operating CF + Investing CF + Financing CF ≈ ΔCash
+2. Comprehensive Income = Net Income + OCI
+3. ΔEquity = Comprehensive Income + Investments − Distributions
+4. Operating CF + Investing CF + Financing CF ≈ ΔCash
 
 Identity #1 failing is always a system bug, never valid company data. Balance-sheet
 elements are **Instant**; flow elements are **Duration** — this classification is intrinsic
@@ -501,10 +500,11 @@ Data quality is enforced on **two independent axes**, mapping onto the two core 
    *absences in a traversal*: missing filings/periods/concepts (§5.4). Store mechanics:
    Postgres → recursive CTE / anti-join; graph DB → a Cypher/traversal pattern that fails to
    match; lakehouse → not its job (completeness stays in the graph tier).
-2. **Value-level invariants — canonical fact tier.** The five accounting identities
+2. **Value-level invariants — canonical fact tier.** The four accounting identities
    (`xbrl::Invariant`), rollup consistency (`parent ≈ Σ childᵢ·weightᵢ` within a threshold),
    and confidence/traceability. Failure kinds mirror `ValidationErrorKind`:
-   `IncompleteData`, `InconsistentIdentity`, `ImpreciseRollup`. Identity #1
+   `IncompleteData` and `InconsistentIdentity`. A failed roll-up check is a finding, not an
+   error. Identity #1
    (Assets = Liabilities + Equity) failing is always a system bug, never valid data.
 
 Where checks run: (a) **at load** — post-materialization validation before facts are marked

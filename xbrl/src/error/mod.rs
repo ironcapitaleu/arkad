@@ -27,7 +27,7 @@ pub mod parsing;
 pub mod validation;
 
 /// Top-level error kind for the xbrl crate.
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Error)]
 pub enum ErrorKind {
     /// An XBRL domain error occurred.
     ///
@@ -41,7 +41,7 @@ pub enum ErrorKind {
 }
 
 /// XBRL-specific error kind distinguishing parsing from validation failures.
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Error)]
 pub enum XbrlErrorKind {
     /// Parsing of SEC JSON data failed.
     ///
@@ -114,11 +114,24 @@ impl TryFrom<ErrorKind> for XbrlErrorKind {
 #[cfg(test)]
 mod tests {
     use std::error::Error;
+    use std::hash::Hash;
 
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::error::validation::Invariant;
+
+    const fn is_value_type<T: Clone + Eq + Ord + Hash>() {}
+
+    #[test]
+    const fn should_be_a_value_type_for_error_kind() {
+        is_value_type::<ErrorKind>();
+    }
+
+    #[test]
+    const fn should_be_a_value_type_for_xbrl_error_kind() {
+        is_value_type::<XbrlErrorKind>();
+    }
 
     #[test]
     fn should_print_only_the_leaf_when_a_validation_error_reaches_error_kind() {

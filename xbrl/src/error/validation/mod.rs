@@ -8,12 +8,11 @@ use thiserror::Error;
 
 use crate::core::elements::CanonicalElementKind;
 
-pub mod imprecise_rollup;
 pub mod incomplete_data;
 pub mod inconsistent_identity;
 
 /// Specific validation failure variants.
-#[derive(Debug, PartialEq, Error)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Error)]
 pub enum ValidationErrorKind {
     /// Required standard concepts are missing from the resolved data.
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
@@ -34,27 +33,10 @@ pub enum ValidationErrorKind {
         /// The right-hand side value of the identity.
         right_value: i64,
     },
-
-    /// A roll-up parent does not match the sum of its children within tolerance.
-    #[error(
-        "[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'"
-    )]
-    ImpreciseRollup {
-        /// The parent standard concept whose total is mismatched.
-        parent: CanonicalElementKind,
-        /// The value reported by the company for the parent.
-        parent_value: i64,
-        /// The sum computed from the children.
-        children_sum: i64,
-        /// The actual percentage deviation.
-        deviation_pct: f64,
-        /// The allowed tolerance threshold.
-        threshold_pct: f64,
-    },
 }
 
 /// A list of missing standard concepts with a stable `Display` implementation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct MissingElements(pub Vec<CanonicalElementKind>);
 
 impl fmt::Display for MissingElements {
@@ -73,12 +55,10 @@ impl fmt::Display for MissingElements {
 ///
 /// Exact invariants must hold with zero tolerance.
 /// Non-exact invariants are checked within a configurable threshold.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Invariant {
     /// Assets = Liabilities + Equity.
     BalanceSheetIdentity,
-    /// Net Income = Revenue - Expenses + Gains - Losses.
-    NetIncomeIdentity,
     /// Comprehensive Income = Net Income + OCI.
     ComprehensiveIncomeIdentity,
     /// Delta Equity = Comprehensive Income + Investments - Distributions.
@@ -94,7 +74,6 @@ impl Invariant {
         matches!(
             self,
             Self::BalanceSheetIdentity
-                | Self::NetIncomeIdentity
                 | Self::ComprehensiveIncomeIdentity
                 | Self::EquityChangeIdentity
         )
@@ -105,11 +84,34 @@ impl fmt::Display for Invariant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let name = match self {
             Self::BalanceSheetIdentity => "BalanceSheetIdentity",
-            Self::NetIncomeIdentity => "NetIncomeIdentity",
             Self::ComprehensiveIncomeIdentity => "ComprehensiveIncomeIdentity",
             Self::EquityChangeIdentity => "EquityChangeIdentity",
             Self::CashFlowReconciliation => "CashFlowReconciliation",
         };
         write!(f, "{name}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::hash::Hash;
+
+    use super::*;
+
+    const fn is_value_type<T: Clone + Eq + Ord + Hash>() {}
+
+    #[test]
+    const fn should_be_a_value_type_for_validation_error_kind() {
+        is_value_type::<ValidationErrorKind>();
+    }
+
+    #[test]
+    const fn should_be_a_value_type_for_missing_elements() {
+        is_value_type::<MissingElements>();
+    }
+
+    #[test]
+    const fn should_be_a_value_type_for_invariant() {
+        is_value_type::<Invariant>();
     }
 }

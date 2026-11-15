@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)) |
+| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)). Amendment 1: Proposed. The project lead confirms |
 | Date | 2025-06-04 |
 | Deciders | The project lead |
 | Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-07-20 (#114) |
@@ -78,6 +78,60 @@ and `Hash`, as ADR 0006 defines it.
 `AGENTS.md`, "Error Naming Conventions" and "Error Display Format", holds the detailed rules and
 examples for decisions 4 to 6.
 
+## Amendment 1: The `xbrl` Errors Are Value Types
+
+| Field | Value |
+| ----- | ----- |
+| Date | 2026-11-15 |
+| Ticket | [STA-522](https://linear.app/state-machine/issue/STA-522) |
+
+### Context
+
+"Consequences" names a gap: the `xbrl` errors derive only `Debug`, `PartialEq`, and `Error`, so
+they break decision 3. On `main` at `0a36138`, one variant blocks the fix.
+`ValidationErrorKind::ImpreciseRollup` holds `deviation_pct` and `threshold_pct` as `f64`, and an
+`f64` has no `Eq`, `Ord`, or `Hash`. It also holds `parent_value` and `children_sum` as `i64`, but
+a standardized fact holds its value as a `BigDecimal`.
+
+On the same commit, no code outside `xbrl/src/error/` builds `ImpreciseRollup`. The series step
+reports a failed check of the roll-up tree as a finding, not as an error (`xbrl/DESIGN.md`,
+"Checks the Tree Gives"). The findings `RollUpMismatch` and `NegativeOther` hold the group, the
+concepts, and the confidence of the check.
+
+On 2026-11-15, the project lead left the choice to STA-522: "That slice decides whether
+ImpreciseRollup stays at all, so a fix now may be thrown away."
+
+### Decision
+
+1. **Every error in `xbrl/src/error/` is a value type.** `ErrorKind`, `XbrlErrorKind`,
+   `ParseErrorKind`, `ValidationErrorKind`, `MissingElements`, and `Invariant` derive `Clone`,
+   `PartialEq`, `Eq`, `PartialOrd`, `Ord`, and `Hash`. This closes the `xbrl` gap of
+   "Consequences".
+2. **`ImpreciseRollup` goes.** A failed roll-up check is a finding of the series step. A caller
+   that validates one statement reports a broken identity with `InconsistentIdentity`.
+3. **`Invariant` has no `NetIncomeIdentity`.** No standard concept holds expenses, gains, or
+   losses (`xbrl/DESIGN.md`, "Decided Points", point 1, decided by the owner on 2026-11-14). The
+   cascade of the income statement checks net income instead.
+
+### Options Considered
+
+| Option | Value types | Callers that change on `main` at `0a36138` | Duplicates a finding |
+| ------ | ----------- | ------------------------------------------ | -------------------- |
+| **A (chosen): remove `ImpreciseRollup`** | yes | 0 | no |
+| B: keep it, with `BigDecimal` values and no percentages | yes | 0 | yes: `RollUpMismatch` holds the same check |
+
+- A keeps one report for one failed check.
+- B keeps an error that no code builds, and a second shape for the result of a check.
+
+### Consequences
+
+- A test compares a whole `xbrl` error with one `assert_eq!`, and a set or map can hold it.
+- A caller that needs the deviation of a roll-up reads the `RollUpMismatch` finding and the
+  values of its concepts.
+- `InconsistentIdentity` still holds its values as `i64`. This amendment does not cover them.
+- If a publish gate needs a hard error for a failed roll-up, it adds a new variant. A reopen of
+  this amendment is the event.
+
 ## Options Considered
 
 No record names the options that were weighed for decisions 1 to 6. The repository mentions
@@ -125,3 +179,5 @@ written one, and it covers `storage` only.
 - The reason for decision 4, stated by the project lead on 2026-11-15 and quoted in the
   description of ironcapitaleu/arkad#561.
 - ADR 0006, "Context" and "Options Considered". ADR 0011, "Context" and "Decision".
+- Amendment 1: `xbrl/src/error/validation/mod.rs` and `rg ImpreciseRollup`, on `main` at
+  `0a36138` (2026-11-15). STA-522, its description, with the quote of the project lead.
