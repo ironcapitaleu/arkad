@@ -7,7 +7,6 @@
 //! - [`invalid_mic`]: The [`InvalidMic`] for a string that is not a MIC.
 
 use std::fmt::{self, Display, Formatter};
-use std::str::FromStr;
 
 pub mod invalid_mic;
 
@@ -16,12 +15,43 @@ pub use invalid_mic::InvalidMic;
 /// The Market Identifier Code of ISO 10383, such as `XNAS`: four upper-case ASCII letters or
 /// digits.
 ///
-/// A listing names its exchange by its MIC. [`str::parse`] checks the form only. It does not
+/// A listing names its exchange by its MIC. [`Mic::new`] checks the form only. It does not
 /// check that the ISO 10383 list holds the code.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Mic(String);
 
 impl Mic {
+    /// Creates a [`Mic`] from four upper-case ASCII letters or digits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`InvalidMic`] if the value has another length, or holds a character that is
+    /// not `A`–`Z` or `0`–`9`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use storage::{InvalidMic, Mic};
+    ///
+    /// let value = "xnas";
+    ///
+    /// let expected_result = Err(InvalidMic::new("xnas"));
+    ///
+    /// let result = Mic::new(value);
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
+    pub fn new(value: impl Into<String>) -> Result<Self, InvalidMic> {
+        let value = value.into();
+        let is_upper_alphanumeric = value
+            .bytes()
+            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit());
+        if value.len() != 4 || !is_upper_alphanumeric {
+            return Err(InvalidMic { value });
+        }
+        Ok(Self(value))
+    }
+
     /// Returns the MIC as four characters.
     ///
     /// # Examples
@@ -29,13 +59,12 @@ impl Mic {
     /// ```rust
     /// use storage::Mic;
     ///
-    /// let mic_string = "XNAS";
+    /// let value = "XNAS";
     ///
     /// let expected_result = "XNAS";
     ///
-    /// let mic: Mic = mic_string
-    ///     .parse()
-    ///     .expect("Given four upper-case letters, parsing should always succeed");
+    /// let mic = Mic::new(value)
+    ///     .expect("Given four upper-case letters, the creation of a MIC should always succeed");
     /// let result = mic.as_str();
     ///
     /// assert_eq!(result, expected_result);
@@ -49,40 +78,6 @@ impl Mic {
 impl Display for Mic {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
-    }
-}
-
-impl FromStr for Mic {
-    type Err = InvalidMic;
-
-    /// Parses four upper-case ASCII letters or digits into a [`Mic`].
-    ///
-    /// # Errors
-    ///
-    /// Returns an [`InvalidMic`] if the string has another length, or holds a character that is
-    /// not `A`–`Z` or `0`–`9`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use storage::{InvalidMic, Mic};
-    ///
-    /// let mic_string = "xnas";
-    ///
-    /// let expected_result = Err(InvalidMic::new("xnas"));
-    ///
-    /// let result = mic_string.parse::<Mic>();
-    ///
-    /// assert_eq!(result, expected_result);
-    /// ```
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let is_upper_alphanumeric = value
-            .bytes()
-            .all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit());
-        if value.len() != 4 || !is_upper_alphanumeric {
-            return Err(InvalidMic::new(value));
-        }
-        Ok(Self(value.to_owned()))
     }
 }
 
@@ -111,23 +106,23 @@ mod tests {
     }
 
     #[test]
-    fn should_parse_the_mic_when_the_string_is_four_upper_case_letters() {
+    fn should_create_the_mic_when_the_string_is_four_upper_case_letters() {
         let mic_string = "XNAS";
 
         let expected_result = Ok("XNAS".to_owned());
 
-        let result = mic_string.parse::<Mic>().map(|mic| mic.to_string());
+        let result = Mic::new(mic_string).map(|mic| mic.to_string());
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_parse_the_mic_when_the_string_holds_a_digit() {
+    fn should_create_the_mic_when_the_string_holds_a_digit() {
         let mic_string = "C2OX";
 
         let expected_result = Ok("C2OX".to_owned());
 
-        let result = mic_string.parse::<Mic>().map(|mic| mic.to_string());
+        let result = Mic::new(mic_string).map(|mic| mic.to_string());
 
         assert_eq!(result, expected_result);
     }
@@ -138,7 +133,7 @@ mod tests {
 
         let expected_result = Err(InvalidMic::new("XNAs"));
 
-        let result = mic_string.parse::<Mic>();
+        let result = Mic::new(mic_string);
 
         assert_eq!(result, expected_result);
     }
@@ -149,7 +144,7 @@ mod tests {
 
         let expected_result = Err(InvalidMic::new("XNA"));
 
-        let result = mic_string.parse::<Mic>();
+        let result = Mic::new(mic_string);
 
         assert_eq!(result, expected_result);
     }
@@ -160,7 +155,7 @@ mod tests {
 
         let expected_result = Err(InvalidMic::new("XNASD"));
 
-        let result = mic_string.parse::<Mic>();
+        let result = Mic::new(mic_string);
 
         assert_eq!(result, expected_result);
     }
@@ -171,7 +166,7 @@ mod tests {
 
         let expected_result = Err(InvalidMic::new(""));
 
-        let result = mic_string.parse::<Mic>();
+        let result = Mic::new(mic_string);
 
         assert_eq!(result, expected_result);
     }
@@ -182,7 +177,7 @@ mod tests {
 
         let expected_result = Err(InvalidMic::new("XN-S"));
 
-        let result = mic_string.parse::<Mic>();
+        let result = Mic::new(mic_string);
 
         assert_eq!(result, expected_result);
     }
@@ -193,7 +188,7 @@ mod tests {
 
         let expected_result = Err(InvalidMic::new("XNÄ"));
 
-        let result = mic_string.parse::<Mic>();
+        let result = Mic::new(mic_string);
 
         assert_eq!(result, expected_result);
     }

@@ -66,8 +66,8 @@ static MIC_BY_EDGAR_EXCHANGE_CODE: LazyLock<HashMap<&'static str, &'static str>>
 /// ```
 #[must_use]
 pub fn mic_of(code: &str) -> Option<Mic> {
-    // Every MIC of the map parses. The test of every code of the enumeration checks it.
-    MIC_BY_EDGAR_EXCHANGE_CODE.get(code)?.parse().ok()
+    // Every MIC of the map is valid. The test of every code of the enumeration checks it.
+    Mic::new(*MIC_BY_EDGAR_EXCHANGE_CODE.get(code)?).ok()
 }
 
 #[cfg(test)]
