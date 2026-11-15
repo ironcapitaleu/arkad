@@ -2156,25 +2156,41 @@ pub struct Statement {
     lines: Vec<StatementLine>,
 }
 
+pub enum Line {
+    Standard(CanonicalElementKind),
+    Other { group: GroupName },
+}
+
 pub struct StatementLine {
-    pub line: Line, // Line::Standard(CanonicalElementKind) or Line::Other { group }
-    pub depth: u8,
-    pub value: Option<BigDecimal>,
+    line: Line,
+    depth: u8,
+    value: Option<BigDecimal>,
+    fact: Option<StandardizedFact>, // the fact of a standard line with a value
 }
 ```
 
 - `Statement::build(kind, facts)` takes the current standardized facts of one entity and one
   period. It orders the lines by the table, computes the other lines, and skips a parent with no
   value as "Roll-Up Tree" describes.
-- A line of `Line::Standard` points to its standardized fact, so a reader can see its confidence,
-  rule, and inputs.
+- A breakdown shows its parent first, then its children one level deeper. A step shows its items
+  one level deeper, then its parent. A step whose start belongs to another statement shows the
+  start first, at the depth of the parent.
+- If the start of a step has no value, the step uses the members of the step that makes the start.
+  So `ComprehensiveIncome` with no `NetIncome` starts from `PretaxIncome` less `IncomeTaxExpense`.
+  [ADR 0020](../docs/adr/0020-missing-start-uses-the-step.md) records why the step wins over the
+  split of `NetIncome`.
+- A line of `Line::Standard` with a value holds its standardized fact, so a reader can see its
+  confidence, rule, and inputs.
+- `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
+  period, unit, or dimensions.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
   takes the concepts of its statement, and the start of a step from another statement, such as
   `NetIncome` in the cash flow statement. It rejects every other fact.
 - The layout, the other lines, and the checks all come from the table. A new concept adds a row to
   the table and a variant to the concept enum of its statement.
 - The fields are private, so a `Statement` cannot change its kind after a check. Getters give
-  `kind()`, `entity()`, `period_end()`, `quarters()`, and `lines()`.
+  `kind()`, `entity()`, `period_end()`, `quarters()`, and `lines()`. `StatementLine` has a getter
+  for each field.
 
 ### Typed Views
 
