@@ -1,11 +1,18 @@
 //! # Financial Statements
 //!
 //! Provides [`Statement`], one financial statement of one entity and one period, built from
-//! standardized facts.
+//! standardized facts, and a typed view of each kind of statement.
 //!
 //! A statement lays out the lines of its roll-up tree and computes the other line of each open
 //! group at read time. Silver stores no statement and no other line, so a statement always matches
-//! the stored facts and the tree.
+//! the stored facts and the tree. A view takes only the concepts of its statement, so the compiler
+//! rejects a concept of another statement.
+//!
+//! ## Modules
+//!
+//! - [`balance_sheet`]: The view [`BalanceSheet`].
+//! - [`income_statement`]: The view [`IncomeStatement`].
+//! - [`cash_flow`]: The view [`CashFlowStatement`], with the starts from another statement.
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -14,7 +21,7 @@ use bigdecimal::{BigDecimal, Zero};
 use chrono::NaiveDate;
 use thiserror::Error;
 
-use super::elements::statement::{balance_sheet, cash_flow, income_statement};
+use super::elements::statement as trees;
 use super::elements::{
     BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, Group, GroupKind, GroupName,
     IncomeStatementConcept, Placed, Placement, Weight,
@@ -22,6 +29,121 @@ use super::elements::{
 use super::filing::EntityId;
 use super::period::Period;
 use super::standardized::StandardizedFact;
+
+/// Defines a typed view of one kind of [`Statement`], with its conversions.
+///
+/// The macro writes the view, `line()` for the concept enum of its statement, `as_statement()`,
+/// `TryFrom<Statement>`, `From` into [`FinancialStatement`], and `TryFrom<FinancialStatement>`.
+macro_rules! statement_view {
+    (
+        $(#[$meta:meta])*
+        pub struct $view:ident for $kind:ident($concept:ty);
+    ) => {
+        $(#[$meta])*
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        pub struct $view(pub(super) Statement);
+
+        impl $view {
+            /// Returns the line of `concept`, or `None` if the statement has no line for it.
+            ///
+            /// A parent with no value is transparent and has no line. A child with no value has a
+            /// line with no value.
+            #[must_use]
+            pub fn line(&self, concept: $concept) -> Option<&StatementLine> {
+                self.0.standard_line(concept.element())
+            }
+
+            /// Returns the generic statement, with its period and its other lines.
+            #[must_use]
+            pub const fn as_statement(&self) -> &Statement {
+                &self.0
+            }
+        }
+
+        impl TryFrom<Statement> for $view {
+            type Error = Statement;
+
+            /// Wraps a [`Statement`] of its kind in the view.
+            ///
+            /// # Errors
+            ///
+            /// Returns the statement as it is if it has another kind.
+            fn try_from(statement: Statement) -> Result<Self, Self::Error> {
+                if statement.kind() == StatementKind::$kind {
+                    Ok(Self(statement))
+                } else {
+                    Err(statement)
+                }
+            }
+        }
+
+        impl From<$view> for FinancialStatement {
+            /// Wraps the view in its variant of [`FinancialStatement`].
+            fn from(view: $view) -> Self {
+                Self::$kind(view)
+            }
+        }
+
+        impl TryFrom<FinancialStatement> for $view {
+            type Error = FinancialStatement;
+
+            /// Takes the view out of its variant of [`FinancialStatement`].
+            ///
+            /// # Errors
+            ///
+            /// Returns the financial statement as it is if it holds another kind.
+            fn try_from(statement: FinancialStatement) -> Result<Self, Self::Error> {
+                match statement {
+                    FinancialStatement::$kind(view) => Ok(view),
+                    other => Err(other),
+                }
+            }
+        }
+    };
+}
+
+pub mod balance_sheet;
+pub mod cash_flow;
+pub mod income_statement;
+
+pub use balance_sheet::BalanceSheet;
+pub use cash_flow::CashFlowStatement;
+pub use income_statement::IncomeStatement;
+
+/// A financial statement of any kind, as its typed view.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FinancialStatement {
+    /// A balance sheet.
+    BalanceSheet(BalanceSheet),
+    /// An income statement.
+    IncomeStatement(IncomeStatement),
+    /// A cash flow statement.
+    CashFlow(CashFlowStatement),
+}
+
+impl FinancialStatement {
+    /// Returns the generic statement inside the view.
+    #[must_use]
+    pub const fn as_statement(&self) -> &Statement {
+        match self {
+            Self::BalanceSheet(view) => view.as_statement(),
+            Self::IncomeStatement(view) => view.as_statement(),
+            Self::CashFlow(view) => view.as_statement(),
+        }
+    }
+}
+
+impl From<Statement> for FinancialStatement {
+    /// Wraps a [`Statement`] in the view and the variant of its kind.
+    fn from(statement: Statement) -> Self {
+        match statement.kind() {
+            StatementKind::BalanceSheet => Self::BalanceSheet(BalanceSheet(statement)),
+            StatementKind::IncomeStatement => Self::IncomeStatement(IncomeStatement(statement)),
+            StatementKind::CashFlow => Self::CashFlow(CashFlowStatement(statement)),
+        }
+    }
+}
 
 /// The kind of a financial statement.
 ///
@@ -233,6 +355,13 @@ impl Statement {
     pub fn lines(&self) -> &[StatementLine] {
         &self.lines
     }
+
+    /// Returns the line of the standard concept `concept`, or `None` if the statement has none.
+    fn standard_line(&self, concept: CanonicalElementKind) -> Option<&StatementLine> {
+        self.lines
+            .iter()
+            .find(|line| line.line == Line::Standard(concept))
+    }
 }
 
 /// Error representing a set of standardized facts that builds no [`Statement`].
@@ -303,13 +432,16 @@ impl Tree {
         let (placements, groups) = match kind {
             StatementKind::BalanceSheet => (
                 placements(BalanceSheetConcept::element),
-                balance_sheet::GROUPS,
+                trees::balance_sheet::GROUPS,
             ),
             StatementKind::IncomeStatement => (
                 placements(IncomeStatementConcept::element),
-                income_statement::GROUPS,
+                trees::income_statement::GROUPS,
             ),
-            StatementKind::CashFlow => (placements(CashFlowConcept::element), cash_flow::GROUPS),
+            StatementKind::CashFlow => (
+                placements(CashFlowConcept::element),
+                trees::cash_flow::GROUPS,
+            ),
         };
         Self {
             kind,
@@ -545,7 +677,7 @@ mod tests {
         implements_auto_traits::<InvalidStatementFacts>();
     }
 
-    fn number(text: &str) -> BigDecimal {
+    pub(super) fn number(text: &str) -> BigDecimal {
         BigDecimal::from_str(text)
             .expect("Given a hardcoded decimal text, the parse should always succeed")
     }
@@ -563,7 +695,7 @@ mod tests {
     }
 
     /// Returns the standardized fact `concept` = `value` of Apple in USD for [`period_of`].
-    fn fact(concept: impl Into<StatementConcept>, value: &str) -> StandardizedFact {
+    pub(super) fn fact(concept: impl Into<StatementConcept>, value: &str) -> StandardizedFact {
         let concept = CanonicalElementKind::from(concept.into());
         let mut fact = standardized(period_of(concept), value);
         fact.concept = concept;

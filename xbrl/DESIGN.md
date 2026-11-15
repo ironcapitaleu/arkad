@@ -2229,6 +2229,8 @@ impl TryFrom<Statement> for BalanceSheet {
   is transparent. A child with no value has a line with `value: None`.
 - `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
   lines.
+- `From<Statement> for FinancialStatement` wraps a statement in the view of its kind, and
+  `FinancialStatement::as_statement` gives the generic `Statement` of any view.
 - `TryFrom<Statement>` checks the kind. A function that takes a `&BalanceSheet` cannot receive an
   income statement, so the compiler catches a wrong statement and a wrong period type.
 - `FinancialStatement` holds any of the three. It has `#[non_exhaustive]`, so a later statement,
