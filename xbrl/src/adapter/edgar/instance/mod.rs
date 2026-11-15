@@ -5,8 +5,7 @@
 //! The transform reads the filing, picks its main instance document, and skips the filing-fee
 //! exhibit. It hands this parser the text of the document, the filing ID, and the filed date of the
 //! daily index as [`InstanceFiling`]. The parser reads no file. Its rules give a fact the same value
-//! key that the Notes parser gives the row of the fact, see `xbrl/DESIGN.md`, "Decisions for the
-//! Transform Design".
+//! key that the Notes parser gives the row of the fact.
 //!
 //! ## Modules
 //!

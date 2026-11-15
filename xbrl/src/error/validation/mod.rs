@@ -15,10 +15,10 @@ pub mod inconsistent_identity;
 /// Specific validation failure variants.
 #[derive(Debug, PartialEq, Error)]
 pub enum ValidationErrorKind {
-    /// Required canonical elements are missing from the resolved data.
+    /// Required standard concepts are missing from the resolved data.
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
     IncompleteData {
-        /// The elements that could not be resolved.
+        /// The standard concepts that could not be resolved.
         missing_elements: MissingElements,
     },
 
@@ -40,7 +40,7 @@ pub enum ValidationErrorKind {
         "[ImpreciseRollup] Roll-up mismatch for '{parent}', reported={parent_value}, computed={children_sum}, Reason: 'Deviation of {deviation_pct:.4}% exceeds threshold of {threshold_pct:.4}%'"
     )]
     ImpreciseRollup {
-        /// The parent element whose total is mismatched.
+        /// The parent standard concept whose total is mismatched.
         parent: CanonicalElementKind,
         /// The value reported by the company for the parent.
         parent_value: i64,
@@ -53,7 +53,7 @@ pub enum ValidationErrorKind {
     },
 }
 
-/// A list of missing canonical elements with a stable `Display` implementation.
+/// A list of missing standard concepts with a stable `Display` implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MissingElements(pub Vec<CanonicalElementKind>);
 

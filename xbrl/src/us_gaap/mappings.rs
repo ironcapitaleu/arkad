@@ -1,12 +1,12 @@
 //! # US-GAAP Concept Mappings
 //!
-//! Canonical name constants and concept definition arrays mapping
-//! XBRL taxonomy concept names to canonical financial elements.
+//! Rule IDs, alias lists, and part lists that map US GAAP concept names to standard concepts.
 //!
-//! Which concepts a list can hold: `xbrl/DESIGN.md`, "`us_gaap`".
+//! An alias list holds only concepts that equal the whole standard concept, such as the names of
+//! one total across releases. It holds no wider concept and no part of the total.
 //!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
-//! canonical element, as `xbrl/DESIGN.md`, "`us_gaap`", describes.
+//! standard concept, at version 1, for example `us-gaap/alias/operating-cash-flow@1`.
 //!
 //! ## Two-Tier Validation
 //! - **Required**: Structural backbone concepts every public company reports.
@@ -17,13 +17,13 @@ use crate::core::elements::{
     PerShareConcept,
 };
 
-/// A mapping from one or more XBRL concept names to a canonical financial element.
+/// A mapping from one or more XBRL concept names to a standard concept.
 ///
 /// The `xbrl_keys` array is ordered by priority: the first key that matches
 /// in the SEC JSON wins. This handles taxonomy version changes over time.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ConceptDefinition {
-    /// The canonical element this concept maps to.
+    /// The standard concept this definition maps to.
     canonical_element: CanonicalElementKind,
     /// XBRL concept names to search for, in priority order.
     xbrl_keys: &'static [&'static str],
@@ -50,7 +50,7 @@ impl ConceptDefinition {
         }
     }
 
-    /// Returns the canonical element this definition maps to.
+    /// Returns the standard concept this definition maps to.
     #[must_use]
     pub const fn canonical_element(&self) -> CanonicalElementKind {
         self.canonical_element
@@ -78,7 +78,8 @@ impl ConceptDefinition {
 /// The parts of a standard concept that stand for the whole when a filing reports no other part.
 ///
 /// A part counts only if no concept of the alias list resolves, and only if the filing reports
-/// none of the other parts in the period. `xbrl/DESIGN.md`, "`us_gaap`", gives the rule.
+/// none of the other parts in the period. [`resolve_aliases`](crate::core::alias::resolve_aliases)
+/// gives the full rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartDefinition {
     /// The standard concept the parts stand for.

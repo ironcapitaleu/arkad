@@ -1,18 +1,13 @@
 //! # Income Statement Concepts
 //!
-//! Provides [`IncomeStatementConcept`], its placements, and [`GROUPS`], the groups whose parent
-//! is an income statement concept.
+//! Provides [`IncomeStatementConcept`] and its placements. Provides [`IncomeStatementGroup`] and
+//! [`GROUPS`], the groups whose parent is an income statement concept.
 //!
 //! The income statement is a cascade of steps from revenue to comprehensive income. Each subtotal
 //! is the start of the next step.
 
 use crate::core::elements::Placed;
 use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
-
-const GROSS_PROFIT: &str = "gross-profit";
-const OPERATING_EXPENSES: &str = "operating-expenses";
-const PRETAX_INCOME: &str = "pretax-income";
-const COMPREHENSIVE_INCOME: &str = "comprehensive-income";
 
 innermost_concepts! {
     /// A standard concept of the income statement, comprehensive income included. Each value is
@@ -43,6 +38,20 @@ innermost_concepts! {
     }
 }
 
+group_names! {
+    /// A group whose parent is an income statement concept.
+    pub enum IncomeStatementGroup in IncomeStatement {
+        /// The group whose parent is [`IncomeStatementConcept::GrossProfit`].
+        GrossProfit => "gross-profit",
+        /// The group whose parent is `OperatingExpenses`.
+        OperatingExpenses => "operating-expenses",
+        /// The group whose parent is `PretaxIncome`.
+        PretaxIncome => "pretax-income",
+        /// The group whose parent is [`IncomeStatementConcept::ComprehensiveIncome`].
+        ComprehensiveIncome => "comprehensive-income",
+    }
+}
+
 impl Placed for IncomeStatementConcept {
     fn placement(self) -> Placement {
         match self {
@@ -51,12 +60,19 @@ impl Placed for IncomeStatementConcept {
             | Self::OperatingIncome
             | Self::NetIncome
             | Self::ComprehensiveIncome => Placement::Top,
-            Self::CostOfRevenue => Placement::child(GROSS_PROFIT, Weight::Minus),
-            Self::SellingGeneralAdmin | Self::ResearchDevelopment => {
-                Placement::child(OPERATING_EXPENSES, Weight::Plus)
+            Self::CostOfRevenue => {
+                Placement::child(IncomeStatementGroup::GrossProfit.name(), Weight::Minus)
             }
-            Self::InterestExpense => Placement::child(PRETAX_INCOME, Weight::Minus),
-            Self::OtherComprehensiveIncome => Placement::child(COMPREHENSIVE_INCOME, Weight::Plus),
+            Self::SellingGeneralAdmin | Self::ResearchDevelopment => {
+                Placement::child(IncomeStatementGroup::OperatingExpenses.name(), Weight::Plus)
+            }
+            Self::InterestExpense => {
+                Placement::child(IncomeStatementGroup::PretaxIncome.name(), Weight::Minus)
+            }
+            Self::OtherComprehensiveIncome => Placement::child(
+                IncomeStatementGroup::ComprehensiveIncome.name(),
+                Weight::Plus,
+            ),
         }
     }
 }
@@ -65,7 +81,7 @@ impl Placed for IncomeStatementConcept {
 /// [`Concept::ALL`](crate::core::elements::Concept::ALL).
 pub const GROUPS: &[Group] = &[
     Group {
-        name: GROSS_PROFIT,
+        name: IncomeStatementGroup::GrossProfit.name(),
         parent: IncomeStatementConcept::GrossProfit.element(),
         kind: GroupKind::Step {
             start: IncomeStatementConcept::Revenue.element(),
@@ -73,7 +89,7 @@ pub const GROUPS: &[Group] = &[
         closed: true,
     },
     Group {
-        name: COMPREHENSIVE_INCOME,
+        name: IncomeStatementGroup::ComprehensiveIncome.name(),
         parent: IncomeStatementConcept::ComprehensiveIncome.element(),
         kind: GroupKind::Step {
             start: IncomeStatementConcept::NetIncome.element(),
@@ -104,26 +120,29 @@ mod tests {
             (IncomeStatementConcept::Revenue, Placement::Top),
             (
                 IncomeStatementConcept::CostOfRevenue,
-                Placement::child("gross-profit", Weight::Minus),
+                Placement::child(IncomeStatementGroup::GrossProfit.name(), Weight::Minus),
             ),
             (IncomeStatementConcept::GrossProfit, Placement::Top),
             (
                 IncomeStatementConcept::SellingGeneralAdmin,
-                Placement::child("operating-expenses", Weight::Plus),
+                Placement::child(IncomeStatementGroup::OperatingExpenses.name(), Weight::Plus),
             ),
             (
                 IncomeStatementConcept::ResearchDevelopment,
-                Placement::child("operating-expenses", Weight::Plus),
+                Placement::child(IncomeStatementGroup::OperatingExpenses.name(), Weight::Plus),
             ),
             (IncomeStatementConcept::OperatingIncome, Placement::Top),
             (
                 IncomeStatementConcept::InterestExpense,
-                Placement::child("pretax-income", Weight::Minus),
+                Placement::child(IncomeStatementGroup::PretaxIncome.name(), Weight::Minus),
             ),
             (IncomeStatementConcept::NetIncome, Placement::Top),
             (
                 IncomeStatementConcept::OtherComprehensiveIncome,
-                Placement::child("comprehensive-income", Weight::Plus),
+                Placement::child(
+                    IncomeStatementGroup::ComprehensiveIncome.name(),
+                    Weight::Plus,
+                ),
             ),
             (IncomeStatementConcept::ComprehensiveIncome, Placement::Top),
         ];
@@ -132,6 +151,22 @@ mod tests {
             .iter()
             .map(|concept| (*concept, concept.placement()))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_kebab_case_name_for_every_income_statement_group() {
+        let groups = IncomeStatementGroup::ALL;
+
+        let expected_result = vec![
+            "gross-profit",
+            "operating-expenses",
+            "pretax-income",
+            "comprehensive-income",
+        ];
+
+        let result: Vec<&str> = groups.iter().map(|group| group.as_str()).collect();
 
         assert_eq!(result, expected_result);
     }
