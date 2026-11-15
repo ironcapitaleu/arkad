@@ -1,4 +1,4 @@
-# ADR 0022: The Exact Start Splits Copies of One Value Key
+# ADR 0025: The Exact Start Splits Copies of One Value Key
 
 | Field | Value |
 | ----- | ----- |

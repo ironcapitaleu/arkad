@@ -304,7 +304,7 @@ other = parent − start − Σ(weight × child)
   Gives" tests it.
 - A group whose members have two exact starts gets no other line and reports a `MixedStarts`
   finding. The members include the start of a step, the members that stand for a start with no
-  value, and the children of a transparent parent that join the group ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does
+  value, and the children of a transparent parent that join the group ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does
   not hold this rule.
 - If a member of a closed group has no value and is not zero if absent, the group gets no check.
   If the children of a transparent member count in a closed group, the group becomes open for that
@@ -635,7 +635,7 @@ So the check of that group is skipped for that period.
   statement, and reports a `MixedStarts` finding. The members of a group are the values that the
   statement counts in it: the start of a step, the members that stand for a start with no value,
   and the children of a transparent parent that join the group. The other groups of the slot keep their checks. A value without an exact start
-  joins the slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold
+  joins the slot ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does not hold
   this rule.
 - The negative other check reads the other line of the statement output type (see "7) Financial
   Statement Output Types"). It computes no other line of its own.
@@ -838,7 +838,7 @@ parses it.
   value, in the order of `RollUpMismatch`. The members that stand for a start with no value take
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
-  ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this kind.
+  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does not hold this kind.
 
 #### Worked Example
 
@@ -1350,14 +1350,14 @@ section 4.
 | Key option | Same in both sources? | Unique in one filing? |
 | ---------- | --------------------- | --------------------- |
 | Month-end date and quarters | Yes | No: 395 keys hold two values |
-| Exact start and end | No: Notes misses the exact start in 29,761 of 100,303 durations. The start from `durp` closes the gap (ADR 0022) | No: 266 keys differ only in `decimals` |
+| Exact start and end | No: Notes misses the exact start in 29,761 of 100,303 durations. The start from `durp` closes the gap (ADR 0025) | No: 266 keys differ only in `decimals` |
 | Exact end, quarters, copy rank (chosen) | Yes: Notes `ddate` with `datp` gives the exact end, and the parser numbers the copies in `iprx` order | Yes, by construction: the parser numbers the copies (see "Decisions for the Transform Design") |
 
 - The instance parser computes `copy_rank` in the order of the SEC for `iprx`: higher precision
   first, then the distance of the end to a month end, then the distance of the length to a full
   quarter. A test on filings in both sources checks that the two ranks agree.
 - The exact start stays on the fact. It is not part of the key
-  ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The instance gives `startDate`. The
+  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The instance gives `startDate`. The
   Notes parser computes the start as the exact end less `round((qtrs − durp) × 91.25)` days. On
   2026-11-15, the two starts agreed for 7,173 of 7,173 Notes durations in 14 filings. The Notes
   parser does not compute the start.
@@ -1630,7 +1630,7 @@ Agreement of copies:
   start is another fact, such as a 4-month stub next to a quarter. The rule does not compare it
   with rank 0 or with another rank, and gives it no candidate. It reports a `Conflict` only by the
   next rule. Rank 0 enters the series. If either rank has no exact start, the ranks compare as copies
-  ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this rule.
+  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does not hold this rule.
 - A rank with another exact start whose length lies nearer to its whole number of quarters than
   the length of rank 0 (`Period::distance_to_full_quarters`) is a `Conflict`, as for disagreeing
   copies. So a stub never enters the series in place of
@@ -2228,7 +2228,7 @@ pub struct StatementLine {
 - `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
   period end, length in quarters, period type, unit, or dimensions. Facts whose periods differ
   only in the exact start build one statement. A group whose members have two exact starts gets
-  no other line ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The statement
+  no other line ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The statement
   marks no such group. The `MixedStarts` finding names it, and the fact of each line shows its
   start. The code rejects two starts and does not hold this rule.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
