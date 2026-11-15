@@ -9,6 +9,7 @@ description: >
   question. Also use when you remove history or a past decision from a document, to check whether
   the decision needs an ADR first.
 version: 0.6.0
+allowed-tools: [AskUserQuestion]
 ---
 
 # ADR Skill
@@ -57,21 +58,21 @@ To write an ADR:
    confirms it.
 8. **Ask the decider.** As soon as the ADR is written, ask the decider whether they accept it now.
    Do not wait for a review or a merge.
+   - If the person in the chat is not the decider in the `Deciders` row, keep "Proposed".
    - Ask with a form, through the `AskUserQuestion` tool. Name the ADR and state its decision in
      one or two sentences. Offer two options, "Accept" and "Keep Proposed". The form adds "Other"
      for a free answer, such as a change to the decision.
-   - Mark "Accept" as recommended if the context supports it. Examples: the decider asked for the
-     change, decided the options in the session, or questioned no part of the decision. Mark
-     "Keep Proposed" as recommended if an option is still open, or a fact rests on a guess.
-   - If the person in the chat is not the decider in the `Deciders` row, keep "Proposed".
+   - Mark "Accept" as recommended if the context supports it: the decider asked for the change, or
+     chose the option in the session. Otherwise mark "Keep Proposed". If an option is still open,
+     or a fact rests on a guess, mark "Keep Proposed" in every case.
    - If the decider accepts, record it in the same PR. Post a comment on the ticket. Name the ADR
-     and the date, and quote the answer of the decider word for word, with any note. Set the
-     `Status` row to "Accepted by <who> on YYYY-MM-DD", with a link to that comment. Say so in the
-     PR description.
+     and the date, and quote the question and the answer of the decider word for word, with any
+     note. Set the `Status` row to "Accepted by <who> on YYYY-MM-DD", with a link to that
+     comment. Say so in the PR description.
    - If the decider answers "Other", act on the answer. For a change to the decision, change the
      ADR and ask again.
-   - If the ADR has no ticket, quote the answer of the decider in the PR description, and link the
-     `Status` row to the PR.
+   - If the ADR has no ticket, quote the question and the answer in the PR description, and link
+     the `Status` row to the PR.
    - If the decider wants time, or no person is in the chat, as in a CI job, keep "Proposed".
 
 The same steps hold for an amendment. Write it, then ask the decider at once with the form, and
@@ -142,7 +143,7 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
 
 - One ADR holds one decision. Two decisions that can change apart from each other get two ADRs.
 - An agent sets the status "Proposed" and asks the decider. Only the decider named in the ADR
-  accepts it, in their own words.
+  accepts it, by their own answer to the question.
 - Never rewrite the decision of an accepted ADR. Amend it or supersede it.
 - Every count, size, and time has a date and a source.
 - If an ADR links a Linear item, the link text names the item: a ticket by its ID, a comment by its
