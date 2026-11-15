@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-use crate::shared::http_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::http_client::{RetryPolicy, SecClient};
 use crate::shared::response::implementations::sec_response::{ResponseBody, SecResponse};
 use crate::shared::user_agent::UserAgent;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::routing::RequestCounts;
@@ -14,7 +14,8 @@ use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLi
 /// responses in order.
 ///
 /// A URL without a route, or with an empty list, gets an empty 404 response. Each URL has its own
-/// count of requests, and clones share the counts. The rate limiter never waits.
+/// count of requests, and clones share the counts. The rate limiter never waits. The client sends
+/// once, unless [`RoutingSecClient::with_retry_policy`] sets a policy for a transient failure.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct RoutingSecClient {
     /// The inner client that routes every request.
@@ -25,6 +26,9 @@ pub struct RoutingSecClient {
     pub rate_limiter: AlwaysReadyRateLimiter,
     /// The `User-Agent` the client reports.
     pub user_agent: UserAgent,
+    /// The attempts and the waits of one request.
+    #[serde(skip)]
+    pub retry_policy: RetryPolicy,
 }
 
 impl Default for RoutingSecClient {
@@ -50,7 +54,15 @@ impl RoutingSecClient {
             user_agent: UserAgent::new("Fake Routing Client fake@example.com").expect(
                 "Given a hardcoded SEC-format user agent, validation should always succeed",
             ),
+            retry_policy: RetryPolicy::SEND_ONCE,
         }
+    }
+
+    /// Returns the client set to retry a transient failure under `retry_policy`.
+    #[must_use]
+    pub const fn with_retry_policy(mut self, retry_policy: RetryPolicy) -> Self {
+        self.retry_policy = retry_policy;
+        self
     }
 
     /// Adds a route that answers `url` with `status`, `content_type`, and `body`.
@@ -113,6 +125,14 @@ impl SecClient for RoutingSecClient {
 
     fn user_agent(&self) -> &UserAgent {
         &self.user_agent
+    }
+
+    fn retry_policy(&self) -> RetryPolicy {
+        self.retry_policy
+    }
+
+    fn is_transient(&self, error: &FailedSecRequest) -> bool {
+        error.is_transient()
     }
 }
 

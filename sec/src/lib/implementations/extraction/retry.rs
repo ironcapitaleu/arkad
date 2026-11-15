@@ -12,9 +12,12 @@ use std::time::Duration;
 use crate::error::{State as StateError, StateMachine};
 use crate::prelude::StreamError;
 
-/// The waits before the second and the third attempt of a machine that failed with a transient
-/// SEC failure, without a call to `retry_delays`. After the third attempt the machine fails.
-pub const DEFAULT_RETRY_DELAYS: [Duration; 2] = [Duration::from_secs(10), Duration::from_mins(1)];
+/// The wait before the second attempt of a machine that failed with a transient SEC failure,
+/// without a call to `retry_delays`. After the second attempt the machine fails.
+///
+/// The default [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient)
+/// retries each request for a few seconds first. This wait covers a longer outage.
+pub const DEFAULT_RETRY_DELAYS: [Duration; 1] = [Duration::from_mins(1)];
 
 /// Runs `attempt` until it succeeds, fails with an error that is not transient, or has used every
 /// wait of `retry_delays`. Calls `on_retry` with each error after which `attempt` runs again, and
