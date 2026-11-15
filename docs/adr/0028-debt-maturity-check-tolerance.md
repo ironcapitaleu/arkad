@@ -32,35 +32,39 @@ that changes with new filings.
 ## Options Considered
 
 Measured on 2026-11-15 in the SEC frames API, frame `CY2024Q4I`, facts without dimensions. The
-bucket is the fiscal-year concept, or the rolling concept if the filer tags only that.
+measurement keeps only annual ladders: a bucket value from a 10-K, 10-KT, 20-F, or 40-F, or an
+amendment of one, at its report date. The SEC submissions API gives the form and the report date.
+This drops 678 bucket values of interim reports. The bucket is the fiscal-year concept, or the
+rolling concept if the filer tags only that. The total is `LongTermDebt` at the same instant.
 
 | Option | Filers checked | Findings |
 | ------ | -------------- | -------- |
-| **A (chosen): ±5%, all six buckets** | 757 | 71 (9%) |
-| B: ±0.1%, all six buckets | 757 | 464 (61%) |
-| C: ±1%, all six buckets | 757 | 240 (32%) |
-| D: ±5%, a missing bucket as zero | 1,387 | 285 (21%) |
+| **A (chosen): ±5%, all six buckets** | 723 | 65 (9%) |
+| B: ±0.1%, all six buckets | 723 | 446 (62%) |
+| C: ±1%, all six buckets | 723 | 230 (32%) |
+| D: ±5%, a missing bucket as zero | 1,252 | 223 (18%) |
 | E: no check | 0 | 0 |
 
-- A flags a ladder that misses a part of the debt, or a bucket with the wrong scale. Boeing is an
-  example: its ladder sums to 17,859 million against 53,625 million of `LongTermDebt`.
+- A flags a ladder that misses a part of the debt, or a bucket with the wrong scale. OneMain
+  Holdings is an example: its ladder of 2024-12-31 sums to 9,310 million against 21,438 million
+  of `LongTermDebt`.
 - B flags most filers. A finding on most filers carries no signal.
-- Adding the net discount and issuance costs to the total does not fix B. Of 560 filers outside
-  0.1% with the years one to five, 280 tag such a cost, and it brings 135 within 0.1%.
+- Adding the net discount and issuance costs to the total does not fix B. Of 545 filers outside
+  0.1% with the years one to five, 276 tag such a cost, and it brings 136 within 0.1%.
 - D counts a bucket that the filer did not tag as zero. This breaks the rule that a missing bucket
   is not reported.
 - E leaves wrong ladders unflagged.
-- No other base fits better. For the 899 filers with the years one to five and `LongTermDebt`,
-  the sum is within 0.1% for 339 against `LongTermDebt`, 37 of 385 against `LongTermDebt` plus
-  `FinanceLeaseLiability`, 81 of 558 against `LongTermDebtNoncurrent` plus `LongTermDebtCurrent`,
-  and 13 of 661 against `LongTermDebtNoncurrent`.
+- No other base fits better. For the filers with the years one to five, the sum is within 0.1%
+  for 329 of 874 against `LongTermDebt`, 37 of 376 against `LongTermDebt` plus
+  `FinanceLeaseLiability`, 78 of 544 against `LongTermDebtNoncurrent` plus `LongTermDebtCurrent`,
+  and 12 of 647 against `LongTermDebtNoncurrent`.
 
 ## Consequences
 
 - The ladder check has its own tolerance. Every other check keeps ±0.1%.
 - A ladder that is off by less than 5% passes, even if one bucket is wrong.
-- A filer that tags no "after year five" gets no check. 161 filers tag the fiscal-year buckets of
-  the years one to five and `LongTermDebt`, but no "after year five".
+- A filer that tags no "after year five" gets no check. 151 filers tag the years one to five and
+  `LongTermDebt`, but no "after year five".
 - `MaturityMismatch` is a new value of `findings.kind`.
 
 ## Open Questions
@@ -74,5 +78,7 @@ bucket is the fiscal-year concept, or the rolling concept if the filer tags only
   `LongTermDebtNoncurrent`, `LongTermDebtCurrent`, `FinanceLeaseLiability`,
   `DebtInstrumentUnamortizedDiscountPremiumAndDebtIssuanceCostsNet`,
   `UnamortizedDebtIssuanceExpense`, and `DebtInstrumentUnamortizedDiscount`.
+- SEC submissions API, `https://data.sec.gov/submissions/CIK<cik>.json`, one request per filer
+  with a bucket, read on 2026-11-15: the form and the report date of each accession.
 - `xbrl/taxonomy/us-gaap/2026/stm/us-gaap-stm-sfp-dbo1-cal-2026.xml`.
 - `xbrl/DESIGN.md`, "Debt Maturities" and "5) Validation".

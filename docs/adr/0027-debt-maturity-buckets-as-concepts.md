@@ -42,7 +42,10 @@ Terms in this ADR:
 
 ## Options Considered
 
-Measured on 2026-11-15 in the SEC frames API, frame `CY2024Q4I`, facts without dimensions.
+Measured on 2026-11-15 in the SEC frames API, frame `CY2024Q4I`, facts without dimensions. The
+frame holds the instant nearest 2024-12-31 for each filer. The SEC submissions API gives the form
+and the report date of the accession of each value. An annual ladder is a value from a 10-K,
+10-KT, 20-F, or 40-F, or an amendment of one, at its report date.
 
 | Option | Rows per ladder | New column | Fits the series key | Fits the existing checks |
 | ------ | --------------- | ---------- | ------------------- | ------------------------ |
@@ -61,10 +64,11 @@ Measured on 2026-11-15 in the SEC frames API, frame `CY2024Q4I`, facts without d
 - An interim ladder has no stable meaning. In an interim report, a fiscal-year bucket counts
   from the fiscal year end, and a rolling bucket counts from the balance sheet date. 86 filers in
   the frame tag `LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear`, which only an
-  interim report has. Decision 2 leaves these values as-is.
-- The rolling aliases add 64 filers that tag no fiscal-year bucket. 1,740 filers tag a fiscal-year
-  bucket. 1,804 tag one after the aliases.
-- 1,161 bucket values in the frame are zero. Decision 4 keeps a tagged zero apart from a bucket
+  interim report has. The frame holds 678 bucket values of interim reports. Decision 2 leaves
+  these values as-is.
+- In the annual ladders, the rolling aliases add 52 filers that tag no fiscal-year bucket. 1,582
+  filers tag a fiscal-year bucket. 1,634 tag one after the aliases.
+- 1,082 bucket values of the annual ladders are zero. Decision 4 keeps a tagged zero apart from a bucket
   the filer did not tag.
 
 ## Consequences
@@ -90,6 +94,8 @@ Measured on 2026-11-15 in the SEC frames API, frame `CY2024Q4I`, facts without d
 - SEC frames API, `https://data.sec.gov/api/xbrl/frames/us-gaap/<concept>/USD/CY2024Q4I.json`,
   one request per concept, read on 2026-11-15. Each frame holds one value per filer, without
   dimensions.
+- SEC submissions API, `https://data.sec.gov/submissions/CIK<cik>.json`, one request per filer
+  with a bucket, read on 2026-11-15: the form and the report date of each accession.
 - `xbrl/taxonomy/us-gaap/2026/stm/us-gaap-stm-sfp-dbo1-cal-2026.xml`: `LongTermDebt` is the
   parent of the six buckets.
 - `xbrl/taxonomy/us-gaap/2026/elts/us-gaap-2026.xsd`: every bucket concept has the period type

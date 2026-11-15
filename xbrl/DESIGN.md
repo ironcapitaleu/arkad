@@ -932,17 +932,18 @@ disclosure also holds the total long-term debt that the check compares the ladde
 
 `DebtMaturityConcept` holds seven concepts. The filer count is the number of filers with a value
 of the first concept in the frame `CY2024Q4I`, without dimensions (SEC frames API, read on
-2026-11-15).
+2026-11-15). For a bucket, it counts only a value from an annual report at its period of report.
+The SEC submissions API gives the form and the report date of the accession of each value.
 
 | Concept | Role | Alias list | Filers |
 | ------- | ----- | ---------- | ------ |
 | `LongTermDebtIncludingCurrentMaturities` | total | `LongTermDebt` | 2,219 |
-| `DebtDueInYearOne` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextRollingTwelveMonths` | 1,636 |
-| `DebtDueInYearTwo` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo` | 1,633 |
-| `DebtDueInYearThree` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearThree` | 1,567 |
-| `DebtDueInYearFour` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFour` | 1,444 |
-| `DebtDueInYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFive` | 1,249 |
-| `DebtDueAfterYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingAfterYearFive` | 1,023 |
+| `DebtDueInYearOne` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextRollingTwelveMonths` | 1,487 |
+| `DebtDueInYearTwo` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo` | 1,495 |
+| `DebtDueInYearThree` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearThree` | 1,434 |
+| `DebtDueInYearFour` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFour` | 1,330 |
+| `DebtDueInYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFive` | 1,188 |
+| `DebtDueAfterYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingAfterYearFive` | 973 |
 
 - The 2026 calculation tree makes `us-gaap:LongTermDebt` the parent of the six buckets
   (`us-gaap-stm-sfp-dbo1-cal-2026.xml`). The years two to five sit below the subtotals
@@ -952,7 +953,7 @@ of the first concept in the frame `CY2024Q4I`, without dimensions (SEC frames AP
   concept of its own. Neither concept holds finance leases.
 - A rolling bucket counts from the balance sheet date. A bucket without "rolling" counts in fiscal
   years. At a fiscal year end, the two are the same amount, so the rolling concept is the second
-  alias. The rolling aliases add 64 filers that tag no bucket without "rolling".
+  alias. The rolling aliases add 52 filers that tag no bucket without "rolling".
 - These concepts are in no list, and they stay as-is facts:
   - `LongTermDebtMaturingInYearsTwoAndThree` (14 filers), `LongTermDebtMaturingInYearsFourAndFive`
     (13), and `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwoAndThree` (3). Each
@@ -990,8 +991,8 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
 
 #### Not Reported Against Zero
 
-- A bucket that the filer tags with zero is a row with the value 0. The frame `CY2024Q4I` holds
-  1,161 bucket values of zero.
+- A bucket that the filer tags with zero is a row with the value 0. The annual ladders of the
+  frame `CY2024Q4I` hold 1,082 bucket values of zero.
 - A bucket that the filer does not tag has no row. Silver never writes a zero for it, and no rule
   derives it.
 - A reader shows a bucket with no row as "not reported in machine-readable form". It never shows
@@ -1018,27 +1019,29 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   `check_roll_ups`. It reads the role, the name, and the tolerance from the trait `Summed`. It
   holds nothing that belongs to the ladder alone.
 
-Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions. The bucket concept is the
-first alias, or the rolling alias if the filer tags only that. 1,804 filers tag a bucket. 1,387 of
-them also tag `LongTermDebt`.
+Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions, on annual ladders only. A
+bucket value counts if its accession is a 10-K, 10-KT, 20-F, or 40-F, or an amendment of one, and
+the report date equals the instant. This drops 678 values of interim reports. The bucket concept
+is the first alias, or the rolling alias if the filer tags only that. 1,634 filers tag a bucket.
+1,252 of them also tag `LongTermDebt` at the same instant.
 
 | Group | Base | Filers | Findings at ±0.1% | At ±1% | At ±5% |
 | ----- | ---- | ------ | ----------------- | ------ | ------ |
-| All six buckets | `LongTermDebt` | 757 | 464 (61%) | 240 (32%) | 71 (9%) |
-| Any bucket, a missing bucket as zero | `LongTermDebt` | 1,387 | 866 (62%) | 571 (41%) | 285 (21%) |
+| All six buckets | `LongTermDebt` | 723 | 446 (62%) | 230 (32%) | 65 (9%) |
+| Any bucket, a missing bucket as zero | `LongTermDebt` | 1,252 | 772 (62%) | 494 (39%) | 223 (18%) |
 
-The base `LongTermDebt` fits the ladder best. For the 899 filers with the years one to five, the
+The base `LongTermDebt` fits the ladder best. For the 1,161 filers with the years one to five, the
 sum agrees within 0.1% with these bases:
 
 | Base | Filers with the base | Within 0.1% |
 | ---- | -------------------- | ----------- |
-| `LongTermDebt` | 899 | 339 |
-| `LongTermDebt` + `FinanceLeaseLiability` | 385 | 37 |
-| `LongTermDebtNoncurrent` + `LongTermDebtCurrent` | 558 | 81 |
-| `LongTermDebtNoncurrent` | 661 | 13 |
+| `LongTermDebt` | 874 | 329 |
+| `LongTermDebt` + `FinanceLeaseLiability` | 376 | 37 |
+| `LongTermDebtNoncurrent` + `LongTermDebtCurrent` | 544 | 78 |
+| `LongTermDebtNoncurrent` | 647 | 12 |
 
-Of the 560 filers outside 0.1% of `LongTermDebt`, 280 tag a net discount or issuance cost. Adding
-it brings 135 of them within 0.1%.
+Of the 545 filers outside 0.1% of `LongTermDebt`, 276 tag a net discount or issuance cost. Adding
+it brings 136 of them within 0.1%.
 
 #### The Traits `Summed` and `Timed`
 
@@ -1099,7 +1102,7 @@ these in the standardized layer:
 
 | Value | In the MVP | Why |
 | ----- | ---------- | --- |
-| Maturity ladder | yes, `DebtMaturities` | 1,804 filers in `CY2024Q4I` |
+| Maturity ladder | yes, `DebtMaturities` | 1,634 filers with an annual ladder in `CY2024Q4I` |
 | Buybacks | yes, `ShareRepurchases` of the cash flow statement | |
 | Dividends paid | yes, `DividendsPaid` of the cash flow statement | |
 | Average interest rates | no, as-is facts | `LongtermDebtWeightedAverageInterestRate` has 87 filers and `ShortTermDebtWeightedAverageInterestRate` 187, of 2,219 filers of `LongTermDebt` |
