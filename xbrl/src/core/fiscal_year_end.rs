@@ -26,7 +26,7 @@ impl FiscalYearEnd {
     const FORMATS: [&'static str; 2] = ["%Y%m%d", "%Y--%m-%d"];
 
     /// The form that [`InvalidValueReason::NotADate`] names.
-    const EXPECTED_FORM: &'static str = "%m%d or --%m-%d";
+    const EXPECTED_FORM: &'static str = "%m%d or --%m-%d with an optional time zone";
 
     /// The length of `--09-30`, the instance form without a time zone.
     const INSTANCE_FORM_LENGTH: usize = 7;
@@ -130,7 +130,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "FiscalYearEnd",
-            InvalidValueReason::NotADate("%m%d or --%m-%d"),
+            InvalidValueReason::NotADate("%m%d or --%m-%d with an optional time zone"),
             "Sept",
         ));
 
@@ -297,7 +297,7 @@ mod tests {
 
         let expected_result = Err(InvalidValue::new(
             "FiscalYearEnd",
-            InvalidValueReason::NotADate("%m%d or --%m-%d"),
+            InvalidValueReason::NotADate("%m%d or --%m-%d with an optional time zone"),
             "--09-30X",
         ));
 
