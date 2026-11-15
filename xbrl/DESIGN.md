@@ -740,6 +740,8 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 - `DebtCurrent` holds the current finance lease obligations. `LongTermDebt` leaves out the
   noncurrent ones. No US GAAP concept holds current debt without leases. So the two differ in scope, as
   "Decided Points" records. A net debt figure can subtract `FinanceLeaseLiabilityCurrent`.
+  On 2026-11-15, 126 of the 368 filers of `DebtCurrent` in the frame `CY2025Q4I` also reported
+  `FinanceLeaseLiabilityCurrent`, 121 of them with a value other than zero (SEC frames API).
 - `StockholdersEquity` stays the part of `Equity` and becomes the alias of
   `EquityAttributableToParent`. `NetIncomeLoss` stays the part of `NetIncome` and becomes the alias
   of `NetIncomeAttributableToParent`. A concept in two lists is allowed, as "`us_gaap`" says.
@@ -1186,6 +1188,10 @@ ticket decides where the removed elements live.
   - An other part in the same period and unit blocks the part, in any dimension. Then the
     standard concept gets no value from tiers 1 and 2. A value of zero does not block, because
     then the part equals the whole.
+  - Two parts that are siblings, such as `ShortTermBorrowings` and
+    `LongTermDebtAndCapitalLeaseObligationsCurrent` below `DebtCurrent`, are each an other part of
+    the other. The part that wins is no other part of itself. The concepts below the two parts do
+    not count, because filers report them in the notes next to the part.
   - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
     `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
     equivalents.
