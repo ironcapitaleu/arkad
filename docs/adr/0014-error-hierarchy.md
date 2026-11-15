@@ -37,10 +37,26 @@ and `Hash`, as ADR 0006 defines it.
    one top type and still recovers the specific cause (`sec/src/lib/error/mod.rs:5-8`).
 3. **Every error is a value type.** No error holds a `Box<dyn Error>`, so a test compares a whole
    error with one `assert_eq!`, as `AGENTS.md`, "Testing", requires.
+4. **An error prints its chain on one line, one segment per layer.** Since #81 (2026-04-26):
+   - Each segment starts with the name of its error type in brackets, such as `[StateError]`.
+   - A segment that wraps an inner error ends with `Caused by:` and the inner error.
+   - A leaf ends with `Reason: '…'` if its fields do not already say the cause.
+   - Commas separate the parts.
 
-The text of an error follows the rules of `AGENTS.md`, "Error Naming Conventions" and "Error Display
-Format": the `[Name]` prefix, `Caused by:` and `Reason:`, and pass-through layers. Those rules set
-how code is written, so `AGENTS.md` is their record, not this ADR.
+   The project lead gave the reason on 2026-11-15: a reader finds and greps the exact layer in a
+   log by its type name, and reads the whole chain in order, from the outermost layer to the root
+   cause, in one log line.
+5. **`Display` never uses `Debug` formatting.** Since #84 (2026-05-05). `Debug` output is internal
+   to Rust and can change between versions, so code that reads an error text cannot parse it. A
+   field that is a collection gets a newtype with its own `Display`.
+6. **A layer prints a segment only if it adds a fact.** Since #418 (2026-11-06). A fact is an
+   action, an object, a cause, or an ID. A layer that adds no fact is `#[error(transparent)]` and
+   prints its inner error in its place. In #418, 5 of the 7 segments of a disk-full chain said only
+   that something failed. On `main` at `a9d57d1`, 18 variants in `sec/src/lib/error/` pass
+   through, such as `ErrorKind::StateMachine` (`sec/src/lib/error/mod.rs:40`).
+
+`AGENTS.md`, "Error Naming Conventions" and "Error Display Format", holds the detailed rules and
+examples for decisions 4 to 6.
 
 ## Options Considered
 
@@ -71,6 +87,10 @@ written one, and it covers `storage` only.
   `a9d57d1`.
 - `xbrl/src/error/mod.rs:31-40` and `api/src/error/mod.rs:28`, on `main` at `a9d57d1`.
 - `git log`: `d3b766b` (2025-06-04, #23, "Refactor/sec package") adds `sec/src/lib/error/` with
-  `DowncastNotPossible` and the derives. `b3282ad` (2026-06-18, #93) adds the Display convention to
-  `AGENTS.md`. `87aa21e` (2026-11-06, #418) adds the pass-through rule.
+  `DowncastNotPossible` and the derives. `dd046c2` (2026-04-26, #81) adds the chain format.
+  `bcf5316` (2026-05-05, #84) forbids `Debug` in `Display`. `b3282ad` (2026-06-18, #93) moves the
+  rules to `AGENTS.md`. `87aa21e` (2026-11-06, #418) adds the pass-through rule, and `3426b79`
+  (2026-11-06, #420) applies it to the state and transition errors of `sec`.
+- The reason for decision 4, stated by the project lead on 2026-11-15 and quoted in the
+  description of ironcapitaleu/arkad#561.
 - ADR 0006, "Context" and "Options Considered". ADR 0011, "Context" and "Decision".

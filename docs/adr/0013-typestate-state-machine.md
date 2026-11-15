@@ -53,7 +53,7 @@ The choice binds:
    (`sec/src/lib/traits/state_machine/`, added in #23 on 2025-06-04). The subtraits add these things:
    - **Async.** `State::compute_output_data_async` runs async, because the states do network I/O
      (`sec/src/lib/traits/state_machine/state/mod.rs:28-40`).
-   - **Errors of the hierarchy of ADR 0014.** A state returns an error that converts into a
+   - **Typed errors of the `sec` error hierarchy** (`sec/src/lib/error/`). A state returns an error that converts into a
      `StateError`. `StateData::update_state` returns a `StateError`. A transition returns a
      `TransitionError` through `transition_to_next_state_sec`
      (`sec/src/lib/traits/state_machine/transition/mod.rs:23-38`, added in #34 on 2025-10-12).
