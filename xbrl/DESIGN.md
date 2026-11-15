@@ -2177,6 +2177,8 @@ pub struct StatementLine {
   start first, at the depth of the parent.
 - If the start of a step has no value, the step uses the members of the step that makes the start.
   So `ComprehensiveIncome` with no `NetIncome` starts from `PretaxIncome` less `IncomeTaxExpense`.
+  [ADR 0020](../docs/adr/0020-missing-start-uses-the-step.md) records why the step wins over the
+  split of `NetIncome`.
 - A line of `Line::Standard` with a value holds its standardized fact, so a reader can see its
   confidence, rule, and inputs.
 - `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
