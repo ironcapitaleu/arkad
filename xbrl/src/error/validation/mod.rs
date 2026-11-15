@@ -132,6 +132,23 @@ mod tests {
     }
 
     #[test]
+    fn should_print_the_full_value_when_an_identity_value_exceeds_the_i64_range() {
+        let left_value = BigDecimal::from_str("123456789012345678901234")
+            .expect("Given a hardcoded decimal text, the parse should always succeed");
+        let error = ValidationErrorKind::InconsistentIdentity {
+            invariant: Invariant::BalanceSheetIdentity,
+            left_value,
+            right_value: BigDecimal::from(490_000_000),
+        };
+
+        let expected_result = "[InconsistentIdentity] Invariant 'BalanceSheetIdentity' violated, left=123456789012345678901234, right=490000000";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     const fn should_be_a_value_type_for_invariant() {
         is_value_type::<Invariant>();
     }
