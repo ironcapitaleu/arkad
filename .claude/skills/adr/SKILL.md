@@ -55,14 +55,22 @@ To write an ADR:
    such as a SPIKE, ships in the first PR that changes the code. A past decision that leaves a
    document ships in the PR that removes it. Name the ADR in the PR description, and say who
    confirms it.
-8. **Ask the decider.** As soon as the ADR is written, ask the decider in the chat whether they
-   accept it now. Name the ADR and state its decision in one or two sentences. Do not wait for a
-   review or a merge.
+8. **Ask the decider.** As soon as the ADR is written, ask the decider whether they accept it now.
+   Do not wait for a review or a merge.
+   - Ask with a form, through the `AskUserQuestion` tool. Name the ADR and state its decision in
+     one or two sentences. Offer two options, "Accept" and "Keep Proposed". The form adds "Other"
+     for a free answer, such as a change to the decision.
+   - Mark "Accept" as recommended if the context supports it. Examples: the decider asked for the
+     change, decided the options in the session, or questioned no part of the decision. Mark
+     "Keep Proposed" as recommended if an option is still open, or a fact rests on a guess.
    - If the person in the chat is not the decider in the `Deciders` row, keep "Proposed".
-   - If the decider accepts, record it in the same PR. Post a comment on the ticket that names the
-     ADR and the date, and quotes the reply of the decider word for word. Set the `Status` row to
-     "Accepted by <who> on YYYY-MM-DD", with a link to that comment. Say so in the PR description.
-   - If the ADR has no ticket, quote the reply of the decider in the PR description, and link the
+   - If the decider accepts, record it in the same PR. Post a comment on the ticket. Name the ADR
+     and the date, and quote the answer of the decider word for word, with any note. Set the
+     `Status` row to "Accepted by <who> on YYYY-MM-DD", with a link to that comment. Say so in the
+     PR description.
+   - If the decider answers "Other", act on the answer. For a change to the decision, change the
+     ADR and ask again.
+   - If the ADR has no ticket, quote the answer of the decider in the PR description, and link the
      `Status` row to the PR.
    - If the decider wants time, or no person is in the chat, as in a CI job, keep "Proposed".
 
@@ -75,10 +83,10 @@ The same steps hold for an amendment: write it, then ask the decider.
 
 | Field | Value |
 | ----- | ----- |
-| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link)) \| Superseded by ADR NNNN> |
+| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link) or [ironcapitaleu/arkad#NNN](link)) \| Superseded by ADR NNNN> |
 | Date | YYYY-MM-DD |
 | Deciders | <who decides> |
-| Ticket | <[STA-123](link): the ticket that needs the decision, with its ID as the link text> |
+| Ticket | <[STA-123](link): the ticket that needs the decision, with its ID as the link text, or "None"> |
 
 ## Context
 
