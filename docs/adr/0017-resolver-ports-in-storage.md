@@ -1,4 +1,4 @@
-# ADR 0016: The Resolver Ports Live in the `storage` Crate
+# ADR 0017: The Resolver Ports Live in the `storage` Crate
 
 | Field | Value |
 | ----- | ----- |
@@ -59,8 +59,9 @@ No option was measured. The facts follow from the `Cargo.toml` files at `a9d57d1
 - `storage` holds two kinds of port: repositories that read and write records by key, and
   resolvers that map an identifier to a key.
 - The fakes of the resolvers live in `storage/src/tests/fixtures/`, compiled for the tests of
-  `storage` only, as the other fakes of `storage` are.
-- This ADR does not decide the key format. [ADR 0017](0017-company-id-is-a-uuid.md) holds it.
+  `storage` only, as the other fakes of `storage` are ([ADR 0016](0016-ports-and-fakes.md),
+  Decision 3).
+- This ADR does not decide the key format. [ADR 0018](0018-company-id-is-a-uuid.md) holds it.
 
 ## Open Questions
 

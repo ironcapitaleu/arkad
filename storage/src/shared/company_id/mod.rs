@@ -1,7 +1,7 @@
 //! # Company ID
 //!
 //! Provides [`CompanyId`], the internal key of a company. Every fact, identifier row, and claim of
-//! a company keys on it. ADR 0017 (`docs/adr/0017-company-id-is-a-uuid.md`) records why the key is
+//! a company keys on it. ADR 0018 (`docs/adr/0018-company-id-is-a-uuid.md`) records why the key is
 //! a UUID.
 
 use std::fmt::{self, Display, Formatter};

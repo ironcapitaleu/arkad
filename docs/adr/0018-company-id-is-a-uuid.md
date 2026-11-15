@@ -1,4 +1,4 @@
-# ADR 0017: `company_id` Is a UUID
+# ADR 0018: `company_id` Is a UUID
 
 | Field | Value |
 | ----- | ----- |

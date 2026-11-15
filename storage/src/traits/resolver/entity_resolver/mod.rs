@@ -9,7 +9,7 @@
 //!
 //! ```rust
 //! use chrono::NaiveDate;
-//! use storage::{CompanyId, CompanyIdentifier, CompanyScheme, EntityResolver, ReadError};
+//! use storage::{CompanyId, CompanyIdentifier, EntityResolver, ReadError};
 //!
 //! async fn company_of_filing<R: EntityResolver>(
 //!     resolver: &R,
@@ -18,8 +18,6 @@
 //! ) -> Result<Option<CompanyId>, ReadError> {
 //!     resolver.resolve(identifier, period_end).await
 //! }
-//!
-//! let identifier = CompanyIdentifier::new(CompanyScheme::Cik, "0001652044");
 //! ```
 
 use async_trait::async_trait;
@@ -32,8 +30,8 @@ use crate::shared::{CompanyId, CompanyIdentifier};
 ///
 /// An implementor holds dated identifier rows: a `(scheme, value)` pair, a [`CompanyId`], and a
 /// validity from one date to another. It returns at most one [`CompanyId`] for one identifier and
-/// one date. If its rows give more than one, as two sources that disagree can, the claim
-/// resolution spec of ADR 0001 picks the row.
+/// one date. If its rows give more than one, as two sources that disagree can, a claim
+/// resolution spec picks the row. ADR 0001 lists that spec as an open question.
 ///
 /// The implementor fixes what the date means. The caller passes a date on that axis:
 ///
