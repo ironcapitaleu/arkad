@@ -6,7 +6,7 @@ update-frequency: on-code-change
 
 # Standard Concepts
 
-These are the 43 standard concepts the system resolves to. `CanonicalElementKind` nests them by
+These are the 52 standard concepts the system resolves to. `CanonicalElementKind` nests them by
 statement and disclosure:
 
 - `CanonicalElementKind::Statement(StatementConcept)`: `BalanceSheetConcept`,
@@ -36,12 +36,21 @@ Each value is an instant.
 | PropertyPlantEquipment | `non-current-assets`, +1 |
 | Goodwill | `non-current-assets`, +1 |
 | IntangibleAssets | `non-current-assets`, +1 |
+| LiabilitiesAndEquity | Top |
 | Liabilities | `liabilities-and-equity`, +1 |
+| TemporaryEquity | `liabilities-and-equity`, +1 |
 | Equity | `liabilities-and-equity`, +1 |
 | CurrentLiabilities | `liabilities`, +1 |
 | NonCurrentLiabilities | `liabilities`, +1 |
+| AccountsPayable | `current-liabilities`, +1 |
+| ShortTermDebt | `current-liabilities`, +1 |
 | LongTermDebt | `non-current-liabilities`, +1 |
+| EquityAttributableToParent | `equity`, +1 |
+| NoncontrollingInterest | `equity`, +1 |
+| AdditionalPaidInCapital | `equity-attributable-to-parent`, +1 |
 | RetainedEarnings | `equity-attributable-to-parent`, +1 |
+| TreasuryStock | `equity-attributable-to-parent`, −1 |
+| AccumulatedOtherComprehensiveIncome | `equity-attributable-to-parent`, +1 |
 
 ## Income Statement (`IncomeStatementConcept`)
 
@@ -101,8 +110,8 @@ A disclosure. Its concepts have no placement, and they do not add over periods.
 one child are standard concepts. Each statement lists its groups in the order of the first row
 that names each group in its table
 ([ADR 0013](../../../../docs/adr/0013-order-of-the-groups.md)):
-`assets`, `current-assets`, `non-current-assets`, `liabilities`, `non-current-liabilities`,
+`assets`, `current-assets`, `non-current-assets`, `liabilities-and-equity`, `liabilities`,
+`current-liabilities`, `non-current-liabilities`, `equity`, `equity-attributable-to-parent`,
 `gross-profit`, `operating-income`, `operating-expenses`, `pretax-income`, `net-income`,
 `net-income-attribution`, `comprehensive-income`, `net-change-in-cash`, `operating-cash-flow`,
-`investing-cash-flow`, `financing-cash-flow`. A placement can name a group that the list does not
-hold, such as `liabilities-and-equity`, whose parent `LiabilitiesAndEquity` is no standard concept.
+`investing-cash-flow`, `financing-cash-flow`.

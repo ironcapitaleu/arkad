@@ -30,8 +30,7 @@ pub use income_statement::IncomeStatementConcept;
 /// groups in this order. `docs/adr/0013-order-of-the-groups.md` records the order.
 ///
 /// The list holds a group only if its parent, its start if it is a step, and at least one child
-/// are standard concepts. So a placement can name a group that the list does not hold, such as
-/// `liabilities-and-equity`.
+/// are standard concepts.
 pub fn groups() -> impl Iterator<Item = &'static Group> {
     balance_sheet::GROUPS
         .iter()
@@ -54,8 +53,12 @@ mod tests {
             "assets",
             "current-assets",
             "non-current-assets",
+            "liabilities-and-equity",
             "liabilities",
+            "current-liabilities",
             "non-current-liabilities",
+            "equity",
+            "equity-attributable-to-parent",
             "gross-profit",
             "operating-income",
             "operating-expenses",
@@ -109,7 +112,7 @@ mod tests {
     fn should_give_each_group_a_unique_name_for_every_listed_group() {
         let names: Vec<&str> = groups().map(|group| group.name.as_str()).collect();
 
-        let expected_result = (16, 16);
+        let expected_result = (20, 20);
 
         let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
 
@@ -117,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_a_distinct_name_to_each_of_the_18_group_names() {
+    fn should_give_a_distinct_name_to_each_of_the_20_group_names() {
         let names: Vec<&str> = balance_sheet::BalanceSheetGroup::ALL
             .iter()
             .map(|group| group.as_str())
@@ -133,7 +136,7 @@ mod tests {
             )
             .collect();
 
-        let expected_result = (18, 18);
+        let expected_result = (20, 20);
 
         let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
 
