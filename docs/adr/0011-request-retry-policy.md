@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-15 |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-505](https://linear.app/state-machine/issue/STA-505) |
