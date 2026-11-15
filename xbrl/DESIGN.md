@@ -439,14 +439,14 @@ Duration values. The top line is `NetChangeInCash`.
 
 A disclosure is a set of concepts outside the trees of the statements. The concepts of `PerShare`
 have no parent, no other line, and no roll-up check. EPS sits on the face of the income statement
-(ASC 260-10-45-2), but it adds to no line, so it is a disclosure here. A later disclosure with its
-own sums, such as debt maturities, gets its own trait (see "Extension Model").
+(ASC 260-10-45-2), but it adds to no line, so it is a disclosure here. A disclosure with its own
+sum implements the trait `Summed` (see "Extension Model").
 
 - `PerShare`: `EarningsPerShareBasic` and `EarningsPerShareDiluted`. A per-share value does not add
   with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
-- Planned: a disclosure for the debt maturities and other financing data, from its own design.
-  Segments are not a disclosure. A segment value is a standard concept with a member of a segment axis, and
-  its own design decides how the tree applies to it.
+- `DebtMaturities`: the maturity ladder and its total (see "Debt Maturities").
+- Segments are not a disclosure. A segment value is a standard concept with a member of a segment
+  axis, and its own design decides how the tree applies to it.
 
 A disclosure is a variant of `DisclosureConcept` with its own concept enum, such as
 `PerShare(PerShareConcept)`. A new disclosure adds a variant and its concepts (see "Extension
@@ -470,7 +470,7 @@ module and one variant, and its siblings do not change.
 | ------------ | ----------------- |
 | `ErrorKind` | `CanonicalElementKind` |
 | `StateMachine` | `StatementConcept`, `DisclosureConcept` |
-| `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept` |
+| `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept`, `DebtMaturityConcept` |
 | a leaf error | a concept, such as `Assets` |
 
 `CanonicalElementKind` is the top of the hierarchy. [ADR 0011](../docs/adr/0011-concept-hierarchy.md)
@@ -493,6 +493,7 @@ pub enum StatementConcept {
 #[non_exhaustive]
 pub enum DisclosureConcept {
     PerShare(PerShareConcept),
+    DebtMaturities(DebtMaturityConcept),
 }
 
 #[non_exhaustive]
@@ -508,8 +509,9 @@ impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
 
 ```
 xbrl/src/core/elements/
-  mod.rs                         CanonicalElementKind, Concept, Placed, and the call of the middle
-                                 macro: StatementConcept, DisclosureConcept, the conversions
+  mod.rs                         CanonicalElementKind, Concept, Placed, Summed, Share, and the call
+                                 of the middle macro: StatementConcept, DisclosureConcept, the
+                                 conversions
   macros.rs                      the innermost macro and the middle macro
   roll_up.rs                     Placement, Weight, Group, GroupKind, GroupName
   statement/
@@ -520,6 +522,7 @@ xbrl/src/core/elements/
   disclosure/
     mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
+    debt_maturities.rs           DebtMaturityConcept, its shares
 xbrl/src/core/statement/
   mod.rs                         FinancialStatement, StatementKind, Statement, StatementLine
   balance_sheet.rs               BalanceSheet view
@@ -556,8 +559,8 @@ pub trait Placed: Concept {
 
 - `Placed` is a subtrait of `Concept`, because every concept with a placement also has a name and
   a label. A disclosure implements `Concept` only, so the hierarchy alone says that a concept is a
-  disclosure. A later disclosure whose values add up, such as debt maturities, gets its own trait
-  next to these.
+  disclosure. A disclosure whose values add up, such as `DebtMaturities`, also implements
+  `Summed` (see "Debt Maturities").
 - A declarative macro defines each innermost enum and its `ALL` from one list of variants, so the
   two cannot drift.
 - A second macro defines each middle enum, `StatementConcept` and `DisclosureConcept`, from its
@@ -592,7 +595,8 @@ A change touches these places, and no others:
 | A concept in an existing statement | a variant in the macro of its enum, an arm of each method of `Concept` and `Placed`, an alias list | nothing else |
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
-| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
+| A disclosure, such as `PerShare` | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
+| A disclosure with a sum, such as `DebtMaturities` | the same, and an `impl Summed` | nothing else |
 | A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
@@ -731,6 +735,8 @@ The concepts of `CanonicalElementKind` take these places in the trees and disclo
 | `NetIncomeAttributableToNoncontrollingInterest` | child of `net-income-attribution` |
 | `NetChangeInCash` | top of the cash flow statement |
 | `ExchangeRateEffect` | child of `net-change-in-cash` |
+| `LongTermDebtIncludingCurrentMaturities` | disclosure `DebtMaturities`, total |
+| `DebtDueInYearOne` to `DebtDueInYearFive`, `DebtDueAfterYearFive` | disclosure `DebtMaturities`, parts |
 
 No standard concept holds expenses, gains, or losses. No US GAAP concept holds their totals, no
 rule fills them, and no filer presents them. The cascade holds them in `OperatingExpenses`,
@@ -913,6 +919,169 @@ The owner decided these on 2026-11-14.
 4. **Layer 3 checks the cascade and the cash flow, with the exchange rate effect.** No standard
    concept holds expenses, gains, or losses, so no check names them. The cash flow check matches
    the `accounting` skill.
+
+### Debt Maturities
+
+The disclosure `DebtMaturities` holds the maturity ladder. The ladder is the principal of
+long-term debt that falls due in each of the next five fiscal years and after them. The
+disclosure also holds the total long-term debt that the check compares the ladder with.
+[ADR 0027](../docs/adr/0027-debt-maturity-buckets-as-concepts.md) records the form of the values.
+[ADR 0028](../docs/adr/0028-debt-maturity-check-tolerance.md) records the tolerance of the check.
+
+#### Concepts of the Ladder
+
+`DebtMaturityConcept` holds seven concepts. The filer count is the number of filers with a value
+of the first concept in the frame `CY2024Q4I`, without dimensions (SEC frames API, read on
+2026-11-15).
+
+| Concept | Share | Alias list | Filers |
+| ------- | ----- | ---------- | ------ |
+| `LongTermDebtIncludingCurrentMaturities` | total | `LongTermDebt` | 2,219 |
+| `DebtDueInYearOne` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextRollingTwelveMonths` | 1,636 |
+| `DebtDueInYearTwo` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo` | 1,633 |
+| `DebtDueInYearThree` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearThree` | 1,567 |
+| `DebtDueInYearFour` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFour` | 1,444 |
+| `DebtDueInYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFive` | 1,249 |
+| `DebtDueAfterYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingAfterYearFive` | 1,023 |
+
+- The 2026 calculation tree makes `us-gaap:LongTermDebt` the parent of the six buckets
+  (`us-gaap-stm-sfp-dbo1-cal-2026.xml`). The years two to five sit below the subtotals
+  `LongTermDebtMaturingInYearsTwoAndThree` and `LongTermDebtMaturingInYearsFourAndFive`.
+- `us-gaap:LongTermDebt` holds the current maturities. The balance sheet concept `LongTermDebt`
+  leaves them out, because its alias is `LongTermDebtNoncurrent`. So the total of the ladder is a
+  concept of its own. Neither concept holds finance leases.
+- A rolling bucket counts from the balance sheet date. A bucket without "rolling" counts in fiscal
+  years. At a fiscal year end, the two are the same amount, so the rolling concept is the second
+  alias. The rolling aliases add 64 filers that tag no bucket without "rolling".
+- These concepts are in no list, and they stay as-is facts:
+  - `LongTermDebtMaturingInYearsTwoAndThree` (14 filers), `LongTermDebtMaturingInYearsFourAndFive`
+    (13), and `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwoAndThree` (3). Each
+    covers two buckets.
+  - The ladder of `LongTermDebtAndCapitalLeaseObligations`, such as
+    `LongTermDebtAndCapitalLeaseObligationsRepaymentsOfPrincipalInNextTwelveMonths` (17). It holds
+    finance leases.
+  - `LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear` (86). Only an interim
+    report has it.
+- The rule IDs follow the existing form, for example `us-gaap/alias/debt-due-in-year-one@1`.
+- The count after the change: 52 + 7 = 59 standard concepts.
+
+#### Period of a Bucket
+
+Each value is an instant at the fiscal year end. The bucket is part of the concept, not a future
+period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_facts` with
+`period_end` 2024-12-31 and `quarters` 0.
+
+- The standardize filing step gives a candidate of a ladder concept only for an instant that is
+  the period of report of a filing with the fiscal period `FY`. An interim ladder stays an as-is
+  fact. In an interim report, a bucket without "rolling" counts from the fiscal year end, and a
+  rolling bucket counts from the balance sheet date. So the two hold different amounts there.
+- A filter after `resolve_aliases` drops the other ladder candidates. It reads the `Filing`.
+  `resolve_aliases` and the `Taxonomy` trait do not change.
+- Each annual report gives a new ladder. The series of `DebtDueInYearOne` shows, for each year,
+  the debt due in the next year.
+- The gap check expects only fiscal year ends for a concept of `DebtMaturities`. Otherwise every
+  10-Q filer gets three `Gap` findings for each concept and year.
+- The instant is the balance sheet date, so "Suspicious Periods" never flags a bucket. The ends
+  10 to 100 years away belong to the facts of single notes, such as `DebtInstrumentMaturityDate`.
+  These stay as-is facts.
+
+#### Not Reported Against Zero
+
+- A bucket that the filer tags with zero is a row with the value 0. The frame `CY2024Q4I` holds
+  1,161 bucket values of zero.
+- A bucket that the filer does not tag has no row. Silver never writes a zero for it, and no rule
+  derives it.
+- A reader shows a bucket with no row as "not reported in machine-readable form". It never shows
+  zero for it. A missing row can mean no debt, or a schedule that the filer did not tag. Silver
+  cannot tell the two apart.
+
+#### Sum Check
+
+`core/check/debt-maturities@1` compares the sum of the six buckets with
+`LongTermDebtIncludingCurrentMaturities`.
+
+- The check runs only if all seven concepts have a value at the instant. A missing bucket is not
+  reported, so it never counts as zero.
+- The tolerance is ±5% of the largest absolute value in the group (ADR 0028). The buckets hold
+  principal. The total holds the carrying amount, net of discounts, premiums, and issuance costs.
+- A failure is a `MaturityMismatch` finding. `concepts` holds the total first, then the buckets in
+  the order of the table. `periods` holds the instant. `reason` holds `debt-maturities`.
+  `confidence` holds the weakest confidence of the inputs.
+- The check derives no value, and the ladder has no other line. The gap between principal and
+  carrying amount is no line that the filer presents.
+- `check_sums` in `core/sum_check.rs` runs the check on the series of one entity, next to
+  `check_roll_ups`. It reads the trait `Summed`.
+
+Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions. The bucket concept is the
+first alias, or the rolling alias if the filer tags only that. 1,804 filers tag a bucket. 1,387 of
+them also tag `LongTermDebt`.
+
+| Group | Base | Filers | Findings at ±0.1% | At ±1% | At ±5% |
+| ----- | ---- | ------ | ----------------- | ------ | ------ |
+| All six buckets | `LongTermDebt` | 757 | 464 (61%) | 240 (32%) | 71 (9%) |
+| Any bucket, a missing bucket as zero | `LongTermDebt` | 1,387 | 866 (62%) | 571 (41%) | 285 (21%) |
+
+The base `LongTermDebt` fits the ladder best. For the 899 filers with the years one to five, the
+sum agrees within 0.1% with these bases:
+
+| Base | Filers with the base | Within 0.1% |
+| ---- | -------------------- | ----------- |
+| `LongTermDebt` | 899 | 339 |
+| `LongTermDebt` + `FinanceLeaseLiability` | 385 | 37 |
+| `LongTermDebtNoncurrent` + `LongTermDebtCurrent` | 558 | 81 |
+| `LongTermDebtNoncurrent` | 661 | 13 |
+
+Of the 560 filers outside 0.1% of `LongTermDebt`, 280 tag a net discount or issuance cost. Adding
+it brings 135 of them within 0.1%.
+
+#### The Trait `Summed`
+
+```rust
+/// The role of a concept in the sum of its disclosure.
+pub enum Share {
+    /// The total that the parts add up to.
+    Total,
+    /// A part of the total.
+    Part,
+}
+
+/// A concept of a disclosure whose values add up to a total of the same disclosure.
+pub trait Summed: Concept {
+    /// Returns whether the concept is the total or a part.
+    fn share(self) -> Share;
+}
+```
+
+- `DebtMaturityConcept` implements `Concept` and `Summed`. `PerShareConcept` implements `Concept`
+  only.
+- `Summed` is a subtrait of `Concept`, because every concept of a sum also has a name and a
+  label.
+- `Summed` is not `Placed`. A group of the roll-up tree has a tolerance of ±0.1%, an other line,
+  and Tier 3 derivation. The ladder has none of these.
+
+#### Other Financing Values
+
+The "Financing" view groups the ladder, the notes, the average interest rates, share classes,
+buybacks, and dividends. The MVP holds these in the standardized layer:
+
+| Value | In the MVP | Why |
+| ----- | ---------- | --- |
+| Maturity ladder | yes, `DebtMaturities` | 1,804 filers in `CY2024Q4I` |
+| Buybacks | yes, `ShareRepurchases` of the cash flow statement | |
+| Dividends paid | yes, `DividendsPaid` of the cash flow statement | |
+| Average interest rates | no, as-is facts | `LongtermDebtWeightedAverageInterestRate` has 87 filers and `ShortTermDebtWeightedAverageInterestRate` 187, of 2,219 filers of `LongTermDebt` |
+| Dividends per share declared | no, as-is facts | `CommonStockDividendsPerShareDeclared` has 1,245 filers in `CY2024`. A later round can add it to `PerShare` |
+| Notes, with amount and coupon | no, as-is facts | Each note is a member of `DebtInstrumentAxis` that the company defines. A standardized fact has no dimensions in the MVP |
+| Share classes | no, as-is facts | Each class is a member of `StatementClassOfStockAxis` |
+
+The as-is layer keeps every value of the table. A view can show the as-is values per company.
+
+#### Fit With the Segments Design
+
+- The ladder has no dimensions. A ladder per legal entity, such as a bank that splits its debt
+  between the parent and its subsidiaries, stays as-is.
+- Open: the segments design decides whether a standardized fact can carry a member that the
+  company defines, such as a note on `DebtInstrumentAxis`. Until then, the notes stay as-is facts.
 
 ---
 
@@ -1465,6 +1634,7 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
+- `core/check/debt-maturities@1`: a check that gives findings and no value.
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
@@ -1727,7 +1897,7 @@ It never fails.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`), the entity, the
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `MaturityMismatch`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
@@ -1773,7 +1943,8 @@ It never fails.
   - If no value of the timeline is a duration, as on a balance sheet, the gap has 0 quarters.
 - **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
   concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
-  "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
+  "A 10-Q filer expects Q1, Q2, Q3, and FY" above. A concept of `DebtMaturities` is the exception:
+  its timeline expects only the fiscal year ends (see "Debt Maturities").
 - **Fiscal year change.** The filings count in the order they were filed, because a filing
   states its fiscal year end as of its filing date. An amendment does not count, because it can
   state the end of the year it amends. The text `0930` of the Notes data set and
@@ -2030,6 +2201,7 @@ Specific checks include:
 - Balance Sheet Identity holds (`Assets == LiabilitiesAndEquity`)
 - Each closed group of the roll-up tree adds up, and no other line of a breakdown falls below zero
   (see "Roll-Up Tree", "Checks the Tree Gives")
+- The debt maturity ladder adds up to the total long-term debt within ±5% (see "Debt Maturities")
 - Sign checks (Assets > 0, Liabilities > 0, Revenue > 0 for non-loss companies)
 - Cross-statement consistency (Net Income in IS == Net Income in CF reconciliation)
 - Rules inspired by DQC Rules (https://github.com/DataQualityCommittee/dqc_us_rules)
@@ -2038,7 +2210,7 @@ Specific checks include:
 
 For values computed by the resolution engine (Tiers 3 and 4), precision must be exactly 100% — our math must be exact.
 
-When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the largest absolute value in the group of the check, as "Roll-Up Tree", "Checks the Tree Gives", explains.
+When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the largest absolute value in the group of the check, as "Roll-Up Tree", "Checks the Tree Gives", explains. The debt maturity ladder uses ±5%, because its parts hold principal and its total holds the carrying amount ([ADR 0028](../docs/adr/0028-debt-maturity-check-tolerance.md)).
 
 Rule: **our math must be exact, their math gets a tolerance.**
 
