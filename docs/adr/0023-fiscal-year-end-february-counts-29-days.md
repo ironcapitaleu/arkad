@@ -1,4 +1,4 @@
-# ADR 0022: The Month of the Fiscal Year End Counts February as 29 Days
+# ADR 0023: The Month of the Fiscal Year End Counts February as 29 Days
 
 | Field | Value |
 | ----- | ----- |
@@ -27,7 +27,7 @@ in the middle of February:
 
 The ticket asks whether `0215` gives January or February. With either length, February is nearer.
 
-[ADR 0023](0023-fiscal-year-end-tie-keeps-the-month.md) holds the rule for a day that lies as far
+[ADR 0024](0024-fiscal-year-end-tie-keeps-the-month.md) holds the rule for a day that lies as far
 from two month ends.
 
 ## Decision
@@ -44,7 +44,7 @@ Distances in days, counted on 2026-11-15 by hand and checked by the unit tests i
 | Option | `0214` | `0215` | Same year as the parser |
 | ------ | ------ | ------ | ----------------------- |
 | **A (chosen): 29 days** | 1 (14 vs 15) | 2 (15 vs 14) | Yes |
-| B: 28 days | tie (14 vs 14), see ADR 0023 | 2 (15 vs 13) | No: the parser accepts `0229` |
+| B: 28 days | tie (14 vs 14), see ADR 0024 | 2 (15 vs 13) | No: the parser accepts `0229` |
 
 - A and B differ only on `0214`. A uses the same leap year as the parser, so one date answers
   both the parse and the month. With A, February has no tie.

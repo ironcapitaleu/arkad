@@ -1,4 +1,4 @@
-# ADR 0023: A Fiscal Year End as Far From Two Month Ends Keeps Its Month
+# ADR 0024: A Fiscal Year End as Far From Two Month Ends Keeps Its Month
 
 | Field | Value |
 | ----- | ----- |
@@ -15,7 +15,7 @@ is a change of the fiscal year. So the rule decides which stored rows show a cha
 year.
 
 A day can lie as far from the end of the previous month as from the end of its own month. Such a
-day is a tie. With February at 29 days ([ADR 0022](0022-fiscal-year-end-february-counts-29-days.md)),
+day is a tie. With February at 29 days ([ADR 0023](0023-fiscal-year-end-february-counts-29-days.md)),
 a tie occurs only on day 15 of a 30-day month: April, June, September, or November. For example,
 `0415` lies 15 days from March 31 and 15 days from April 30.
 
