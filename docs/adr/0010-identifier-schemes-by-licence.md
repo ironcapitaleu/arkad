@@ -64,8 +64,8 @@ list, or a substantial part of it, as a list of its own.
 - The repository maps 22 EDGAR exchange codes to 21 MICs in
   `sec/src/lib/shared/edgar_exchange_code/mod.rs`, read on 2026-11-15. The
   [ISO 10383 list](https://www.iso20022.org/sites/default/files/ISO10383_MIC/ISO10383_MIC.csv),
-  downloaded on 2026-11-15, holds 2,893 MICs, of which 2,304 have status `ACTIVE`. The project lead decides
-  whether 21 of 2,893 is a substantial part.
+  downloaded on 2026-11-15, holds 2,893 MICs, of which 2,304 have status `ACTIVE`. The project
+  lead decides whether 21 of 2,893 is a substantial part.
 - An endpoint that lists exchanges with their MICs needs a check of its size against the list. The
   project lead decides the size.
 - This amendment does not cover the other columns of the MIC list, such as the operating MIC or the
@@ -100,6 +100,9 @@ No option was measured.
 - Whether the licence of an ISIN from a numbering agency outside the US allows storing it. The ANNA
   DSB third party data page, read on 2026-11-15, covers only CUSIP, SEDOL, and FIGI data in the
   DSB services. A check of the terms of each numbering agency answers it.
+- Whether the repository can hold MICs in source code or test fixtures, and how many. Amendment 1
+  covers stores and `/v1` only. The repository holds 21 of 2,893 MICs on 2026-11-15. The project
+  lead decides.
 - This decision reopens if a licence above changes, or if a check of a primary page contradicts the
   table.
 
