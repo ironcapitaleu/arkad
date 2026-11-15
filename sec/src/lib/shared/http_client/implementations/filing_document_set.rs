@@ -71,7 +71,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::sync::atomic::Ordering;
+    use std::time::Duration;
 
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
@@ -84,6 +86,7 @@ mod tests {
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::http_client::Executes;
+    use crate::shared::http_client::RetryPolicy;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::request::implementations::sec_request::{FilingDocumentSet, SecRequest};
@@ -128,6 +131,33 @@ mod tests {
         RoutingSecClient::new()
             .route(INSTANCE_URL, 200, "text/xml", INSTANCE_BODY)
             .route(LABEL_FILE_URL, 200, "text/xml", LABEL_FILE_BODY)
+    }
+
+    #[tokio::test]
+    async fn should_send_only_the_label_file_again_when_the_label_file_gets_a_503_once() {
+        let no_wait_policy = RetryPolicy {
+            first_wait: Duration::ZERO,
+            max_wait: Duration::ZERO,
+            ..RetryPolicy::default()
+        };
+        let client = RoutingSecClient::new()
+            .route(INSTANCE_URL, 200, "text/xml", INSTANCE_BODY)
+            .route_sequence(
+                LABEL_FILE_URL,
+                &[(503, "text/html", b""), (200, "text/xml", LABEL_FILE_BODY)],
+            )
+            .with_retry_policy(no_wait_policy);
+        let request = document_set_request(Some(LABEL_FILE));
+
+        let expected_result = BTreeMap::from([
+            (INSTANCE_URL.to_string(), 1),
+            (LABEL_FILE_URL.to_string(), 2),
+        ]);
+
+        let _ = client.execute(request).await;
+        let result = client.inner.request_counts.per_url();
+
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]

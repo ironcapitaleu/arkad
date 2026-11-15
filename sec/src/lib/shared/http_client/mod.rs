@@ -11,10 +11,13 @@
 //!
 //! - [`traits`]: The [`InnerClient`], [`SecClient`], [`RespondsWith`], [`HasResponse`], and
 //!   [`Executes`] contracts.
+//! - [`retry_policy`]: The [`RetryPolicy`] that sets the attempts and the waits of one request.
 //! - [`implementations`]: The `reqwest` binding, the default [`SecClient`], and the
 //!   [`RespondsWith`] impl of each SEC endpoint.
 
 pub mod implementations;
+pub mod retry_policy;
 pub mod traits;
 
+pub use retry_policy::RetryPolicy;
 pub use traits::{Executes, HasResponse, InnerClient, RespondsWith, SecClient};
