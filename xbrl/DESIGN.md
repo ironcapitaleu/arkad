@@ -2221,16 +2221,19 @@ impl TryFrom<Statement> for BalanceSheet {
   rejects a concept of another statement, and no list of accessors can drift from the table. If a
   concept moves to another statement, its variant moves to another enum, and each caller that asks
   the old view for it fails to compile.
-- A step can start from a line of another statement. Today `NetIncome` in the cash flow statement
-  is the only one. Each view lists these starts in a `const`, such as
-  `CashFlowStatement::STARTS`, and gives each one an accessor, such as `net_income()`. A unit test
-  checks that `STARTS` holds the starts from another statement of the groups in the module of its
-  statement, such as `cash_flow.rs`, in their order. A new start fails the test until it lands in
-  `STARTS`, and that change adds its accessor.
+- A step can start from a line of another statement. `NetIncome` in the cash flow statement is the
+  only one. A view with such starts lists them in a `const`, such as `CashFlowStatement::STARTS`,
+  and gives each one an accessor, such as `net_income()`. A unit test of each view checks the starts
+  from another statement of the groups in the module of its statement, such as `cash_flow.rs`, in
+  their order. A new start fails the test until it lands in the `const` of its view, and that change
+  adds its accessor. The balance sheet and the income statement have no such start, so their tests
+  expect none.
 - `line` returns `None` if the statement has no line for the concept: a parent with no value, which
   is transparent. A child with no value has a line with `value: None`.
 - `as_statement` gives the generic `Statement`, so a caller also reaches the period and the other
   lines.
+- `From<Statement> for FinancialStatement` wraps a statement in the view of its kind, and
+  `FinancialStatement::as_statement` gives the generic `Statement` of any view.
 - `TryFrom<Statement>` checks the kind. A function that takes a `&BalanceSheet` cannot receive an
   income statement, so the compiler catches a wrong statement and a wrong period type.
 - `FinancialStatement` holds any of the three. It has `#[non_exhaustive]`, so a later statement,
