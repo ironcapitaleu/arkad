@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([STA-516 comment `e93ddee0`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-e93ddee0)). |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-516 comment `e93ddee0`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-e93ddee0), under its first number 0017. [STA-516 comment `43252aa6`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-43252aa6) records the renumbering). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-516](https://linear.app/state-machine/issue/STA-516) |

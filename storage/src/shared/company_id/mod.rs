@@ -1,8 +1,7 @@
 //! # Company ID
 //!
 //! Provides [`CompanyId`], the internal key of a company. Every fact, identifier row, and claim of
-//! a company keys on it. ADR 0018 (`docs/adr/0018-company-id-is-a-uuid.md`) records why the key is
-//! a UUID.
+//! a company keys on it.
 
 use std::fmt::{self, Display, Formatter};
 
@@ -10,8 +9,7 @@ use uuid::Uuid;
 
 /// The internal key of a company: an opaque UUID.
 ///
-/// The load assigns a [`CompanyId`] once per company, and nothing reuses or changes it (ADR 0001,
-/// "Design Rules" 4). The value carries no meaning: a CIK or an LEI is an identifier of the
+/// The load assigns a [`CompanyId`] once per company, and nothing reuses or changes it. The value carries no meaning: a CIK or an LEI is an identifier of the
 /// company, not its key. To find the key of an identifier, ask an
 /// [`EntityResolver`](crate::EntityResolver).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

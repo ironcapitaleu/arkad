@@ -7,8 +7,8 @@ use std::fmt::{self, Display, Formatter};
 
 /// A scheme whose values name a company.
 ///
-/// Each scheme belongs to one level of identity (ADR 0009, Decision 2). This enum holds the
-/// company schemes only, so a security or listing scheme, such as `us_ticker`, cannot reach an
+/// Each scheme belongs to one level of identity: company, security, or listing. This enum holds
+/// the company schemes only, so a security or listing scheme, such as `us_ticker`, cannot reach an
 /// [`EntityResolver`](crate::EntityResolver).
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -38,8 +38,7 @@ impl Display for CompanyScheme {
 
 /// A `(scheme, value)` pair that names a company, such as `(cik, 0001652044)`.
 ///
-/// A resolver matches the value exactly, because grouping uses exact keys only (ADR 0001, "Design
-/// Rules" 3). So the caller passes the value in the form that the identifier rows hold. A value in
+/// A resolver matches the value exactly, because grouping uses exact keys only. So the caller passes the value in the form that the identifier rows hold. A value in
 /// another form, such as a CIK without its leading zeros, matches no row. The `sec` crate converts
 /// a validated `Cik` into a [`CompanyIdentifier`] with the 10-digit value.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

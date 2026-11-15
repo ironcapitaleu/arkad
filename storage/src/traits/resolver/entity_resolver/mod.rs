@@ -30,20 +30,17 @@ use crate::shared::{CompanyId, CompanyIdentifier};
 ///
 /// An implementor holds dated identifier rows: a `(scheme, value)` pair, a [`CompanyId`], and a
 /// validity from one date to another. It returns at most one [`CompanyId`] for one identifier and
-/// one date. If its rows give more than one, as two sources that disagree can, a claim
-/// resolution spec picks the row. ADR 0001 lists that spec as an open question.
+/// one date. Two sources that disagree can give two rows for one date. No rule picks one of them
+/// yet.
 ///
 /// The implementor fixes what the date means. The caller passes a date on that axis:
 ///
 /// - The CIK range table of the SEC adapter is on the period end of a filing. A row covers both
-///   its first and its last day (Linear document "Entity Resolution: the Company Key, LEI, and
-///   Dated CIKs: Findings", Decision 2).
+///   its first and its last day.
 /// - The identifier rows of the metadata store are on the start of the record that gives each
-///   value. A row covers its first day, and ends before `valid_to`
-///   (`sec/design/data_model/identifier_model.md`, "Point-in-Time Reads").
+///   value. A row covers its first day, and ends before `valid_to`.
 ///
-/// The port covers the company level only. Securities and listings have resolvers of their own
-/// (ADR 0009).
+/// The port covers the company level only. Securities and listings have resolvers of their own.
 #[async_trait]
 pub trait EntityResolver: Send + Sync {
     /// Returns the [`CompanyId`] of the row of the identifier that covers the date.

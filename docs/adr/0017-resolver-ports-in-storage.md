@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([STA-516 comment `e93ddee0`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-e93ddee0)). |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-516 comment `e93ddee0`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-e93ddee0), under its first number 0016. [STA-516 comment `43252aa6`](https://linear.app/state-machine/issue/STA-516/feature-entityresolver-port-and-its-fake#comment-43252aa6) records the renumbering). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-516](https://linear.app/state-machine/issue/STA-516) |
@@ -58,9 +58,9 @@ No option was measured. The facts follow from the `Cargo.toml` files at `a9d57d1
 - Every caller imports `storage::{CompanyId, EntityResolver}`. The crate needs no new dependency.
 - `storage` holds two kinds of port: repositories that read and write records by key, and
   resolvers that map an identifier to a key.
-- The fakes of the resolvers live in `storage/src/tests/fixtures/`, compiled for the tests of
-  `storage` only, as the other fakes of `storage` are ([ADR 0016](0016-ports-and-fakes.md),
-  Decision 3).
+- The fakes of the resolvers live in `storage/src/tests/fixtures/`, as
+  [ADR 0016](0016-ports-and-fakes.md), Decision 3, says for every fake. Like the other fakes of
+  `storage`, they compile for the tests of `storage` only.
 - This ADR does not decide the key format. [ADR 0018](0018-company-id-is-a-uuid.md) holds it.
 
 ## Open Questions
