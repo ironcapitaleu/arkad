@@ -27,13 +27,14 @@ Terms in this ADR:
 
 ## Decision
 
-1. **Each bucket is a standard concept, and each value is an instant at the fiscal year end.** The
-   disclosure `DebtMaturities` holds `DebtDueInYearOne` to `DebtDueInYearFive`,
-   `DebtDueAfterYearFive`, and the total `LongTermDebtIncludingCurrentMaturities`. A value is a
-   row with `period_end` at the balance sheet date and `quarters` 0.
-2. **Only the period of report of an annual report gives a ladder value.** The standardize filing
-   step drops a ladder candidate unless its instant is the period of report of a filing with the
-   fiscal period `FY`. An interim ladder stays an as-is fact.
+1. **Each bucket is a standard concept, and each value is an instant.** The disclosure
+   `DebtMaturities` holds `DebtDueInYearOne` to `DebtDueInYearFive`, `DebtDueAfterYearFive`, and
+   the total `LongTermDebtIncludingCurrentMaturities`. A value is a row with `period_end` at the
+   balance sheet date and `quarters` 0.
+2. **Only the period of report of an annual report gives a bucket value.** The standardize filing
+   step drops a candidate of a bucket unless its instant is the period of report of a filing with
+   the fiscal period `FY`. An interim ladder stays an as-is fact. The total is a balance sheet
+   value, so it gets a candidate at every balance sheet date.
 3. **The rolling concept is the second alias of each bucket.** At a fiscal year end, a
    fiscal-year bucket and a rolling bucket hold the same amount.
 4. **A bucket that the filer does not tag has no row.** No rule derives it, and silver never
@@ -68,11 +69,11 @@ Measured on 2026-11-15 in the SEC frames API, frame `CY2024Q4I`, facts without d
 
 ## Consequences
 
-- The ladder adds seven concepts and no column. The count of standard concepts goes from 52 to 59.
-- The gap check expects only fiscal year ends for these concepts. Without the rule, every 10-Q
-  filer gets three `Gap` findings per concept and year.
-- A filter after `resolve_aliases` reads the `Filing`. `resolve_aliases` and the `Taxonomy` trait
-  do not change.
+- The ladder adds seven concepts and no column. `CanonicalElementKind` holds 59 standard concepts.
+- The gap check expects only fiscal year ends for the six buckets. Without the rule, every 10-Q
+  filer gets three `Gap` findings per bucket and year. The trait `Timed` marks the buckets.
+- A filter after `resolve_aliases` reads the `Filing` and `Timed`. `resolve_aliases` and the
+  `Taxonomy` trait do not change.
 - A reader cannot tell "no debt" from "schedule not tagged". It shows a bucket with no row as "not
   reported in machine-readable form".
 - The decision does not cover interim ladders, ladders with finance leases, ladders per legal

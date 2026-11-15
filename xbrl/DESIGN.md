@@ -509,9 +509,9 @@ impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
 
 ```
 xbrl/src/core/elements/
-  mod.rs                         CanonicalElementKind, Concept, Placed, Summed, Share, and the call
-                                 of the middle macro: StatementConcept, DisclosureConcept, the
-                                 conversions
+  mod.rs                         CanonicalElementKind, Concept, Placed, Summed, SumRole, Timed,
+                                 Cadence, and the call of the middle macro: StatementConcept,
+                                 DisclosureConcept, the conversions
   macros.rs                      the innermost macro and the middle macro
   roll_up.rs                     Placement, Weight, Group, GroupKind, GroupName
   statement/
@@ -522,7 +522,7 @@ xbrl/src/core/elements/
   disclosure/
     mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
-    debt_maturities.rs           DebtMaturityConcept, its shares
+    debt_maturities.rs           DebtMaturityConcept, its roles and cadences
 xbrl/src/core/statement/
   mod.rs                         FinancialStatement, StatementKind, Statement, StatementLine
   balance_sheet.rs               BalanceSheet view
@@ -560,7 +560,7 @@ pub trait Placed: Concept {
 - `Placed` is a subtrait of `Concept`, because every concept with a placement also has a name and
   a label. A disclosure implements `Concept` only, so the hierarchy alone says that a concept is a
   disclosure. A disclosure whose values add up, such as `DebtMaturities`, also implements
-  `Summed` (see "Debt Maturities").
+  `Summed`, and `Timed` if a concept has values only at fiscal year ends (see "Debt Maturities").
 - A declarative macro defines each innermost enum and its `ALL` from one list of variants, so the
   two cannot drift.
 - A second macro defines each middle enum, `StatementConcept` and `DisclosureConcept`, from its
@@ -596,7 +596,7 @@ A change touches these places, and no others:
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
 | A disclosure, such as `PerShare` | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
-| A disclosure with a sum, such as `DebtMaturities` | the same, and an `impl Summed` | nothing else |
+| A disclosure with a sum, such as `DebtMaturities` | the same, an `impl Summed` with its name and tolerance, and an `impl Timed` if a concept has values only at fiscal year ends | nothing else |
 | A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
@@ -934,7 +934,7 @@ disclosure also holds the total long-term debt that the check compares the ladde
 of the first concept in the frame `CY2024Q4I`, without dimensions (SEC frames API, read on
 2026-11-15).
 
-| Concept | Share | Alias list | Filers |
+| Concept | Role | Alias list | Filers |
 | ------- | ----- | ---------- | ------ |
 | `LongTermDebtIncludingCurrentMaturities` | total | `LongTermDebt` | 2,219 |
 | `DebtDueInYearOne` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextRollingTwelveMonths` | 1,636 |
@@ -963,7 +963,7 @@ of the first concept in the frame `CY2024Q4I`, without dimensions (SEC frames AP
   - `LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear` (86). Only an interim
     report has it.
 - The rule IDs follow the existing form, for example `us-gaap/alias/debt-due-in-year-one@1`.
-- The count after the change: 52 + 7 = 59 standard concepts.
+- With the ladder, `CanonicalElementKind` holds 59 standard concepts.
 
 #### Period of a Bucket
 
@@ -971,16 +971,19 @@ Each value is an instant at the fiscal year end. The bucket is part of the conce
 period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_facts` with
 `period_end` 2024-12-31 and `quarters` 0.
 
-- The standardize filing step gives a candidate of a ladder concept only for an instant that is
-  the period of report of a filing with the fiscal period `FY`. An interim ladder stays an as-is
-  fact. In an interim report, a bucket without "rolling" counts from the fiscal year end, and a
-  rolling bucket counts from the balance sheet date. So the two hold different amounts there.
-- A filter after `resolve_aliases` drops the other ladder candidates. It reads the `Filing`.
-  `resolve_aliases` and the `Taxonomy` trait do not change.
+- The standardize filing step gives a candidate of a bucket only for an instant that is the
+  period of report of a filing with the fiscal period `FY`. An interim ladder stays an as-is fact.
+  In an interim report, a bucket without "rolling" counts from the fiscal year end, and a rolling
+  bucket counts from the balance sheet date. So the two hold different amounts there.
+- A filter after `resolve_aliases` drops the other candidates of a bucket. It reads the `Filing`
+  and the trait `Timed`. `resolve_aliases` and the `Taxonomy` trait do not change.
+- The total `LongTermDebtIncludingCurrentMaturities` is a balance sheet value. It gets a candidate
+  at every balance sheet date, as `LongTermDebt` does.
 - Each annual report gives a new ladder. The series of `DebtDueInYearOne` shows, for each year,
   the debt due in the next year.
-- The gap check expects only fiscal year ends for a concept of `DebtMaturities`. Otherwise every
-  10-Q filer gets three `Gap` findings for each concept and year.
+- The gap check expects only fiscal year ends on the timeline of a bucket. Otherwise every 10-Q
+  filer gets three `Gap` findings for each bucket and year. The timeline of the total expects
+  every period.
 - The instant is the balance sheet date, so "Suspicious Periods" never flags a bucket. The ends
   10 to 100 years away belong to the facts of single notes, such as `DebtInstrumentMaturityDate`.
   These stay as-is facts.
@@ -1004,13 +1007,16 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   reported, so it never counts as zero.
 - The tolerance is ±5% of the largest absolute value in the group (ADR 0028). The buckets hold
   principal. The total holds the carrying amount, net of discounts, premiums, and issuance costs.
+- All seven values must have the same unit. Otherwise the check does not run, as in a closed
+  group.
 - A failure is a `MaturityMismatch` finding. `concepts` holds the total first, then the buckets in
   the order of the table. `periods` holds the instant. `reason` holds `debt-maturities`.
   `confidence` holds the weakest confidence of the inputs.
 - The check derives no value, and the ladder has no other line. The gap between principal and
   carrying amount is no line that the filer presents.
 - `check_sums` in `core/sum_check.rs` runs the check on the series of one entity, next to
-  `check_roll_ups`. It reads the trait `Summed`.
+  `check_roll_ups`. It reads the role, the name, and the tolerance from the trait `Summed`. It
+  holds nothing that belongs to the ladder alone.
 
 Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions. The bucket concept is the
 first alias, or the rolling alias if the filer tags only that. 1,804 filers tag a bucket. 1,387 of
@@ -1034,11 +1040,12 @@ sum agrees within 0.1% with these bases:
 Of the 560 filers outside 0.1% of `LongTermDebt`, 280 tag a net discount or issuance cost. Adding
 it brings 135 of them within 0.1%.
 
-#### The Trait `Summed`
+#### The Traits `Summed` and `Timed`
 
 ```rust
 /// The role of a concept in the sum of its disclosure.
-pub enum Share {
+#[non_exhaustive]
+pub enum SumRole {
     /// The total that the parts add up to.
     Total,
     /// A part of the total.
@@ -1047,22 +1054,48 @@ pub enum Share {
 
 /// A concept of a disclosure whose values add up to a total of the same disclosure.
 pub trait Summed: Concept {
+    /// The name of the sum, such as `debt-maturities`: the `reason` of its finding.
+    const SUM_NAME: &'static str;
+    /// The tolerance of the check in basis points of the largest absolute value in the group.
+    const TOLERANCE_BASIS_POINTS: u32;
     /// Returns whether the concept is the total or a part.
-    fn share(self) -> Share;
+    fn role(self) -> SumRole;
+}
+
+/// The dates at which a concept has values.
+#[non_exhaustive]
+pub enum Cadence {
+    /// Every period that the entity reports.
+    EveryPeriod,
+    /// Only the fiscal year ends.
+    FiscalYearEnd,
+}
+
+/// A concept whose values can exist at fewer dates than the periods the entity reports.
+pub trait Timed: Concept {
+    /// Returns the dates at which the concept has values.
+    fn cadence(self) -> Cadence;
 }
 ```
 
-- `DebtMaturityConcept` implements `Concept` and `Summed`. `PerShareConcept` implements `Concept`
-  only.
-- `Summed` is a subtrait of `Concept`, because every concept of a sum also has a name and a
-  label.
+- `DebtMaturityConcept` implements `Concept`, `Summed`, and `Timed`. `SUM_NAME` is
+  `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
+  `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
+- A concept enum without `Timed` has values at every period.
+- `check_sums`, the filter after `resolve_aliases`, and the gap check read the traits. A second
+  disclosure with a sum, such as lease maturities, adds its enum and its impls, and none of the
+  three changes.
+- `Summed` and `Timed` are subtraits of `Concept`, because every such concept also has a name and
+  a label. `Timed` is not a subtrait of `Summed`, because a concept can have a cadence without a
+  sum.
 - `Summed` is not `Placed`. A group of the roll-up tree has a tolerance of ±0.1%, an other line,
   and Tier 3 derivation. The ladder has none of these.
 
 #### Other Financing Values
 
-The "Financing" view groups the ladder, the notes, the average interest rates, share classes,
-buybacks, and dividends. The MVP holds these in the standardized layer:
+Financing data, as this section uses the term, is the ladder, the notes, the average interest
+rates, share classes, buybacks, and dividends. No type of the crate groups them. The MVP holds
+these in the standardized layer:
 
 | Value | In the MVP | Why |
 | ----- | ---------- | --- |
@@ -1943,8 +1976,9 @@ It never fails.
   - If no value of the timeline is a duration, as on a balance sheet, the gap has 0 quarters.
 - **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
   concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
-  "A 10-Q filer expects Q1, Q2, Q3, and FY" above. A concept of `DebtMaturities` is the exception:
-  its timeline expects only the fiscal year ends (see "Debt Maturities").
+  "A 10-Q filer expects Q1, Q2, Q3, and FY" above. A concept with the cadence `FiscalYearEnd` of
+  the trait `Timed` is the exception: its timeline expects only the fiscal year ends (see "Debt
+  Maturities").
 - **Fiscal year change.** The filings count in the order they were filed, because a filing
   states its fiscal year end as of its filing date. An amendment does not count, because it can
   state the end of the year it amends. The text `0930` of the Notes data set and

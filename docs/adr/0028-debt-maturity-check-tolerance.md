@@ -65,7 +65,7 @@ bucket is the fiscal-year concept, or the rolling concept if the filer tags only
 
 ## Open Questions
 
-- A measurement on a later frame reopens the number. A share of findings far above 9% reopens it.
+- A measurement on a later frame reopens the number. A rate of findings far above 9% reopens it.
 
 ## Sources
 
