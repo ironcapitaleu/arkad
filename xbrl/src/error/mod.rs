@@ -116,6 +116,7 @@ mod tests {
     use std::error::Error;
     use std::hash::Hash;
 
+    use bigdecimal::BigDecimal;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -137,8 +138,8 @@ mod tests {
     fn should_print_only_the_leaf_when_a_validation_error_reaches_error_kind() {
         let validation_error = ValidationErrorKind::InconsistentIdentity {
             invariant: Invariant::BalanceSheetIdentity,
-            left_value: 500_000_000,
-            right_value: 490_000_000,
+            left_value: BigDecimal::from(500_000_000),
+            right_value: BigDecimal::from(490_000_000),
         };
         let error = ErrorKind::from(validation_error);
 
@@ -182,8 +183,8 @@ mod tests {
     fn should_return_no_source_when_error_kind_wraps_a_leaf_validation_error() {
         let validation_error = ValidationErrorKind::InconsistentIdentity {
             invariant: Invariant::BalanceSheetIdentity,
-            left_value: 500_000_000,
-            right_value: 490_000_000,
+            left_value: BigDecimal::from(500_000_000),
+            right_value: BigDecimal::from(490_000_000),
         };
         let error = ErrorKind::from(validation_error);
 

@@ -2022,7 +2022,7 @@ ErrorKind
       ::InvalidSubmissionRow { adsh: String, source: InvalidValue }
     ::FailedValidation(ValidationErrorKind)
       ::IncompleteData { missing_elements: Vec<CanonicalElementKind> }
-      ::InconsistentIdentity { invariant: Invariant, left_value: i64, right_value: i64 }
+      ::InconsistentIdentity { invariant: Invariant, left_value: BigDecimal, right_value: BigDecimal }
 ```
 
 Every error is a value type: it derives `Clone`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, and
@@ -2084,8 +2084,8 @@ pub enum ValidationErrorKind {
     #[error("[InconsistentIdentity] Invariant '{invariant}' violated, left={left_value}, right={right_value}")]
     InconsistentIdentity {
         invariant: Invariant,
-        left_value: i64,
-        right_value: i64,
+        left_value: BigDecimal,
+        right_value: BigDecimal,
     },
 }
 ```

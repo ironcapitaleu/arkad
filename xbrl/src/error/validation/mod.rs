@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+use bigdecimal::BigDecimal;
 use thiserror::Error;
 
 use crate::core::elements::CanonicalElementKind;
@@ -29,9 +30,9 @@ pub enum ValidationErrorKind {
         /// Which invariant was violated.
         invariant: Invariant,
         /// The left-hand side value of the identity.
-        left_value: i64,
+        left_value: BigDecimal,
         /// The right-hand side value of the identity.
-        right_value: i64,
+        right_value: BigDecimal,
     },
 }
 
@@ -95,6 +96,9 @@ impl fmt::Display for Invariant {
 #[cfg(test)]
 mod tests {
     use std::hash::Hash;
+    use std::str::FromStr;
+
+    use pretty_assertions::assert_eq;
 
     use super::*;
 
@@ -108,6 +112,23 @@ mod tests {
     #[test]
     const fn should_be_a_value_type_for_missing_elements() {
         is_value_type::<MissingElements>();
+    }
+
+    #[test]
+    fn should_print_the_decimals_when_an_identity_value_has_a_fraction() {
+        let left_value = BigDecimal::from_str("500000000.5")
+            .expect("Given a hardcoded decimal text, the parse should always succeed");
+        let error = ValidationErrorKind::InconsistentIdentity {
+            invariant: Invariant::BalanceSheetIdentity,
+            left_value,
+            right_value: BigDecimal::from(490_000_000),
+        };
+
+        let expected_result = "[InconsistentIdentity] Invariant 'BalanceSheetIdentity' violated, left=500000000.5, right=490000000";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
