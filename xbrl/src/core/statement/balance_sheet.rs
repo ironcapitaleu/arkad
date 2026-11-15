@@ -27,6 +27,8 @@ mod tests {
 
     use super::*;
     use crate::core::elements::IncomeStatementConcept;
+    use crate::core::elements::statement::balance_sheet::GROUPS;
+    use crate::core::elements::{CanonicalElementKind, GroupKind};
     use crate::core::statement::IncomeStatement;
     use crate::core::statement::tests::{fact, number};
 
@@ -110,6 +112,38 @@ mod tests {
         let expected_result = Ok(balance_sheet);
 
         let result = BalanceSheet::try_from(financial_statement);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_view_of_its_kind_when_wrapping_a_statement_in_a_financial_statement() {
+        let facts = [fact(BalanceSheetConcept::Assets, "100")];
+        let statement = Statement::build(StatementKind::BalanceSheet, &facts)
+            .expect("Given one fact of the statement, the build should always succeed");
+
+        let expected_result = Ok(BalanceSheet(statement.clone()));
+
+        let result = BalanceSheet::try_from(FinancialStatement::from(statement));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_find_no_start_from_another_statement_in_the_groups_of_the_balance_sheet() {
+        let groups = GROUPS;
+
+        let expected_result: Vec<CanonicalElementKind> = Vec::new();
+
+        let result: Vec<CanonicalElementKind> = groups
+            .iter()
+            .filter_map(|group| match group.kind {
+                GroupKind::Step { start } if BalanceSheetConcept::try_from(start).is_err() => {
+                    Some(start)
+                }
+                _ => None,
+            })
+            .collect();
 
         assert_eq!(result, expected_result);
     }
