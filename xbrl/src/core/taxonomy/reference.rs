@@ -42,7 +42,7 @@ pub struct PartAliases {
     /// The parts in priority order.
     pub parts: Vec<ConceptName>,
     /// The other parts of the standard concept. If a filing reports one of them in the period, no
-    /// part stands for the whole. The part that a filing reports is no other part of itself.
+    /// part stands for the whole. A part never blocks itself.
     pub other_parts: Vec<ConceptName>,
 }
 

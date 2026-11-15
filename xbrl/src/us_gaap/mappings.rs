@@ -78,9 +78,9 @@ impl ConceptDefinition {
 /// The parts of a standard concept that stand for the whole when a filing reports no other part.
 ///
 /// A part counts only if no concept of the alias list resolves, and only if the filing reports
-/// none of the other parts in the period. The winning part is no other part of itself, so two
-/// parts can each be an other part of the other. [`resolve_aliases`](crate::core::alias::resolve_aliases)
-/// gives the full rule.
+/// none of the other parts in the period. A part never blocks itself, so two parts can each be an
+/// other part of the other. [`resolve_aliases`](crate::core::alias::resolve_aliases) gives the
+/// full rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartDefinition {
     /// The standard concept the parts stand for.

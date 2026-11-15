@@ -40,10 +40,10 @@ pub struct FilingCandidates {
 /// the list, and only if it has a unit and a numeric value.
 ///
 /// If no concept of the list resolves, the first part of [`ConceptAliases::parts`] that the filing
-/// reports wins, with the part rule and confidence [`Confidence::Synonym`]. A part wins only if the
-/// filing reports none of the other parts in the period. The winning part is no other part of
-/// itself, so two parts can each be an other part of the other. A value of zero does not count. A
-/// conflict does. The check covers every dimension of the period, so an other part with a member,
+/// reports and that no other part blocks wins, with the part rule and confidence
+/// [`Confidence::Synonym`]. An other part blocks a part if the filing reports it in the period. A
+/// part never blocks itself, so two parts can each be an other part of the other. A value of zero
+/// does not block. A conflict does. The check covers every dimension of the period, so an other part with a member,
 /// such as the noncontrolling interest on the equity components axis, also stops the part.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
@@ -214,18 +214,19 @@ fn pick(
             })
             .or_else(|| {
                 let parts = aliases.parts.as_ref()?;
-                let (position, reported) =
-                    first_reported(&parts.parts, plugin, concepts, registry)?;
-                let part = &parts.parts[position];
-                if parts
-                    .other_parts
+                parts
+                    .parts
                     .iter()
-                    .filter(|other| *other != part)
-                    .any(other_part_reported)
-                {
-                    return None;
-                }
-                Some((Confidence::Synonym, reported, &parts.rule))
+                    .filter(|part| routes_to(part, plugin, registry))
+                    .filter_map(|part| Some((part, *concepts.get(part)?)))
+                    .find(|(part, _)| {
+                        !parts
+                            .other_parts
+                            .iter()
+                            .filter(|other| other != part)
+                            .any(other_part_reported)
+                    })
+                    .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
             })?;
     let fact = reported.first();
     let (value, inputs) = match reported {
@@ -1019,6 +1020,38 @@ mod tests {
             rule_of("us-gaap/part/short-term-debt@1"),
             CandidateValue::Reported {
                 value: BigDecimal::from(45_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_second_part_when_the_first_part_is_zero_and_each_is_an_other_part_of_the_other()
+     {
+        let plugin = short_term_debt_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "LongTermDebtAndCapitalLeaseObligationsCurrent",
+                "0",
+            ),
+            fact(&filing, "ShortTermBorrowings", "500000000"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/short-term-debt@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(500_000_000_i64),
                 decimals: Some(Decimals::Finite(-6)),
                 confidence: Confidence::Synonym,
             },

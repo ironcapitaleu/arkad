@@ -2541,7 +2541,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_no_short_term_debt_when_the_filing_reports_current_long_term_debt_next_to_short_term_borrowings()
+    fn should_give_no_short_term_debt_from_the_us_gaap_lists_when_the_filing_reports_both_parts_of_debt_current()
      {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
@@ -2557,6 +2557,57 @@ mod tests {
         ];
 
         let expected_result = Vec::<(CanonicalElementKind, RuleId, Option<Confidence>)>::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    // A known gap: `LongTermDebtCurrent` sits below a part, so it blocks nothing, and the value
+    // leaves out the current maturities.
+    #[test]
+    fn should_give_short_term_borrowings_alone_when_the_filing_reports_long_term_debt_current_next_to_short_term_borrowings()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "LongTermDebtCurrent", "45000000"),
+            fact(&filing, "ShortTermBorrowings", "756000000"),
+        ];
+
+        let expected_result = vec![(
+            BalanceSheetConcept::ShortTermDebt.element(),
+            rule("us-gaap/part/short-term-debt@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_temporary_equity_when_the_filing_reports_both_parts_of_temporary_equity() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "TemporaryEquityCarryingAmountAttributableToParent",
+                "448000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCarryingAmount",
+                "311000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 
