@@ -58,9 +58,12 @@ To write an ADR:
 8. **Ask the decider.** As soon as the ADR is written, ask the decider in the chat whether they
    accept it now. Name the ADR and state its decision in one or two sentences. Do not wait for a
    review or a merge.
+   - If the person in the chat is not the decider in the `Deciders` row, keep "Proposed".
    - If the decider accepts, record it in the same PR. Post a comment on the ticket that names the
-     ADR, the decider, and the date. Set the `Status` row to "Accepted by <who> on YYYY-MM-DD", with
-     a link to that comment. Say so in the PR description.
+     ADR and the date, and quotes the reply of the decider word for word. Set the `Status` row to
+     "Accepted by <who> on YYYY-MM-DD", with a link to that comment. Say so in the PR description.
+   - If the ADR has no ticket, quote the reply of the decider in the PR description, and link the
+     `Status` row to the PR.
    - If the decider wants time, or no person is in the chat, as in a CI job, keep "Proposed".
 
 The same steps hold for an amendment: write it, then ask the decider.
@@ -72,7 +75,7 @@ The same steps hold for an amendment: write it, then ask the decider.
 
 | Field | Value |
 | ----- | ----- |
-| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD \| Superseded by ADR NNNN> |
+| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link)) \| Superseded by ADR NNNN> |
 | Date | YYYY-MM-DD |
 | Deciders | <who decides> |
 | Ticket | <[STA-123](link): the ticket that needs the decision, with its ID as the link text> |
