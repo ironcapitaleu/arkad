@@ -56,15 +56,16 @@ and `Hash`, as ADR 0006 defines it.
    unchanged: it is `#[error(transparent)]` and prints its inner error in its place. On `main` at
    `a9d57d1`, 18 variants in `sec/src/lib/error/` pass through, such as `ErrorKind::StateMachine`
    (`sec/src/lib/error/mod.rs:40`). When a layer passes through:
-   - A layer that only groups errors by origin, such as `ErrorKind`, `StateMachine`, or the
-     wrapping variants of `StateError`, passes through.
+   - A variant that only groups errors by origin passes through, such as
+     `ErrorKind::StateMachine`, `StateMachine::State`, or the wrapping variants of `StateError`.
    - A layer with a kind, such as `BackendError` in `storage`, passes through only if the text of
      its inner error already names the kind. Otherwise the kind is a fact, and the layer prints it.
    - A wrapping error that prints names its action, such as "Failed to store the document". It
      does not repeat a fact that an outer segment prints, such as the state name in `StreamError`.
-   - A layer that passes through keeps its type, its derives, and its `From` and `TryFrom`. Only
-     its text changes, so decisions 1 and 2 still hold. Its docstring holds one fixed sentence:
-     "Passes through: prints the inner error as it is, because this layer adds no fact."
+   - A layer that passes through keeps its type, its derives, and its `From` and `TryFrom`, so
+     decisions 1 and 2 still hold. Its `Display` and `source()` change. Its docstring holds one
+     fixed sentence: "Passes through: prints the inner error as it is, because this layer adds no
+     fact."
 
    The goal of STA-454: an operator reads what failed, on what, and why, in as few segments as
    possible. Before the rule, a disk-full write printed 7 segments. Five said only that something
