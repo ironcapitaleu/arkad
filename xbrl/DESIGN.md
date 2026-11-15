@@ -429,7 +429,8 @@ Duration values. The top line is `NetChangeInCash`.
   So the cross-statement check of "5) Validation" on net income always holds and needs no code.
 - The cash balance at the start and the end of the period is not in the tree. A check of
   `NetChangeInCash` against two balances needs the balance at the start date. A Notes period has
-  no exact start, so this check waits for a later round.
+  no exact start until the Notes parser computes it from `durp`, so this check waits for a later
+  round.
 
 #### Disclosures
 
@@ -625,6 +626,11 @@ So the check of that group is skipped for that period.
   series.
 - A closed group gets no check for a period if a member has no value and is not zero if absent,
   or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
+- The values of one period end and length in quarters share a slot. If two values of a slot have
+  different exact starts, such as a quarter and a 4-month stub, the slot gets no check and gives
+  no derived value. A value without an exact start joins the slot
+  ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold this rule
+  yet.
 - The negative other check reads the other line of the statement output type (see "7) Financial
   Statement Output Types"). It computes no other line of its own.
 
@@ -873,11 +879,11 @@ filing reports its cash flow lines only for this period:
 | Exchange rate effect | −1 | |
 | Net change in cash | 137 | 390 − 138 − 114 − 1. The closed group holds |
 
-In this fixture, dedup blocks net income and D&A. Each has a three-month and a four-month copy that
-disagree (see "Dedup Rules"). The cash flow lines have only the four-month copy, so they pass dedup,
-and the series stores them under `quarters` 1. The example takes every line from the four-month
-copy to show the arithmetic only. In the series, net income and D&A have no value for this period,
-so the other operating cash flow is 390 − 16 = 374.
+Net income and D&A have a three-month and a four-month fact under one value key. The exact start
+tells them apart, so dedup takes the three-month fact (see "Dedup Rules"). The cash flow lines
+have only the four-month fact, so the series stores them under `quarters` 1. The example takes
+every line from the four-month fact to show the arithmetic only. In the series, the slot of this
+quarter holds two exact starts, so the roll-up tree derives nothing for it and checks nothing.
 
 #### Decided Points
 
@@ -1293,9 +1299,10 @@ AsIsFact {
 - `Decimal` is `bigdecimal::BigDecimal`. It holds every digit the source writes. Silver stores
   `decimal128(38, 10)`, and measured values have up to 24 digits before the point and up to 8
   after it. `rust_decimal` holds 28 significant digits, too few for 24 and 8 digits.
-- A duration holds its length in quarters, because the Notes data set gives the length but often
-  no exact start. The instance parser computes it as `round(days(end - start) / 91.3125)`, the
-  rule that matched `qtrs` on the 622 filings of the Notes against instance comparison. If `start`
+- A duration holds its length in quarters, because the value key and the series key use it. The
+  instance parser computes it as `round(days(end - start) / 91.3125)`, the
+  rule that matched `qtrs` on the 622 filings of the Notes against instance comparison. The Notes
+  parser computes the exact start from `durp` and uses the same rule (see "Value Key"). If `start`
   is set, the constructor of `Period` computes `quarters` from it, so the two cannot disagree.
 - The element reference data holds the period type that the taxonomy declares. If the plug-in has
   reference data for the concept, validation compares the two. A mismatch gives a finding and
@@ -1330,17 +1337,21 @@ section 4.
 | Key option | Same in both sources? | Unique in one filing? |
 | ---------- | --------------------- | --------------------- |
 | Month-end date and quarters | Yes | No: 395 keys hold two values |
-| Exact start and end | No: Notes misses the exact start in 29,761 of 100,303 durations | No: 266 keys differ only in `decimals` |
+| Exact start and end | Only with the start from `durp`. Without it, Notes misses the exact start in 29,761 of 100,303 durations | No: 266 keys differ only in `decimals` |
 | Exact end, quarters, copy rank (chosen) | Yes: Notes `ddate` with `datp` gives the exact end, and the parser numbers the copies in `iprx` order | Yes, by construction: the parser numbers the copies (see "Decisions for the Transform Design") |
 
 - The instance parser computes `copy_rank` in the order of the SEC for `iprx`: higher precision
   first, then the distance of the end to a month end, then the distance of the length to a full
   quarter. A test on filings in both sources checks that the two ranks agree.
-- The exact start stays on the fact when the source has it. It is not part of the key.
+- The exact start stays on the fact. It is not part of the key
+  ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The instance gives `startDate`. The
+  Notes parser computes the start as the exact end less `round((qtrs − durp) × 91.25)` days. On
+  2026-11-15, the two starts agreed for 7,173 of 7,173 Notes durations in 14 filings. The Notes
+  parser does not compute the start yet.
 - The rank makes the key unique, but it does not make two ranks one fact. Of the 395 measured
   collisions, 266 are one period with two precisions, which are copies. 129 are two exact periods
-  with the same end and length, which can be two facts. `core/dedup/more-precise@1` handles both
-  cases, see "Dedup Rules".
+  with the same end and length, which are two facts. The exact start tells the two cases apart in
+  `core/dedup/more-precise@1`, see "Dedup Rules".
 - `taxonomy_version` adds no uniqueness, because the filing fixes the version of each family. It
   stays in the key because the Notes data set gives it on every row, and `as_is_facts` keys on it.
 - The key names the fields only. [`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts", decides the rule for a fact from two
@@ -1523,9 +1534,9 @@ year-to-date only. The result has confidence `Derived`.
     the entity (`10-K`, `10-KT`, `20-F`, or `40-F`). This catches a change of the fiscal year end
     from the dates alone. The `fye` field of a filing can lag the change by several filings, so
     the rule does not read it.
-- Notes gives no exact start, and the guard reads no `durp`, because the as-is layer does not keep
-  it. So a short first fiscal year in Notes with no `10-KT` and no earlier annual report still gets
-  a Q4.
+- A Notes value has an exact start once the Notes parser computes it from `durp` (see "Value
+  Key"). Until then, a short first fiscal year in Notes with no `10-KT` and no earlier annual
+  report still gets a Q4.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
@@ -1603,10 +1614,16 @@ Agreement of copies:
   pairs with rank 0 count, so the result does not depend on the order of the checks.
 - If either copy has no `decimals`, as with `adapter::edgar` facts, the values agree only if they are
   equal.
+- A rank is a copy of rank 0 only if both have the same exact start. A rank with another exact
+  start is another fact, such as a 4-month stub next to a quarter. The rule does not compare it,
+  reports no `Conflict` for it, and gives it no candidate. Rank 0 goes on, because both parsers
+  rank the length nearer to a full quarter first. If either rank has no exact start, the ranks
+  compare as copies ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does
+  not hold this rule yet.
 - For `adapter::edgar` facts, rank 0 is the first copy in the JSON, not the most precise one.
 
 The order of resolution and dedup, per entity and period. A period here is an exact period end
-and a length in quarters, as in the value key, because the Notes data set has no exact start:
+and a length in quarters, as in the value key:
 
 1. `core/dedup/more-precise@1` on the as-is facts of each filing.
 2. Tiers 1 and 2 on each filing: at most one candidate per standard concept and filing.
@@ -1614,7 +1631,8 @@ and a length in quarters, as in the value key, because the Notes data set has no
    the alias order, so a restatement under a renamed concept wins.
 4. Tiers 3 and 4 on the values that remain.
 
-**Conflict.** If one rank disagrees with rank 0, the ranks are two or more facts.
+**Conflict.** If a copy disagrees with rank 0, the ranks are two or more facts with one exact
+period.
 `core/dedup/more-precise@1` keeps all ranks and returns a `Conflict` finding to chronology. The
 finding names the as-is concept, and the standard concept if a plug-in maps it.
 
@@ -1835,10 +1853,11 @@ The measurement also counted four cases that the signals do not catch. Each has 
 | Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule now skips a short year ("Period identities" in "Three Layers"). In Notes it catches only the years with a `10-KT` or an annual report less than 357 days earlier |
 | Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | Detection sources for the guard above |
 | Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
-| Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | A design decision: whether a known length splits the conflict |
+| Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | The exact start splits them into two facts ("Dedup Rules", "Agreement of copies") |
 
-Notes `durp` is `qtrs` less the true length in quarters. June alone has `qtrs` 0 and `durp`
--0.32. The description of the SEC gives the opposite sign.
+Notes `durp` is `qtrs` less the true length in quarters, where a quarter is 91.25 days. June
+alone, 29 days from its start to its end, has `qtrs` 0 and `durp` −0.32. The description of the
+SEC gives the opposite sign.
 
 ---
 
@@ -1934,7 +1953,7 @@ Where each field of `AsIsFact` comes from:
 | `entity` | `sub.cik` | The entity identifier of the context |
 | `concept` | `tag` with the namespace of `version`, from `num` or `txt` | The element name |
 | `taxonomy_version` | `num.version` or `txt.version` | The registry split of the namespace URI. The namespace whose prefix names the schema file, as `fdxf` names `fdxf-20260930.xsd`, is the extension |
-| `period` | `ddate` minus `datp`, and `qtrs`. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
+| `period` | The end is `ddate` minus `datp`. The start is the end minus `round((qtrs − durp) × 91.25)` days, which the parser does not compute yet. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
 | `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare`. `None` for a `txt` row | The unit of the fact |
 | `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context, without prefixes. An explicit axis loses a leading `Statement` and a trailing `Axis`, and its member loses a trailing `Member` or `Domain`. A typed axis loses only a trailing `Axis`. A typed member keeps its content, and loses a prefix by the Notes rule |
 | `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text. The parser drops `txt.lang`, which is not part of the key of `txt`. Every `txt` row of `2026_10` is `en-US` | The content of the fact, or `xsi:nil` |

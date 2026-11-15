@@ -142,7 +142,10 @@ Silver stores three kinds of values:
   (`ddate`, `qtrs`). The instance gives exact dates. So a Notes value and an instance value of the
   same period get the same key.
 - `period_start` keeps the exact start of an instance value, for example a 52/53-week quarter or a
-  stub period after a merger. It is null for Notes values and for instants.
+  stub period after a merger. It is null for instants. For a Notes value, the start is the end
+  less `round((qtrs − durp) × 91.25)` days
+  ([ADR 0022](../../../docs/adr/0022-exact-start-splits-copies.md)). The Notes parser does not
+  compute it yet, so the column is null for Notes values today.
 - The period says which time a value describes. `accepted` says when the value became public. A
   restatement has the period of the original and a later `accepted` time.
 - A ticker can change between two filings. Silver keeps the values as filed. A later design adds
