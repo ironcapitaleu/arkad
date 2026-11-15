@@ -15,7 +15,7 @@ pub mod inconsistent_identity;
 /// Specific validation failure variants.
 #[derive(Debug, PartialEq, Error)]
 pub enum ValidationErrorKind {
-    /// Required canonical elements are missing from the resolved data.
+    /// Required standard concepts are missing from the resolved data.
     #[error("[IncompleteData] Missing required elements: {missing_elements}")]
     IncompleteData {
         /// The elements that could not be resolved.
@@ -53,7 +53,7 @@ pub enum ValidationErrorKind {
     },
 }
 
-/// A list of missing canonical elements with a stable `Display` implementation.
+/// A list of missing standard concepts with a stable `Display` implementation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MissingElements(pub Vec<CanonicalElementKind>);
 
