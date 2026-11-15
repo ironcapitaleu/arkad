@@ -199,7 +199,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::Concept;
+    use crate::core::elements::{CanonicalElementKind, Concept};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
@@ -352,6 +352,75 @@ mod tests {
         ];
 
         let result: Vec<&str> = groups.iter().map(|group| group.as_str()).collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_each_balance_sheet_group_the_parent_kind_and_closure_of_the_table() {
+        let groups = GROUPS;
+
+        let expected_result = vec![
+            (
+                "assets",
+                BalanceSheetConcept::Assets.element(),
+                GroupKind::Breakdown,
+                true,
+            ),
+            (
+                "current-assets",
+                BalanceSheetConcept::CurrentAssets.element(),
+                GroupKind::Breakdown,
+                false,
+            ),
+            (
+                "non-current-assets",
+                BalanceSheetConcept::NonCurrentAssets.element(),
+                GroupKind::Breakdown,
+                false,
+            ),
+            (
+                "liabilities-and-equity",
+                BalanceSheetConcept::LiabilitiesAndEquity.element(),
+                GroupKind::Breakdown,
+                true,
+            ),
+            (
+                "liabilities",
+                BalanceSheetConcept::Liabilities.element(),
+                GroupKind::Breakdown,
+                true,
+            ),
+            (
+                "current-liabilities",
+                BalanceSheetConcept::CurrentLiabilities.element(),
+                GroupKind::Breakdown,
+                false,
+            ),
+            (
+                "non-current-liabilities",
+                BalanceSheetConcept::NonCurrentLiabilities.element(),
+                GroupKind::Breakdown,
+                false,
+            ),
+            (
+                "equity",
+                BalanceSheetConcept::Equity.element(),
+                GroupKind::Breakdown,
+                true,
+            ),
+            (
+                "equity-attributable-to-parent",
+                BalanceSheetConcept::EquityAttributableToParent.element(),
+                GroupKind::Breakdown,
+                false,
+            ),
+        ];
+
+        let result: Vec<(&str, CanonicalElementKind, GroupKind, bool)> = groups
+            .iter()
+            .map(|group| (group.name.as_str(), group.parent, group.kind, group.closed))
+            .collect();
 
         assert_eq!(result, expected_result);
     }
