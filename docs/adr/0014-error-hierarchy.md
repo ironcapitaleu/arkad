@@ -5,7 +5,7 @@
 | Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)) |
 | Date | 2025-06-04 |
 | Deciders | The project lead |
-| Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-08-10 |
+| Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-07-20 (#114) |
 
 ## Context
 
@@ -60,7 +60,7 @@ written one, and it covers `storage` only.
   the boundary, as ADR 0006 states for `storage`.
 - A caller that walks `source()` meets a pass-through layer in place of its inner error, so a
   downcast of `source()` to the inner type does not match (`AGENTS.md`, "Error Display Format").
-- The `xbrl` errors are no value types. They derive only `Debug`, `PartialEq`, and `Error`
+- The `xbrl` errors are not value types. They derive only `Debug`, `PartialEq`, and `Error`
   (`xbrl/src/error/mod.rs:30`, `xbrl/src/error/validation/mod.rs:16`), so they break decision 3.
 - The `api` crate does not follow this shape. Its `ApiError` is one flat enum with `From` impls
   (`api/src/error/mod.rs:28`). This ADR does not cover `api`.

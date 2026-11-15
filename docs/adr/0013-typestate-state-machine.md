@@ -5,7 +5,7 @@
 | Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)) |
 | Date | 2024-09-03 |
 | Deciders | The project lead |
-| Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-08-10 |
+| Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-07-20 (#114) |
 
 ## Context
 
@@ -62,8 +62,7 @@ The project lead gave these reasons on 2026-11-15, in the session that wrote thi
 - **Async and parallel.** States run async, and machines run in parallel. For example, the
   new-filing path runs 8 filing machines at once (#516), and the extraction paths run machines with
   `buffer_unordered` (`sec/src/lib/implementations/extraction/company_facts/mod.rs:209`).
-- **Composition.** Transitions chain states into a machine, and super-states nest machines, so a
-  pipeline composes from steps.
+- **Composition.** Transitions chain states into a machine, so a pipeline composes from steps.
 
 ## Options Considered
 

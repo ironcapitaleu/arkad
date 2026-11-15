@@ -5,12 +5,12 @@
 | Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)) |
 | Date | 2026-04-16 |
 | Deciders | The project lead |
-| Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-08-10 |
+| Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-07-20 (#114) |
 
 ## Context
 
 The pipelines of `sec` talk to the outside: the SEC over HTTP, a clock through a rate limiter, and a
-store for raw documents. A unit test must run without the network and without a real store.
+store for raw documents. A unit test must run without a remote system.
 
 Since #59 (2026-04-16), each of these boundaries is a trait. That PR turned the concrete `SecClient`
 struct of #30 into the traits `SecClient` and `InnerClient`, with a `ReqwestClient` adapter and the
@@ -65,8 +65,8 @@ flags. This ADR records the decision and its consequences only.
 - Each port needs fakes, and each fake needs upkeep when the port changes. The Open-Closed rule of
   `AGENTS.md` limits such changes.
 - Generic parameters add up. A super-state carries one per injected port (ADR 0013, "Consequences").
-- A fake checks only what it was written to return. Integration tests with the real adapter cover
-  the rest.
+- A fake checks only what it was written to return. Some integration tests use the real adapter,
+  such as `sec/tests/sec_client.rs`.
 - The `api` and `xbrl` crates have no ports on `main` at `a9d57d1`. `xbrl` has `Taxonomy`, a plug-in
   for taxonomy data, not an I/O boundary.
 
