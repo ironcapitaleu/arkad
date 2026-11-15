@@ -641,9 +641,9 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
   no alias. If it counted as zero, the rule would derive a wrong `NetChangeInCash` for every
   multinational before 2018.
 - In each pass, the rule visits the groups in the order in which they first appear in the tables
-  of "Roll-Up Tree" ([ADR 0013](../docs/adr/0013-order-of-the-groups.md)). The first group that
-  gives a value wins. The rule still checks every other
+  of "Roll-Up Tree". The first group that gives a value wins. The rule still checks every other
   group that holds the member, so a disagreement is a `RollUpMismatch` finding.
+  [ADR 0013](../docs/adr/0013-order-of-the-groups.md) records the order.
 - The series key (`period_end`, `quarters`) does not tell a three-month value from a four-month
   value in Notes. If one concept has only a three-month copy and another has only a four-month
   copy, no dedup conflict arises, and the rule can combine them. In the fixture of "Worked
@@ -700,6 +700,13 @@ The concepts of `CanonicalElementKind` take these places in the trees and disclo
 | `DividendsPaid` | child of `financing-cash-flow` |
 | `ShareRepurchases` | child of `financing-cash-flow` |
 | `ShareBasedCompensation` | item of `operating-cash-flow` |
+| `OperatingExpenses` | item of `operating-income` |
+| `PretaxIncome` | top of the income statement |
+| `IncomeTaxExpense` | item of `net-income` |
+| `NetIncomeAttributableToParent` | child of `net-income-attribution` |
+| `NetIncomeAttributableToNoncontrollingInterest` | child of `net-income-attribution` |
+| `NetChangeInCash` | top of the cash flow statement |
+| `ExchangeRateEffect` | child of `net-change-in-cash` |
 
 No standard concept holds expenses, gains, or losses. No US GAAP concept holds their totals, no
 rule fills them, and no filer presents them. The cascade holds them in `OperatingExpenses`,
@@ -725,7 +732,7 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 | `TreasuryStock` | `TreasuryStockValue` | `TreasuryStockCommonValue` (1,056), other part `TreasuryStockPreferredValue` | 854 |
 | `AccumulatedOtherComprehensiveIncome` | `AccumulatedOtherComprehensiveIncomeLossNetOfTax` | | 3,821 |
 | `OperatingExpenses` | `OperatingExpenses` | | 2,929 |
-| `PretaxIncome` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` (382), other part `IncomeLossFromEquityMethodInvestments` | 4,561 |
+| `PretaxIncome` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` | `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments` (382), other part `IncomeLossFromEquityMethodInvestments` and the concept below it | 4,561 |
 | `IncomeTaxExpense` | `IncomeTaxExpenseBenefit` | | 4,848 |
 | `NetIncomeAttributableToParent` | `NetIncomeLoss` | | 5,707 |
 | `NetIncomeAttributableToNoncontrollingInterest` | `NetIncomeLossAttributableToNoncontrollingInterest` | | 1,471 |
@@ -1039,7 +1046,7 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 140 tags are picked by hand from filings. 137 of them
+- `us_gaap/mappings.rs` names no release. Its 150 tags are picked by hand from filings. 147 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated), `IncomeLossFromOperations`, and
   `EarningsPerShareBasicAndDiluted` are not.
   The unit test
@@ -1194,7 +1201,10 @@ ticket decides where the removed elements live.
     interest. Then the parent part is not the whole.
   - The other parts leave out a sibling that filers also report outside the total, such as
     `GainsLossesOnSalesOfAssets` below `Revenues`. Its fact does not show a second part of the
-    total, so it blocks the part with no cause.
+    total, so it blocks the part with no cause. `IncomeLossFromEquityMethodInvestments` is the
+    exception for `PretaxIncome`. Some filers report it after income tax, and then the part gives
+    no value. Without it, a filer that reports this income before income tax gets a pretax value
+    that leaves the income out.
   - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
     parts. So the filing reports no other part, and the check passes with the wrong value.
 - `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the
@@ -2308,5 +2318,5 @@ This touches the `sec` crate's public API and downstream consumers.
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for the lines below the top lines
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 140 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 150 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element
