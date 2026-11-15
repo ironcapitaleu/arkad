@@ -30,6 +30,7 @@ use sec::implementations::extraction::{
     BackfillRepositories, DailyFilingsRepositories, Extraction, FailedNotesProbe, NotesRunSummary,
     RunEvent,
 };
+use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use sec::shared::notes_period::NotesPeriod;
 use uuid::Uuid;
@@ -42,7 +43,6 @@ use files_in_flight::{FILES_IN_FLIGHT_ENV_VAR, InvalidFilesInFlight, files_in_fl
 use json_log::init_logger;
 use new_york_clock::previous_day_in_new_york;
 use notes_periods::notes_periods;
-use sec_client::RunSecClient;
 use storage_root::{raw_notes_archive_writer, raw_writer};
 
 #[tokio::main]
@@ -180,7 +180,7 @@ fn log_notes_summary(
 ///
 /// Returns the [`FailedNotesProbe`] of [`notes_periods`].
 async fn notes_periods_of_run(
-    sec_client: &RunSecClient,
+    sec_client: &SecClient,
     today: NaiveDate,
 ) -> Result<Vec<String>, FailedNotesProbe> {
     let on_retry = |quarter: NotesPeriod, error: &FailedSecRequest| {

@@ -3,8 +3,9 @@ use std::hash::Hash;
 
 use async_trait::async_trait;
 use serde::Serialize;
+use url::Url;
 
-use crate::shared::http_client::InnerClient;
+use crate::shared::http_client::{InnerClient, RetryPolicy};
 use crate::shared::rate_limiter::RateLimiter;
 use crate::shared::request::SecRequest as SecRequestTrait;
 use crate::shared::request::implementations::sec_request::SecRequest;
@@ -57,11 +58,27 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// Returns the [`UserAgent`] that every request carries.
     fn user_agent(&self) -> &UserAgent;
 
+    /// Returns the attempts and the waits of one request. The default sends once.
+    fn retry_policy(&self) -> RetryPolicy {
+        RetryPolicy::SEND_ONCE
+    }
+
+    /// Returns `true` if a new attempt of the request can fix `error`. The default returns `false`.
+    fn is_transient(&self, _error: &Self::Error) -> bool {
+        false
+    }
+
+    /// Runs before the wait of each retry, with the error, the URL of the request, and the number
+    /// of the retry, counted from 1. The default does nothing.
+    fn on_retry(&self, _error: &Self::Error, _url: &Url, _retry: u32) {}
+
     /// Executes an SEC request to the endpoint `E`, for example `CompanyFacts`, and returns a
     /// response with the body kind of `E`. See [`RespondsWith`] for how `E` sets the response type.
     ///
     /// Waits on the rate limiter, sends the request through [`Self::inner`], and builds the
-    /// response with [`SecResponseTrait::from_inner`].
+    /// response with [`SecResponseTrait::from_inner`]. If that fails and [`Self::is_transient`]
+    /// returns `true`, waits as [`Self::retry_policy`] says and sends again, up to its
+    /// `max_attempts`. Each attempt waits on the rate limiter.
     ///
     /// A Notes request does not give a JSON response:
     ///
@@ -83,7 +100,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     /// # Errors
     ///
     /// Returns `Self::Error` if the request fails at the network level or the response fails
-    /// SEC validation.
+    /// SEC validation. After a transient failure on every attempt, returns the last error.
     async fn execute_sec_request<E>(
         &self,
         request: SecRequest<E>,
@@ -91,17 +108,47 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
     where
         E: RespondsWith,
     {
-        self.rate_limiter().await_turn().await;
-
-        let inner_response = self
-            .inner()
-            .execute_request(request.into_inner())
-            .await
-            .map_err(Into::into)?;
-        <Self::Response<E::Body> as SecResponseTrait>::from_inner(inner_response)
-            .await
-            .map_err(Into::into)
+        let policy = self.retry_policy();
+        let mut retry = 0;
+        loop {
+            match send_once(self, request.clone()).await {
+                Err(error) if retry + 1 < policy.max_attempts && self.is_transient(&error) => {
+                    retry += 1;
+                    self.on_retry(&error, request.inner.url(), retry);
+                    let wait = RetryPolicy::jitter(policy.backoff(retry), fastrand::f64());
+                    tokio::time::sleep(wait).await;
+                }
+                result => return result,
+            }
+        }
     }
+}
+
+/// Waits on the rate limiter of `client`, sends `request` once, and builds the response with
+/// [`SecResponseTrait::from_inner`]. [`SecClient::execute_sec_request`] calls it for each attempt.
+///
+/// # Errors
+///
+/// Returns `C::Error` if the request fails at the network level or the response fails SEC
+/// validation.
+async fn send_once<C, E>(
+    client: &C,
+    request: SecRequest<E>,
+) -> Result<C::Response<E::Body>, C::Error>
+where
+    C: SecClient,
+    E: RespondsWith,
+{
+    client.rate_limiter().await_turn().await;
+
+    let inner_response = client
+        .inner()
+        .execute_request(request.into_inner())
+        .await
+        .map_err(Into::into)?;
+    <C::Response<E::Body> as SecResponseTrait>::from_inner(inner_response)
+        .await
+        .map_err(Into::into)
 }
 
 #[cfg(test)]
@@ -112,6 +159,7 @@ mod tests {
 
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
+    use crate::shared::http_client::RetryPolicy;
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::http_client::traits::SecClient;
     use crate::shared::notes_period::NotesPeriod;
@@ -277,6 +325,167 @@ mod tests {
         }));
 
         let result = client.execute_sec_request(request).await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// The default number of attempts, without waits.
+    const NO_WAIT_POLICY: RetryPolicy = RetryPolicy {
+        max_attempts: 3,
+        first_wait: std::time::Duration::ZERO,
+        factor: 2,
+        max_wait: std::time::Duration::ZERO,
+    };
+
+    const COMPANY_FACTS_URL: &str = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001067983.json";
+
+    fn retrying_client(
+        status: u16,
+        content_type: &str,
+        body: &[u8],
+        policy: RetryPolicy,
+    ) -> AlwaysRespondingSecClient<CountingRateLimiter> {
+        AlwaysRespondingSecClient::new(
+            status,
+            vec![("content-type", content_type.to_string())],
+            body.to_vec(),
+        )
+        .with_rate_limiter(CountingRateLimiter::default())
+        .with_retry_policy(policy)
+    }
+
+    /// Sends one Company Facts request through `client`. Returns whether it failed, and the number
+    /// of permits it took, so a test of the permits also shows that the request failed.
+    async fn permits_of_one_request(
+        client: &AlwaysRespondingSecClient<CountingRateLimiter>,
+    ) -> (bool, usize) {
+        let failed = client
+            .execute_sec_request(company_facts_request())
+            .await
+            .is_err();
+        (failed, client.rate_limiter.turns.load(Ordering::SeqCst))
+    }
+
+    #[tokio::test]
+    async fn should_take_one_permit_per_attempt_when_every_attempt_gets_a_503() {
+        let client = retrying_client(503, "text/html", b"", NO_WAIT_POLICY);
+
+        let expected_result = (true, 3);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_a_retrying_client_succeeds_on_the_first_attempt() {
+        let client = retrying_client(200, "application/json", b"{}", NO_WAIT_POLICY);
+
+        let expected_result = (false, 1);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_the_sec_answers_403() {
+        let client = retrying_client(403, "text/html", b"", NO_WAIT_POLICY);
+
+        let expected_result = (true, 1);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_the_sec_answers_404() {
+        let client = retrying_client(404, "text/html", b"", NO_WAIT_POLICY);
+
+        let expected_result = (true, 1);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_the_body_fails_to_parse() {
+        let client = retrying_client(200, "application/json", b"{ not json", NO_WAIT_POLICY);
+
+        let expected_result = (true, 1);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_the_content_type_is_invalid() {
+        let client = retrying_client(200, "text/html", b"{}", NO_WAIT_POLICY);
+
+        let expected_result = (true, 1);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_the_policy_allows_zero_attempts() {
+        let policy = RetryPolicy {
+            max_attempts: 0,
+            ..NO_WAIT_POLICY
+        };
+        let client = retrying_client(503, "text/html", b"", policy);
+
+        let expected_result = (true, 1);
+
+        let result = permits_of_one_request(&client).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_send_once_when_a_client_keeps_the_default_retry_policy() {
+        let client = responding_client(503, "text/html", NOTES_FILE_BODY);
+
+        let expected_result = (true, 1);
+
+        let failed = client
+            .execute_sec_request(notes_file_request())
+            .await
+            .is_err();
+        let result = (failed, client.rate_limiter.turns.load(Ordering::SeqCst));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_wait_between_half_and_all_of_each_backoff_when_every_attempt_gets_a_503() {
+        let client = retrying_client(503, "text/html", b"", RetryPolicy::default());
+        let start = tokio::time::Instant::now();
+
+        let expected_result = true;
+
+        let _ = client.execute_sec_request(company_facts_request()).await;
+        let elapsed = start.elapsed();
+        let result = (std::time::Duration::from_millis(1500)..=std::time::Duration::from_secs(3))
+            .contains(&elapsed);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_call_on_retry_with_the_url_before_each_retry_when_every_attempt_gets_a_503() {
+        let client = retrying_client(503, "text/html", b"", NO_WAIT_POLICY);
+
+        let expected_result =
+            std::collections::BTreeMap::from([(COMPANY_FACTS_URL.to_string(), 2)]);
+
+        let _ = client.execute_sec_request(company_facts_request()).await;
+        let result = client.retries.per_url();
 
         assert_eq!(result, expected_result);
     }

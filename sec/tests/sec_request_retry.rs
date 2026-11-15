@@ -1,8 +1,8 @@
 //! # Request Retry Integration Tests
 //!
-//! Sends a Notes request through a [`RetryingSecClient`] over a fake SEC client that answers 503,
-//! and checks that the request succeeds on a later attempt or fails after the maximum. One test
-//! runs the Notes batch of the `Extraction` facade with its run-level retry off.
+//! Sends a Notes request through a fake SEC client with a [`RetryPolicy`] that answers 503, and
+//! checks that the request succeeds on a later attempt or fails after the maximum. One test runs
+//! the Notes batch of the `Extraction` facade with its run-level retry off.
 //!
 //! ## External Dependencies
 //!
@@ -16,11 +16,8 @@ use storage::implementations::repository::filesystem::FilesystemRepository;
 use tempfile::TempDir;
 
 use sec::implementations::extraction::Extraction;
-use sec::shared::http_client::SecClient;
-use sec::shared::http_client::implementations::retrying_sec_client::{
-    RetryPolicy, RetryingSecClient,
-};
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use sec::shared::http_client::{RetryPolicy, SecClient};
 use sec::shared::notes_period::NotesPeriod;
 use sec::shared::raw_document::RawDocument;
 use sec::shared::raw_source::RawNotesArchive;
@@ -45,15 +42,16 @@ const NO_WAIT_POLICY: RetryPolicy = RetryPolicy {
     max_wait: Duration::ZERO,
 };
 
-/// Returns a retrying client whose fake SEC client answers the Notes file of [`PERIOD`] with
+/// Returns a fake SEC client that retries, and answers the Notes file of [`PERIOD`] with
 /// `responses` in order.
-fn retrying_client(responses: &[(u16, &str, &[u8])]) -> RetryingSecClient<RoutingSecClient> {
-    let client = RoutingSecClient::new().route_sequence(NOTES_URL, responses);
-    RetryingSecClient::new(client, NO_WAIT_POLICY)
+fn retrying_client(responses: &[(u16, &str, &[u8])]) -> RoutingSecClient {
+    RoutingSecClient::new()
+        .route_sequence(NOTES_URL, responses)
+        .with_retry_policy(NO_WAIT_POLICY)
 }
 
-/// Returns a retrying client whose fake SEC client answers 503 to every request.
-fn always_unavailable_client() -> RetryingSecClient<RoutingSecClient> {
+/// Returns a fake SEC client that retries, and answers 503 to every request.
+fn always_unavailable_client() -> RoutingSecClient {
     retrying_client(&[(503, "text/html", b"")])
 }
 
@@ -114,7 +112,7 @@ async fn should_send_the_maximum_attempts_when_every_attempt_gets_a_503() {
     let expected_result = BTreeMap::from([(NOTES_URL.to_string(), 3)]);
 
     let _ = sec_client.execute_sec_request(request).await;
-    let result = sec_client.client().inner.request_counts.per_url();
+    let result = sec_client.inner.request_counts.per_url();
 
     assert_eq!(result, expected_result);
 }

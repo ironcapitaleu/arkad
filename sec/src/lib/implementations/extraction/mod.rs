@@ -11,11 +11,11 @@
 //! runs many dates with [`Incremental::daily_filings`]. [`Backfill::all`] runs the Notes periods
 //! and, at the same time, the new-filing path from the cut-over date.
 //!
-//! The facade sends through the SEC client that its caller passes. To retry each request after a
-//! transient failure, pass a [`RetryingSecClient`], as the binaries do. A batch run also runs a
-//! machine again after [`DEFAULT_RETRY_DELAYS`].
+//! The facade sends through the SEC client that its caller passes. The default
+//! [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient) retries each
+//! request after a transient failure. A batch run also runs a machine again after
+//! [`DEFAULT_RETRY_DELAYS`].
 //!
-//! [`RetryingSecClient`]: crate::shared::http_client::implementations::retrying_sec_client::RetryingSecClient
 //! [`build`]: crate::implementations::states::extract::notes::builder::ExtractNotesSuperStateBuilder::build
 //!
 //! ## Modules

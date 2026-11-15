@@ -15,8 +15,9 @@ use std::sync::OnceLock;
 
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use url::Url;
 
-use crate::shared::http_client::SecClient as SecClientTrait;
+use crate::shared::http_client::{RetryPolicy, SecClient as SecClientTrait};
 use crate::shared::rate_limiter::SecRateLimiter;
 use crate::shared::response::implementations::sec_response::{ResponseBody, SecResponse};
 use crate::shared::user_agent::UserAgent;
@@ -40,6 +41,13 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 /// under the SEC's request-rate ceiling. Multiple instances can maintain separate TLS connections
 /// while still collectively respecting the rate limit.
 ///
+/// # Retry
+///
+/// A request that fails with a transient failure, as [`FailedSecRequest::is_transient`] decides,
+/// is sent again under the [`RetryPolicy`] of the client. [`SecClient::new`] sets the default
+/// policy. Each attempt takes its own permit of the rate limiter.
+/// `docs/adr/0012-request-retry-policy.md` records the policy.
+///
 /// # Cloning
 ///
 /// `reqwest::Client` is `Arc`-backed, so clones share one connection pool, TLS sessions, and DNS
@@ -55,6 +63,8 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 pub struct SecClient {
     inner: ReqwestClient,
     rate_limiter: SecRateLimiter,
+    retry_policy: RetryPolicy,
+    on_retry: fn(&FailedSecRequest, &Url, u32),
 }
 
 // The `User-Agent` contains a contact email. It is not sensitive, so the client serializes it.
@@ -68,13 +78,32 @@ impl Serialize for SecClient {
 
 impl SecClient {
     /// Creates a new [`SecClient`] with the given [`ReqwestClient`], backed by the shared
-    /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling.
+    /// [`SecRateLimiter`] that paces requests under the SEC's request-rate ceiling. The client
+    /// retries under the default [`RetryPolicy`].
     #[must_use]
     pub fn new(inner: ReqwestClient) -> Self {
         Self {
             inner,
             rate_limiter: GLOBAL_RATE_LIMITER.get_or_init(SecRateLimiter::new).clone(),
+            retry_policy: RetryPolicy::default(),
+            on_retry: |_, _, _| {},
         }
+    }
+
+    /// Returns this client set to retry under `retry_policy`.
+    #[must_use]
+    pub const fn with_retry_policy(mut self, retry_policy: RetryPolicy) -> Self {
+        self.retry_policy = retry_policy;
+        self
+    }
+
+    /// Returns this client set to call `on_retry` before the wait of each retry, with the error,
+    /// the URL of the request, and the number of the retry, counted from 1. A binary passes a
+    /// function that logs the retry.
+    #[must_use]
+    pub const fn with_on_retry(mut self, on_retry: fn(&FailedSecRequest, &Url, u32)) -> Self {
+        self.on_retry = on_retry;
+        self
     }
 
     /// Returns the [`UserAgent`] that every request carries.
@@ -99,7 +128,8 @@ impl Default for SecClient {
 }
 
 // Deviation: neither `reqwest::Client` nor the `SecRateLimiter` expose comparable or hashable
-// state. Equality, ordering and hashing use only the `UserAgent` the client sends. This satisfies
+// state, and a function pointer has no stable order. Equality, ordering and hashing use only the
+// `UserAgent` the client sends. This satisfies
 // trait bounds that require `Eq + Ord + Hash` (e.g. for use in collections or state machines).
 
 impl PartialEq for SecClient {
@@ -144,6 +174,18 @@ impl SecClientTrait for SecClient {
 
     fn user_agent(&self) -> &UserAgent {
         Self::user_agent(self)
+    }
+
+    fn retry_policy(&self) -> RetryPolicy {
+        self.retry_policy
+    }
+
+    fn is_transient(&self, error: &FailedSecRequest) -> bool {
+        error.is_transient()
+    }
+
+    fn on_retry(&self, error: &FailedSecRequest, url: &Url, retry: u32) {
+        (self.on_retry)(error, url, retry);
     }
 }
 

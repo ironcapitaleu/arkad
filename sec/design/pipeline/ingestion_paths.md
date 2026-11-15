@@ -1658,11 +1658,12 @@ Each machine ends in one of four outcomes:
 - A filing comes from the SEC's own daily index, so its folder exists. The binary never treats a
   404 or a 503 for a filing as absent, and calls no `is_absent_file` on the filing path.
 - A transient SEC failure gets two levels of retry.
-  [ADR 0011](../../../docs/adr/0011-request-retry-policy.md) records the policy.
-  - **Per request.** Every binary sends through a `RetryingSecClient`
-    (`shared/http_client/implementations/retrying_sec_client.rs`). Its default `RetryPolicy` sends
-    one request up to 3 times, with waits of 1 s and 2 s, each cut by jitter to between half and
-    all of it. Each attempt takes its own permit of the rate limiter. A request of several files,
+  [ADR 0012](../../../docs/adr/0012-request-retry-policy.md) records the policy.
+  - **Per request.** `SecClient` retries inside its request cycle, in the default
+    `execute_sec_request` of the trait (`shared/http_client/traits/sec_client.rs`). The default
+    `RetryPolicy` of the concrete `SecClient` sends one request up to 3 times, with waits of 1 s
+    and 2 s, each cut by jitter to between half and all of it. Each attempt takes its own permit
+    of the rate limiter. A request of several files,
     such as the instance and the label file, retries each file on its own. All runs get this
     level, the `submissions` and Company Facts runs too. `backfill` and `daily_filings` log each
     retry as `batch_request_retried`, with the error, the URL, and the retry number.

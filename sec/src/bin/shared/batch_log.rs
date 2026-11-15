@@ -11,6 +11,7 @@ use std::time::Duration;
 use chrono::NaiveDate;
 use sec::implementations::extraction::{DailyRunSummary, ErrorKind, Unit};
 use sec::prelude::{StreamError, StreamItem};
+use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
 use serde_json::Value;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
@@ -18,7 +19,7 @@ use url::Url;
 use uuid::Uuid;
 
 use crate::sec_client::{
-    RunSecClient, USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause,
+    USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause,
 };
 use crate::storage_root::create_root;
 
@@ -64,7 +65,7 @@ impl Display for BatchEvent {
 /// # Errors
 ///
 /// Returns the error of [`sec_client`].
-pub fn startup_sec_client() -> Result<RunSecClient, Box<dyn Error + Send + Sync>> {
+pub fn startup_sec_client() -> Result<SecClient, Box<dyn Error + Send + Sync>> {
     let sec_client = sec_client().inspect_err(|error| {
         let cause = startup_error_cause(error.as_ref());
         tracing::error!(

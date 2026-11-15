@@ -15,8 +15,8 @@ use crate::prelude::StreamError;
 /// The wait before the second attempt of a machine that failed with a transient SEC failure,
 /// without a call to `retry_delays`. After the second attempt the machine fails.
 ///
-/// The [`RetryingSecClient`](crate::shared::http_client::implementations::retrying_sec_client::RetryingSecClient)
-/// of a binary retries each request for a few seconds first. This wait covers a longer outage.
+/// The default [`SecClient`](crate::shared::http_client::implementations::sec_client::SecClient)
+/// retries each request for a few seconds first. This wait covers a longer outage.
 pub const DEFAULT_RETRY_DELAYS: [Duration; 1] = [Duration::from_mins(1)];
 
 /// Runs `attempt` until it succeeds, fails with an error that is not transient, or has used every

@@ -86,9 +86,7 @@ mod tests {
     use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::financial::form::{Form, ParsedForm};
     use crate::shared::http_client::Executes;
-    use crate::shared::http_client::implementations::retrying_sec_client::{
-        RetryPolicy, RetryingSecClient,
-    };
+    use crate::shared::http_client::RetryPolicy;
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::request::implementations::sec_request::{FilingDocumentSet, SecRequest};
@@ -136,19 +134,19 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_send_only_the_label_file_again_when_a_retrying_client_gets_a_503_for_it_once() {
-        let routes = RoutingSecClient::new()
-            .route(INSTANCE_URL, 200, "text/xml", INSTANCE_BODY)
-            .route_sequence(
-                LABEL_FILE_URL,
-                &[(503, "text/html", b""), (200, "text/xml", LABEL_FILE_BODY)],
-            );
+    async fn should_send_only_the_label_file_again_when_the_label_file_gets_a_503_once() {
         let no_wait_policy = RetryPolicy {
             first_wait: Duration::ZERO,
             max_wait: Duration::ZERO,
             ..RetryPolicy::default()
         };
-        let client = RetryingSecClient::new(routes, no_wait_policy);
+        let client = RoutingSecClient::new()
+            .route(INSTANCE_URL, 200, "text/xml", INSTANCE_BODY)
+            .route_sequence(
+                LABEL_FILE_URL,
+                &[(503, "text/html", b""), (200, "text/xml", LABEL_FILE_BODY)],
+            )
+            .with_retry_policy(no_wait_policy);
         let request = document_set_request(Some(LABEL_FILE));
 
         let expected_result = BTreeMap::from([
@@ -157,7 +155,7 @@ mod tests {
         ]);
 
         let _ = client.execute(request).await;
-        let result = client.client().inner.request_counts.per_url();
+        let result = client.inner.request_counts.per_url();
 
         assert_eq!(result, expected_result);
     }

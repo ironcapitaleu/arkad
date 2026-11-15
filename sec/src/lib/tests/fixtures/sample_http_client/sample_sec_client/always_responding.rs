@@ -1,12 +1,14 @@
 use std::hash::Hash;
 
 use serde::Serialize;
+use url::Url;
 
-use crate::shared::http_client::SecClient;
 use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
+use crate::shared::http_client::{RetryPolicy, SecClient};
 use crate::shared::rate_limiter::RateLimiter;
 use crate::shared::response::implementations::sec_response::{ResponseBody, SecResponse};
 use crate::shared::user_agent::UserAgent;
+use crate::tests::fixtures::sample_http_client::sample_inner_client::routing::RequestCounts;
 use crate::tests::fixtures::sample_http_client::sample_inner_client::{
     AlwaysRespondingHttpClient, Delivery,
 };
@@ -17,7 +19,9 @@ use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLi
 ///
 /// Used for testing code that takes any [`SecClient`], without a network call. The rate limiter
 /// `L` never waits. [`AlwaysRespondingSecClient::with_rate_limiter`] swaps it, for example for a
-/// limiter that counts its turns.
+/// limiter that counts its turns. The client sends once, unless
+/// [`AlwaysRespondingSecClient::with_retry_policy`] sets a policy. It then retries a transient
+/// failure and counts each retry per URL in [`AlwaysRespondingSecClient::retries`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct AlwaysRespondingSecClient<L = AlwaysReadyRateLimiter> {
     /// The inner client that builds every response.
@@ -28,6 +32,12 @@ pub struct AlwaysRespondingSecClient<L = AlwaysReadyRateLimiter> {
     pub rate_limiter: L,
     /// The `User-Agent` the client reports.
     pub user_agent: UserAgent,
+    /// The attempts and the waits of one request.
+    #[serde(skip)]
+    pub retry_policy: RetryPolicy,
+    /// The number of retries per URL, shared by all clones.
+    #[serde(skip)]
+    pub retries: RequestCounts,
 }
 
 impl AlwaysRespondingSecClient {
@@ -51,6 +61,8 @@ impl AlwaysRespondingSecClient {
             user_agent: UserAgent::new("Fake Notes Client fake@example.com").expect(
                 "Given a hardcoded SEC-format user agent, validation should always succeed",
             ),
+            retry_policy: RetryPolicy::SEND_ONCE,
+            retries: RequestCounts::default(),
         }
     }
 }
@@ -63,7 +75,16 @@ impl<L> AlwaysRespondingSecClient<L> {
             inner: self.inner,
             rate_limiter,
             user_agent: self.user_agent,
+            retry_policy: self.retry_policy,
+            retries: self.retries,
         }
+    }
+
+    /// Returns the client set to retry a transient failure under `retry_policy`.
+    #[must_use]
+    pub const fn with_retry_policy(mut self, retry_policy: RetryPolicy) -> Self {
+        self.retry_policy = retry_policy;
+        self
     }
 }
 
@@ -86,5 +107,17 @@ where
 
     fn user_agent(&self) -> &UserAgent {
         &self.user_agent
+    }
+
+    fn retry_policy(&self) -> RetryPolicy {
+        self.retry_policy
+    }
+
+    fn is_transient(&self, error: &FailedSecRequest) -> bool {
+        error.is_transient()
+    }
+
+    fn on_retry(&self, _error: &FailedSecRequest, url: &Url, _retry: u32) {
+        let _ = self.retries.increment(url.as_str());
     }
 }

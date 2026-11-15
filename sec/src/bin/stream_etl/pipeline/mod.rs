@@ -8,8 +8,8 @@ use std::time::Instant;
 use futures_util::StreamExt;
 use sec::implementations::extraction::Backfill;
 use sec::prelude::*;
+use sec::shared::http_client::implementations::sec_client::SecClient;
 
-use crate::sec_client::RunSecClient;
 use crate::storage_root::RawCompanyFactsWriter;
 use builder::{NoCik, NoClient, NoRepository, PipelineBuilder};
 
@@ -32,7 +32,7 @@ impl Display for PipelineEvent {
 /// the store.
 pub struct Pipeline {
     raw_cik: String,
-    sec_client: RunSecClient,
+    sec_client: SecClient,
     repository: RawCompanyFactsWriter,
 }
 
