@@ -16,44 +16,44 @@ use storage::Mic;
 ///
 /// `NONE` names no exchange, so the map leaves it out.
 static MIC_BY_EDGAR_EXCHANGE_CODE: LazyLock<HashMap<&'static str, Mic>> = LazyLock::new(|| {
-    EDGAR_EXCHANGE_CODE_MIC_PAIRS
-        .iter()
-        .map(|(code, mic)| {
-            let mic = mic.parse().expect(
-                "Given a MIC copied from the ISO 10383 list, parsing should always succeed",
-            );
-            (*code, mic)
-        })
-        .collect()
+    HashMap::from([
+        ("NYSE", mic("XNYS")),
+        ("NASDAQ", mic("XNAS")),
+        // CHX and NYSETX name one exchange: the Chicago Stock Exchange, now NYSE Texas.
+        ("CHX", mic("XCHI")),
+        ("BOX", mic("XBOX")),
+        ("BX", mic("XBOS")),
+        ("C2", mic("C2OX")),
+        ("CBOE", mic("XCBO")),
+        ("CboeBYX", mic("BATY")),
+        ("CboeBZX", mic("BATS")),
+        ("CboeEDGA", mic("EDGA")),
+        ("CboeEDGX", mic("EDGX")),
+        ("GEMX", mic("GMNI")),
+        ("IEX", mic("IEXG")),
+        ("ISE", mic("XISX")),
+        ("MIAX", mic("XMIO")),
+        ("MRX", mic("MCRY")),
+        ("NYSEAMER", mic("XASE")),
+        ("NYSEArca", mic("ARCX")),
+        ("NYSENAT", mic("XCIS")),
+        ("NYSETX", mic("XCHI")),
+        // The MIC of the exchange MIAX PEARL, LLC. Its equities segment has the MIC `EPRL`.
+        ("PEARL", mic("MPRL")),
+        ("Phlx", mic("XPHL")),
+    ])
 });
 
-/// The code and MIC of each pair, as text. [`MIC_BY_EDGAR_EXCHANGE_CODE`] parses them.
-const EDGAR_EXCHANGE_CODE_MIC_PAIRS: [(&str, &str); 22] = [
-    ("NYSE", "XNYS"),
-    ("NASDAQ", "XNAS"),
-    // CHX and NYSETX name one exchange: the Chicago Stock Exchange, now NYSE Texas.
-    ("CHX", "XCHI"),
-    ("BOX", "XBOX"),
-    ("BX", "XBOS"),
-    ("C2", "C2OX"),
-    ("CBOE", "XCBO"),
-    ("CboeBYX", "BATY"),
-    ("CboeBZX", "BATS"),
-    ("CboeEDGA", "EDGA"),
-    ("CboeEDGX", "EDGX"),
-    ("GEMX", "GMNI"),
-    ("IEX", "IEXG"),
-    ("ISE", "XISX"),
-    ("MIAX", "XMIO"),
-    ("MRX", "MCRY"),
-    ("NYSEAMER", "XASE"),
-    ("NYSEArca", "ARCX"),
-    ("NYSENAT", "XCIS"),
-    ("NYSETX", "XCHI"),
-    // The MIC of the exchange MIAX PEARL, LLC. Its equities segment has the MIC `EPRL`.
-    ("PEARL", "MPRL"),
-    ("Phlx", "XPHL"),
-];
+/// Parses a MIC of [`MIC_BY_EDGAR_EXCHANGE_CODE`].
+///
+/// # Panics
+///
+/// Panics if the value is not a valid MIC.
+fn mic(value: &str) -> Mic {
+    value
+        .parse()
+        .expect("Given a MIC copied from the ISO 10383 list, parsing should always succeed")
+}
 
 /// Returns the MIC of the exchange that an EDGAR exchange code names, or `None`.
 ///
@@ -63,7 +63,7 @@ const EDGAR_EXCHANGE_CODE_MIC_PAIRS: [(&str, &str); 22] = [
 ///
 /// # Panics
 ///
-/// Panics if a MIC in `EDGAR_EXCHANGE_CODE_MIC_PAIRS` is not a valid MIC. The tests of this
+/// Panics if a MIC in the map of codes is not a valid MIC. The tests of this
 /// module parse every pair, so a released build does not panic.
 ///
 /// # Examples
