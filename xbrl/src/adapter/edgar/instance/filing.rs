@@ -118,13 +118,16 @@ struct Cover<'d, 'a, 'input> {
 }
 
 impl<'a, 'input> Cover<'_, 'a, 'input> {
-    /// Returns the first cover fact with the local name in a context with no dimensions.
+    /// Returns the first cover fact with the local name that has text, in a context with no
+    /// dimensions. If no copy has text, returns the first copy, as a nil fact.
     fn fact(&self, local_name: &str) -> Option<Node<'a, 'input>> {
-        self.undimensioned(local_name).next()
+        self.undimensioned(local_name)
+            .find(|fact| value(*fact).is_some())
+            .or_else(|| self.undimensioned(local_name).next())
     }
 
-    /// Returns the trimmed text of the first cover fact with the local name in a context with no
-    /// dimensions that has text. A fact with empty text, as a nil fact has, is skipped.
+    /// Returns the trimmed text of the first cover fact with the local name that has text, in a
+    /// context with no dimensions. A fact with empty text, as a nil fact has, is skipped.
     fn text(&self, local_name: &str) -> Option<String> {
         self.undimensioned(local_name).find_map(value)
     }

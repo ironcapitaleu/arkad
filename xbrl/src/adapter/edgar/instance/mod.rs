@@ -294,6 +294,7 @@ mod tests {
     use crate::core::concept::NamespaceFamily;
     use crate::core::entity_name::EntityName;
     use crate::core::filing::Ticker;
+    use crate::core::form::Form;
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin};
 
     const ADSH: &str = "0000000001-26-000001";
@@ -846,6 +847,65 @@ mod tests {
             .filing
             .company
             .tickers;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_form_when_a_nil_document_type_comes_first() {
+        let body = r#"<dei:DocumentType contextRef="q3">10-K</dei:DocumentType>"#;
+        let text = format!(
+            "{}{body}{FOOTER}",
+            HEADER.replace(
+                r#"<dei:DocumentType contextRef="q3">10-Q</dei:DocumentType>"#,
+                r#"<dei:DocumentType contextRef="q3" xsi:nil="true"/>"#
+            )
+        );
+        let plugin = registry_plugin();
+        let registry = Registry::new(vec![&plugin])
+            .expect("Given one plug-in with two families, the creation should always succeed");
+        let input = InstanceFiling {
+            document: &text,
+            id: filing_id(),
+            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
+                .expect("Given a hardcoded valid date, the creation should always succeed"),
+        };
+
+        let expected_result = Form::new("10-K")
+            .expect("Given a hardcoded form type, the creation should always succeed");
+
+        let result = parse(&input, &registry)
+            .expect("Given a document with a document type that has text, the parse should always succeed")
+            .filing
+            .form;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_the_filing_when_the_document_type_is_nil() {
+        let text = format!(
+            "{}{FOOTER}",
+            HEADER.replace(
+                r#"<dei:DocumentType contextRef="q3">10-Q</dei:DocumentType>"#,
+                r#"<dei:DocumentType contextRef="q3" xsi:nil="true"/>"#
+            )
+        );
+        let plugin = registry_plugin();
+        let registry = Registry::new(vec![&plugin])
+            .expect("Given one plug-in with two families, the creation should always succeed");
+        let input = InstanceFiling {
+            document: &text,
+            id: filing_id(),
+            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
+                .expect("Given a hardcoded valid date, the creation should always succeed"),
+        };
+
+        let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'Form', Reason: 'The value is empty', Input: ''";
+
+        let result = parse(&input, &registry)
+            .expect_err("Given a nil document type, the parse should always fail")
+            .to_string();
 
         assert_eq!(result, expected_result);
     }
