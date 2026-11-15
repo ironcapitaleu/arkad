@@ -56,7 +56,7 @@ The project lead gave these reasons on 2026-11-15, in the session that wrote thi
 
 - **Invariants at each step.** The goal is ETL at large scale that rests on invariants. Each state
   states what must hold at its start, through its input data. When a run is in a state, every
-  earlier state has succeeded and verified its output.
+  earlier state has succeeded, and the checks of those states hold.
 - **Less to hold in mind.** A developer reasons about the next step only, and work does not spill
   into other components. In the words of the lead, a state is "like a checkpoint in a video game".
 - **Async and parallel.** States run async, and machines run in parallel. For example, the
@@ -75,7 +75,6 @@ comparison.
 ## Consequences
 
 - A wrong order of steps fails at compile time, not at run time.
-- A state can rely on the invariants of its input, so it checks only what is new at its own step.
 - Each step costs a fixed set of types: the state, its input data, its output data, its context,
   and the transition into it. The `state-scaffold` skill exists to "Generate the complete
   boilerplate for a new state" (`.claude/skills/state-scaffold/SKILL.md:16`).

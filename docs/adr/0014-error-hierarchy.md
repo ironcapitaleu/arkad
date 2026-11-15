@@ -54,7 +54,7 @@ written one, and it covers `storage` only.
 ## Consequences
 
 - A test asserts on the whole error value with one `assert_eq!`.
-- A new error adds one module and one variant at its level, and its siblings do not change.
+- A new leaf error adds one module and one variant at its level, and its siblings do not change.
 - The hierarchy costs modules: 19 `mod.rs` files under `sec/src/lib/error/` on `main` at `a9d57d1`.
 - A third-party error that is no value type, such as `reqwest::Error`, becomes a reason string at
   the boundary, as ADR 0006 states for `storage`.

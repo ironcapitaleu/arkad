@@ -42,7 +42,7 @@ is the general rule that ADR 0005 applies to storage.
    parameter has a default: `C = SecClient` names the real adapter in 14 type parameters of 10 files
    of `sec/src/lib`, so a caller that injects no client gets the real one. A repository parameter
    has no default.
-3. **Tests use hand-written fakes, not a mock library.** Fakes live in `tests/fixtures/` of each
+3. **Tests use hand-written fakes, not a mock library.** Fakes live in `src/tests/fixtures/` of each
    crate, such as `FakeSecClient`, `AlwaysReadyRateLimiter`, and `FakeWriteRepository`. Unit tests
    use them. Six integration tests of `sec` also use a fake client, such as `RoutingSecClient`
    (`sec/tests/daily_filings.rs:23`).
