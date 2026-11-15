@@ -626,9 +626,10 @@ So the check of that group is skipped for that period.
 - A closed group gets no check for a period if a member has no value and is not zero if absent,
   or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
 - The values of one period end and length in quarters share a slot, which holds every group of
-  that period. If two members of one group have different exact starts, such as a quarter and a
-  4-month stub, that group gets no check, gives no derived value, and reports a `MixedStarts`
-  finding. The other groups of the slot keep their checks. A value without an exact start joins
+  that period. If two members of one group, the start of a step included, have different exact
+  starts, such as a quarter and a 4-month stub, that group gets no check, gives no derived value,
+  gets no other line in the statement, and reports a `MixedStarts` finding. The other groups of
+  the slot keep their checks. A value without an exact start joins
   the slot ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code does not hold
   this rule.
 - The negative other check reads the other line of the statement output type (see "7) Financial
@@ -887,8 +888,8 @@ Net income and D&A have a three-month and a four-month fact under one value key.
 tells them apart, so dedup takes the three-month fact (see "Dedup Rules"). The cash flow lines
 have only the four-month fact, so the series stores them under `quarters` 1. The example takes
 every line from the four-month fact to show the arithmetic only. In the series,
-`operating-cash-flow` mixes the three-month net income with four-month lines, so that group gets
-no check and reports `MixedStarts`. `net-change-in-cash` holds only four-month values and keeps
+`operating-cash-flow` mixes the three-month net income with four-month lines, so that group
+reports `MixedStarts`, and the statement shows no other operating cash flow. `net-change-in-cash` holds only four-month values and keeps
 its check.
 
 #### Decided Points
@@ -2219,7 +2220,10 @@ pub struct StatementLine {
 - A line of `Line::Standard` with a value holds its standardized fact, so a reader can see its
   confidence, rule, and inputs.
 - `build` rejects an empty input, two facts of one concept, and two facts that differ in entity,
-  period, unit, or dimensions.
+  period end, length in quarters, period type, unit, or dimensions. Facts whose periods differ
+  only in the exact start build one statement. A group whose members have two exact starts gets
+  no other line ([ADR 0022](../docs/adr/0022-exact-start-splits-copies.md)). The code rejects
+  two starts and does not hold this rule.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
   takes the concepts of its statement, and the start of a step from another statement, such as
   `NetIncome` in the cash flow statement. It rejects every other fact.
