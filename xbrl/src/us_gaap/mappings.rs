@@ -185,7 +185,8 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ConceptDefinition::new(
         IncomeStatementConcept::NetIncome.element(),
         // `ProfitLoss` holds the noncontrolling interest, as the equity of the `Equity` list does.
-        // `NetIncomeLoss` is the part of the parent. `PART_CONCEPTS` holds it.
+        // `NetIncomeLoss` is the part of the parent. `PART_CONCEPTS` holds it. It is also the
+        // alias of `NetIncomeAttributableToParent`.
         &["ProfitLoss"],
         NET_INCOME_RULE,
         true,
@@ -269,6 +270,19 @@ pub const SELLING_GENERAL_ADMIN_RULE: &str = "us-gaap/alias/selling-general-admi
 pub const RESEARCH_DEVELOPMENT_RULE: &str = "us-gaap/alias/research-development@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::InterestExpense`].
 pub const INTEREST_EXPENSE_RULE: &str = "us-gaap/alias/interest-expense@1";
+/// The ID of the alias rule of [`IncomeStatementConcept::OperatingExpenses`].
+pub const OPERATING_EXPENSES_RULE: &str = "us-gaap/alias/operating-expenses@1";
+/// The ID of the alias rule of [`IncomeStatementConcept::PretaxIncome`].
+pub const PRETAX_INCOME_RULE: &str = "us-gaap/alias/pretax-income@1";
+/// The ID of the alias rule of [`IncomeStatementConcept::IncomeTaxExpense`].
+pub const INCOME_TAX_EXPENSE_RULE: &str = "us-gaap/alias/income-tax-expense@1";
+/// The ID of the alias rule of [`IncomeStatementConcept::NetIncomeAttributableToParent`].
+pub const NET_INCOME_ATTRIBUTABLE_TO_PARENT_RULE: &str =
+    "us-gaap/alias/net-income-attributable-to-parent@1";
+/// The ID of the alias rule of
+/// [`IncomeStatementConcept::NetIncomeAttributableToNoncontrollingInterest`].
+pub const NET_INCOME_ATTRIBUTABLE_TO_NONCONTROLLING_INTEREST_RULE: &str =
+    "us-gaap/alias/net-income-attributable-to-noncontrolling-interest@1";
 /// The ID of the alias rule of [`PerShareConcept::EarningsPerShareBasic`].
 pub const EARNINGS_PER_SHARE_BASIC_RULE: &str = "us-gaap/alias/earnings-per-share-basic@1";
 /// The ID of the alias rule of [`PerShareConcept::EarningsPerShareDiluted`].
@@ -283,6 +297,10 @@ pub const DIVIDENDS_PAID_RULE: &str = "us-gaap/alias/dividends-paid@1";
 pub const SHARE_REPURCHASES_RULE: &str = "us-gaap/alias/share-repurchases@1";
 /// The ID of the alias rule of [`CashFlowConcept::ShareBasedCompensation`].
 pub const SHARE_BASED_COMPENSATION_RULE: &str = "us-gaap/alias/share-based-compensation@1";
+/// The ID of the alias rule of [`CashFlowConcept::NetChangeInCash`].
+pub const NET_CHANGE_IN_CASH_RULE: &str = "us-gaap/alias/net-change-in-cash@1";
+/// The ID of the alias rule of [`CashFlowConcept::ExchangeRateEffect`].
+pub const EXCHANGE_RATE_EFFECT_RULE: &str = "us-gaap/alias/exchange-rate-effect@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
 pub const OTHER_COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/other-comprehensive-income@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::ComprehensiveIncome`].
@@ -429,6 +447,43 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         false,
     ),
     ConceptDefinition::new(
+        IncomeStatementConcept::OperatingExpenses.element(),
+        // `CostsAndExpenses` is not in the list. It is wider than the standard concept: it also
+        // holds the cost of revenue.
+        &["OperatingExpenses"],
+        OPERATING_EXPENSES_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        IncomeStatementConcept::PretaxIncome.element(),
+        // `IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments`
+        // is a part, next to the income of equity method investments. `PART_CONCEPTS` holds it.
+        &[
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        ],
+        PRETAX_INCOME_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        IncomeStatementConcept::IncomeTaxExpense.element(),
+        &["IncomeTaxExpenseBenefit"],
+        INCOME_TAX_EXPENSE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+        // `NetIncomeLoss` is also the part of `NetIncome`. `PART_CONCEPTS` holds it.
+        &["NetIncomeLoss"],
+        NET_INCOME_ATTRIBUTABLE_TO_PARENT_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        IncomeStatementConcept::NetIncomeAttributableToNoncontrollingInterest.element(),
+        &["NetIncomeLossAttributableToNoncontrollingInterest"],
+        NET_INCOME_ATTRIBUTABLE_TO_NONCONTROLLING_INTEREST_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
         PerShareConcept::EarningsPerShareBasic.element(),
         // `EarningsPerShareBasicAndDiluted` is one value for both, so it equals the basic value.
         // The 2026 schema no longer holds it, but older filings report it.
@@ -485,6 +540,28 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         SHARE_BASED_COMPENSATION_RULE,
         false,
     ),
+    ConceptDefinition::new(
+        CashFlowConcept::NetChangeInCash.element(),
+        // `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect`
+        // is a part, next to the effect of exchange rates. `PART_CONCEPTS` holds it.
+        &[
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect",
+        ],
+        NET_CHANGE_IN_CASH_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        CashFlowConcept::ExchangeRateEffect.element(),
+        // `EffectOfExchangeRateOnCashAndCashEquivalents` of filings before 2018 is not in the
+        // list, because it leaves out restricted cash.
+        // `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`
+        // is a part, next to the effect on disposal groups. `PART_CONCEPTS` holds it.
+        &[
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+        ],
+        EXCHANGE_RATE_EFFECT_RULE,
+        false,
+    ),
     // Comprehensive income. Many filers present no other comprehensive income, so these lists
     // are optional.
     ConceptDefinition::new(
@@ -526,6 +603,8 @@ pub const SELLING_GENERAL_ADMIN_PART_RULE: &str = "us-gaap/part/selling-general-
 pub const RESEARCH_DEVELOPMENT_PART_RULE: &str = "us-gaap/part/research-development@1";
 /// The ID of the part rule of [`IncomeStatementConcept::InterestExpense`].
 pub const INTEREST_EXPENSE_PART_RULE: &str = "us-gaap/part/interest-expense@1";
+/// The ID of the part rule of [`IncomeStatementConcept::PretaxIncome`].
+pub const PRETAX_INCOME_PART_RULE: &str = "us-gaap/part/pretax-income@1";
 /// The ID of the part rule of [`CashFlowConcept::DepreciationAmortization`].
 pub const DEPRECIATION_AMORTIZATION_PART_RULE: &str = "us-gaap/part/depreciation-amortization@1";
 /// The ID of the part rule of [`CashFlowConcept::CapitalExpenditures`].
@@ -534,6 +613,10 @@ pub const CAPITAL_EXPENDITURES_PART_RULE: &str = "us-gaap/part/capital-expenditu
 pub const DIVIDENDS_PAID_PART_RULE: &str = "us-gaap/part/dividends-paid@1";
 /// The ID of the part rule of [`CashFlowConcept::ShareRepurchases`].
 pub const SHARE_REPURCHASES_PART_RULE: &str = "us-gaap/part/share-repurchases@1";
+/// The ID of the part rule of [`CashFlowConcept::NetChangeInCash`].
+pub const NET_CHANGE_IN_CASH_PART_RULE: &str = "us-gaap/part/net-change-in-cash@1";
+/// The ID of the part rule of [`CashFlowConcept::ExchangeRateEffect`].
+pub const EXCHANGE_RATE_EFFECT_PART_RULE: &str = "us-gaap/part/exchange-rate-effect@1";
 /// The ID of the part rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
 pub const OTHER_COMPREHENSIVE_INCOME_PART_RULE: &str = "us-gaap/part/other-comprehensive-income@1";
 /// The ID of the part rule of [`IncomeStatementConcept::ComprehensiveIncome`].
@@ -698,6 +781,19 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         INTEREST_EXPENSE_PART_RULE,
     ),
     PartDefinition::new(
+        IncomeStatementConcept::PretaxIncome.element(),
+        &[
+            "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+        ],
+        // `IncomeLossFromEquityMethodInvestments` counts, although some filers report it after
+        // income tax. Such a filer gets no value from the part. Without it, a filer that reports
+        // the income of equity method investments before income tax gets a value that leaves it
+        // out.
+        &["IncomeLossFromEquityMethodInvestments"],
+        &[],
+        PRETAX_INCOME_PART_RULE,
+    ),
+    PartDefinition::new(
         CashFlowConcept::DepreciationAmortization.element(),
         &["Depreciation"],
         // `AdjustmentForAmortization` counts, and so does each concept below it that amortizes an
@@ -773,6 +869,28 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         &[],
         SHARE_REPURCHASES_PART_RULE,
+    ),
+    PartDefinition::new(
+        CashFlowConcept::NetChangeInCash.element(),
+        &[
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect",
+        ],
+        &[],
+        // The alias of `ExchangeRateEffect` counts with its two children, because more filers
+        // report its child `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`.
+        &[
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+        ],
+        NET_CHANGE_IN_CASH_PART_RULE,
+    ),
+    PartDefinition::new(
+        CashFlowConcept::ExchangeRateEffect.element(),
+        &["EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
+        &[
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+        ],
+        &[],
+        EXCHANGE_RATE_EFFECT_PART_RULE,
     ),
     PartDefinition::new(
         IncomeStatementConcept::OtherComprehensiveIncome.element(),

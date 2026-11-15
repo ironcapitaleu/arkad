@@ -643,6 +643,7 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
 - In each pass, the rule visits the groups in the order in which they first appear in the tables
   of "Roll-Up Tree". The first group that gives a value wins. The rule still checks every other
   group that holds the member, so a disagreement is a `RollUpMismatch` finding.
+  [ADR 0013](../docs/adr/0013-order-of-the-groups.md) records the order.
 - The series key (`period_end`, `quarters`) does not tell a three-month value from a four-month
   value in Notes. If one concept has only a three-month copy and another has only a four-month
   copy, no dedup conflict arises, and the rule can combine them. In the fixture of "Worked
@@ -1038,7 +1039,7 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 140 tags are picked by hand from filings. 137 of them
+- `us_gaap/mappings.rs` names no release. Its 150 tags are picked by hand from filings. 147 of them
   are in the 2026 release. `SalesRevenueNet` (deprecated), `IncomeLossFromOperations`, and
   `EarningsPerShareBasicAndDiluted` are not.
   The unit test
@@ -2307,5 +2308,5 @@ This touches the `sec` crate's public API and downstream consumers.
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for the lines below the top lines
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 140 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 150 tags are not in the 2026 release
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element
