@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)). Amendment 1: Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#561](https://github.com/ironcapitaleu/arkad/pull/561)). Amendment 1: Accepted by the project lead on 2026-11-15 ([STA-522 comment `856a78d0`](https://linear.app/state-machine/issue/STA-522#comment-856a78d0)) |
 | Date | 2025-06-04 |
 | Deciders | The project lead |
 | Ticket | None. The decision is older than the Linear tickets: the first ticket in a commit message is STA-130, on 2026-07-20 (#114) |
