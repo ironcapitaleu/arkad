@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-515 comment `db3aa491`](https://linear.app/state-machine/issue/STA-515/feature-map-edgar-exchange-codes-to-mics#comment-db3aa491)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-515](https://linear.app/state-machine/issue/STA-515) |

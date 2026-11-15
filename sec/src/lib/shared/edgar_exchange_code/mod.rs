@@ -39,7 +39,8 @@ static MIC_BY_EDGAR_EXCHANGE_CODE: LazyLock<HashMap<&'static str, &'static str>>
             ("NYSEArca", "ARCX"),
             ("NYSENAT", "XCIS"),
             ("NYSETX", "XCHI"),
-            // The MIC of the exchange MIAX PEARL, LLC. Its equities segment has the MIC `EPRL`.
+            // MIAX Pearl has two MICs. `MPRL` carries the name of the exchange, MIAX PEARL, LLC.
+            // `EPRL` names only its equities segment, so the code maps to `MPRL`.
             ("PEARL", "MPRL"),
             ("Phlx", "XPHL"),
         ])
