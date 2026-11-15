@@ -597,7 +597,7 @@ A change touches these places, and no others:
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
 | A disclosure, such as `PerShare` | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
-| A disclosure with a sum, such as `DebtMaturities` | the same, an `impl Summed` with its name and tolerance, an `impl Timed` if a concept has values only at fiscal year ends, and these traits in the macro entry of the disclosure | nothing else |
+| A disclosure with a sum, such as `DebtMaturities` | the same, an `impl Summed` with its name and tolerance, an `impl Timed` if a concept has values only at fiscal year ends, these traits in the macro entry of the disclosure, and the test of each trait | nothing else |
 | A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
@@ -1002,7 +1002,7 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
 
 #### Sum Check
 
-`core/check/debt-maturities@1` compares the sum of the six buckets with
+`core/sum/debt-maturities@1` compares the sum of the six buckets with
 `LongTermDebtIncludingCurrentMaturities`.
 
 - The check runs only if all seven concepts have a value at the instant. A missing bucket is not
@@ -1682,8 +1682,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
-- `core/check/debt-maturities@1`: the check of a sum of a disclosure, `core/check/<SUM_NAME>@1`. It
-  gives findings and no value.
+- `core/sum/debt-maturities@1`: the check of a sum of a disclosure, `core/sum/<SUM_NAME>@1`. It
+  gives findings and no value. Its own kind keeps the names of sums apart from other checks.
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.

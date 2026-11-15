@@ -9,7 +9,7 @@
 
 ## Context
 
-`core/check/debt-maturities@1` compares the sum of the six buckets of the maturity ladder with
+`core/sum/debt-maturities@1` compares the sum of the six buckets of the maturity ladder with
 `LongTermDebtIncludingCurrentMaturities`, the alias of `us-gaap:LongTermDebt`. The 2026
 calculation tree makes `LongTermDebt` the parent of the six buckets.
 
