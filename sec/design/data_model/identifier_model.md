@@ -116,6 +116,11 @@ tables stay open (ADR 0007, "Open Questions"), so the columns below are the logi
 The row sets are `company_identifiers`, `security_identifiers`, `listing_identifiers`, and
 `company_classifications`.
 
+The port `storage::EntityResolver` returns the `company_id` of a company identifier at a date.
+[ADR 0016](../../../docs/adr/0016-resolver-ports-in-storage.md) records why the resolver ports live
+in `storage`, and [ADR 0017](../../../docs/adr/0017-company-id-is-a-uuid.md) records why
+`company_id` is a UUID.
+
 - **Validity is per source.** If two sources give different values for one subject and scheme,
   the metadata store keeps both rows (ADR 0007, Decision 6). The claim resolution spec of ADR 0001,
   "Open Questions", fixes which row a reader gets.
