@@ -448,7 +448,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_send_once_when_a_client_keeps_the_default_retry_policy() {
+    async fn should_send_once_when_the_fixture_has_no_retry_policy() {
         let client = responding_client(503, "text/html", NOTES_FILE_BODY);
 
         let expected_result = (true, 1);
@@ -458,6 +458,29 @@ mod tests {
             .await
             .is_err();
         let result = (failed, client.rate_limiter.turns.load(Ordering::SeqCst));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_send_once_when_a_client_keeps_the_trait_default_retry_policy() {
+        let client = FakeSecClient::new();
+
+        let expected_result = RetryPolicy::SEND_ONCE;
+
+        let result = client.retry_policy();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_treat_every_error_as_permanent_when_a_client_keeps_the_trait_default() {
+        let client = FakeSecClient::new();
+        let error = String::from("Simulated network error");
+
+        let expected_result = false;
+
+        let result = client.is_transient(&error);
 
         assert_eq!(result, expected_result);
     }
@@ -478,11 +501,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_call_on_retry_with_the_url_before_each_retry_when_every_attempt_gets_a_503() {
+    async fn should_call_on_retry_with_the_url_and_each_retry_number_when_every_attempt_gets_a_503()
+    {
         let client = retrying_client(503, "text/html", b"", NO_WAIT_POLICY);
 
-        let expected_result =
-            std::collections::BTreeMap::from([(COMPANY_FACTS_URL.to_string(), 2)]);
+        let expected_result = std::collections::BTreeMap::from([
+            (format!("{COMPANY_FACTS_URL} retry 1"), 1),
+            (format!("{COMPANY_FACTS_URL} retry 2"), 1),
+        ]);
 
         let _ = client.execute_sec_request(company_facts_request()).await;
         let result = client.retries.per_url();

@@ -21,7 +21,7 @@ use crate::tests::fixtures::sample_rate_limiter::always_ready::AlwaysReadyRateLi
 /// `L` never waits. [`AlwaysRespondingSecClient::with_rate_limiter`] swaps it, for example for a
 /// limiter that counts its turns. The client sends once, unless
 /// [`AlwaysRespondingSecClient::with_retry_policy`] sets a policy. It then retries a transient
-/// failure and counts each retry per URL in [`AlwaysRespondingSecClient::retries`].
+/// failure and counts each retry by URL and retry number in [`AlwaysRespondingSecClient::retries`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub struct AlwaysRespondingSecClient<L = AlwaysReadyRateLimiter> {
     /// The inner client that builds every response.
@@ -35,7 +35,7 @@ pub struct AlwaysRespondingSecClient<L = AlwaysReadyRateLimiter> {
     /// The attempts and the waits of one request.
     #[serde(skip)]
     pub retry_policy: RetryPolicy,
-    /// The number of retries per URL, shared by all clones.
+    /// The number of retries per key `<URL> retry <number>`, shared by all clones.
     #[serde(skip)]
     pub retries: RequestCounts,
 }
@@ -117,7 +117,7 @@ where
         error.is_transient()
     }
 
-    fn on_retry(&self, _error: &FailedSecRequest, url: &Url, _retry: u32) {
-        let _ = self.retries.increment(url.as_str());
+    fn on_retry(&self, _error: &FailedSecRequest, url: &Url, retry: u32) {
+        let _ = self.retries.increment(&format!("{url} retry {retry}"));
     }
 }
