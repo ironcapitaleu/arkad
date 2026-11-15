@@ -18,13 +18,9 @@ use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
 use super::fiscal_year_end::FiscalYearEnd;
 use super::form::Form;
-use super::period::{Duration, Period, days_of_quarters};
+use super::period::{Duration, Period, TOLERANCE_DAYS, days_of_quarters};
 use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
-
-/// The days by which two period ends can differ and still name the same period. A 52-53 week
-/// fiscal year ends up to 6 days away from the end of its month.
-pub(super) const TOLERANCE_DAYS: i64 = 7;
 
 /// The forms of a quarterly report. A `10-QT` reports a transition period.
 const QUARTERLY_FORMS: [&str; 2] = ["10-Q", "10-QT"];
