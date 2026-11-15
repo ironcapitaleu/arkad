@@ -7,9 +7,8 @@
 //! The filing reports 99 value keys twice. Each pair holds a quarter of three months from 1 July
 //! and a period of four months from 1 June. Both round to 1 quarter, so they share a value key. The
 //! quarter is rank 0 in both sources, as the revenue tests show. The instance parser ranks the
-//! length nearer to a full quarter first, and the Notes parser follows the order of `iprx` (see
-//! `DESIGN.md`, "Value Key"). The four months hold June plus the quarter, so no pair agrees, and
-//! all 99 keys are conflicts.
+//! length nearer to a full quarter first, and the Notes parser follows the order of `iprx`. The
+//! four months hold June plus the quarter, so no pair agrees, and all 99 keys are conflicts.
 //!
 //! The tests that resolve use [`UsGaap`] and its alias lists. They check revenue, and the count of
 //! standardized facts per standard concept.

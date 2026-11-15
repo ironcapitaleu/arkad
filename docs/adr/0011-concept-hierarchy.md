@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-14 ([STA-500 comment `dd86cbdf`](https://linear.app/state-machine/issue/STA-500#comment-dd86cbdf)) |
+| Status | Accepted by the project lead on 2026-11-14 ([STA-500 comment `dd86cbdf`](https://linear.app/state-machine/issue/STA-500#comment-dd86cbdf)). Amendment 1: accepted by the project lead on 2026-11-15 ([STA-500 comment `cf3af7a7`](https://linear.app/state-machine/issue/STA-500#comment-cf3af7a7)) |
 | Date | 2026-11-14 |
 | Deciders | The project lead |
 | Ticket | [STA-500](https://linear.app/state-machine/issue/STA-500) acts on the decision. [STA-499](https://linear.app/state-machine/issue/STA-499) made the design |
@@ -49,6 +49,35 @@ The choice binds:
    macro writes both middle enums, their conversions, and `INNERMOST`.
 5. **The name in silver is the name of the innermost variant**, such as `NetIncome`, not a path.
    `Serialize` writes it by hand, and `FromStr` parses it back. `Display` writes the label.
+
+## Amendment 1: Group Names Are Typed
+
+Date: 2026-11-14.
+
+**Reason.** A group had a text name, such as `"financing-cash-flow"`. The text repeated 45 times
+in 4 files, and a typo compiled. Only the placement tests caught it. The later slices build rule IDs
+(`core/roll-up/<group>@1`) and findings from the group name, so they depend on its type. The
+project lead asked for a typed name in the review of ironcapitaleu/arkad#554.
+
+**Decision.**
+
+1. **A group name is an enum, nested like the concepts.** `GroupName` holds `BalanceSheetGroup`,
+   `IncomeStatementGroup`, or `CashFlowGroup`. Each statement module defines the enum of its
+   groups. `Placement::Child` and `Group` hold a `GroupName`.
+2. **The text lives in one place.** `as_str()` of each group enum gives the kebab-case text, such as
+   `current-assets`. `Display` on `GroupName` writes it for rule IDs and findings.
+3. **A group can have a name before its statement lists it.** A placement can name
+   `LiabilitiesAndEquity` while `GROUPS` holds no entry for it.
+
+**Consequences.**
+
+- A typo in a group name fails to compile. Inside `xbrl`, a `match` over the groups of a
+  statement is exhaustive. Outside `xbrl`, it needs a `_` arm, because each group enum is
+  `#[non_exhaustive]`.
+- A macro defines each group enum, its `ALL`, and `as_str()` from one list, as
+  `innermost_concepts!` does for the concepts. A new group adds the variant and its text to that
+  list in the module of its parent, next to its entry in `GROUPS`. No shared file changes.
+- A test pins the text of every group name, and a test checks that the 15 names are distinct.
 
 ## Options Considered
 

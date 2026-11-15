@@ -667,8 +667,7 @@ mod tests {
     fn should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created() {
         let us_gaap = UsGaap::new();
 
-        // `xbrl/DESIGN.md`, "Release in Use Today", names these as not in the 2026 release. The
-        // EPS concept is in two lists.
+        // The 2026 release does not hold these concepts. The EPS concept is in two lists.
         let expected_result = vec![
             concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
             concept("us-gaap", "EarningsPerShareBasicAndDiluted"),

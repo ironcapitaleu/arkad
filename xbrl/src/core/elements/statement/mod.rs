@@ -45,7 +45,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::{CanonicalElementKind, Concept, Placed, Placement};
+    use crate::core::elements::{CanonicalElementKind, Concept, GroupName, Placed, Placement};
 
     #[test]
     fn should_join_the_groups_in_the_order_of_the_statements_and_their_tables() {
@@ -62,7 +62,7 @@ mod tests {
             "financing-cash-flow",
         ];
 
-        let result: Vec<&str> = groups().map(|group| group.name).collect();
+        let result: Vec<&str> = groups().map(|group| group.name.as_str()).collect();
 
         assert_eq!(result, expected_result);
     }
@@ -84,9 +84,9 @@ mod tests {
             )
             .collect();
 
-        let expected_result: Vec<&str> = Vec::new();
+        let expected_result: Vec<GroupName> = Vec::new();
 
-        let result: Vec<&str> = groups()
+        let result: Vec<GroupName> = groups()
             .map(|group| group.name)
             .filter(|name| {
                 !placements.iter().any(|placement| {
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn should_give_each_group_a_unique_name_for_every_listed_group() {
-        let names: Vec<&str> = groups().map(|group| group.name).collect();
+        let names: Vec<&str> = groups().map(|group| group.name.as_str()).collect();
 
         let expected_result = (10, 10);
 
@@ -119,6 +119,30 @@ mod tests {
         expected_result.sort();
 
         let result = parents;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_distinct_name_to_each_of_the_15_group_names() {
+        let names: Vec<&str> = balance_sheet::BalanceSheetGroup::ALL
+            .iter()
+            .map(|group| group.as_str())
+            .chain(
+                income_statement::IncomeStatementGroup::ALL
+                    .iter()
+                    .map(|group| group.as_str()),
+            )
+            .chain(
+                cash_flow::CashFlowGroup::ALL
+                    .iter()
+                    .map(|group| group.as_str()),
+            )
+            .collect();
+
+        let expected_result = (15, 15);
+
+        let result = (names.len(), names.iter().collect::<BTreeSet<_>>().len());
 
         assert_eq!(result, expected_result);
     }

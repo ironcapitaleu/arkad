@@ -5,8 +5,7 @@
 //!
 //! The transform opens the Notes ZIP, splits its tables by `adsh`, and hands this parser the rows of
 //! one filing as [`NotesFiling`]. The parser reads no file. Its rules make a Notes row equal to the
-//! fact that the instance document of the filing reports, see `xbrl/DESIGN.md`, "Decisions for the
-//! Transform Design".
+//! fact that the instance document of the filing reports.
 //!
 //! ## Modules
 //!
