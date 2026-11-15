@@ -98,8 +98,10 @@ impl Placed for BalanceSheetConcept {
     }
 }
 
-/// The groups whose parent is a balance sheet concept, in the order of their parents in
-/// [`Concept::ALL`](crate::core::elements::Concept::ALL).
+/// The groups whose parent is a balance sheet concept.
+///
+/// The list follows the order of the first row that names each group in the table of the balance
+/// sheet. `docs/adr/0013-order-of-the-groups.md` records the order.
 pub const GROUPS: &[Group] = &[
     Group {
         name: BalanceSheetGroup::Assets.name(),

@@ -116,6 +116,14 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
         (CashFlowConcept::DepreciationAmortization.element(), 2),
         (CashFlowConcept::CapitalExpenditures.element(), 2),
         (CashFlowConcept::ShareBasedCompensation.element(), 2),
+        (IncomeStatementConcept::PretaxIncome.element(), 2),
+        (IncomeStatementConcept::IncomeTaxExpense.element(), 2),
+        (
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            2,
+        ),
+        (CashFlowConcept::NetChangeInCash.element(), 2),
+        (CashFlowConcept::ExchangeRateEffect.element(), 2),
     ])
 }
 
@@ -352,7 +360,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_50_standardized_facts_in_25_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -363,7 +371,7 @@ fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_50_standardized_facts_in_25_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
@@ -374,6 +382,8 @@ fn should_give_40_standardized_facts_in_20_concepts_when_the_dedup_rules_run_on_
     assert_eq!(result, expected_result);
 }
 
+// The test writes out the rule of each of the 25 concepts, so it passes 100 lines.
+#[allow(clippy::too_many_lines)]
 #[test]
 fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
@@ -460,6 +470,26 @@ fn should_resolve_five_concepts_by_their_part_rules_when_the_dedup_rules_run_on_
         (
             CashFlowConcept::ShareBasedCompensation.element(),
             rule("us-gaap/alias/share-based-compensation@1"),
+        ),
+        (
+            IncomeStatementConcept::PretaxIncome.element(),
+            rule("us-gaap/alias/pretax-income@1"),
+        ),
+        (
+            IncomeStatementConcept::IncomeTaxExpense.element(),
+            rule("us-gaap/alias/income-tax-expense@1"),
+        ),
+        (
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            rule("us-gaap/alias/net-income-attributable-to-parent@1"),
+        ),
+        (
+            CashFlowConcept::NetChangeInCash.element(),
+            rule("us-gaap/alias/net-change-in-cash@1"),
+        ),
+        (
+            CashFlowConcept::ExchangeRateEffect.element(),
+            rule("us-gaap/alias/exchange-rate-effect@1"),
         ),
     ]);
 

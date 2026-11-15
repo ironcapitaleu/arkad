@@ -77,6 +77,14 @@ async fn should_list_one_entry_per_mapped_concept_for_concepts_request() {
         { "concept": "selling_general_admin", "name": "SG&A" },
         { "concept": "research_development", "name": "R&D" },
         { "concept": "interest_expense", "name": "Interest Expense" },
+        { "concept": "operating_expenses", "name": "Operating Expenses" },
+        { "concept": "pretax_income", "name": "Pretax Income" },
+        { "concept": "income_tax_expense", "name": "Income Tax Expense" },
+        { "concept": "net_income_attributable_to_parent", "name": "Net Income Attributable to Parent" },
+        {
+            "concept": "net_income_attributable_to_noncontrolling_interest",
+            "name": "Net Income Attributable to Noncontrolling Interest",
+        },
         { "concept": "earnings_per_share_basic", "name": "EPS (Basic)" },
         { "concept": "earnings_per_share_diluted", "name": "EPS (Diluted)" },
         { "concept": "depreciation_amortization", "name": "Depreciation & Amortization" },
@@ -84,6 +92,8 @@ async fn should_list_one_entry_per_mapped_concept_for_concepts_request() {
         { "concept": "dividends_paid", "name": "Dividends Paid" },
         { "concept": "share_repurchases", "name": "Share Repurchases" },
         { "concept": "share_based_compensation", "name": "Share-Based Compensation" },
+        { "concept": "net_change_in_cash", "name": "Net Change in Cash" },
+        { "concept": "exchange_rate_effect", "name": "Exchange Rate Effect" },
         { "concept": "other_comprehensive_income", "name": "Other Comprehensive Income" },
         { "concept": "comprehensive_income", "name": "Comprehensive Income" },
     ]);
