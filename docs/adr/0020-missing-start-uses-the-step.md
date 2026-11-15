@@ -38,15 +38,18 @@ it derives nothing.
    only if it has no step.** For `NetIncome`, this is `net-income`, so `comprehensive-income`
    starts from `PretaxIncome` less `IncomeTaxExpense`. The step goes back further if those have no
    value too.
-2. **A member that is the parent of no group of the statement counts as zero.** An example is
-   `NetIncome` in the cash flow statement, so the other line of `operating-cash-flow` holds it.
+2. **A member with no value that is the parent of no group of the statement counts as zero.** An
+   example is `NetIncome` in the cash flow statement, so the other line of `operating-cash-flow`
+   holds it.
 
 ## Options Considered
 
 Measured on 2026-11-15 with the SEC frames API, frame `CY2025Q3`, unit USD, one fact per filer
-with no dimensions. "Has no `NetIncome`" means no `ProfitLoss`, and no `NetIncomeLoss` or a
-noncontrolling share next to it. "Step" means `IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest`
-and `IncomeTaxExpenseBenefit`. "Split" means `NetIncomeLoss` and the noncontrolling share.
+with no dimensions. "Has no `NetIncome`" means no `ProfitLoss`, and either no `NetIncomeLoss` or a
+`NetIncomeLoss` next to a noncontrolling share. "Step" means
+`IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest` and
+`IncomeTaxExpenseBenefit`. "Split" means `NetIncomeLoss` and the noncontrolling share. An option
+"serves" a filer if each member of its group has a value.
 
 | Filers | Count |
 | ------ | ----- |
