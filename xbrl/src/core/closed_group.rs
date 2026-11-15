@@ -89,22 +89,26 @@ pub fn derive_from_closed_groups(
 
 /// Returns the ID of the rule that derives a member of `group`, such as
 /// `core/roll-up/liabilities@1`.
-fn roll_up_rule(group: GroupName) -> RuleId {
+pub(super) fn roll_up_rule(group: GroupName) -> RuleId {
     RuleId::from_str(&format!("core/roll-up/{group}@1"))
         .expect("Given a kebab-case group name without whitespace, the rule ID should always parse")
 }
 
 /// One member of a group, with its sign in the sum that equals zero: parent − start − Σ(weight ×
 /// child) = 0.
+///
+/// `zero_if_absent` is the field of the placement. The derivation leaves out the children of
+/// [`ZERO_IN_CHECK_ONLY`].
 #[derive(Debug)]
-struct Member {
-    concept: CanonicalElementKind,
-    sign: Weight,
-    zero_if_absent: bool,
+pub(super) struct Member {
+    pub(super) concept: CanonicalElementKind,
+    pub(super) sign: Weight,
+    pub(super) zero_if_absent: bool,
 }
 
-/// Returns the parent, the start of a step, and the children of `group`, in this order.
-fn members(group: Group) -> Vec<Member> {
+/// Returns the parent, the start of a step, and the children of `group`, in this order. The
+/// children keep the order of [`placements`].
+pub(super) fn members(group: Group) -> Vec<Member> {
     let parent = Member {
         concept: group.parent,
         sign: Weight::Plus,
@@ -126,7 +130,7 @@ fn members(group: Group) -> Vec<Member> {
         } if name == group.name => Some(Member {
             concept,
             sign: opposite(weight),
-            zero_if_absent: zero_if_absent && !ZERO_IN_CHECK_ONLY.contains(&concept),
+            zero_if_absent,
         }),
         _ => None,
     });
@@ -143,7 +147,8 @@ const fn opposite(weight: Weight) -> Weight {
     }
 }
 
-fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
+/// Returns `value` with the sign `sign`.
+pub(super) fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
     match sign {
         Weight::Minus => -value,
         Weight::Plus => value.clone(),
@@ -224,7 +229,7 @@ impl KnownValues {
             }
             match values.get(&member.concept).map(Vec::as_slice) {
                 Some([fact]) => inputs.push((member.sign, fact)),
-                None if member.zero_if_absent => {}
+                None if member.zero_if_absent && !ZERO_IN_CHECK_ONLY.contains(&member.concept) => {}
                 None if unknown.is_none() => unknown = Some(member),
                 _ => return None,
             }
