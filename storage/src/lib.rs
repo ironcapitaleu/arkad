@@ -9,6 +9,8 @@
 //! store holds, and [`ReadListRepository`] names a store that reads and lists with one key type. A component depends on the trait for the
 //! access it needs, so a write from a read-only caller does not compile.
 //!
+//! [`EntityResolver`] returns the [`CompanyId`] of a [`CompanyIdentifier`] at a date.
+//!
 //! The traits are expressed in domain types and name no concrete database or backend. Each backend
 //! lives under [`implementations`] and depends on the traits, never the other way round.
 //!
@@ -18,7 +20,8 @@
 //! - [`implementations`]: The concrete backends, one module per storage medium.
 //! - [`shared`]: The types that the backends and the callers of the crate both use, such as the
 //!   [`Sha256Digest`].
-//! - [`traits`]: The traits for reading and writing records, and for listing documents.
+//! - [`traits`]: The traits for reading and writing records, for listing documents, and for
+//!   resolving an identifier to its internal key.
 //!
 //! ## Usage
 //!
@@ -41,10 +44,11 @@ pub mod shared;
 pub mod traits;
 
 pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
-pub use shared::{InvalidSha256Digest, Sha256Digest};
+pub use shared::{CompanyId, CompanyIdentifier, CompanyScheme, InvalidSha256Digest, Sha256Digest};
 pub use traits::repository::{
     ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
 };
+pub use traits::resolver::EntityResolver;
 
 #[cfg(test)]
 pub mod tests;
