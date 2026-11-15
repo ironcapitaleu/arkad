@@ -7,6 +7,7 @@
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
+//! - [`edgar_exchange_code`]: Provides [`mic_of`](edgar_exchange_code::mic_of), the map from an EDGAR exchange code to the MIC of the exchange it names.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
 //! - [`filing_documents_ref`]: Provides [`FilingDocumentsRef`](filing_documents_ref::FilingDocumentsRef), the filing and the keys of its stored XBRL instance and label file.
 //! - [`filing_ref`]: Provides [`FilingRef`](filing_ref::FilingRef), which names one filing to fetch.
@@ -38,6 +39,7 @@ pub mod build_info;
 pub mod cik;
 pub mod content_type;
 pub mod document_storage;
+pub mod edgar_exchange_code;
 pub mod filing_documents;
 pub mod filing_documents_ref;
 pub mod filing_ref;
