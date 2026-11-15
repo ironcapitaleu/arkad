@@ -105,10 +105,16 @@ mod tests {
     use super::*;
     use crate::shared::CompanyScheme;
 
-    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin + Debug + Default>() {}
+    const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_fake_entity_resolver() {
         implements_auto_traits::<FakeEntityResolver>();
+    }
+
+    const fn implements_debug_and_default<T: Debug + Default>() {}
+    #[test]
+    const fn should_implement_debug_and_default_for_fake_entity_resolver() {
+        implements_debug_and_default::<FakeEntityResolver>();
     }
 
     fn date(year: i32, month: u32, day: u32) -> NaiveDate {
@@ -156,6 +162,32 @@ mod tests {
         let row = row_of_2020();
         let identifier = CompanyIdentifier::new(CompanyScheme::Cik, "0000315293");
         let at = date(2019, 12, 31);
+
+        let expected_result = false;
+
+        let result = row.covers(&identifier, at);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_cover_the_date_when_the_date_is_after_the_last_day() {
+        let row = row_of_2020();
+        let identifier = CompanyIdentifier::new(CompanyScheme::Cik, "0000315293");
+        let at = date(2021, 1, 1);
+
+        let expected_result = false;
+
+        let result = row.covers(&identifier, at);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_cover_the_date_when_the_identifier_differs() {
+        let row = row_of_2020();
+        let identifier = CompanyIdentifier::new(CompanyScheme::Cik, "0000858877");
+        let at = date(2020, 6, 30);
 
         let expected_result = false;
 

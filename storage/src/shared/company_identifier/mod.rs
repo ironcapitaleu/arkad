@@ -39,8 +39,9 @@ impl Display for CompanyScheme {
 /// A `(scheme, value)` pair that names a company, such as `(cik, 0001652044)`.
 ///
 /// A resolver matches the value exactly, because grouping uses exact keys only (ADR 0001, "Design
-/// Rules" 3). So the caller passes the value in the form that the identifier rows hold, such as
-/// the 10-digit CIK of `Cik::value` in the `sec` crate.
+/// Rules" 3). So the caller passes the value in the form that the identifier rows hold. A value in
+/// another form, such as a CIK without its leading zeros, matches no row. The `sec` crate converts
+/// a validated `Cik` into a [`CompanyIdentifier`] with the 10-digit value.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct CompanyIdentifier {
     scheme: CompanyScheme,

@@ -78,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_the_wrapped_uuid_when_created_from_a_uuid() {
+    fn should_return_the_wrapped_uuid_for_a_company_id() {
         let uuid = Uuid::from_u128(1);
 
         let expected_result = Uuid::from_u128(1);

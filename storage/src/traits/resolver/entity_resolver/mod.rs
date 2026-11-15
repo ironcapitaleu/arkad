@@ -13,12 +13,13 @@
 //!
 //! async fn company_of_filing<R: EntityResolver>(
 //!     resolver: &R,
-//!     cik: &str,
+//!     identifier: &CompanyIdentifier,
 //!     period_end: NaiveDate,
 //! ) -> Result<Option<CompanyId>, ReadError> {
-//!     let identifier = CompanyIdentifier::new(CompanyScheme::Cik, cik);
-//!     resolver.resolve(&identifier, period_end).await
+//!     resolver.resolve(identifier, period_end).await
 //! }
+//!
+//! let identifier = CompanyIdentifier::new(CompanyScheme::Cik, "0001652044");
 //! ```
 
 use async_trait::async_trait;
@@ -30,16 +31,18 @@ use crate::shared::{CompanyId, CompanyIdentifier};
 /// Returns the [`CompanyId`] of a company identifier at a date.
 ///
 /// An implementor holds dated identifier rows: a `(scheme, value)` pair, a [`CompanyId`], and a
-/// validity from one date to another. The rows of one identifier never overlap, so at most one row
-/// covers a date.
+/// validity from one date to another. It returns at most one [`CompanyId`] for one identifier and
+/// one date. If its rows give more than one, as two sources that disagree can, the claim
+/// resolution spec of ADR 0001 picks the row.
 ///
-/// The date is on the axis of the rows that the implementor holds. The caller picks it:
+/// The implementor fixes what the date means. The caller passes a date on that axis:
 ///
-/// - The CIK range table of the SEC adapter is on the period end of a filing, with both ends
-///   inclusive (Linear document "Entity Resolution: the Company Key, LEI, and Dated CIKs:
-///   Findings", Decision 2).
+/// - The CIK range table of the SEC adapter is on the period end of a filing. A row covers both
+///   its first and its last day (Linear document "Entity Resolution: the Company Key, LEI, and
+///   Dated CIKs: Findings", Decision 2).
 /// - The identifier rows of the metadata store are on the start of the record that gives each
-///   value (`sec/design/data_model/identifier_model.md`).
+///   value. A row covers its first day, and ends before `valid_to`
+///   (`sec/design/data_model/identifier_model.md`, "Point-in-Time Reads").
 ///
 /// The port covers the company level only. Securities and listings have resolvers of their own
 /// (ADR 0009).
@@ -47,8 +50,8 @@ use crate::shared::{CompanyId, CompanyIdentifier};
 pub trait EntityResolver: Send + Sync {
     /// Returns the [`CompanyId`] of the row of the identifier that covers the date.
     ///
-    /// Returns `Ok(None)` if the identifier has no row, or if no row of it covers the date. Such a
-    /// result is an answer, not a failure: the SEC adapter drops the filing.
+    /// Returns `Ok(None)` if the identifier has no row, or if no row of it covers the date.
+    /// `Ok(None)` is an answer, not a failure.
     ///
     /// # Errors
     ///
