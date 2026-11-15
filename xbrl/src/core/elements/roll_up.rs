@@ -29,14 +29,45 @@ pub enum Placement {
         group: GroupName,
         /// The sign with which the child adds to the parent.
         weight: Weight,
+        /// `true` if a closed group uses zero for the child when it has no value for a period.
+        /// Most filers have no temporary equity, for example, and report no zero for it.
+        zero_if_absent: bool,
     },
 }
 
 impl Placement {
-    /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`.
+    /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`. The child
+    /// counts as unknown when the filer reports no value.
     #[must_use]
     pub const fn child(group: GroupName, weight: Weight) -> Self {
-        Self::Child { group, weight }
+        Self::Child {
+            group,
+            weight,
+            zero_if_absent: false,
+        }
+    }
+
+    /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`. The child
+    /// counts as zero when the filer reports no value.
+    #[must_use]
+    pub const fn child_zero_if_absent(group: GroupName, weight: Weight) -> Self {
+        Self::Child {
+            group,
+            weight,
+            zero_if_absent: true,
+        }
+    }
+
+    /// Returns `true` if the placement is a child that counts as zero when it has no value.
+    #[must_use]
+    pub const fn is_zero_if_absent(self) -> bool {
+        matches!(
+            self,
+            Self::Child {
+                zero_if_absent: true,
+                ..
+            }
+        )
     }
 }
 
@@ -125,6 +156,8 @@ pub enum GroupKind {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -142,6 +175,42 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_group_name() {
         implements_auto_traits::<GroupName>();
+    }
+
+    #[test]
+    fn should_count_as_zero_if_absent_when_the_child_is_created_zero_if_absent() {
+        let placement = Placement::child_zero_if_absent(
+            BalanceSheetGroup::LiabilitiesAndEquity.name(),
+            Weight::Plus,
+        );
+
+        let expected_result = true;
+
+        let result = placement.is_zero_if_absent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_as_zero_if_absent_when_the_child_is_created_with_child() {
+        let placement = Placement::child(BalanceSheetGroup::Assets.name(), Weight::Plus);
+
+        let expected_result = false;
+
+        let result = placement.is_zero_if_absent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_as_zero_if_absent_for_a_top_line() {
+        let placement = Placement::Top;
+
+        let expected_result = false;
+
+        let result = placement.is_zero_if_absent();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

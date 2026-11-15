@@ -17,7 +17,8 @@ A table names a concept as `BalanceSheetConcept::Assets.element()`. Silver store
 such as `Assets`, from `Concept::name()`.
 
 Each concept of a statement has a placement (`Placed::placement()`): `Top`, or a child of one group
-with a weight of +1 or −1. `xbrl/DESIGN.md`, "Roll-Up Tree", gives the tables. The top lines rest on
+with a weight of +1 or −1. A child marked "zero if absent" counts as zero in its closed group when it
+has no value ([ADR 0019](../../../../docs/adr/0019-zero-if-absent-in-the-placement.md)). `xbrl/DESIGN.md`, "Roll-Up Tree", gives the tables. The top lines rest on
 the elements of FASB Concepts Statement 8, Chapter 4.
 
 ## Balance Sheet (`BalanceSheetConcept`)
@@ -38,7 +39,7 @@ Each value is an instant.
 | IntangibleAssets | `non-current-assets`, +1 |
 | LiabilitiesAndEquity | Top |
 | Liabilities | `liabilities-and-equity`, +1 |
-| TemporaryEquity | `liabilities-and-equity`, +1 |
+| TemporaryEquity | `liabilities-and-equity`, +1, zero if absent |
 | Equity | `liabilities-and-equity`, +1 |
 | CurrentLiabilities | `liabilities`, +1 |
 | NonCurrentLiabilities | `liabilities`, +1 |
@@ -46,7 +47,7 @@ Each value is an instant.
 | ShortTermDebt | `current-liabilities`, +1 |
 | LongTermDebt | `non-current-liabilities`, +1 |
 | EquityAttributableToParent | `equity`, +1 |
-| NoncontrollingInterest | `equity`, +1 |
+| NoncontrollingInterest | `equity`, +1, zero if absent |
 | AdditionalPaidInCapital | `equity-attributable-to-parent`, +1 |
 | RetainedEarnings | `equity-attributable-to-parent`, +1 |
 | TreasuryStock | `equity-attributable-to-parent`, −1 |
@@ -70,7 +71,7 @@ Each value is a duration. The cascade ends with comprehensive income.
 | IncomeTaxExpense | `net-income`, −1 |
 | NetIncome | Top |
 | NetIncomeAttributableToParent | `net-income-attribution`, +1 |
-| NetIncomeAttributableToNoncontrollingInterest | `net-income-attribution`, +1 |
+| NetIncomeAttributableToNoncontrollingInterest | `net-income-attribution`, +1, zero if absent |
 | OtherComprehensiveIncome | `comprehensive-income`, +1 |
 | ComprehensiveIncome | Top |
 
@@ -88,7 +89,7 @@ Each value is a duration.
 | OperatingCashFlow | `net-change-in-cash`, +1 |
 | InvestingCashFlow | `net-change-in-cash`, +1 |
 | FinancingCashFlow | `net-change-in-cash`, +1 |
-| ExchangeRateEffect | `net-change-in-cash`, +1 |
+| ExchangeRateEffect | `net-change-in-cash`, +1, zero if absent |
 | DepreciationAmortization | `operating-cash-flow`, +1 |
 | ShareBasedCompensation | `operating-cash-flow`, +1 |
 | CapitalExpenditures | `investing-cash-flow`, −1 |

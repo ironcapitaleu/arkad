@@ -57,11 +57,11 @@ impl Placed for CashFlowConcept {
     fn placement(self) -> Placement {
         match self {
             Self::NetChangeInCash => Placement::Top,
-            Self::OperatingCashFlow
-            | Self::InvestingCashFlow
-            | Self::FinancingCashFlow
-            | Self::ExchangeRateEffect => {
+            Self::OperatingCashFlow | Self::InvestingCashFlow | Self::FinancingCashFlow => {
                 Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus)
+            }
+            Self::ExchangeRateEffect => {
+                Placement::child_zero_if_absent(CashFlowGroup::NetChangeInCash.name(), Weight::Plus)
             }
             Self::DepreciationAmortization | Self::ShareBasedCompensation => {
                 Placement::child(CashFlowGroup::OperatingCashFlow.name(), Weight::Plus)
@@ -146,7 +146,10 @@ mod tests {
             ),
             (
                 CashFlowConcept::ExchangeRateEffect,
-                Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus),
+                Placement::child_zero_if_absent(
+                    CashFlowGroup::NetChangeInCash.name(),
+                    Weight::Plus,
+                ),
             ),
             (
                 CashFlowConcept::DepreciationAmortization,

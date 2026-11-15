@@ -247,7 +247,8 @@ has one **placement**:
 
 - `Top`: a total or subtotal on the top level of its statement, such as `Assets` or
   `GrossProfit`.
-- `Child { group, weight }`: a member of one group. The weight is `+1` or `−1`.
+- `Child { group, weight, zero_if_absent }`: a member of one group. The weight is `+1` or `−1`.
+  `zero_if_absent` is `true` if a closed group uses zero for the child when it has no value.
 
 A concept of a disclosure, such as `EarningsPerShareBasic`, has no placement. The statement or
 disclosure of a concept is its place in the hierarchy of `CanonicalElementKind`. The `Placed`
@@ -279,7 +280,8 @@ A child of a closed group can count as **zero if absent**. Most filers have no t
 noncontrolling interest, and no exchange rate effect, and they report no zero for it. If such a
 child has no value for the period, the group uses zero. `ExchangeRateEffect` is an exception: with
 no value, it counts as zero for the check, but the group derives nothing (see "Derivation From a Closed
-Group").
+Group"). The field `zero_if_absent` of `Placement::Child` records it
+([ADR 0019](../docs/adr/0019-zero-if-absent-in-the-placement.md)).
 
 #### "Other" Lines
 
