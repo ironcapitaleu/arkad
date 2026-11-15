@@ -104,9 +104,9 @@ impl<'a> Slot<'a> {
     /// Returns the slots of `series` and `added`, sorted by their key.
     ///
     /// A slot holds the values of one series key and one period type. So values whose periods
-    /// differ only in the start fit one slot, as in the derivation from a closed group. An instant
-    /// and a duration of 0 quarters with the same end fit two slots. The slot takes the period of
-    /// its first value.
+    /// differ only in the start share a slot, as in the derivation from a closed group. An instant
+    /// and a duration of 0 quarters with the same end get separate slots. The slot takes the
+    /// period of its first value.
     fn all(series: &'a Series, added: &'a [StandardizedFact]) -> Vec<Self> {
         let mut slots: BTreeMap<SlotKey<'a>, Self> = BTreeMap::new();
         for fact in series.facts.iter().chain(added) {
