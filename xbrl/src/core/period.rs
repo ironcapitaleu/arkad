@@ -208,7 +208,7 @@ mod tests {
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
     #[test]
-    fn should_give_the_period_type_of_an_instant_and_a_duration() {
+    fn should_give_the_period_type_for_an_instant_and_a_duration() {
         let periods = [
             Period::Instant {
                 end: date(2026, 9, 30),
