@@ -37,7 +37,7 @@ pub enum Placement {
 
 impl Placement {
     /// Creates a [`Placement::Child`] of the group `group` with the weight `weight`. The child
-    /// has no value when the filer reports none.
+    /// counts as unknown when the filer reports no value.
     #[must_use]
     pub const fn child(group: GroupName, weight: Weight) -> Self {
         Self::Child {
@@ -173,6 +173,42 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_group_name() {
         implements_auto_traits::<GroupName>();
+    }
+
+    #[test]
+    fn should_count_as_zero_if_absent_when_the_child_is_created_zero_if_absent() {
+        let placement = Placement::child_zero_if_absent(
+            BalanceSheetGroup::LiabilitiesAndEquity.name(),
+            Weight::Plus,
+        );
+
+        let expected_result = true;
+
+        let result = placement.is_zero_if_absent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_as_zero_if_absent_when_the_child_is_created_with_child() {
+        let placement = Placement::child(BalanceSheetGroup::Assets.name(), Weight::Plus);
+
+        let expected_result = false;
+
+        let result = placement.is_zero_if_absent();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_not_count_as_zero_if_absent_for_a_top_line() {
+        let placement = Placement::Top;
+
+        let expected_result = false;
+
+        let result = placement.is_zero_if_absent();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]
