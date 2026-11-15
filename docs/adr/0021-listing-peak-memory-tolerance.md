@@ -1,8 +1,8 @@
-# ADR 0019: The Peak Memory Check of a Listing Allows 50% With Four Times the Filings
+# ADR 0021: The Peak Memory Check of a Listing Allows 50% With Four Times the Filings
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#577](https://github.com/ironcapitaleu/arkad/pull/577)) |
+| Status | Accepted by the project lead on 2026-11-15 ([ironcapitaleu/arkad#577](https://github.com/ironcapitaleu/arkad/pull/577), under its first number 0019) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | None. [ironcapitaleu/arkad#577](https://github.com/ironcapitaleu/arkad/pull/577) acts on it |
@@ -40,28 +40,29 @@ Measured on 2026-11-15 in a cloud container with 4 CPUs, tokio 1.54.1, on `5bc36
 
 | Option | Peaks of one store, busy | Runs failed, busy | Smallest kept bytes per key that fail | Time of one run, busy |
 | ------ | ------------------------ | ----------------- | ------------------------------------- | --------------------- |
-| **A (chosen):** 4× the filings, 50% | 28,095 to 37,782 bytes | 0 of 8 | 10 | 14 to 18 s |
-| B: 2× the filings, 10% (the old check) | 28,095 to 37,782 bytes | 1 of 8 | 4 | 12 to 14 s |
-| C: one blocking thread, 2×, 10% | 33,501 to 37,152 bytes | Ratio 0.918 to 1.101 in 40 rounds | 4 | Not measured |
-| D: a pause of 200 µs before each item, 2×, 10% | Ratio 0.878 to 1.183 | Not run | 4 | 40 s for 20 rounds, idle |
+| **A (chosen):** 4× the filings, 50% | 28,095 to 37,782 bytes | 0 of 8 | 13 | 14 to 18 s |
+| B: 2× the filings, 10% (the old check) | 28,095 to 37,782 bytes | 1 of 8 | None. The pairing fails with no leak | 12 to 14 s |
+| C: one blocking thread, 2×, 10% | 33,501 to 37,152 bytes | Ratio 0.918 to 1.101 in 40 rounds | None. The pairing fails with no leak | Not measured |
+| D: a pause of 200 µs before each item, 2×, 10% | Ratio 0.878 to 1.183 | Not run | None. The pairing fails with no leak | 40 s for 20 rounds, idle |
 | E: `#[ignore]` the test | None | None | None. CI does not run it | 0 s |
 
 "Smallest kept bytes per key that fail" assumes the worst pairing of measured peaks: the first store
-at 37,782 bytes and the second store with no spread. The second store of A holds 2,700 more keys
-than the first, and the second store of B holds 900 more.
+at 37,782 bytes and the second store at 28,095 bytes, with the kept bytes in both. The first store
+holds 900 keys, and the second store of A holds 3,600. So A fails when
+`2 × (28,095 + 3,600x) > 3 × (37,782 + 900x)`, that is when `x` is more than 12.7.
 
-- A keeps the check in CI, and its tolerance is above the measured spread with room to spare. Every
-  heap allocation is at least 8 bytes, and a kept `String` or `Box` per key is at least 16.
+- A keeps the check in CI, and its tolerance is above the measured spread. dhat counts the bytes
+  that the code requests. A kept `String` of a key is over 50 bytes.
 - B fails on a busy runner with no change to the listing.
 - C and D keep the spread. A blocking thread or a pause changes when reads finish, not how many
   reads can hold their buffers at once.
-- E stops the check. The `testing` skill keeps a test of under 5 seconds on local files in CI.
+- E stops the check. The `testing` skill keeps a test on local fixtures in CI.
 
 ## Consequences
 
 - The check no longer fails on a busy runner with no change to the listing.
-- A listing that keeps less than about 10 bytes per key can pass. No allocation is that small,
-  but a listing that grows a shared buffer by a few bytes per key can pass.
+- A listing that keeps less than 13 bytes per key can pass, such as one that grows a shared
+  buffer by a few bytes per key.
 - The test writes 1,200 filing directories and 7,200 files for the second store, and takes a few seconds
   longer.
 
