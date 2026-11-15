@@ -50,13 +50,18 @@ The choice binds:
 4. **The framework is a crate of its own, with no domain code, and `sec` extends it.**
    `state_maschine` knows no SEC type. `sec` extends each framework trait with a subtrait of the
    same name: `StateMachine`, `State`, `StateData`, `Context`, `SuperState`, and `Transition`
-   (`sec/src/lib/traits/state_machine/`, added in #23 on 2025-06-04). The subtraits add two things:
+   (`sec/src/lib/traits/state_machine/`, added in #23 on 2025-06-04). The subtraits add these things:
    - **Async.** `State::compute_output_data_async` runs async, because the states do network I/O
      (`sec/src/lib/traits/state_machine/state/mod.rs:28-40`).
-   - **Errors of the hierarchy of ADR 0014.** A state returns a `StateError`, and so does
-     `StateData::update_state`. A transition returns a `TransitionError` through
-     `transition_to_next_state_sec` (`sec/src/lib/traits/state_machine/transition/mod.rs:23-38`,
-     added in #34 on 2025-10-12).
+   - **Errors of the hierarchy of ADR 0014.** A state returns an error that converts into a
+     `StateError`. `StateData::update_state` returns a `StateError`. A transition returns a
+     `TransitionError` through `transition_to_next_state_sec`
+     (`sec/src/lib/traits/state_machine/transition/mod.rs:23-38`, added in #34 on 2025-10-12).
+   - **A retry budget.** `Context` adds `max_retries` and `can_retry`
+     (`sec/src/lib/traits/state_machine/state/context_data/mod.rs:17-25`).
+
+   `StateMachine` and `SuperState` add no method. They require that each inner state implements
+   the `sec` `State`.
 
 The project lead gave these reasons on 2026-11-15, in the session that wrote this ADR:
 
