@@ -61,7 +61,7 @@ Read on 2026-11-15, on `main` at `97dd816`.
 - Each statement module sets the flag in its `Placed` impl. A test in
   `xbrl/src/core/elements/statement/mod.rs` pins the four concepts.
 - `Placement` derives `Ord` and `Hash`, so two placements that differ only in the flag are not
-  equal. A comparison of placements now compares the flag too.
+  equal. A comparison of placements compares the flag too.
 - A crate outside `xbrl` that matches `Placement::Child` already uses `..`, because the variant is
   `#[non_exhaustive]`. No caller changes.
 - The checks use zero for `ExchangeRateEffect` when it has no value, as Decision 2 says. How
@@ -69,8 +69,8 @@ Read on 2026-11-15, on `main` at `97dd816`.
 
 ## Open Questions
 
-- None today. A child that is zero if absent in the derivation and not in the check, or a flag with
-  a third value, reopens the decision.
+- None today. A second exception like `ExchangeRateEffect`, a child that is zero if absent in the
+  derivation and not in the check, or a flag with a third value, reopens the decision.
 
 ## Sources
 
