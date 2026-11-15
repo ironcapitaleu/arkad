@@ -6,6 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use bigdecimal::{BigDecimal, Signed};
+use chrono::NaiveDate;
 
 use super::closed_group::{members, roll_up_rule, signed};
 use super::confidence::Confidence;
@@ -57,8 +58,9 @@ const TOLERANCE_DIVISOR: u32 = 1_000;
 /// A check passes within ±0.1% of the largest absolute value of its values, not of the parent. In
 /// a step, the parent can be near zero while its members are large.
 ///
-/// A closed group gets no check for a period if a member has no value, or if dedup blocks a
-/// member. A child that is zero if absent counts as zero, `ExchangeRateEffect` included. A closed
+/// A closed group gets no check for a period if a member has no value and is not zero if absent,
+/// or if dedup blocks a member. A child that is zero if absent counts as zero,
+/// `ExchangeRateEffect` included. A closed
 /// group also gets no check for a period if `core/roll-up/<group>@1` derived a value of that group
 /// for the period, because the group then holds by construction.
 #[must_use]
@@ -76,6 +78,10 @@ pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Findin
     findings
 }
 
+/// The key of a [`Slot`]: the entity, the period end, the length in quarters, the unit, and the
+/// dimensions.
+type SlotKey<'a> = (&'a EntityId, NaiveDate, u16, &'a Unit, &'a Dimensions);
+
 /// The values of one entity, period, unit, and set of dimensions, by concept.
 struct Slot<'a> {
     entity: EntityId,
@@ -87,11 +93,22 @@ struct Slot<'a> {
 }
 
 impl<'a> Slot<'a> {
-    /// Returns the slots of `series` and `added`, sorted by entity, period, unit, and dimensions.
+    /// Returns the slots of `series` and `added`, sorted by entity, period end, length in quarters,
+    /// unit, and dimensions.
+    ///
+    /// A slot holds the values of one series key, as the derivation from a closed group does, so
+    /// values with another start of their period share a slot. The slot takes the period of its
+    /// first value.
     fn all(series: &'a Series, added: &'a [StandardizedFact]) -> Vec<Self> {
-        let mut slots: BTreeMap<(&EntityId, Period, &Unit, &Dimensions), Self> = BTreeMap::new();
+        let mut slots: BTreeMap<SlotKey<'a>, Self> = BTreeMap::new();
         for fact in series.facts.iter().chain(added) {
-            let key = (&fact.entity, fact.period, &fact.unit, &fact.dimensions);
+            let key = (
+                &fact.entity,
+                fact.period.end(),
+                fact.period.quarters(),
+                &fact.unit,
+                &fact.dimensions,
+            );
             slots
                 .entry(key)
                 .or_insert_with(|| Self {
@@ -105,30 +122,19 @@ impl<'a> Slot<'a> {
                 .values
                 .insert(fact.concept, fact);
         }
-        let mut slots: Vec<Self> = slots.into_values().collect();
-        for slot in &mut slots {
-            slot.blocked = series
-                .blocked
-                .iter()
-                .filter(|key| {
-                    (
-                        &key.entity,
-                        key.period_end,
-                        key.quarters,
-                        &key.unit,
-                        &key.dimensions,
-                    ) == (
-                        &slot.entity,
-                        slot.period.end(),
-                        slot.period.quarters(),
-                        &slot.unit,
-                        &slot.dimensions,
-                    )
-                })
-                .map(|key| key.concept)
-                .collect();
+        for key in &series.blocked {
+            let slot_key = (
+                &key.entity,
+                key.period_end,
+                key.quarters,
+                &key.unit,
+                &key.dimensions,
+            );
+            if let Some(slot) = slots.get_mut(&slot_key) {
+                slot.blocked.insert(key.concept);
+            }
         }
-        slots
+        slots.into_values().collect()
     }
 
     /// Checks the closed group `group`, and returns a [`Finding::RollUpMismatch`] if it fails.
@@ -206,13 +212,20 @@ impl<'a> Slot<'a> {
 
     /// Builds the [`Statement`] of `kind` from the values of the slot that `kind` places, or
     /// returns `None` if the slot has no such value.
+    ///
+    /// Each value takes the period of the slot, so values with another start of their period
+    /// share the statement.
     fn statement(&self, kind: StatementKind) -> Option<Statement> {
-        let facts = self
+        let facts: Vec<StandardizedFact> = self
             .values
             .values()
-            .copied()
-            .filter(|fact| statement_of(fact.concept) == Some(kind));
-        Statement::build(kind, facts).ok()
+            .filter(|fact| statement_of(fact.concept) == Some(kind))
+            .map(|fact| StandardizedFact {
+                period: self.period,
+                ..(*fact).clone()
+            })
+            .collect();
+        Statement::build(kind, &facts).ok()
     }
 
     /// Returns the facts of the parent and of the children of `group`, in the order of
@@ -407,6 +420,67 @@ mod tests {
     }
 
     #[test]
+    fn should_check_another_closed_group_when_one_group_derived_a_value_for_the_period() {
+        let facts = series(vec![
+            balance_sheet(BalanceSheetConcept::Assets, "100000"),
+            balance_sheet(BalanceSheetConcept::CurrentAssets, "60000"),
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "100000"),
+            balance_sheet(BalanceSheetConcept::Liabilities, "50000"),
+            balance_sheet(BalanceSheetConcept::Equity, "40000"),
+        ]);
+        let mut derived = balance_sheet(BalanceSheetConcept::NonCurrentAssets, "40000");
+        derived.rule = RuleId::from_str("core/roll-up/assets@1").expect(
+            "Given a hardcoded rule ID in the documented form, the parse should always succeed",
+        );
+
+        let expected_result = vec![mismatch(
+            instant(),
+            vec![
+                BalanceSheetConcept::LiabilitiesAndEquity.element(),
+                BalanceSheetConcept::Liabilities.element(),
+                BalanceSheetConcept::Equity.element(),
+            ],
+            RollUpCheck::Group(BalanceSheetGroup::LiabilitiesAndEquity.name()),
+            Confidence::Exact,
+        )];
+
+        let result = check_roll_ups(&facts, &[derived]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_check_values_together_when_their_periods_differ_only_in_the_start() {
+        let facts = series(vec![
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                quarter(),
+                "100",
+            ),
+            value(
+                IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+                quarter(),
+                "90",
+            ),
+        ]);
+        let with_start = Period::Duration(
+            Duration::from_dates(date(2026, 7, 1), date(2026, 9, 30))
+                .expect("Given a start before the end, the creation should always succeed"),
+        );
+        let noncontrolling = value(
+            IncomeStatementConcept::NetIncomeAttributableToNoncontrollingInterest.element(),
+            with_start,
+            "10",
+        );
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[noncontrolling]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_skip_the_check_of_a_closed_group_when_dedup_blocks_a_member() {
         let mut facts = assets("50000");
         let mut blocked: SeriesKey = facts.facts[2].series_key();
@@ -475,10 +549,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_no_finding_when_the_balance_sheet_identity_misses_within_the_tolerance() {
+    fn should_return_no_finding_when_the_balance_sheet_identity_misses_by_exactly_the_tolerance() {
         let facts = series(vec![
             balance_sheet(BalanceSheetConcept::Assets, "1000000"),
-            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "1001000"),
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "1001001"),
         ]);
 
         let expected_result: Vec<Finding> = Vec::new();

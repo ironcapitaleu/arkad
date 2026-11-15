@@ -102,13 +102,13 @@ pub enum Finding {
         /// The newest other filing that reports the same value for a plausible period, or `None`.
         confirmed_by: Option<FilingId>,
     },
-    /// The members of a closed group of the roll-up tree do not add up to the parent, or `Assets`
+    /// The members of a closed group of the roll-up tree do not sum to the parent, or `Assets`
     /// differs from `LiabilitiesAndEquity`. The difference exceeds 0.1% of the largest absolute
     /// value of the check.
     RollUpMismatch {
         /// The entity the values are about.
         entity: EntityId,
-        /// The period of the values.
+        /// The period of the first value. The values share the end and the length in quarters.
         period: Period,
         /// The unit of the values.
         unit: Unit,
@@ -128,7 +128,7 @@ pub enum Finding {
     NegativeOther {
         /// The entity the values are about.
         entity: EntityId,
-        /// The period of the values.
+        /// The period of the first value. The values share the end and the length in quarters.
         period: Period,
         /// The unit of the values.
         unit: Unit,
