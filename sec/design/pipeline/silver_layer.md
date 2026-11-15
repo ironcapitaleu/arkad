@@ -145,7 +145,7 @@ Silver stores three kinds of values:
   stub period after a merger. It is null for instants. For a Notes value, the start is the end
   less `round((qtrs − durp) × 91.25)` days
   ([ADR 0022](../../../docs/adr/0022-exact-start-splits-copies.md)). The Notes parser does not
-  compute it yet, so the column is null for Notes values today.
+  compute it, so the column is null for Notes values.
 - The period says which time a value describes. `accepted` says when the value became public. A
   restatement has the period of the original and a later `accepted` time.
 - A ticker can change between two filings. Silver keeps the values as filed. A later design adds
