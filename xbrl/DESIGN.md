@@ -596,7 +596,7 @@ A change touches these places, and no others:
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
 | A disclosure, such as `PerShare` | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
-| A disclosure with a sum, such as `DebtMaturities` | the same, an `impl Summed` with its name and tolerance, and an `impl Timed` if a concept has values only at fiscal year ends | nothing else |
+| A disclosure with a sum, such as `DebtMaturities` | the same, an `impl Summed` with its name and tolerance, an `impl Timed` if a concept has values only at fiscal year ends, and these traits in the macro entry of the disclosure | nothing else |
 | A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
@@ -1008,16 +1008,18 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   reported, so it never counts as zero.
 - The tolerance is ±5% of the largest absolute value in the group (ADR 0028). The buckets hold
   principal. The total holds the carrying amount, net of discounts, premiums, and issuance costs.
-- All seven values must have the same unit. Otherwise the check does not run, as in a closed
-  group.
+- All seven values must have the same unit. Otherwise the check does not run. The derivation
+  from a closed group has the same rule.
 - A failure is a `MaturityMismatch` finding. `concepts` holds the total first, then the buckets in
-  the order of the table. `periods` holds the instant. `reason` holds `debt-maturities`.
+  the order of the table. `periods` holds the instant. `reason` holds the `SUM_NAME` of the sum,
+  here `debt-maturities`.
   `confidence` holds the weakest confidence of the inputs.
 - The check derives no value, and the ladder has no other line. The gap between principal and
   carrying amount is no line that the filer presents.
 - `check_sums` in `core/sum_check.rs` runs the check on the series of one entity, next to
   `check_roll_ups`. It reads the role, the name, and the tolerance from the trait `Summed`. It
-  holds nothing that belongs to the ladder alone.
+  holds nothing that belongs to the ladder alone. `check_all_sums` calls it (see "The Traits
+  `Summed` and `Timed`").
 
 Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions, on annual ladders only. A
 bucket value counts if its accession is a 10-K, 10-KT, 20-F, or 40-F, or an amendment of one, and
@@ -1085,9 +1087,13 @@ pub trait Timed: Concept {
   `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
   `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
 - A concept enum without `Timed` has values at every period.
-- `check_sums`, the filter after `resolve_aliases`, and the gap check read the traits. A second
-  disclosure with a sum, such as lease maturities, adds its enum and its impls, and none of the
-  three changes.
+- The middle macro registers the traits of each innermost enum, as in
+  `DebtMaturities(DebtMaturityConcept): Summed, Timed`. From this list it generates
+  `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
+  generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`.
+- The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
+  series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
+  adds its enum, its impls, and its macro entry. None of the three callers changes.
 - `Summed` and `Timed` are subtraits of `Concept`, because every such concept also has a name and
   a label. `Timed` is not a subtrait of `Summed`, because a concept can have a cadence without a
   sum.
