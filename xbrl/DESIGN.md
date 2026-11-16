@@ -1920,6 +1920,12 @@ xbrl::adapter::edgar::frames           -> Vec<AsIsFact>, Vec<Filing>
 
 The resolution engine does not know which API an as-is fact came from.
 
+`sec` reads only the Company Facts API. The Company Facts body holds every concept of a company,
+so the Company Concept API adds no fact. The Frames API serves one concept of many companies, and
+no state reads one concept across companies. So `company_concept` and `frames` are placeholders
+that no code calls. [STA-529](https://linear.app/state-machine/issue/STA-529) deletes them and
+their rows here and in "Crate Structure".
+
 ---
 
 ## 3) Resolution
@@ -2864,131 +2870,6 @@ concept keeps the tiered resolution: exact, synonym, derived, computed.
 3. **Financial statement output types** — Decided: a generic `Statement` and a typed view per statement. See "7) Financial Statement Output Types"
 
 The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided above.
-
----
-
-## Follow-Up: Migrate `sec` Crate to Consume `xbrl` Types
-
-`sec/src/lib/shared/financial` holds a fact model of its own, which no state reads. The state
-`ParseCompanyFacts` calls the Company Facts parser of `xbrl`. `sec` uses the types of `xbrl` and
-imports them at each call site, with no re-export and no wrapper.
-[ADR 0026](../docs/adr/0026-sec-uses-xbrl-fact-types.md) holds the reasons and the options.
-The table in "Order of the Pull Requests" names the ticket of each step.
-
-### The Types of `sec::shared::financial`
-
-| `sec` type | Plan | Type that replaces it |
-| ---------- | ---- | --------------------- |
-| `AccessionNumber` | Keep. In `sec::shared::accession_number` | None |
-| `Form` | Keep. In `sec::shared::form` | None |
-| `CompanyData` | Keep. In `sec::shared::company_data`, with the fields of "`CompanyData`" | None |
-| `CompanyFact` | Delete | The `AsIsFact` values of one concept |
-| `ConceptDefinition` and its constants | Delete | `xbrl::us_gaap::mappings::ConceptDefinition`, `REQUIRED_CONCEPTS`, `OPTIONAL_CONCEPTS` |
-| `EntityName` | Replace | `xbrl::core::entity_name::EntityName` |
-| `FilingSource` | Replace | `xbrl::core::fact::FilingSource` and `xbrl::core::filing::Filing` |
-| `FiscalPeriod` | Replace | `xbrl::core::fiscal_period::FiscalPeriod` |
-| `FiscalYear` | Replace | `xbrl::core::fiscal_year::FiscalYear` |
-| `Frame`, `Quarter` | Delete | None. `parse` keeps no `frame` field |
-| `Observation` | Replace | `xbrl::core::fact::AsIsFact` |
-| `Period` | Replace | `xbrl::core::period::Period` |
-| `Unit` | Replace | `xbrl::core::unit::Unit` |
-
-`AccessionNumber` and `Form` are extraction types. On `main` at `dee3756`, 35 files of `sec/src`
-outside `sec::shared::financial` name `AccessionNumber`.
-
-### `CompanyData`
-
-`CompanyData` holds four fields:
-
-```text
-CompanyData {
-    cik:         sec::shared::cik::Cik
-    entity_name: xbrl::core::entity_name::EntityName
-    facts:       Vec<AsIsFact>   // from CompanyFacts::facts
-    filings:     Vec<Filing>     // from CompanyFacts::filings
-}
-```
-
-The `Cik` stays, because the context of each `sec` state holds a `Cik`. Each fact also carries the
-CIK as its `EntityId`, with the scheme `CIK_SCHEME`. The map keyed by `&'static ConceptDefinition`
-goes away. A later state resolves the as-is facts with `resolve_aliases` and keys each standardized
-fact by `CanonicalElementKind`.
-
-`CompanyData` stays the output of `ParseCompanyFacts` until `CreateFinancialStatements` emits
-`FactSet` values. That later step retires `CompanyData`, as
-`sec/design/data_model/hybrid_data_model.md`, "Migration From the Current (Immature) Skeleton",
-step 5, says.
-
-### `ParseCompanyFacts`
-
-`compute_output_data_async` runs four steps:
-
-1. Call `xbrl::adapter::edgar::company_facts::parse` on the JSON body. A `ParseErrorKind` becomes a
-   state error.
-2. Read the entity name with `company_facts::extract_entity_name`. Compare the CIK of the context
-   with the `cik` of the body, which `parse` gives each fact as its `EntityId`. If they differ,
-   return a state error. The check also runs on a body with no facts.
-3. Check each definition of `xbrl::us_gaap::mappings::REQUIRED_CONCEPTS`. A definition passes if a
-   `us-gaap` fact has a local name in its `xbrl_keys`, or in the `parts` of the `PART_CONCEPTS`
-   entry of its standard concept. If one fails, return `IncompleteCompanyFacts` with the labels of
-   the missing standard concepts. The check reads no unit.
-   [ADR 0026](../docs/adr/0026-sec-uses-xbrl-fact-types.md), "Amendment 1", gives the reasons.
-4. Build `CompanyData` from the `CompanyFacts` of step 1.
-
-`ParseCompanyFacts` keeps every form, amendment, unit, and
-namespace. A later state applies the newest-filing dedup rule, which picks one value per period.
-
-### `FilingId` From `AccessionNumber`
-
-A `FilingId` of the SEC is `sec:<accession>`, for example `sec:0000320193-24-000123`:
-
-```rust,ignore
-let filing_id = FilingId::new(SEC_FILING_SOURCE, accession_number.value())?;
-```
-
-`SEC_FILING_SOURCE` is the constant of `xbrl::adapter::edgar::company_facts`. `FilingId::new`
-fails on empty text or whitespace, and an `AccessionNumber` has neither. The other way can fail:
-`parse` accepts any `accn` text with no whitespace, so `AccessionNumber::new(filing_id.id())`
-rejects an `accn` of the wrong shape. `parse` builds the `FilingId`
-from the `accn` text, so the migration needs no conversion. The first state that joins a filing of
-the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec`.
-
-### Callers That Change
-
-- `ParseCompanyFacts`, its output data, and its tests use `parse` and the `CompanyData` of
-  `sec::shared::company_data`.
-- `CreateFinancialStatements` and its input data take that `CompanyData`. The state builds no
-  statement yet.
-- The transition from `ParseCompanyFacts` to `CreateFinancialStatements`, and the `Transform`
-  super state, carry that `CompanyData`.
-- `sec/README.md`, "ParseCompanyFacts", and `sec/design/data_model/hybrid_data_model.md` describe
-  the parse. PR 3 updates the docs that name
-  `sec::shared::financial`, such as `sec/design/pipeline/ingestion_paths.md`.
-
-PR 3 does not change the callers of `AccessionNumber` and `Form`. Both are in `sec::shared`.
-
-No binary and no integration test names a fact-model type. The pipeline coverage test ends before
-`Transform`.
-
-### Order of the Pull Requests
-
-Each PR keeps `main` compiling.
-
-| # | Ticket | PR | Reviewable lines |
-| - | ------ | -- | ---------------- |
-| 1 | [STA-527](https://linear.app/state-machine/issue/STA-527) | Move `AccessionNumber` and `Form` to `sec::shared` | About 0. A move of 2 modules, and the new paths on 83 lines in 37 files |
-| 2 | [STA-472](https://linear.app/state-machine/issue/STA-472) | `ParseCompanyFacts` delegates to `parse`, and `CompanyData` holds the `xbrl` types | About 250, an estimate |
-| 3 | [STA-528](https://linear.app/state-machine/issue/STA-528) | Delete `sec::shared::financial` | About 0. A deletion of 11 modules |
-| 4 | [STA-529](https://linear.app/state-machine/issue/STA-529) | Delete the `company_concept` and `frames` placeholders of `xbrl` | About 10 |
-
-PR 3 needs PRs 1 and 2. PR 4 needs no other PR.
-
-### Company Concept and Frames APIs
-
-`sec` needs neither API. No request kind of `sec` fetches them. The Company Facts body holds every
-concept of a company, so the Company Concept API adds no fact. The Frames API serves one concept of
-many companies, and no state reads one concept across companies. PR 4 deletes the two placeholder
-modules and their rows in "Crate Structure" and "Handling Different SEC API Schemas".
 
 ---
 

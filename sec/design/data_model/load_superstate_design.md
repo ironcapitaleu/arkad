@@ -15,8 +15,8 @@
 The pieces already map cleanly onto ports-and-adapters; nothing new is being invented, only named.
 
 - **Domain core (innermost, pure, persistence- and I/O-ignorant):** the value objects and domain
-  concepts — `Cik`, `Lei`/`CompanyId`, `EntityName`, `CanonicalFact`, `FactSet`, `Period`, `Unit`,
-  `FiscalYear`, `ConceptDefinition`. No `async`, no SQL, no HTTP.
+  concepts — `Cik`, `Lei`/`CompanyId`, `CanonicalFact`, `FactSet`, and the `xbrl` types
+  `EntityName`, `Period`, `Unit`, `FiscalYear`, and `ConceptDefinition`. No `async`, no SQL, no HTTP.
 - **Application layer (use cases):** the `SuperState`s and their sub-`State`s — `Extract`,
   `Transform`, `Load`. They orchestrate the flow and depend **only on port traits**.
 - **Driven ports (interfaces the application needs):** `SecClient` (extract side, already exists),
