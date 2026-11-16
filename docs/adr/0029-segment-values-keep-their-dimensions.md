@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-16 ([STA-502 comment `0ac1cf99`](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer#comment-0ac1cf99)) |
+| Status | Accepted by the project lead on 2026-11-16 ([STA-502 comment `0ac1cf99`](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer#comment-0ac1cf99)). Amendment 1: Accepted by the project lead on 2026-11-16 ([STA-530 comment `04b019ba`](https://linear.app/state-machine/issue/STA-530/feature-give-segment-facts-candidates-outside-the-roll-up-tree#comment-04b019ba)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-502](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer) |
@@ -49,6 +49,38 @@ plug-in, the silver writer, and the rows of `candidates` and `standardized_facts
    It still gets `restated`.
 3. **A segment value is a row of `standardized_facts`.** The table and its key stay as they are.
    The key holds `dimensions` already, and `dimensions` is empty for a consolidated value.
+
+## Amendment 1: A Segment Fact Gives No Candidate of a Disclosure Concept
+
+Date: 2026-11-16.
+
+**Reason.** Decision 1 says that tiers 1 and 2 run on a segment fact with the alias lists of the
+consolidated value, with no exception. Some of those lists belong to a disclosure, not to a
+statement. A per-share value divides by the shares of the whole company. On a segment member, such
+as `EarningsPerShareBasic` with `BusinessSegments` = `Cloud`, it is no value of that segment. The
+rule must hold for each plug-in, so a later `ifrs` plug-in follows it too.
+
+**Decision.** A segment fact gives no candidate of a standard concept of kind
+`CanonicalElementKind::Disclosure`. It still gives its `Conflict` finding, and it still counts in
+the part rule. Every other alias list of decision 1 applies to it as before.
+
+**Options.**
+
+| Option | Per-share value on a segment | A new disclosure kind |
+| ------ | ---------------------------- | --------------------- |
+| **A: no candidate of any disclosure concept (chosen)** | No candidate | No candidate until an amendment allows it |
+| B: no candidate of `PerShare` only | No candidate | Gets segment candidates with no review |
+| C: no exception | A candidate that counts the shares of the whole company | Gets segment candidates with no review |
+
+- On 2026-11-16, `DisclosureConcept` in `xbrl/src/core/elements/mod.rs` at `e5eeef8` holds one
+  kind, `PerShare`. So A and B give the same candidates today.
+- A makes each new disclosure kind a decision. B and C let a new kind reach `candidates` on a
+  segment without one.
+
+**Consequences.**
+
+- A new disclosure kind that holds values per segment needs a further amendment.
+- The rule covers tiers 1 and 2 only. The as-is layer keeps the per-share fact with its dimensions.
 
 ## Options Considered
 
