@@ -27,6 +27,9 @@ Facts that bound the choice:
   series step, the start time of the run, which every task writes as `computed_at`.
 - The write log and the queue port are designs in progress, not code. The design of the write log
   asks this decision whether transform runs as a job or as a service with push delivery.
+- The queue port delivers one message per stored document: a `NotesArchiveRef` per Notes file, or
+  a `FilingDocumentsRef` per filing. A silver unit holds one Notes file or one filed date, about
+  90 filings on a business day.
 
 The choice binds the transform, series, and checks binaries, the deployment of MVP Operations, and
 the queue port, which will start the same jobs.
@@ -47,14 +50,19 @@ Terms in this ADR:
 2. **A Cloud Workflows workflow chains the steps.** It starts each execution after the execution
    before it ended. It reads the plan object and starts the worker step with the task count and the
    plan ID of the plan.
-3. **Two workflows exist.** `silver-daily` runs after `daily_filings`: transform of the days, the
+3. **The queue holds the work, and the workflow starts the run.** The transform plan step pulls
+   the pending messages of its path and groups them by unit key: the Notes period, or the filed
+   date of the filing. It writes the plan, then acknowledges the messages. Until the queue port
+   exists, the plan step takes the units from the raw store.
+4. **Two workflows exist.** `silver-daily` runs after `daily_filings`: transform of the days, the
    series step, the checks, and load. `silver-backfill` runs by hand: transform of the Notes files,
    the series step, the checks, and load.
-4. **A failed transform step does not stop the series step.** The series step reads only units
+5. **A failed transform step does not stop the series step.** The series step reads only units
    with a `silver_files` row, and the next series run covers each unit written later. The workflow
    ends as failed.
-5. **Load starts only after the checks step succeeded.**
-6. **A busy lease stops the workflow** at the plan step, before any write.
+6. **Load starts only after the checks step succeeded.**
+7. **A busy lease stops the workflow** at the plan step, before any write. The messages stay in
+   the queue for the next run.
 
 ## Options Considered
 
@@ -66,13 +74,17 @@ Compared on 2026-11-16, on the facts in "Context".
 | B. Cloud Scheduler starts each job at a fixed time, and each job checks `silver_files` | A guess of the time | Yes | None |
 | C. One execution runs every step in one task | In the code | No | None |
 | D. A Cloud Run service, started per message by push delivery | None between transform and series | Yes | A service, a topic, and the queue port |
+| E. A or D, with an Eventarc trigger that starts the workflow per message | End of each execution | Yes | A trigger. About 90 starts a business day, and each start meets a busy lease while a run is in progress |
 
 - A gives a barrier from the end of an execution, which Cloud Run reports.
 - B starts the series step at a fixed time. A slow transform run then misses the series run of
   its day.
 - C cannot run 80 Notes files in parallel, and a first series run in one task holds every entity.
-- D needs the queue port, which is not built. The series step still runs as a batch over many
+- D writes one filing per call, so it gives about 90 small units a day, or it must wait for a
+  day to be complete, which no message marks. The series step still runs as a batch over many
   units, so it needs a barrier too.
+- E starts many runs that stop at once, and a message that arrives during a run waits for the
+  next start anyway.
 
 ## Consequences
 
@@ -86,8 +98,8 @@ Compared on 2026-11-16, on the facts in "Context".
 
 ## Open Questions
 
-- When the queue port exists, a message can start `silver-daily` in place of Cloud Scheduler. The
-  steps stay. This event reopens decision 3, not the others.
+- If the daily runs must start sooner than after `daily_filings`, a schedule of several runs a day
+  can start `silver-daily`. The plan step takes whatever the queue holds, so the steps stay.
 - The startup time of one execution is not measured. If it is long, a run with few units can merge
   the plan step into the worker step.
 

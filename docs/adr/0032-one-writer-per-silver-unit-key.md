@@ -44,10 +44,10 @@ Terms in this ADR:
    `ifGenerationMatch=0`. The lease holds the plan ID and an expiry time. If the object exists
    and its expiry has passed, the plan step replaces it with `ifGenerationMatch=<generation>`.
    Otherwise the run stops before any write.
-2. **The plan step computes the expiry from the run.** The expiry is the plan time, plus the
-   rounds of tasks times the task timeout times the attempts per task, plus a margin of 10
-   minutes for the start of the worker step. The rounds are the unit count divided by the
-   parallel tasks, rounded up.
+2. **The plan step computes the expiry from the run.** The expiry is the time of `acquire`, plus
+   the rounds of tasks times the task timeout times the attempts per task, plus 20 minutes for the
+   rest of the plan step and the start of the worker step. The rounds are the unit count divided
+   by the parallel tasks, rounded up.
 3. **Each task checks the lease before its first write.** If the lease does not name the plan of
    the task, or less than one task timeout plus 1 minute remains before its expiry, the task writes nothing and
    fails. Cloud Run stops an attempt at its task timeout, so a task that passes the check ends
