@@ -9,6 +9,7 @@ use thiserror::Error;
 
 use super::Taxonomy;
 use super::family::FamilyDeclaration;
+use super::segment::SegmentAxes;
 use crate::core::concept::NamespaceFamily;
 use crate::core::fact::TaxonomyVersion;
 use crate::core::release::TaxonomyReleaseId;
@@ -29,8 +30,28 @@ use crate::core::release::TaxonomyReleaseId;
 /// Notes `version` as family and version, and returns a finding that names the family. Such facts
 /// do not join between sources or across releases until a plug-in declares the family.
 pub struct Registry<'a> {
-    plugins: Vec<&'a dyn Taxonomy>,
+    plugins: Vec<Plugin<'a>>,
     families: BTreeMap<NamespaceFamily, Entry>,
+}
+
+/// One plug-in of a [`Registry`], with or without segment axes.
+#[derive(Clone, Copy)]
+pub enum Plugin<'a> {
+    /// A plug-in whose segment axes, if any, the registry does not read.
+    Taxonomy(&'a dyn Taxonomy),
+    /// A plug-in that names its segment axes.
+    WithSegmentAxes(&'a dyn SegmentAxes),
+}
+
+impl<'a> Plugin<'a> {
+    /// Returns the plug-in as [`Taxonomy`].
+    #[must_use]
+    pub fn taxonomy(self) -> &'a dyn Taxonomy {
+        match self {
+            Self::Taxonomy(plugin) => plugin,
+            Self::WithSegmentAxes(plugin) => plugin,
+        }
+    }
 }
 
 struct Entry {
@@ -40,17 +61,28 @@ struct Entry {
 }
 
 impl<'a> Registry<'a> {
-    /// Creates a [`Registry`] from the plug-ins of one run.
+    /// Creates a [`Registry`] from the plug-ins of one run, each as [`Plugin::Taxonomy`].
     ///
     /// # Errors
     ///
     /// Returns [`RegistryError`] if a plug-in declares one family twice, two plug-ins resolve one
     /// family, two declarations of one family disagree, or two families overlap.
     pub fn new(plugins: Vec<&'a dyn Taxonomy>) -> Result<Self, RegistryError> {
+        Self::with_plugins(plugins.into_iter().map(Plugin::Taxonomy).collect())
+    }
+
+    /// Creates a [`Registry`] from the plug-ins of one run, with or without segment axes.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RegistryError`] if a plug-in declares one family twice, two plug-ins resolve one
+    /// family, two declarations of one family disagree, or two families overlap.
+    pub fn with_plugins(plugins: Vec<Plugin<'a>>) -> Result<Self, RegistryError> {
         let mut families: BTreeMap<NamespaceFamily, Entry> = BTreeMap::new();
         for (index, plugin) in plugins.iter().enumerate() {
-            reject_repeated_family(*plugin)?;
-            for declaration in plugin.families() {
+            let taxonomy = plugin.taxonomy();
+            reject_repeated_family(taxonomy)?;
+            for declaration in taxonomy.families() {
                 add_declaration(&mut families, &plugins, index, declaration)?;
             }
         }
@@ -62,7 +94,18 @@ impl<'a> Registry<'a> {
     #[must_use]
     pub fn resolver(&self, family: &NamespaceFamily) -> Option<&'a dyn Taxonomy> {
         let index = self.families.get(family)?.resolver?;
-        Some(self.plugins[index])
+        Some(self.plugins[index].taxonomy())
+    }
+
+    /// Returns the segment axes of the plug-in that resolves the family, or `None` if no plug-in
+    /// resolves it or the resolver has no segment axes.
+    #[must_use]
+    pub fn segment_axes(&self, family: &NamespaceFamily) -> Option<&'a dyn SegmentAxes> {
+        let index = self.families.get(family)?.resolver?;
+        match self.plugins[index] {
+            Plugin::WithSegmentAxes(plugin) => Some(plugin),
+            Plugin::Taxonomy(_) => None,
+        }
     }
 
     /// Returns the declaration of the family, or `None` if no plug-in declares it.
@@ -123,7 +166,7 @@ fn reject_repeated_family(plugin: &dyn Taxonomy) -> Result<(), RegistryError> {
 
 fn add_declaration(
     families: &mut BTreeMap<NamespaceFamily, Entry>,
-    plugins: &[&dyn Taxonomy],
+    plugins: &[Plugin<'_>],
     index: usize,
     declaration: &FamilyDeclaration,
 ) -> Result<(), RegistryError> {
@@ -176,11 +219,11 @@ fn reject_overlap(families: &BTreeMap<NamespaceFamily, Entry>) -> Result<(), Reg
     Ok(())
 }
 
-fn release_id(plugins: &[&dyn Taxonomy], index: usize) -> TaxonomyReleaseId {
-    plugins[index].release().id.clone()
+fn release_id(plugins: &[Plugin<'_>], index: usize) -> TaxonomyReleaseId {
+    plugins[index].taxonomy().release().id.clone()
 }
 
-/// The error of [`Registry::new`] when the declarations of the plug-ins conflict.
+/// The error of [`Registry::new`] and [`Registry::with_plugins`] when the declarations of the plug-ins conflict.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum RegistryError {
@@ -284,6 +327,51 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_registry_error() {
         implements_auto_traits::<RegistryError>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_plugin() {
+        implements_auto_traits::<Plugin<'static>>();
+    }
+
+    #[test]
+    fn should_return_no_segment_axes_when_resolver_implements_only_taxonomy() {
+        let us_gaap = us_gaap();
+        let plugins = vec![Plugin::Taxonomy(&us_gaap)];
+
+        let expected_result = None;
+
+        let registry = Registry::with_plugins(plugins)
+            .expect("Given one plug-in, the creation should always succeed");
+        let result = registry
+            .segment_axes(&family("us-gaap"))
+            .map(|plugin| plugin.release().id.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_registry_from_plugins_when_two_plugins_resolve_one_family() {
+        let first = us_gaap();
+        let second = plugin(
+            "ifrs-full/2025",
+            vec![declaration(
+                "dei",
+                "http://xbrl.sec.gov/dei/{release}",
+                true,
+            )],
+        );
+        let plugins = vec![Plugin::Taxonomy(&first), Plugin::Taxonomy(&second)];
+
+        let expected_result = Some(RegistryError::DuplicateFamilyResolver {
+            family: family("dei"),
+            first: release_id("us-gaap/2026"),
+            second: release_id("ifrs-full/2025"),
+        });
+
+        let result = Registry::with_plugins(plugins).err();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

@@ -28,6 +28,9 @@ use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{
     CalculationArc, CalculationTree, ConceptAliases, ElementReference, PartAliases,
 };
+use crate::core::taxonomy::segment::{
+    MemberRole, ReconciliationRole, SegmentAxes, SegmentAxis, SegmentAxisKind,
+};
 
 // rustdoc sees the generator too, so the doc check covers it. A normal build leaves it out.
 #[cfg(any(doc, feature = "generator"))]
@@ -41,6 +44,59 @@ pub mod taxonomy;
 
 /// The family of the US GAAP concepts.
 const US_GAAP_FAMILY: &str = "us-gaap";
+
+/// The axis of kind [`SegmentAxisKind::ConsolidationItems`].
+const CONSOLIDATION_ITEMS_AXIS: &str = "ConsolidationItems";
+
+/// The segment axes of the plug-in, as written in `dimensions`. `SegmentReportingInformationBySegment`
+/// is the business-segment axis of filings of 2011.
+const SEGMENT_AXES: &[SegmentAxis] = &[
+    SegmentAxis::new("BusinessSegments", SegmentAxisKind::BusinessSegment),
+    SegmentAxis::new(
+        "SegmentReportingInformationBySegment",
+        SegmentAxisKind::BusinessSegment,
+    ),
+    SegmentAxis::new("Geographical", SegmentAxisKind::Geography),
+    SegmentAxis::new("ProductOrService", SegmentAxisKind::Product),
+    SegmentAxis::new(
+        CONSOLIDATION_ITEMS_AXIS,
+        SegmentAxisKind::ConsolidationItems,
+    ),
+    SegmentAxis::new("Subsegments", SegmentAxisKind::Subsegment),
+    SegmentAxis::new(
+        "SubsegmentsConsolidationItems",
+        SegmentAxisKind::SubsegmentConsolidationItems,
+    ),
+];
+
+/// The members of [`CONSOLIDATION_ITEMS_AXIS`] that have a role in the reconciliation.
+const MEMBER_ROLES: &[MemberRole] = &[
+    MemberRole::new(
+        CONSOLIDATION_ITEMS_AXIS,
+        "OperatingSegments",
+        ReconciliationRole::Segment,
+    ),
+    MemberRole::new(
+        CONSOLIDATION_ITEMS_AXIS,
+        "IntersegmentElimination",
+        ReconciliationRole::Elimination,
+    ),
+    MemberRole::new(
+        CONSOLIDATION_ITEMS_AXIS,
+        "ConsolidationEliminations",
+        ReconciliationRole::Elimination,
+    ),
+    MemberRole::new(
+        CONSOLIDATION_ITEMS_AXIS,
+        "CorporateNonSegment",
+        ReconciliationRole::Corporate,
+    ),
+    MemberRole::new(
+        CONSOLIDATION_ITEMS_AXIS,
+        "MaterialReconcilingItems",
+        ReconciliationRole::Corporate,
+    ),
+];
 
 /// One family that the plug-in declares.
 struct FamilySpec {
@@ -261,6 +317,16 @@ impl Taxonomy for UsGaap {
     }
 }
 
+impl SegmentAxes for UsGaap {
+    fn segment_axes(&self) -> &[SegmentAxis] {
+        SEGMENT_AXES
+    }
+
+    fn member_roles(&self) -> &[MemberRole] {
+        MEMBER_ROLES
+    }
+}
+
 /// Returns the family of the text `name`.
 fn family(name: &str) -> NamespaceFamily {
     NamespaceFamily::new(name)
@@ -389,8 +455,9 @@ mod tests {
     use crate::core::fact::{AsIsFact, Decimals, TaxonomyVersion};
     use crate::core::finding::Finding;
     use crate::core::taxonomy::reference::{Balance, PeriodType};
-    use crate::core::taxonomy::registry::Registry;
+    use crate::core::taxonomy::registry::{Plugin, Registry};
     use crate::tests::fixtures::sample_fact::{date, fact, source};
+    use crate::tests::fixtures::sample_taxonomy::{declaration, plugin};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -432,6 +499,134 @@ mod tests {
             .filter(|declaration| declaration.resolves())
             .map(|declaration| declaration.family().as_str())
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_seven_axes_with_kinds_for_us_gaap() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            ("BusinessSegments", SegmentAxisKind::BusinessSegment),
+            (
+                "SegmentReportingInformationBySegment",
+                SegmentAxisKind::BusinessSegment,
+            ),
+            ("Geographical", SegmentAxisKind::Geography),
+            ("ProductOrService", SegmentAxisKind::Product),
+            ("ConsolidationItems", SegmentAxisKind::ConsolidationItems),
+            ("Subsegments", SegmentAxisKind::Subsegment),
+            (
+                "SubsegmentsConsolidationItems",
+                SegmentAxisKind::SubsegmentConsolidationItems,
+            ),
+        ];
+
+        let result: Vec<(&str, SegmentAxisKind)> = us_gaap
+            .segment_axes()
+            .iter()
+            .map(|axis| (axis.name(), axis.kind()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_five_member_roles_for_us_gaap() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            ("OperatingSegments", ReconciliationRole::Segment),
+            ("IntersegmentElimination", ReconciliationRole::Elimination),
+            ("ConsolidationEliminations", ReconciliationRole::Elimination),
+            ("CorporateNonSegment", ReconciliationRole::Corporate),
+            ("MaterialReconcilingItems", ReconciliationRole::Corporate),
+        ];
+
+        let result: Vec<(&str, ReconciliationRole)> = us_gaap
+            .member_roles()
+            .iter()
+            .map(|member_role| (member_role.member(), member_role.role()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_an_axis_of_kind_consolidation_items_for_each_member_role_of_us_gaap() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result: Vec<&str> = Vec::new();
+
+        let result: Vec<&str> = us_gaap
+            .member_roles()
+            .iter()
+            .filter(|member_role| {
+                !us_gaap.segment_axes().iter().any(|axis| {
+                    axis.name() == member_role.axis()
+                        && axis.kind() == SegmentAxisKind::ConsolidationItems
+                })
+            })
+            .map(MemberRole::member)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_route_us_gaap_concept_to_us_gaap_when_registered_with_segment_axes() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let concept = concept("us-gaap", "Revenues");
+
+        let expected_result = Some(release_id());
+
+        let result = registry
+            .resolver(concept.family())
+            .map(|plugin| plugin.release().id.clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_segment_axes_of_us_gaap_when_registered_with_segment_axes() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let us_gaap_family = family("us-gaap");
+
+        let expected_result = Some(SEGMENT_AXES);
+
+        let result = registry
+            .segment_axes(&us_gaap_family)
+            .map(SegmentAxes::segment_axes);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_segment_axes_of_us_gaap_when_another_plugin_declares_the_family_first() {
+        let declarer = plugin(
+            "declarer/2025",
+            vec![declaration("srt", "http://fasb.org/srt/{release}", false)],
+        );
+        let us_gaap = UsGaap::new();
+        let registry = Registry::with_plugins(vec![
+            Plugin::Taxonomy(&declarer),
+            Plugin::WithSegmentAxes(&us_gaap),
+        ])
+        .expect(
+            "Given a declaration of srt that agrees with us_gaap and does not resolve, the registry should always start",
+        );
+        let srt_family = family("srt");
+
+        let expected_result = Some(SEGMENT_AXES);
+
+        let result = registry
+            .segment_axes(&srt_family)
+            .map(SegmentAxes::segment_axes);
 
         assert_eq!(result, expected_result);
     }
