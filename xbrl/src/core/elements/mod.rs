@@ -1,14 +1,14 @@
 //! # Standard Concepts
 //!
-//! Provides [`CanonicalElementKind`], the standard concept set, and the traits [`Concept`] and
-//! [`Placed`] that describe one concept.
+//! Provides [`CanonicalElementKind`], the standard concept set, and the traits that describe one
+//! concept: [`Concept`], [`Placed`], [`Summed`], and [`Timed`].
 //!
 //! The concepts nest by statement and disclosure, as the errors of `sec` nest by level:
 //!
 //! - [`CanonicalElementKind`] holds a [`StatementConcept`] or a [`DisclosureConcept`].
 //! - [`StatementConcept`] holds a [`BalanceSheetConcept`], an [`IncomeStatementConcept`], or a
 //!   [`CashFlowConcept`].
-//! - [`DisclosureConcept`] holds a [`PerShareConcept`].
+//! - [`DisclosureConcept`] holds a [`PerShareConcept`] or a [`DebtMaturityConcept`].
 //!
 //! Each level converts up with `From` and down with `TryFrom`. `docs/adr/0011-concept-hierarchy.md`
 //! records why the concepts nest this way.
@@ -47,7 +47,7 @@ pub mod disclosure;
 pub mod roll_up;
 pub mod statement;
 
-pub use disclosure::PerShareConcept;
+pub use disclosure::{DebtMaturityConcept, PerShareConcept};
 pub use roll_up::{Group, GroupKind, GroupName, Placement, Weight};
 pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept};
 
@@ -101,6 +101,47 @@ pub trait Placed: Concept {
     fn placement(self) -> Placement;
 }
 
+/// The role of a concept in the sum of its disclosure.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SumRole {
+    /// The total that the parts add up to.
+    Total,
+    /// A part of the total.
+    Part,
+}
+
+/// A concept of a disclosure whose values add up to a total of the same disclosure.
+pub trait Summed: Concept {
+    /// The name of the sum, such as `debt-maturities`: the `reason` of its finding.
+    const SUM_NAME: &'static str;
+
+    /// The tolerance of the check in basis points of the largest absolute value in the group.
+    const TOLERANCE_BASIS_POINTS: u32;
+
+    /// Returns whether the concept is the total or a part.
+    fn role(self) -> SumRole;
+}
+
+/// The dates at which a concept has values.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Cadence {
+    /// Every period that the entity reports.
+    EveryPeriod,
+    /// Only the fiscal year ends.
+    FiscalYearEnd,
+}
+
+/// A concept whose values can exist at fewer dates than the periods the entity reports.
+///
+/// [`CanonicalElementKind::cadence`] gives [`Cadence::EveryPeriod`] for a concept whose enum does
+/// not implement this trait.
+pub trait Timed: Concept {
+    /// Returns the dates at which the concept has values.
+    fn cadence(self) -> Cadence;
+}
+
 middle_concepts! {
     /// A concept of a statement.
     pub enum StatementConcept in Statement {
@@ -116,6 +157,8 @@ middle_concepts! {
     pub enum DisclosureConcept in Disclosure {
         /// A per-share amount, such as earnings per share.
         PerShare(PerShareConcept),
+        /// The maturity ladder of long-term debt and its total.
+        DebtMaturities(DebtMaturityConcept): Summed + Timed,
     }
 }
 
@@ -197,7 +240,7 @@ mod tests {
     fn should_match_innermost_when_parsing_the_name_of_every_concept_back() {
         let elements: Vec<CanonicalElementKind> = INNERMOST.concat();
 
-        // The expected result is INNERMOST itself, the reference path: 52 written-out entries
+        // The expected result is INNERMOST itself, the reference path: 59 written-out entries
         // would repeat the enums.
         let expected_result: Vec<Result<CanonicalElementKind, InvalidValue>> =
             elements.iter().copied().map(Ok).collect();
@@ -211,10 +254,10 @@ mod tests {
     }
 
     #[test]
-    fn should_give_one_distinct_name_per_concept_for_the_52_concepts_in_innermost() {
+    fn should_give_one_distinct_name_per_concept_for_the_59_concepts_in_innermost() {
         let elements: Vec<CanonicalElementKind> = INNERMOST.concat();
 
-        let expected_result = (52, 52);
+        let expected_result = (59, 59);
 
         let result = (
             elements.len(),
@@ -224,6 +267,17 @@ mod tests {
                 .collect::<BTreeSet<_>>()
                 .len(),
         );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_every_period_when_the_enum_of_the_concept_does_not_implement_timed() {
+        let element = IncomeStatementConcept::NetIncome.element();
+
+        let expected_result = Cadence::EveryPeriod;
+
+        let result = element.cadence();
 
         assert_eq!(result, expected_result);
     }

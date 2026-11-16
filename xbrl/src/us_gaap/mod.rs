@@ -383,8 +383,8 @@ mod tests {
     use crate::core::confidence::Confidence;
     use crate::core::dedup::more_precise;
     use crate::core::elements::{
-        BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, IncomeStatementConcept,
-        PerShareConcept,
+        BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, DebtMaturityConcept,
+        IncomeStatementConcept, PerShareConcept,
     };
     use crate::core::fact::{AsIsFact, Decimals, TaxonomyVersion};
     use crate::core::finding::Finding;
@@ -679,6 +679,34 @@ mod tests {
             (
                 PerShareConcept::EarningsPerShareDiluted.element(),
                 "us-gaap/alias/earnings-per-share-diluted@1",
+            ),
+            (
+                DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+                "us-gaap/alias/long-term-debt-including-current-maturities@1",
+            ),
+            (
+                DebtMaturityConcept::DebtDueInYearOne.element(),
+                "us-gaap/alias/debt-due-in-year-one@1",
+            ),
+            (
+                DebtMaturityConcept::DebtDueInYearTwo.element(),
+                "us-gaap/alias/debt-due-in-year-two@1",
+            ),
+            (
+                DebtMaturityConcept::DebtDueInYearThree.element(),
+                "us-gaap/alias/debt-due-in-year-three@1",
+            ),
+            (
+                DebtMaturityConcept::DebtDueInYearFour.element(),
+                "us-gaap/alias/debt-due-in-year-four@1",
+            ),
+            (
+                DebtMaturityConcept::DebtDueInYearFive.element(),
+                "us-gaap/alias/debt-due-in-year-five@1",
+            ),
+            (
+                DebtMaturityConcept::DebtDueAfterYearFive.element(),
+                "us-gaap/alias/debt-due-after-year-five@1",
             ),
             (
                 CashFlowConcept::DepreciationAmortization.element(),
@@ -1699,6 +1727,81 @@ mod tests {
         let result = us_gaap.aliases().iter().find(|aliases| {
             aliases.element == IncomeStatementConcept::ComprehensiveIncome.element()
         });
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_debt_due_in_year_two_rule_id_when_the_filing_reports_only_the_rolling_concept()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo",
+            "500000000",
+        )];
+
+        let expected_result = vec![(
+            DebtMaturityConcept::DebtDueInYearTwo.element(),
+            rule("us-gaap/alias/debt-due-in-year-two@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_exact_with_debt_due_in_year_two_rule_id_when_the_filing_reports_both_the_fiscal_year_and_the_rolling_concept()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo",
+                "500000000",
+            ),
+            fact(
+                &filing,
+                "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+                "500000000",
+            ),
+        ];
+
+        let expected_result = vec![(
+            DebtMaturityConcept::DebtDueInYearTwo.element(),
+            rule("us-gaap/alias/debt-due-in-year-two@1"),
+            Some(Confidence::Exact),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_long_term_debt_including_current_maturities_when_the_filing_reports_long_term_debt()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(&filing, "LongTermDebt", "2100000000")];
+
+        let expected_result = vec![(
+            DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+            rule("us-gaap/alias/long-term-debt-including-current-maturities@1"),
+            Some(Confidence::Exact),
+        )];
+
+        let result = resolve(&facts, &registry);
 
         assert_eq!(result, expected_result);
     }

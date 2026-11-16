@@ -5,7 +5,8 @@
 //! - `innermost_concepts!` defines one innermost enum, such as `BalanceSheetConcept`, from one
 //!   list of variants and labels.
 //! - `middle_concepts!` defines the middle enums, `StatementConcept` and `DisclosureConcept`, the
-//!   conversions between the levels, and `INNERMOST`.
+//!   conversions between the levels, `INNERMOST`, and `CanonicalElementKind::cadence`.
+//! - `cadence_of!` gives the cadence of one concept from the trait list of its entry.
 //! - `group_names!` defines the group enum of one statement, such as `BalanceSheetGroup`, from one
 //!   list of variants and their text.
 //!
@@ -91,6 +92,12 @@ macro_rules! innermost_concepts {
 ///
 /// It also writes `INNERMOST`, with the `ELEMENTS` of each innermost enum in the order of the
 /// input.
+///
+/// An entry can list the traits of its innermost enum beyond `Concept`, as in
+/// `DebtMaturities(DebtMaturityConcept): Summed + Timed`. The macro checks at compile time that the
+/// enum implements each listed trait. From the list it writes
+/// [`CanonicalElementKind::cadence`](crate::core::elements::CanonicalElementKind::cadence), which
+/// calls [`Timed::cadence`](crate::core::elements::Timed::cadence) for an enum with `Timed`.
 macro_rules! middle_concepts {
     (
         $(
@@ -98,7 +105,7 @@ macro_rules! middle_concepts {
             pub enum $middle:ident in $top:ident {
                 $(
                     $(#[$variant_meta:meta])*
-                    $variant:ident($inner:ident)
+                    $variant:ident($inner:ident) $(: $first_trait:ident $(+ $trait:ident)*)?
                 ),+ $(,)?
             }
         )+
@@ -178,6 +185,17 @@ macro_rules! middle_concepts {
                     }
                 }
 
+                $(
+                    // Fails to compile if the entry lists a trait that the enum does not implement.
+                    const _: () = {
+                        const fn implements_listed_traits<
+                            T: $crate::core::elements::$first_trait $(+ $crate::core::elements::$trait)*,
+                        >() {
+                        }
+                        implements_listed_traits::<$inner>();
+                    };
+                )?
+
                 impl TryFrom<$crate::core::elements::CanonicalElementKind> for $inner {
                     type Error = $crate::core::elements::CanonicalElementKind;
 
@@ -198,6 +216,39 @@ macro_rules! middle_concepts {
         /// The entries follow the order of the middle enums. The parse from the name and the test
         /// for unique names walk this table.
         pub const INNERMOST: &[&[$crate::core::elements::CanonicalElementKind]] = &[$($($inner::ELEMENTS,)+)+];
+
+        impl $crate::core::elements::CanonicalElementKind {
+            /// Returns the dates at which the concept has values.
+            ///
+            /// Gives the [`Timed::cadence`](crate::core::elements::Timed::cadence) of the concept,
+            /// or [`Cadence::EveryPeriod`](crate::core::elements::Cadence::EveryPeriod) if its
+            /// enum does not implement `Timed`.
+            #[must_use]
+            pub fn cadence(self) -> $crate::core::elements::Cadence {
+                match self {
+                    $($(
+                        Self::$top($middle::$variant(concept)) => cadence_of!(concept; $($first_trait $(, $trait)*)?),
+                    )+)+
+                }
+            }
+        }
+    };
+}
+
+/// Gives the cadence of a concept from the trait list of its entry in `middle_concepts!`.
+///
+/// The input is the innermost concept and the traits, separated by commas. If the list holds `Timed`, the macro
+/// calls `Timed::cadence`. Otherwise it gives `Cadence::EveryPeriod`.
+macro_rules! cadence_of {
+    ($concept:ident;) => {{
+        let _ = $concept;
+        $crate::core::elements::Cadence::EveryPeriod
+    }};
+    ($concept:ident; Timed $(, $rest:ident)*) => {
+        $crate::core::elements::Timed::cadence($concept)
+    };
+    ($concept:ident; $other:ident $(, $rest:ident)*) => {
+        cadence_of!($concept; $($rest),*)
     };
 }
 

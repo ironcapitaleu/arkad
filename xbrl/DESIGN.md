@@ -1089,7 +1089,7 @@ pub trait Timed: Concept {
   `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
   `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
 - The middle macro registers the traits of each innermost enum, as in
-  `DebtMaturities(DebtMaturityConcept): Summed, Timed`. From this list it generates
+  `DebtMaturities(DebtMaturityConcept): Summed + Timed`. From this list it generates
   `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
   generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`.
 - The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
