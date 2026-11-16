@@ -93,8 +93,12 @@ compute it.
 - `core/dedup/newest-filing@1` picks one value per standard concept and period across filings.
   The newest filing wins, amendments included. A restatement replaces the older value and sets
   `restated`.
+- `core::cadence_filter::keep_by_cadence` runs after tiers 1 and 2. A concept with the cadence
+  `FiscalYearEnd`, such as a debt maturity bucket, keeps a candidate only at the period of report
+  of a filing with the fiscal period `FY`.
 - `core::chronology::check_chronology` checks each series over time. It reports `Gap`, `Overlap`,
-  and `Restatement` findings and never fails.
+  and `Restatement` findings and never fails. A timeline with the cadence `FiscalYearEnd` expects
+  only the fiscal year ends.
 - The rules are in `xbrl/DESIGN.md`, "4) Dedup and Chronology". The fiscal periods and forms they
   read are in the `accounting` skill.
 

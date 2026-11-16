@@ -60,6 +60,7 @@ xbrl/
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
       alias.rs             <- tiers 1 and 2 on one filing
+      cadence_filter.rs    <- keep a candidate only at the dates its concept has values
       dedup.rs             <- dedup rules of the standardized layer
       period_identity.rs   <- core/period/q4-from-fy@1
       chronology.rs        <- order over time, gap check
@@ -980,7 +981,9 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   In an interim report, a bucket without "rolling" counts from the fiscal year end, and a rolling
   bucket counts from the balance sheet date. So the two hold different amounts there.
 - A filter after `resolve_aliases` drops the other candidates of a bucket. It reads the `Filing`
-  and the trait `Timed`. `resolve_aliases` and the `Taxonomy` trait do not change.
+  and the trait `Timed`. `resolve_aliases` and the `Taxonomy` trait do not change. The filter is
+  `keep_by_cadence` in `core/cadence_filter.rs`. A filing with no period of report or no fiscal
+  period gives no candidate of a bucket.
 - The total `LongTermDebtIncludingCurrentMaturities` is a balance sheet value. It gets a candidate
   at every balance sheet date, as `LongTermDebt` does.
 - Each annual report gives a new ladder. The series of `DebtDueInYearOne` shows, for each year,
