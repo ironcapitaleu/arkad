@@ -32,14 +32,13 @@ pub struct FilingCandidates {
 
 /// Applies tiers 1 and 2 to the as-is facts of one filing after `core/dedup/more-precise@1`.
 ///
-/// A fact without dimensions and a segment fact give candidates. A fact is a segment fact if the
-/// [`SegmentAxes`](super::taxonomy::segment::SegmentAxes) that
-/// [`Registry::segment_axes`] returns for the family of its concept name each axis of the fact. A
-/// segment fact gives a candidate under its own dimensions, with the alias lists of the value
-/// without dimensions. It gives no candidate of a [`CanonicalElementKind::Disclosure`] concept,
-/// because a per-share value counts the shares of the whole company. Any other fact with dimensions
-/// gives no candidate, but it still counts in the part rule and still gives its
-/// [`Finding::Conflict`].
+/// A fact without dimensions and a segment fact give candidates. A fact is a segment fact if each
+/// of its axes is a segment axis. [`Registry::segment_axes`] returns the segment axes for the
+/// family of the concept. A segment fact gives a candidate under its own dimensions, with the alias
+/// lists of the value without dimensions. It gives no candidate of a concept of a disclosure, a
+/// [`CanonicalElementKind::Disclosure`]. For example, a per-share value counts the shares of the
+/// whole company. Any other fact with dimensions gives no candidate, but it still counts in the
+/// part rule and still gives its [`Finding::Conflict`].
 ///
 /// For each period and each alias list, the first concept of the list that the filing reports
 /// wins. The first concept gives confidence [`Confidence::Exact`], a later one

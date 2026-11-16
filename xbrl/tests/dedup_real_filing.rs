@@ -80,11 +80,15 @@ fn revenue_ranks(facts: &[AsIsFact], dimensions: &Dimensions) -> Vec<(u16, Strin
         .unwrap_or_default()
 }
 
-/// Runs the dedup rules on `facts`, and returns the count of standardized facts per standard
-/// concept.
+/// Runs the dedup rules on `facts`, and returns the count of standardized facts without dimensions
+/// per standard concept.
 fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usize> {
     let mut counts = BTreeMap::new();
-    for fact in newest_filing(&candidates_of(facts).candidates).facts {
+    for fact in newest_filing(&candidates_of(facts).candidates)
+        .facts
+        .into_iter()
+        .filter(|fact| fact.dimensions.is_empty())
+    {
         *counts.entry(fact.concept).or_insert(0) += 1;
     }
     counts
@@ -95,7 +99,6 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
 /// Equity and equity attributable to parent have 3 facts each, because the filing reports
 /// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
 /// Interest expense has 1, because a conflict blocks the 2026 quarter. Every other concept has 2.
-/// Each segment fact of a standard concept has a conflict, so it gives no standardized fact.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
         (BalanceSheetConcept::Assets.element(), 2),

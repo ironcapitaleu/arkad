@@ -70,6 +70,15 @@ fn exact(value: i64) -> CandidateValue {
     }
 }
 
+/// Returns the candidate value `value` at `decimals` -6 and confidence [`Confidence::Synonym`].
+fn synonym(value: i64) -> CandidateValue {
+    CandidateValue::Reported {
+        value: BigDecimal::from(value),
+        decimals: Some(Decimals::Finite(-6)),
+        confidence: Confidence::Synonym,
+    }
+}
+
 #[test]
 fn should_give_a_revenue_candidate_with_the_segment_when_revenues_carry_the_cloud_segment() {
     let us_gaap = UsGaap::new();
@@ -87,6 +96,75 @@ fn should_give_a_revenue_candidate_with_the_segment_when_revenues_carry_the_clou
         dimensions(&[("BusinessSegments", "Cloud")]),
         exact(24_000_000_000),
     )];
+
+    let result = resolve(&facts, &registry);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_a_revenue_candidate_with_both_axes_when_revenues_carry_a_segment_and_a_product() {
+    let us_gaap = UsGaap::new();
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
+        .expect("Given one plug-in with distinct families, the registry should always start");
+    let segment_and_product = [
+        ("BusinessSegments", "Cloud"),
+        ("ProductOrService", "Licenses"),
+    ];
+    let facts = vec![fact_with("Revenues", "6000000000", &segment_and_product)];
+
+    let expected_result = vec![(
+        IncomeStatementConcept::Revenue.element(),
+        rule("us-gaap/alias/revenue@1"),
+        dimensions(&segment_and_product),
+        exact(6_000_000_000),
+    )];
+
+    let result = resolve(&facts, &registry);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_a_part_candidate_of_the_segment_when_the_filing_reports_the_part_alone() {
+    let us_gaap = UsGaap::new();
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
+        .expect("Given one plug-in with distinct families, the registry should always start");
+    let cloud = [("BusinessSegments", "Cloud")];
+    let facts = vec![fact_with(
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "24000000000",
+        &cloud,
+    )];
+
+    let expected_result = vec![(
+        IncomeStatementConcept::Revenue.element(),
+        rule("us-gaap/part/revenue@1"),
+        dimensions(&cloud),
+        synonym(24_000_000_000),
+    )];
+
+    let result = resolve(&facts, &registry);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_no_part_candidate_of_the_segment_when_the_filing_reports_an_other_part_without_dimensions()
+ {
+    let us_gaap = UsGaap::new();
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
+        .expect("Given one plug-in with distinct families, the registry should always start");
+    let facts = vec![
+        fact_with(
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "24000000000",
+            &[("BusinessSegments", "Cloud")],
+        ),
+        fact_with("OperatingLeaseLeaseIncome", "500000000", &[]),
+    ];
+
+    let expected_result: Vec<Summary> = Vec::new();
 
     let result = resolve(&facts, &registry);
 

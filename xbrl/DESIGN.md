@@ -1154,7 +1154,8 @@ segment, a region, or a product line. The standardized layer holds it as a `Stan
 value. [ADR 0029](../docs/adr/0029-segment-values-keep-their-dimensions.md) records why segment
 values keep their dimensions and stay out of the tree.
 [ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md) records why the reconciliation
-runs per report. The code does not hold the rules of this section.
+runs per report. The code holds the rules of "Segment Axes", "Concepts a Segment Can Carry", and
+"Resolution of a Segment Value". It holds no reconciliation.
 
 #### Segment Axes
 

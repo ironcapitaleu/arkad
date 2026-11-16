@@ -38,8 +38,8 @@ fn standardized_facts() -> Vec<StandardizedFact> {
     newest_filing(&resolve_aliases(&more_precise(&facts), &registry).candidates).facts
 }
 
-/// Returns the facts that end on `end`, last `quarters` quarters, and have a concept that `keep`
-/// accepts.
+/// Returns the facts without dimensions that end on `end`, last `quarters` quarters, and have a
+/// concept that `keep` accepts.
 fn facts_of(
     facts: &[StandardizedFact],
     end: NaiveDate,
@@ -49,7 +49,10 @@ fn facts_of(
     facts
         .iter()
         .filter(|fact| {
-            fact.period.end() == end && fact.period.quarters() == quarters && keep(fact.concept)
+            fact.dimensions.is_empty()
+                && fact.period.end() == end
+                && fact.period.quarters() == quarters
+                && keep(fact.concept)
         })
         .collect()
 }
