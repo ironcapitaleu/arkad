@@ -35,6 +35,7 @@
 //! - [`release`]: The taxonomy release of a plug-in.
 //! - [`roll_up_check`]: The checks of the roll-up tree on a standardized series.
 //! - [`rule`]: The ID of a rule.
+//! - [`segment`]: The segment reconciliation of one filing.
 //! - [`standardized`]: One value of one standard concept.
 //! - [`statement`]: The financial statements, laid out by their roll-up trees.
 //! - [`suspicious_period`]: The check for periods that are most likely typos of the filer.
@@ -67,6 +68,7 @@ pub mod period_identity;
 pub mod release;
 pub mod roll_up_check;
 pub mod rule;
+pub mod segment;
 pub mod standardized;
 pub mod statement;
 pub mod suspicious_period;
