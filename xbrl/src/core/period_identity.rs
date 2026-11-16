@@ -47,7 +47,7 @@ const TRANSITION_REPORT_FORMS: [&str; 1] = ["10-KT"];
 /// start, the starts must be equal. The fourth quarter is the year less the nine months. It runs
 /// from the day after the nine-month end to the year end.
 ///
-/// The rule derives only values in one currency, such as `USD`. Per-share values, share counts,
+/// The rule derives only values without dimensions, in one currency, such as `USD`. Per-share values, share counts,
 /// and ratios do not add over periods. The rule derives nothing for a fourth quarter that the
 /// series already holds or that a conflict blocks.
 ///
@@ -71,7 +71,11 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
     series
         .facts
         .iter()
-        .filter(|year| year.unit.is_currency() && year.period.quarters() == YEAR_LENGTH)
+        .filter(|year| {
+            year.dimensions.is_empty()
+                && year.unit.is_currency()
+                && year.period.quarters() == YEAR_LENGTH
+        })
         .filter(|year| !short_year_signals.is_short_year(year))
         .filter_map(|year| {
             let mut key = year.series_key();
@@ -227,7 +231,7 @@ mod tests {
     use crate::core::elements::IncomeStatementConcept;
     use crate::core::fact::Dimensions;
     use crate::core::unit::Unit;
-    use crate::tests::fixtures::sample_fact::{date, filing, standardized};
+    use crate::tests::fixtures::sample_fact::{date, filing, in_cloud_segment, standardized};
 
     fn span(start: NaiveDate, end: NaiveDate) -> Period {
         Period::Duration(
@@ -731,6 +735,20 @@ mod tests {
             standardized(fiscal_year(), "391035000000"),
             first_nine_months,
         ]);
+
+        let expected_result: Vec<StandardizedFact> = Vec::new();
+
+        let result = derive_q4(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_fiscal_year_value_carries_a_business_segment() {
+        let facts = series(in_cloud_segment(vec![
+            standardized(fiscal_year(), "391035000000"),
+            standardized(nine_months(), "296105000000"),
+        ]));
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 

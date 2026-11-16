@@ -28,8 +28,8 @@ const MONTHS_FROM_REPORT: u32 = 1200;
 /// from confirming by chance.
 const CONFIRMATION_YEARS: i32 = 3;
 
-/// Checks the period of each value in `series`, and returns one [`Finding::SuspiciousPeriod`] per
-/// value that hits a signal.
+/// Checks the period of each value without dimensions in `series`, and returns one
+/// [`Finding::SuspiciousPeriod`] per value that hits a signal.
 ///
 /// The finding names every signal the value hits. A value whose period differs from the period of
 /// its first input, such as a derived Q4, gets no finding: the finding on the input names the typo.
@@ -58,7 +58,11 @@ const CONFIRMATION_YEARS: i32 = 3;
 #[must_use]
 pub fn suspicious_periods(series: &Series, filings: &[Filing]) -> Vec<Finding> {
     let mut findings = Vec::new();
-    for fact in &series.facts {
+    for fact in series
+        .facts
+        .iter()
+        .filter(|fact| fact.dimensions.is_empty())
+    {
         let Some(key) = fact.inputs.first() else {
             continue;
         };

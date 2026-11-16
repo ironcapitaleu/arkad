@@ -46,7 +46,8 @@ const TOLERANCE_DIVISOR: u32 = 1_000;
 ///
 /// `added` holds the facts that later rules give for the series, such as
 /// `core/period/q4-from-fy@1` and `core/roll-up/<group>@1`. The checks read them as they read
-/// `series.facts`. The checks run on each period, unit, and set of dimensions, in this order:
+/// `series.facts`. The checks read only values without dimensions. They run on each period and
+/// unit, in this order:
 ///
 /// 1. Each closed group, in the order of [`groups`]: the start and the weighted children must
 ///    equal the parent. A failure is a [`Finding::RollUpMismatch`].
@@ -109,7 +110,12 @@ impl<'a> Slot<'a> {
     /// period of its first value.
     fn all(series: &'a Series, added: &'a [StandardizedFact]) -> Vec<Self> {
         let mut slots: BTreeMap<SlotKey<'a>, Self> = BTreeMap::new();
-        for fact in series.facts.iter().chain(added) {
+        for fact in series
+            .facts
+            .iter()
+            .chain(added)
+            .filter(|fact| fact.dimensions.is_empty())
+        {
             let key = (
                 &fact.entity,
                 fact.period.end(),
@@ -133,7 +139,11 @@ impl<'a> Slot<'a> {
         }
         // A series key has no period type, so the blocked concept marks the slot of each type. A
         // concept belongs to one statement, so the mark in the other slot changes no check.
-        for key in &series.blocked {
+        for key in series
+            .blocked
+            .iter()
+            .filter(|key| key.dimensions.is_empty())
+        {
             for period_type in [PeriodType::Instant, PeriodType::Duration] {
                 let slot_key = (
                     &key.entity,
@@ -312,7 +322,7 @@ mod tests {
     use crate::core::elements::{CashFlowConcept, IncomeStatementConcept};
     use crate::core::period::Duration;
     use crate::core::rule::RuleId;
-    use crate::tests::fixtures::sample_fact::{date, standardized};
+    use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
 
     /// Returns the entity of [`standardized`].
     fn entity() -> EntityId {
@@ -409,6 +419,17 @@ mod tests {
             RollUpCheck::Group(BalanceSheetGroup::Assets.name()),
             Confidence::Exact,
         )];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_roll_up_mismatch_when_the_values_carry_a_business_segment() {
+        let facts = series(in_cloud_segment(assets("40101").facts));
+
+        let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_roll_ups(&facts, &[]);
 
@@ -677,6 +698,17 @@ mod tests {
             reason: BalanceSheetGroup::CurrentAssets.name(),
             confidence: Confidence::Exact,
         }];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_negative_other_when_the_values_carry_a_business_segment() {
+        let facts = series(in_cloud_segment(current_assets("401.5").facts));
+
+        let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_roll_ups(&facts, &[]);
 
