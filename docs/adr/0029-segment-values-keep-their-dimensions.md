@@ -84,8 +84,9 @@ Where the segment axes live, checked against the trait `Taxonomy` in
 | C: a method on `Taxonomy` | Gets segment values | Every plug-in implements it |
 
 - B makes `core` name the axes of one taxonomy, while the alias lists already live in the plug-in.
-- C changes a trait that every plug-in implements, so every plug-in changes. A plug-in with no
-  segment data then implements an empty method.
+- C modifies `Taxonomy`, a trait that other code implements. A default method keeps every plug-in
+  compiling, but the project keeps such a trait closed if a new trait can hold the change, and a new
+  trait can. With C, a reader of `Taxonomy` also cannot tell which plug-ins have segment data.
 
 Pairs filed in two forms stay apart: of 1,750 segment values that a filing reports both with
 `BusinessSegments` alone and with `ConsolidationItems` = `OperatingSegments` added, 647 differ. So

@@ -1018,9 +1018,11 @@ each member of its axis of kind `ConsolidationItems`. Each value takes a role fr
 
 | Role | Dimensions | Role rule ID |
 | ---- | ---------- | ------------ |
-| Segment | A business-segment axis = *m* alone, or with a `ConsolidationItems` member of role `Segment` | None |
-| Elimination | A `ConsolidationItems` member of role `Elimination`, alone | `core/segment/elimination@1` |
-| Corporate | A `ConsolidationItems` member of role `Corporate`, alone | `core/segment/corporate@1` |
+| Segment | A business-segment axis = *m* alone, or with a member of role `Segment` | None |
+| Elimination | A member of role `Elimination`, alone | `core/segment/elimination@1` |
+| Corporate | A member of role `Corporate`, alone | `core/segment/corporate@1` |
+
+A member with a role sits on an axis of kind `ConsolidationItems`.
 | Unreconciled | None, a line of the reconciliation | `core/segment/unreconciled@1` |
 
 The roles of `us_gaap`, all on `ConsolidationItems`:
@@ -1042,8 +1044,8 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
   derived line from a reported one by the role rule ID `core/segment/unreconciled@1`.
 - Each role has the weight `+1`, and each value keeps the sign of the filing. An elimination is
   mostly negative.
-- If a segment *m* has both forms, the value without the `ConsolidationItems` pair counts, even if
-  it is blocked.
+- If a segment *m* has both forms, the value without a pair on an axis of kind `ConsolidationItems`
+  counts, even if it is blocked.
 - A plug-in gives a role only to a member of its own taxonomies. A value with a member of the
   company on `ConsolidationItems`, such as `CorporateAndEliminations`, has no role. Its amount lands
   in the unreconciled line.
@@ -1147,7 +1149,8 @@ pub struct TaxonomyRelease {
 Accounting identities and period identities are not part of the trait. They are core rules, the same
 for every taxonomy.
 
-**Registry.** The core holds a list of `&dyn Taxonomy`. The caller owns the plug-ins, and the
+**Registry.** The core holds a list of plug-ins. Each one is a `&dyn Taxonomy`, or a
+`&dyn SegmentAxes` (see "The `SegmentAxes` Trait"). The caller owns the plug-ins, and the
 registry borrows them. The
 registry routes each as-is fact to the plug-in that resolves the namespace family of its concept. A
 filing can mix families, for example a 20-F with `ifrs-full` and `dei`, so the routing works per
@@ -1205,8 +1208,30 @@ pub struct MemberRole {
   resolves its concept, so a segment axis without a resolving plug-in has no fact to apply to.
 - `Taxonomy` does not change (`AGENTS.md`, "Open-Closed Principle"). A plug-in without segment data
   implements only `Taxonomy`.
-- The registry takes a plug-in either as `&dyn Taxonomy` or as `&dyn SegmentAxes`. A plug-in given
-  as `&dyn SegmentAxes` also counts as its `Taxonomy`, by trait upcasting.
+- The registry reaches the segment axes through a second constructor. `Registry::new` keeps its
+  signature, so none of its 90 calls changes:
+
+  ```rust
+  pub enum Plugin<'a> {
+      Taxonomy(&'a dyn Taxonomy),
+      WithSegmentAxes(&'a dyn SegmentAxes),
+  }
+
+  impl<'a> Registry<'a> {
+      /// Takes plug-ins with or without segment axes. `new` wraps each plug-in in `Plugin::Taxonomy`.
+      pub fn with_plugins(plugins: Vec<Plugin<'a>>) -> Result<Self, RegistryError>;
+      /// The plug-in that resolves the family, as `&dyn Taxonomy`, by trait upcasting.
+      pub fn resolver(&self, family: &NamespaceFamily) -> Option<&'a dyn Taxonomy>;
+      /// The segment axes of the plug-in that resolves the family, or `None`.
+      pub fn segment_axes(&self, family: &NamespaceFamily) -> Option<&'a dyn SegmentAxes>;
+  }
+  ```
+
+- The transform builds its registry with `with_plugins` and `Plugin::WithSegmentAxes(&us_gaap)`. A
+  registry from `new` gives no segment values.
+- Each `MemberRole` names an axis of `segment_axes` of kind `ConsolidationItems`. A test of each
+  plug-in checks this, so a typo in an axis name cannot send every elimination to the unreconciled
+  line.
 - `SegmentAxisKind` and `ReconciliationRole` are `#[non_exhaustive]` enums in `core`. The names of
   axes and members are data of the plug-in.
 - A name in `dimensions` has no prefix. So the axes of a fact come from the plug-in of its concept,

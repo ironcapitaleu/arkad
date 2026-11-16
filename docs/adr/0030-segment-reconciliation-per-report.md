@@ -47,8 +47,8 @@ each plug-in, the silver writer, and the gold load.
 3. **Silver stores no line of the reconciliation.** A read type computes the lines, as the
    statement output type computes the other lines.
 4. **An unreconciled line other than zero gives no finding.**
-5. **If a segment is filed in both forms, the value without the `ConsolidationItems` pair counts,
-   even if it is blocked.**
+5. **If a segment is filed in both forms, the value without a pair on an axis of kind
+   `ConsolidationItems` counts, even if it is blocked.**
 
 ## Options Considered
 
