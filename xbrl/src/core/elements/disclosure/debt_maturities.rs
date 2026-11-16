@@ -69,7 +69,13 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::DebtMaturityConcept;
-    use crate::core::elements::{Cadence, Concept, SumRole, Summed};
+    use crate::core::confidence::Confidence;
+    use crate::core::dedup::Series;
+    use crate::core::elements::{Cadence, Concept, SumRole, Summed, check_all_sums};
+    use crate::core::fact::Dimensions;
+    use crate::core::finding::Finding;
+    use crate::core::period::Period;
+    use crate::tests::fixtures::sample_fact::{date, standardized};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
@@ -151,6 +157,49 @@ mod tests {
             DebtMaturityConcept::SUM_NAME,
             DebtMaturityConcept::TOLERANCE_BASIS_POINTS,
         );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_sum_mismatch_from_check_all_sums_when_the_ladder_does_not_add_up() {
+        let instant = Period::Instant {
+            end: date(2025, 12, 31),
+        };
+        let facts = DebtMaturityConcept::ALL
+            .iter()
+            .map(|concept| {
+                let mut fact = standardized(instant, "100");
+                fact.concept = concept.element();
+                fact
+            })
+            .collect();
+        let series = Series {
+            facts,
+            blocked: Vec::new(),
+        };
+        let fact = standardized(instant, "0");
+
+        // The test fails if the middle macro misses `Summed` in the entry of the disclosure.
+        let expected_result = vec![Finding::SumMismatch {
+            entity: fact.entity,
+            period: instant,
+            unit: fact.unit,
+            dimensions: Dimensions::default(),
+            concepts: vec![
+                DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+                DebtMaturityConcept::DebtDueInYearOne.element(),
+                DebtMaturityConcept::DebtDueInYearTwo.element(),
+                DebtMaturityConcept::DebtDueInYearThree.element(),
+                DebtMaturityConcept::DebtDueInYearFour.element(),
+                DebtMaturityConcept::DebtDueInYearFive.element(),
+                DebtMaturityConcept::DebtDueAfterYearFive.element(),
+            ],
+            reason: "debt-maturities",
+            confidence: Confidence::Exact,
+        }];
+
+        let result = check_all_sums(&series, &[]);
 
         assert_eq!(result, expected_result);
     }

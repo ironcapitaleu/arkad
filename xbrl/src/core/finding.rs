@@ -143,6 +143,24 @@ pub enum Finding {
         /// The weakest confidence of the values.
         confidence: Confidence,
     },
+    /// The parts of a sum of a disclosure do not add up to its total. The difference exceeds the
+    /// tolerance of the sum, in basis points of the largest absolute value of the check.
+    SumMismatch {
+        /// The entity the values are about.
+        entity: EntityId,
+        /// The period of the total, such as the instant of a maturity ladder.
+        period: Period,
+        /// The unit of the values.
+        unit: Unit,
+        /// The axis and member pairs of the values.
+        dimensions: Dimensions,
+        /// The total, then the parts in the order of their enum.
+        concepts: Vec<CanonicalElementKind>,
+        /// The name of the sum, such as `debt-maturities`.
+        reason: &'static str,
+        /// The weakest confidence of the values.
+        confidence: Confidence,
+    },
 }
 
 /// The check of the roll-up tree that a [`Finding::RollUpMismatch`] fails.

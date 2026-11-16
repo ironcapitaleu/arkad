@@ -37,6 +37,7 @@
 //! - [`rule`]: The ID of a rule.
 //! - [`standardized`]: One value of one standard concept.
 //! - [`statement`]: The financial statements, laid out by their roll-up trees.
+//! - [`sum_check`]: The checks of the sums of disclosures on a standardized series.
 //! - [`suspicious_period`]: The check for periods that are most likely typos of the filer.
 //! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
@@ -69,6 +70,7 @@ pub mod roll_up_check;
 pub mod rule;
 pub mod standardized;
 pub mod statement;
+pub mod sum_check;
 pub mod suspicious_period;
 pub mod taxonomy;
 pub mod unit;
