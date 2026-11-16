@@ -9,6 +9,8 @@
 //! ## Modules
 //!
 //! - [`alias`]: Tiers 1 and 2 of resolution on one filing.
+//! - [`cadence_filter`]: The filter that keeps a candidate only at the dates its concept has
+//!   values.
 //! - [`candidate`]: The value one filing gives for one standard concept.
 //! - [`chronology`]: The gap check over time.
 //! - [`closed_group`]: The derivation of a member of a closed group of the roll-up tree.
@@ -40,6 +42,7 @@
 //! - [`unit`](mod@unit): Units and measures.
 
 pub mod alias;
+pub mod cadence_filter;
 pub mod candidate;
 pub mod chronology;
 pub mod closed_group;
