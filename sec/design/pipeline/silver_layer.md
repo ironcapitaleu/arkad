@@ -138,9 +138,9 @@ Silver stores three kinds of values:
 | Instant | Cash on the balance sheet date | `as_is_facts` | `period_end` is the date, `quarters` is 0, `period_start` is null |
 | Company attribute | Name, ticker, exchange, industry code, fiscal year end | `filings` | None. A value holds from the `accepted` time of its filing until a later filing changes it |
 
-- The key of a period is `period_end` and `quarters`. Notes `num.tsv` gives only these two
-  (`ddate`, `qtrs`). The instance gives exact dates. So a Notes value and an instance value of the
-  same period get the same key.
+- The key of a period is `period_end` and `quarters`. Both parsers compute `quarters` as
+  `round(days / 91.3125)` from the exact start and end, not from Notes `qtrs`. So a Notes value and
+  an instance value of the same period get the same key.
 - `period_start` keeps the exact start of a duration, for example a 52/53-week quarter or a stub
   period after a merger. It is null for instants. The instance gives `startDate`. For a Notes
   value, the parser computes the start as the end less `round((qtrs − durp) × 91.25)` days

@@ -543,13 +543,16 @@ fn length_days(
     durp_quarters: &BigDecimal,
     durp: &str,
 ) -> Result<TimeDelta, InvalidValue> {
-    let invalid = || InvalidValue::new(type_name, InvalidValueReason::OutOfRange, durp);
+    let invalid = |reason| InvalidValue::new(type_name, reason, durp);
     let quarter_days = BigDecimal::new(DURP_QUARTER_HUNDREDTHS.into(), HUNDREDTHS_SCALE);
     let days = ((BigDecimal::from(quarters) - durp_quarters) * quarter_days)
         .with_scale_round(0, RoundingMode::HalfUp)
         .to_i64()
-        .ok_or_else(invalid)?;
-    TimeDelta::try_days(days).ok_or_else(invalid)
+        .ok_or_else(|| invalid(InvalidValueReason::OutOfRange))?;
+    if days < 0 {
+        return Err(invalid(InvalidValueReason::EndBeforeStart));
+    }
+    TimeDelta::try_days(days).ok_or_else(|| invalid(InvalidValueReason::OutOfRange))
 }
 
 fn datp_days(type_name: &'static str, datp: &str) -> Result<TimeDelta, InvalidValue> {
@@ -932,9 +935,28 @@ mod tests {
         };
 
         let expected_result = Err(InvalidValue::new(
-            "Duration",
+            "NumRow",
             InvalidValueReason::EndBeforeStart,
-            "2026-12-30 to 2026-09-30",
+            "1.0",
+        ));
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_period_when_durp_gives_a_length_out_of_range() {
+        let row = NumRow {
+            qtrs: "1".to_owned(),
+            durp: "-1e30".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result = Err(InvalidValue::new(
+            "NumRow",
+            InvalidValueReason::OutOfRange,
+            "-1e30",
         ));
 
         let result = row.period();
