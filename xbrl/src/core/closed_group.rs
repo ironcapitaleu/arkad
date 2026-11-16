@@ -56,8 +56,10 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 /// The group derives nothing for a period if a member is blocked by a dedup conflict, has values in
 /// two units, or has another unit than the other members. It also derives nothing if two facts
 /// that [`Statement`](super::statement::Statement) counts in the group have different exact
-/// starts, such as a quarter and a 4-month stub. A value without an exact start mixes with no
-/// other. [`check_roll_ups`](super::roll_up_check::check_roll_ups) reports such a group.
+/// starts, such as a quarter and a 4-month stub. A member with no value counts as the members of
+/// the group that makes it, so the group derives nothing even if its own inputs share one start.
+/// A value without an exact start mixes with no other.
+/// [`check_roll_ups`](super::roll_up_check::check_roll_ups) reports such a group.
 ///
 /// The rule repeats until no group gives a new value, so a derived value can feed another group. In
 /// each pass, it visits the closed groups in the order of
@@ -582,6 +584,56 @@ mod tests {
         ]);
 
         let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_no_operating_cash_flow_when_the_children_of_the_unknown_member_have_two_exact_starts()
+     {
+        let four_months = since(date(2026, 6, 1));
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months,
+                "137",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                four_months,
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                four_months,
+                "-114",
+            ),
+            value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                four_months,
+                "-1",
+            ),
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                since(date(2026, 7, 1)),
+                "147",
+            ),
+            value(
+                CashFlowConcept::ShareBasedCompensation.element(),
+                four_months,
+                "16",
+            ),
+        ]);
+
+        // Only `net-income-attribution` derives. `net-change-in-cash` counts the children of the
+        // missing operating cash flow, which have two starts.
+        let expected_result = vec![derived(
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            147,
+            "core/roll-up/net-income-attribution@1",
+        )];
 
         let result = summary(derive_from_closed_groups(&facts, &[]));
 

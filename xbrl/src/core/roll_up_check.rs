@@ -673,6 +673,58 @@ mod tests {
     }
 
     #[test]
+    fn should_report_mixed_starts_of_both_groups_when_a_transparent_operating_cash_flow_mixes_starts()
+     {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months(),
+                "137",
+            ),
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                three_months(),
+                "147",
+            ),
+            value(
+                CashFlowConcept::ShareBasedCompensation.element(),
+                four_months(),
+                "16",
+            ),
+        ]);
+
+        let expected_result = vec![
+            Finding::MixedStarts {
+                entity: entity(),
+                period: four_months(),
+                unit: unit(),
+                dimensions: Dimensions::default(),
+                concepts: vec![
+                    CashFlowConcept::NetChangeInCash.element(),
+                    IncomeStatementConcept::NetIncome.element(),
+                    CashFlowConcept::ShareBasedCompensation.element(),
+                ],
+                reason: CashFlowGroup::NetChangeInCash.name(),
+            },
+            Finding::MixedStarts {
+                entity: entity(),
+                period: four_months(),
+                unit: unit(),
+                dimensions: Dimensions::default(),
+                concepts: vec![
+                    IncomeStatementConcept::NetIncome.element(),
+                    CashFlowConcept::ShareBasedCompensation.element(),
+                ],
+                reason: CashFlowGroup::OperatingCashFlow.name(),
+            },
+        ];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_report_no_mixed_starts_when_the_other_member_has_no_exact_start() {
         let facts = series(vec![
             value(

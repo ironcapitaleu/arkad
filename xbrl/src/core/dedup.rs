@@ -428,15 +428,16 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_rank_zero_when_rank_zero_is_the_quarter_and_a_stub_agrees_in_value() {
+    fn should_keep_the_stub_at_rank_zero_when_the_rank_with_another_start_lies_farther_from_a_quarter()
+     {
         let filing = source("0001628280-26-068246", date(2026, 11, 5));
-        let quarter = from(fact(&filing, "Revenues", "500000000"), date(2026, 7, 1));
-        let mut stub = from(fact(&filing, "Revenues", "500000000"), date(2026, 6, 1));
-        stub.copy_rank = 1;
-        let facts = vec![quarter.clone(), stub];
+        let stub = from(fact(&filing, "Revenues", "660000000"), date(2026, 6, 1));
+        let mut short = from(fact(&filing, "Revenues", "250000000"), date(2026, 8, 15));
+        short.copy_rank = 1;
+        let facts = vec![stub.clone(), short];
 
         let expected_result = Copies {
-            facts: vec![&quarter],
+            facts: vec![&stub],
             conflicts: Vec::new(),
         };
 

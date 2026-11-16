@@ -42,7 +42,7 @@ pub enum Finding {
         reason: InvalidValue,
     },
     /// At least one copy rank of a value key conflicts with rank 0: a copy disagrees with it, or a
-    /// rank with another exact start lies nearer to a whole number of quarters.
+    /// rank with another exact start lies nearer to a whole number of quarters than rank 0.
     /// `core/dedup/more-precise@1` keeps every rank and reports the conflict.
     Conflict {
         /// The entity the facts are about.
