@@ -39,9 +39,6 @@ Checked on 2026-11-16 on `main` at `d0af124`.
 | B: add Company Concept | 0: Company Facts holds every concept of the company | 0 | 3-line placeholder |
 | C: add Frames | Facts of other companies, which no state of `sec` reads | 0 | 3-line placeholder |
 
-Source of the request kinds: the URL prefixes in
-`sec/src/lib/shared/request/implementations/sec_request/constants.rs`.
-
 - A Company Concept body is a subset of the Company Facts body of the same company. Each fact it
   holds is already parsed.
 - A Frames body serves one concept across companies. Each state of `sec` works on one company or
@@ -59,3 +56,11 @@ Source of the request kinds: the URL prefixes in
 
 - The decision reopens if a state of `sec` must read one concept across many companies, such as a
   peer comparison. Frames then serves that read with one request per concept and period.
+
+## Sources
+
+- `sec/src/lib/shared/request/implementations/sec_request/constants.rs` at `d0af124`: the URL
+  prefixes of the request kinds of `sec`, read on 2026-11-16.
+- SEC, "EDGAR Application Programming Interfaces",
+  `https://www.sec.gov/search-filings/edgar-application-programming-interfaces`: the paths of the
+  three APIs and the keys of a data point, read on 2026-11-16.
