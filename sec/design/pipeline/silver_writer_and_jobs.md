@@ -116,9 +116,9 @@ local runs use it.
 pub trait SilverRecord: Sized {
     const DATASET: &'static str;
     const SCHEMA_VERSION: u16;
-    fn schema() -> SchemaRef;
+    fn schema(version: u16) -> Option<SchemaRef>;
     fn to_batch(rows: &[Self]) -> Result<RecordBatch, SilverError>;
-    fn from_batch(batch: &RecordBatch) -> Result<Vec<Self>, SilverError>;
+    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, SilverError>;
 }
 
 /// A row that enters `content_digest`.
@@ -279,7 +279,7 @@ The plan step of a series run takes the lease `series`, reads `silver_files`, an
 
 | Field | Meaning |
 | ----- | ------- |
-| `plan_id`, `computed_at` | The ID of the run, and its start time. Every task writes this `computed_at` |
+| `plan_id`, `computed_at` | The ID of the run, and its start time. The plan ID is the plan time, printed as `YYYY-MM-DDTHHMMSS.mmmZ`, for every job kind. For a series run, it equals `computed_at`, which every task writes |
 | `mode` | `base` or `delta` |
 | `run_tasks` | The task count. A delta run has `ceil(entities / 100)` tasks, at most 64. A base run has 64 |
 | `transform_version` | The version of the binary |
@@ -301,8 +301,10 @@ The plan step picks `base` if one of these holds. Otherwise it picks `delta`.
 - The operator sets `ARKAD_SERIES_MODE=base`.
 
 A base run computes every entity with a current `candidates` unit. It writes each row with
-`change = new`, and each open finding again with `change = new`. The first base has the unit
-keys `base-t<n>`. A later base has `base-<computed_at>-t<n>`, as the contract gives them.
+`change = new`, and each open finding again with `change = new`. If `silver_files` holds no
+`series_base` unit, the run has the unit keys `base-t<n>`. Otherwise it has
+`base-<computed_at>-t<n>`, as the contract gives them. So a base that follows a failed base gets new
+keys, and rule 2 of a write cannot skip its tasks. A test of the plan step covers this case.
 
 ### Entity Set of a Delta
 
@@ -358,8 +360,9 @@ the code:
   For 80 Notes files, 10 parallel tasks, a timeout of 1 hour, and 2 attempts, that is 16 hours and
   10 minutes.
 - Each worker task calls `LeaseStore::current(kind)` before its first write. It fails with
-  `LeaseLost` if the lease names another plan, or if less than one task timeout remains before
-  the expiry. Cloud Run stops an attempt at its timeout, so the task ends before the expiry.
+  `LeaseLost` if the lease names another plan, or if less than one task timeout plus 1 minute
+  remains before the expiry. Cloud Run stops an attempt at its timeout, so the task ends before
+  the expiry. The minute covers clock skew between the task and the next plan step.
 - The workflow deletes the lease after the worker step, with the generation that `acquire` returned.
 
 The control bucket holds the leases and the plans. It is not the silver bucket, so the cleanup of
@@ -458,9 +461,9 @@ prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thre
 | Out of memory | A task passes its memory limit | As a timeout | As a timeout | As a timeout |
 | Bug, with a panic | `panic = "abort"` of the release profile ends the process | As a timeout | As a timeout. A series run with a panic never counts | As a timeout. Each later run fails the same way until a fix |
 | Bug, wrong output | A rule gives a wrong value and no error | Written | Not detected by the run | A fix gets a new `transform_version`. A replay of the as-is layer writes new units, and the next series run writes a base |
-| Bad silver unit in the series | A `candidates` unit cannot be read or has an unknown `schema_version` | The series unit of the task is not written | The task fails. The run never counts, and each later run fails the same way | A replay of the transform unit writes a new current unit. The next series run then reads it |
+| Bad silver unit in the series | A `candidates` unit cannot be read or has an unknown `schema_version` | The series unit of the task is not written | The task fails. The run never counts, and each later run fails the same way | An unknown `schema_version`: deploy a `series` binary that reads it. A unit that cannot be read: a replay with a new `transform_version`, because rule 2 skips a replay with the same digest and version |
 | Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops | The next scheduled run |
-| Lease lost | A worker task finds another plan in the lease, or less than one task timeout before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
+| Lease lost | A worker task finds another plan in the lease, or less than one task timeout plus 1 minute before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
 
 - The per-filing transform design decides which filing the parser rejects, and the share of
   rejected filings that fails a unit.
@@ -501,12 +504,13 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 7. FEATURE: `SilverRecord` for `standardized_facts`, `findings`, and `taxonomy_elements`.
 8. FEATURE: the silver writer: rules of a write, parts, footer, and `written_at`.
 9. FEATURE: the silver reader: current units, units as of a time, series units, and every
-   `schema_version`.
+   `schema_version`, with a test that reads units of two schema versions.
 10. FEATURE: the plan objects of the transform and series jobs, and the lease check of a task.
 11. FEATURE: the task runner of the transform: threads and one unit per task.
 12. FEATURE: failure handling and the run summary of the transform task.
 13. FEATURE: `xbrl::core::series::standardize_series`.
-14. FEATURE: the series plan: mode, entity set, and inputs.
+14. FEATURE: the series plan: mode, entity set, inputs, and the keys of a base after a failed
+    base.
 15. FEATURE: `compare_series`: the rows of a delta, with `removed` and `resolved` copies.
 16. FEATURE: the standardize series super-state per set of entity buckets, and the binary `series`.
 17. FEATURE: the workflows `silver-daily` and `silver-backfill`.

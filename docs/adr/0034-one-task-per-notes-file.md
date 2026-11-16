@@ -36,7 +36,7 @@ The choice binds the transform job, the silver writer, and the `silver_files` ro
 1. **One task transforms one whole Notes file.** The transform does not split a Notes file across
    tasks.
 2. **Each task logs `unit_slow` when a unit runs past 15 minutes,** as a `warn` event with the
-   unit key and the time so far. The task goes on.
+   unit key and the time so far. The task continues.
 3. **A `unit_slow` event of a `notes_file` unit reopens this decision.** So does a Notes file
    larger than 1.2 GB zipped, twice the size of `2024q1`.
 

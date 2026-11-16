@@ -49,9 +49,9 @@ Terms in this ADR:
    minutes for the start of the worker step. The rounds are the unit count divided by the
    parallel tasks, rounded up.
 3. **Each task checks the lease before its first write.** If the lease does not name the plan of
-   the task, or less than one task timeout remains before its expiry, the task writes nothing and
+   the task, or less than one task timeout plus 1 minute remains before its expiry, the task writes nothing and
    fails. Cloud Run stops an attempt at its task timeout, so a task that passes the check ends
-   before the expiry.
+   before the expiry. The minute covers clock skew between the task and the next plan step.
 4. **The orchestrator deletes the lease after the worker execution ends,** with
    `ifGenerationMatch=<generation>`. It deletes the lease after a failed execution too.
 5. **Inside one run, one task writes one unit key.** The plan lists the units, and task `i` takes
@@ -81,8 +81,7 @@ Checked on 2026-11-16 against the silver contract on `main` at commit `fa72cb3`.
 - A second run of a job kind fails at its plan step while the first run holds the lease. A daily
   run that meets a replay in progress fails, and the next daily run covers its dates.
 - A crashed orchestrator leaves a lease until its expiry. The expiry is the plan time plus the
-  longest time a run of the job kind can take. That time is the rounds of tasks, times the task
-  timeout, times the attempts per task.
+  longest time a run of the job kind can take, as decision 2 computes it.
 - A job execution started by hand, outside the orchestrator, has no plan of its own. Its tasks
   fail the lease check and write nothing.
 - Different job kinds can run at the same time. They write different unit keys. A series run that
@@ -94,8 +93,8 @@ Checked on 2026-11-16 against the silver contract on `main` at commit `fa72cb3`.
 - If a later design lets two job kinds write one unit key, this decision opens again.
 - If silver moves to a table format with its own commit, such as Delta Lake, the lease can go.
 - If two attempts of one task can run at the same time, or an attempt can outlive its timeout,
-  decisions 3 and 5 do not hold. The feature of
-  the lease checks the assumption of "Context" against the Cloud Run documentation.
+  decisions 3 and 5 do not hold. The feature of the lease checks the assumptions of "Context"
+  against the Cloud Run documentation.
 
 ## Sources
 
