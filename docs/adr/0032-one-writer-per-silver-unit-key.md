@@ -1,4 +1,4 @@
-# ADR 0031: One Writer per Silver Unit Key, Through a Lease per Job Kind
+# ADR 0032: One Writer per Silver Unit Key, Through a Lease per Job Kind
 
 | Field | Value |
 | ----- | ----- |

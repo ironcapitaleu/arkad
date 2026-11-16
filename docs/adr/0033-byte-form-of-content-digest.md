@@ -1,4 +1,4 @@
-# ADR 0032: The Byte Form of `content_digest` Prints Each Value as Text With a Length Prefix
+# ADR 0033: The Byte Form of `content_digest` Prints Each Value as Text With a Length Prefix
 
 | Field | Value |
 | ----- | ----- |

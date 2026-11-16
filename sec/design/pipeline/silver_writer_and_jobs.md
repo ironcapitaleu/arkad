@@ -1,9 +1,9 @@
 # Silver Writer and Transform Jobs
 
-> **Status:** proposed, for review by the owner. [ADR 0031](../../../docs/adr/0031-one-writer-per-silver-unit-key.md),
-> [ADR 0032](../../../docs/adr/0032-byte-form-of-content-digest.md),
-> [ADR 0033](../../../docs/adr/0033-transform-jobs-chained-by-a-workflow.md), and
-> [ADR 0034](../../../docs/adr/0034-one-task-per-notes-file.md) hold the decisions of this document.
+> **Status:** proposed, for review by the owner. [ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md),
+> [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md),
+> [ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md), and
+> [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) hold the decisions of this document.
 > All four are "Proposed".
 >
 > **Marks:** "Measured" means checked on 2026-11-08 against a downloaded SEC file, as the silver
@@ -175,7 +175,7 @@ rules of the contract in this form:
 4. **List row.** It writes the `silver_files` row last, to
    `silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet`, with the size and CRC32C of
    each part as `create` returned them. It sets `written_at` to the later of the time now and the
-   `written_at` of the current unit plus 1 ms ([ADR 0031](../../../docs/adr/0031-one-writer-per-silver-unit-key.md)).
+   `written_at` of the current unit plus 1 ms ([ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md)).
 
 A transform task writes one unit key in each of four datasets: `as_is_facts`, `filings`,
 `candidates`, and the filing rows of `findings`. A series task writes one unit key in
@@ -199,7 +199,7 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 
 ## Byte Form of `content_digest`
 
-[ADR 0032](../../../docs/adr/0032-byte-form-of-content-digest.md) fixes the form. In the code:
+[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. In the code:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
@@ -336,7 +336,7 @@ of that run read the list. A rule by time alone misses such a unit.
 | Present | Present, same byte form | Nothing |
 | Present | None | A copy of the current row, `change = removed` |
 
-- Two rows have the same byte form if their bytes of [ADR 0032](../../../docs/adr/0032-byte-form-of-content-digest.md)
+- Two rows have the same byte form if their bytes of [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md)
   are equal without the run columns, `computed_at`, and `change`.
 - For `findings`, a finding is current while it is open. A new finding gives `new`. A new `reason`,
   `confirmed_by`, or `confidence` gives `changed`. An open finding that the run does not give again
@@ -349,7 +349,7 @@ of that run read the list. A rule by time alone misses such a unit.
 
 ## One Writer per Unit Key
 
-[ADR 0031](../../../docs/adr/0031-one-writer-per-silver-unit-key.md) fixes the rule. The parts in
+[ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) fixes the rule. The parts in
 the code:
 
 - `LeaseStore::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
@@ -372,7 +372,7 @@ unread silver files never meets a control object.
 
 ### Jobs and Steps
 
-[ADR 0033](../../../docs/adr/0033-transform-jobs-chained-by-a-workflow.md) fixes the chain. Three
+[ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md) fixes the chain. Three
 binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002-static-binaries.md)):
 
 | Binary | Step | Plan | Tasks of the worker step |
@@ -432,7 +432,7 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 
 ## Time per Task
 
-[ADR 0034](../../../docs/adr/0034-one-task-per-notes-file.md) keeps one task per Notes file. The
+[ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
 prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread.
 
@@ -528,7 +528,7 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 - **Cost of the byte form.** Not measured. The feature of the digest measures it on `2024q1`.
 - **Time of a series task.** Not measured. The feature of the super-state measures one bucket of a
   base run.
-- **The startup of an execution.** Not measured. ADR 0033 names it.
+- **The startup of an execution.** Not measured. ADR 0034 names it.
 - **A signal for a rule change.** The design of the replay of the standardized layer adds a signal
   that starts a base run. The plan step reads it next to the conditions of [Mode](#mode).
 - **Gold.** The load step and its ledger belong to the gold design.
