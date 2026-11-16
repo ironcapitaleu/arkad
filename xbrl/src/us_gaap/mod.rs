@@ -609,7 +609,7 @@ mod tests {
     #[test]
     fn should_return_segment_axes_of_us_gaap_when_another_plugin_declares_the_family_first() {
         let declarer = plugin(
-            "ifrs-full/2025",
+            "declarer/2025",
             vec![declaration("srt", "http://fasb.org/srt/{release}", false)],
         );
         let us_gaap = UsGaap::new();

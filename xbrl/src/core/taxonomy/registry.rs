@@ -78,13 +78,12 @@ impl<'a> Registry<'a> {
     /// Returns [`RegistryError`] if a plug-in declares one family twice, two plug-ins resolve one
     /// family, two declarations of one family disagree, or two families overlap.
     pub fn with_plugins(plugins: Vec<Plugin<'a>>) -> Result<Self, RegistryError> {
-        let taxonomies: Vec<&dyn Taxonomy> =
-            plugins.iter().map(|plugin| plugin.taxonomy()).collect();
         let mut families: BTreeMap<NamespaceFamily, Entry> = BTreeMap::new();
-        for (index, plugin) in taxonomies.iter().enumerate() {
-            reject_repeated_family(*plugin)?;
-            for declaration in plugin.families() {
-                add_declaration(&mut families, &taxonomies, index, declaration)?;
+        for (index, plugin) in plugins.iter().enumerate() {
+            let taxonomy = plugin.taxonomy();
+            reject_repeated_family(taxonomy)?;
+            for declaration in taxonomy.families() {
+                add_declaration(&mut families, &plugins, index, declaration)?;
             }
         }
         reject_overlap(&families)?;
@@ -167,7 +166,7 @@ fn reject_repeated_family(plugin: &dyn Taxonomy) -> Result<(), RegistryError> {
 
 fn add_declaration(
     families: &mut BTreeMap<NamespaceFamily, Entry>,
-    plugins: &[&dyn Taxonomy],
+    plugins: &[Plugin<'_>],
     index: usize,
     declaration: &FamilyDeclaration,
 ) -> Result<(), RegistryError> {
@@ -220,8 +219,8 @@ fn reject_overlap(families: &BTreeMap<NamespaceFamily, Entry>) -> Result<(), Reg
     Ok(())
 }
 
-fn release_id(plugins: &[&dyn Taxonomy], index: usize) -> TaxonomyReleaseId {
-    plugins[index].release().id.clone()
+fn release_id(plugins: &[Plugin<'_>], index: usize) -> TaxonomyReleaseId {
+    plugins[index].taxonomy().release().id.clone()
 }
 
 /// The error of [`Registry::new`] and [`Registry::with_plugins`] when the declarations of the plug-ins conflict.
