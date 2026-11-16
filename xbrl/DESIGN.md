@@ -1920,6 +1920,12 @@ xbrl::adapter::edgar::frames           -> Vec<AsIsFact>, Vec<Filing>
 
 The resolution engine does not know which API an as-is fact came from.
 
+`sec` reads only the Company Facts API. The Company Facts body holds every concept of a company,
+so the Company Concept API adds no fact. The Frames API serves one concept of many companies, and
+no state reads one concept across companies. So `company_concept` and `frames` are placeholders
+that no code calls. [STA-529](https://linear.app/state-machine/issue/STA-529) deletes them and
+their rows here and in "Crate Structure".
+
 ---
 
 ## 3) Resolution

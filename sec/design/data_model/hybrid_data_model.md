@@ -33,9 +33,9 @@ has two parallel, non-integrated models and one raw-document store:
   **`Cik`-centric** (SEC-specific). No concept is resolved yet.
   [ADR 0026](../../../docs/adr/0026-sec-uses-xbrl-fact-types.md) records why `sec` uses the `xbrl`
   types with no wrapper, and its Amendment 1 sets the check of the required concepts.
-- `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElementKind` (36
+- `xbrl` crate: `ParseCompanyFacts` calls its parser. The crate also holds `CanonicalElementKind` (36
   standard concepts, nested by statement), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
-  `Invariant` validation, and a graph-engine **TODO stub**.
+  `Invariant` validation, and a graph-engine **TODO stub**. No state reads them yet.
 - The stream runs **Extract** only and ends after `StoreCompanyFacts`. `CreateFinancialStatements` emits a placeholder
   unit struct; the entire **Load SuperState is an empty file**.
 
