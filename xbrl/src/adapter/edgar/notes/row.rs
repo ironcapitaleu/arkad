@@ -233,7 +233,8 @@ impl NumRow {
     /// # Errors
     ///
     /// Returns [`InvalidValue`] if `ddate` is not a date, `datp` is not a whole number of days,
-    /// `qtrs` is not a number of 16 bits, `durp` is not a number, or the start lies after the end.
+    /// `qtrs` is not a number of 16 bits, `durp` is not a number or gives a length out of range,
+    /// or the start lies after the end.
     pub fn period(&self) -> Result<Period, InvalidValue> {
         period(
             Self::TYPE_NAME,
@@ -533,7 +534,9 @@ fn period(
     let start = end
         .checked_sub_signed(length_days(type_name, quarters, &durp_quarters, durp)?)
         .ok_or_else(|| invalid(InvalidValueReason::OutOfRange, durp))?;
-    Duration::from_dates(start, end).map(Period::Duration)
+    Duration::from_dates(start, end)
+        .map(Period::Duration)
+        .map_err(|error| invalid(error.reason, durp))
 }
 
 /// Returns the true length of a duration: `round((qtrs - durp) * 91.25)` days.
@@ -957,6 +960,25 @@ mod tests {
             "NumRow",
             InvalidValueReason::OutOfRange,
             "-1e30",
+        ));
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_period_when_durp_gives_more_quarters_than_16_bits_hold() {
+        let row = NumRow {
+            qtrs: "1".to_owned(),
+            durp: "-100000".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result = Err(InvalidValue::new(
+            "NumRow",
+            InvalidValueReason::OutOfRange,
+            "-100000",
         ));
 
         let result = row.period();
