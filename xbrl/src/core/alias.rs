@@ -11,7 +11,7 @@ use chrono::NaiveDate;
 use super::candidate::{Candidate, CandidateValue};
 use super::concept::ConceptName;
 use super::confidence::Confidence;
-use super::dedup::{Copies, facts_agree};
+use super::dedup::{Copies, conflicts_with};
 use super::elements::CanonicalElementKind;
 use super::fact::{AsIsFact, Dimensions, FactValue};
 use super::filing::EntityId;
@@ -317,7 +317,7 @@ fn conflict(ranks: &[&AsIsFact], registry: &Registry<'_>) -> Finding {
     let first = ranks[0];
     let disagreeing = ranks[1..]
         .iter()
-        .filter(|rank| !facts_agree(first, rank))
+        .filter(|rank| conflicts_with(first, rank))
         .map(|rank| rank.copy_rank)
         .collect();
     let standard_concept = registry

@@ -21,6 +21,7 @@ use super::fact::Dimensions;
 use super::filing::EntityId;
 use super::rule::RuleId;
 use super::standardized::StandardizedFact;
+use super::statement::mixed_starts;
 
 /// The concepts that no group derives.
 ///
@@ -53,7 +54,12 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 /// value of one segment.
 ///
 /// The group derives nothing for a period if a member is blocked by a dedup conflict, has values in
-/// two units, or has another unit than the other members.
+/// two units, or has another unit than the other members. It also derives nothing if two facts
+/// that [`Statement`](super::statement::Statement) counts in the group have different exact
+/// starts, such as a quarter and a 4-month stub. A member with no value counts as the members of
+/// the group that makes it, so the group derives nothing even if its own inputs share one start.
+/// A value without an exact start mixes with no other.
+/// [`check_roll_ups`](super::roll_up_check::check_roll_ups) reports such a group.
 ///
 /// The rule repeats until no group gives a new value, so a derived value can feed another group. In
 /// each pass, it visits the closed groups in the order of
@@ -78,7 +84,7 @@ pub fn derive_from_closed_groups(
         let before = derived.len();
         for (group, members) in &closed {
             for slot in known.slots() {
-                if let Some(fact) = known.derive(group.name, members, &slot) {
+                if let Some(fact) = known.derive(group, members, &slot) {
                     known.insert(slot, fact.clone());
                     derived.push(fact);
                 }
@@ -228,10 +234,17 @@ impl KnownValues {
             .push(fact);
     }
 
-    /// Returns the value that the group `name` with `members` gives for its one unknown member in
-    /// `slot`, or `None` if the group gives no value.
-    fn derive(&self, name: GroupName, members: &[Member], slot: &Slot) -> Option<StandardizedFact> {
+    /// Returns the value that `group` with `members` gives for its one unknown member in `slot`,
+    /// or `None` if the group gives no value.
+    fn derive(&self, group: &Group, members: &[Member], slot: &Slot) -> Option<StandardizedFact> {
         let values = self.values.get(slot)?;
+        let value_of = |concept| match values.get(&concept).map(Vec::as_slice) {
+            Some([fact]) => Some(fact),
+            _ => None,
+        };
+        if mixed_starts(*group, value_of).is_some() {
+            return None;
+        }
         let blocked = self.blocked.get(slot);
         let mut unknown = None;
         let mut inputs: Vec<(Weight, &StandardizedFact)> = Vec::new();
@@ -266,7 +279,7 @@ impl KnownValues {
                 .iter()
                 .map(|(_, fact)| fact.confidence)
                 .fold(Confidence::Derived, Confidence::max),
-            rule: roll_up_rule(name),
+            rule: roll_up_rule(group.name),
             release: first.release.clone(),
             inputs: inputs
                 .iter()
@@ -310,6 +323,14 @@ mod tests {
         let mut fact = standardized(period, amount);
         fact.concept = concept.into();
         fact
+    }
+
+    /// Returns the duration from `start` to 2026-09-30.
+    fn since(start: NaiveDate) -> Period {
+        Period::Duration(
+            Duration::from_dates(start, date(2026, 9, 30))
+                .expect("Given a start before the end, the creation should always succeed"),
+        )
     }
 
     fn balance_sheet(concept: BalanceSheetConcept, amount: &str) -> StandardizedFact {
@@ -521,6 +542,126 @@ mod tests {
             value(
                 CashFlowConcept::ExchangeRateEffect.element(),
                 quarter(),
+                "-1",
+            ),
+        ]);
+
+        let expected_result = vec![derived(
+            CashFlowConcept::NetChangeInCash.element(),
+            137,
+            "core/roll-up/net-change-in-cash@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_members_of_a_closed_group_have_two_exact_starts() {
+        let four_months = since(date(2026, 6, 1));
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                since(date(2026, 7, 1)),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                four_months,
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                four_months,
+                "-114",
+            ),
+            value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                four_months,
+                "-1",
+            ),
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_no_operating_cash_flow_when_the_children_of_the_unknown_member_have_two_exact_starts()
+     {
+        let four_months = since(date(2026, 6, 1));
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months,
+                "137",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                four_months,
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                four_months,
+                "-114",
+            ),
+            value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                four_months,
+                "-1",
+            ),
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                since(date(2026, 7, 1)),
+                "147",
+            ),
+            value(
+                CashFlowConcept::ShareBasedCompensation.element(),
+                four_months,
+                "16",
+            ),
+        ]);
+
+        // Only `net-income-attribution` derives. `net-change-in-cash` counts the children of the
+        // missing operating cash flow, which have two starts.
+        let expected_result = vec![derived(
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            147,
+            "core/roll-up/net-income-attribution@1",
+        )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_a_member_when_a_value_without_an_exact_start_joins_values_of_one_start() {
+        let four_months = since(date(2026, 6, 1));
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                four_months,
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                four_months,
+                "-114",
+            ),
+            value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                four_months,
                 "-1",
             ),
         ]);

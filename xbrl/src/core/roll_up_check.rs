@@ -22,7 +22,7 @@ use super::filing::EntityId;
 use super::finding::{Finding, RollUpCheck};
 use super::period::Period;
 use super::standardized::StandardizedFact;
-use super::statement::{Line, Statement, StatementKind};
+use super::statement::{Line, Statement, StatementKind, mixed_starts};
 use super::taxonomy::reference::PeriodType;
 use super::unit::Unit;
 
@@ -65,10 +65,16 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 /// `ExchangeRateEffect` included. A closed
 /// group also gets no check for a period if `core/roll-up/<group>@1` derived a value of that group
 /// for the period, because the group then holds by construction.
+///
+/// Before these checks, each group of the slot, open or closed, gets a [`Finding::MixedStarts`] if
+/// two of the facts that [`Statement`] counts in it have different exact starts. Such a group gets
+/// no other check and no other line. The other groups of the slot keep their checks. A value
+/// without an exact start mixes with no other.
 #[must_use]
 pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Finding> {
     let mut findings = Vec::new();
     for slot in Slot::all(series, added) {
+        findings.extend(groups().filter_map(|group| slot.check_starts(*group)));
         findings.extend(
             groups()
                 .filter(|group| group.closed)
@@ -161,10 +167,27 @@ impl<'a> Slot<'a> {
         slots.into_values().collect()
     }
 
+    /// Returns a [`Finding::MixedStarts`] if two facts that [`Statement`] counts in `group` have
+    /// different exact starts.
+    fn check_starts(&self, group: Group) -> Option<Finding> {
+        let concepts = mixed_starts(group, |concept| self.values.get(&concept).copied())?;
+        Some(Finding::MixedStarts {
+            entity: self.entity.clone(),
+            period: self.period,
+            unit: self.unit.clone(),
+            dimensions: self.dimensions.clone(),
+            concepts,
+            reason: group.name,
+        })
+    }
+
     /// Checks the closed group `group`, and returns a [`Finding::RollUpMismatch`] if it fails.
     fn check_closed_group(&self, group: Group) -> Option<Finding> {
         let rule = roll_up_rule(group.name);
         if self.values.values().any(|fact| fact.rule == rule) {
+            return None;
+        }
+        if mixed_starts(group, |concept| self.values.get(&concept).copied()).is_some() {
             return None;
         }
         let mut inputs = Vec::new();
@@ -236,20 +259,13 @@ impl<'a> Slot<'a> {
 
     /// Builds the [`Statement`] of `kind` from the values of the slot that `kind` places, or
     /// returns `None` if the slot has no such value.
-    ///
-    /// Each value takes the period of the slot, so values whose periods differ only in the start
-    /// can share one statement.
     fn statement(&self, kind: StatementKind) -> Option<Statement> {
-        let facts: Vec<StandardizedFact> = self
+        let facts = self
             .values
             .values()
-            .filter(|fact| statement_of(fact.concept) == Some(kind))
-            .map(|fact| StandardizedFact {
-                period: self.period,
-                ..(*fact).clone()
-            })
-            .collect();
-        Statement::build(kind, &facts).ok()
+            .copied()
+            .filter(|fact| statement_of(fact.concept) == Some(kind));
+        Statement::build(kind, facts).ok()
     }
 
     /// Returns the facts of the parent and of the children of `group`, in the order of
@@ -334,6 +350,68 @@ mod tests {
         let mut fact = standardized(period, amount);
         fact.concept = concept.into();
         fact
+    }
+
+    /// Returns the duration from `start` to 2026-09-30.
+    fn since(start: NaiveDate) -> Period {
+        Period::Duration(
+            Duration::from_dates(start, date(2026, 9, 30))
+                .expect("Given a start before the end, the creation should always succeed"),
+        )
+    }
+
+    /// Returns the 4-month stub that ends on 2026-09-30.
+    fn four_months() -> Period {
+        since(date(2026, 6, 1))
+    }
+
+    /// Returns the 3-month quarter that ends on 2026-09-30, with its exact start.
+    fn three_months() -> Period {
+        since(date(2026, 7, 1))
+    }
+
+    /// Returns the operating cash flow of the fixture filing: a 4-month total and share-based
+    /// compensation, with net income and D&A of the quarter.
+    fn operating_cash_flow() -> Vec<StandardizedFact> {
+        vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                four_months(),
+                "390",
+            ),
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                three_months(),
+                "147",
+            ),
+            value(
+                CashFlowConcept::DepreciationAmortization.element(),
+                three_months(),
+                "114",
+            ),
+            value(
+                CashFlowConcept::ShareBasedCompensation.element(),
+                four_months(),
+                "16",
+            ),
+        ]
+    }
+
+    /// Returns the [`Finding::MixedStarts`] of `operating-cash-flow` for [`operating_cash_flow`].
+    fn mixed_operating_cash_flow() -> Finding {
+        Finding::MixedStarts {
+            entity: entity(),
+            period: four_months(),
+            unit: unit(),
+            dimensions: Dimensions::default(),
+            concepts: vec![
+                CashFlowConcept::OperatingCashFlow.element(),
+                IncomeStatementConcept::NetIncome.element(),
+                CashFlowConcept::DepreciationAmortization.element(),
+                CashFlowConcept::ShareBasedCompensation.element(),
+            ],
+            reason: CashFlowGroup::OperatingCashFlow.name(),
+        }
     }
 
     fn balance_sheet(concept: BalanceSheetConcept, amount: &str) -> StandardizedFact {
@@ -493,6 +571,182 @@ mod tests {
         let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_roll_ups(&facts, &[noncontrolling]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_mixed_starts_when_a_step_starts_from_a_quarter_and_holds_4_month_items() {
+        let facts = series(operating_cash_flow());
+
+        let expected_result = vec![mixed_operating_cash_flow()];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_check_of_another_group_when_one_group_of_the_slot_mixes_starts() {
+        let mut facts = operating_cash_flow();
+        facts.extend([
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months(),
+                "200",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                four_months(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                four_months(),
+                "-114",
+            ),
+        ]);
+        let facts = series(facts);
+
+        let expected_result = vec![
+            mixed_operating_cash_flow(),
+            mismatch(
+                four_months(),
+                vec![
+                    CashFlowConcept::NetChangeInCash.element(),
+                    CashFlowConcept::OperatingCashFlow.element(),
+                    CashFlowConcept::InvestingCashFlow.element(),
+                    CashFlowConcept::FinancingCashFlow.element(),
+                ],
+                RollUpCheck::Group(CashFlowGroup::NetChangeInCash.name()),
+                Confidence::Exact,
+            ),
+        ];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_mixed_starts_and_no_roll_up_mismatch_when_a_closed_group_has_two_starts() {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                three_months(),
+                "200",
+            ),
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                four_months(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                four_months(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                four_months(),
+                "-114",
+            ),
+        ]);
+
+        let expected_result = vec![Finding::MixedStarts {
+            entity: entity(),
+            period: three_months(),
+            unit: unit(),
+            dimensions: Dimensions::default(),
+            concepts: vec![
+                CashFlowConcept::NetChangeInCash.element(),
+                CashFlowConcept::OperatingCashFlow.element(),
+                CashFlowConcept::InvestingCashFlow.element(),
+                CashFlowConcept::FinancingCashFlow.element(),
+            ],
+            reason: CashFlowGroup::NetChangeInCash.name(),
+        }];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_mixed_starts_of_both_groups_when_a_transparent_operating_cash_flow_mixes_starts()
+     {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months(),
+                "137",
+            ),
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                three_months(),
+                "147",
+            ),
+            value(
+                CashFlowConcept::ShareBasedCompensation.element(),
+                four_months(),
+                "16",
+            ),
+        ]);
+
+        let expected_result = vec![
+            Finding::MixedStarts {
+                entity: entity(),
+                period: four_months(),
+                unit: unit(),
+                dimensions: Dimensions::default(),
+                concepts: vec![
+                    CashFlowConcept::NetChangeInCash.element(),
+                    IncomeStatementConcept::NetIncome.element(),
+                    CashFlowConcept::ShareBasedCompensation.element(),
+                ],
+                reason: CashFlowGroup::NetChangeInCash.name(),
+            },
+            Finding::MixedStarts {
+                entity: entity(),
+                period: four_months(),
+                unit: unit(),
+                dimensions: Dimensions::default(),
+                concepts: vec![
+                    IncomeStatementConcept::NetIncome.element(),
+                    CashFlowConcept::ShareBasedCompensation.element(),
+                ],
+                reason: CashFlowGroup::OperatingCashFlow.name(),
+            },
+        ];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_mixed_starts_when_the_other_member_has_no_exact_start() {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                four_months(),
+                "390",
+            ),
+            value(
+                IncomeStatementConcept::NetIncome.element(),
+                quarter(),
+                "147",
+            ),
+            value(
+                CashFlowConcept::ShareBasedCompensation.element(),
+                four_months(),
+                "16",
+            ),
+        ]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
 
         assert_eq!(result, expected_result);
     }

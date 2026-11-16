@@ -306,8 +306,7 @@ other = parent − start − Σ(weight × child)
   Gives" tests it.
 - A group whose members have two exact starts gets no other line and reports a `MixedStarts`
   finding. The members include the start of a step, the members that stand for a start with no
-  value, and the children of a transparent parent that join the group ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does
-  not hold this rule.
+  value, and the children of a transparent parent that join the group ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - If a member of a closed group has no value and is not zero if absent, the group gets no check.
   If the children of a transparent member count in a closed group, the group becomes open for that
   period and gets an other line. For example, a bank reports no `CurrentAssets` and no
@@ -642,8 +641,9 @@ So the check of that group is skipped for that period.
   statement, and reports a `MixedStarts` finding. The members of a group are the values that the
   statement counts in it: the start of a step, the members that stand for a start with no value,
   and the children of a transparent parent that join the group. The other groups of the slot keep their checks. A value without an exact start
-  joins the slot ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does not hold
-  this rule.
+  joins the slot ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
+- `check_roll_ups` reports the `MixedStarts` finding. `derive_from_closed_groups` skips the group
+  and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
   Statement Output Types"). It computes no other line of its own.
 
@@ -848,7 +848,7 @@ parses it.
   value, in the order of `RollUpMismatch`. The members that stand for a start with no value take
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
-  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does not hold this kind.
+  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 
 #### Worked Example
 
@@ -2150,7 +2150,7 @@ Agreement of copies:
   start is another fact, such as a 4-month stub next to a quarter. The rule does not compare it
   with rank 0 or with another rank, and gives it no candidate. It reports a `Conflict` only by the
   next rule. Rank 0 enters the series. If either rank has no exact start, the ranks compare as copies
-  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The code does not hold this rule.
+  ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - A rank with another exact start whose length lies nearer to its whole number of quarters than
   the length of rank 0 (`Period::distance_to_full_quarters`) is a `Conflict`, as for disagreeing
   copies. So a stub never enters the series in place of
@@ -2758,7 +2758,7 @@ pub struct StatementLine {
   only in the exact start build one statement. A group whose members have two exact starts gets
   no other line ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The statement
   marks no such group. The `MixedStarts` finding names it, and the fact of each line shows its
-  start. The code rejects two starts and does not hold this rule.
+  start.
 - The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
   takes the concepts of its statement, and the start of a step from another statement, such as
   `NetIncome` in the cash flow statement. It rejects every other fact.
