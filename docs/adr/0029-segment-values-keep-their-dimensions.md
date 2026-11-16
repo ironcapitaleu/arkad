@@ -26,7 +26,9 @@ Segment data differs from the consolidated statements in three ways:
 Terms in this ADR:
 
 - **Segment axes:** the axes that the plug-in of a concept names through the trait `SegmentAxes`.
-  For `us_gaap`, the seven axes of `xbrl/DESIGN.md`, "Segment Axes".
+  For `us_gaap`, seven axes, written as in `dimensions`: `BusinessSegments`,
+  `SegmentReportingInformationBySegment`, `Geographical`, `ProductOrService`, `ConsolidationItems`,
+  `Subsegments`, and `SubsegmentsConsolidationItems`.
 - **Segment fact:** a fact with dimensions whose axes are all segment axes.
 - **The tree:** the roll-up tree, its closed-group rule, its checks, and its other lines, with the
   balance sheet identity, the period identity `core/period/q4-from-fy@1`, and the sums of Tier 4.
@@ -72,8 +74,8 @@ scripts listed under "Sources".
   `RevenueFromContractWithCustomerExcludingAssessedTax` again for segments. 371 and 218 filings use
   these two on the business-segment axis.
 
-Where the segment axes live, checked against `xbrl/DESIGN.md`, "The `Taxonomy` Trait", on
-2026-11-16:
+Where the segment axes live, checked against the trait `Taxonomy` in
+`xbrl/src/core/taxonomy/mod.rs` at `dee3756`, on 2026-11-16:
 
 | Option | An IFRS filing | Change to `Taxonomy` |
 | ------ | -------------- | -------------------- |
@@ -82,8 +84,8 @@ Where the segment axes live, checked against `xbrl/DESIGN.md`, "The `Taxonomy` T
 | C: a method on `Taxonomy` | Gets segment values | Every plug-in implements it |
 
 - B makes `core` name the axes of one taxonomy, while the alias lists already live in the plug-in.
-- C changes a trait that other code implements (`AGENTS.md`, "Open-Closed Principle"). A plug-in
-  with no segment data then implements an empty method.
+- C changes a trait that every plug-in implements, so every plug-in changes. A plug-in with no
+  segment data then implements an empty method.
 
 Pairs filed in two forms stay apart: of 1,750 segment values that a filing reports both with
 `BusinessSegments` alone and with `ConsolidationItems` = `OperatingSegments` added, 647 differ. So
@@ -101,19 +103,19 @@ a rule that merges the two forms loses values.
 - Silver stores no label of a member. The company labels of `lab.xml` stay out of the MVP, so a
   reader shows the member name, such as `AmazonWebServices`.
 - A company that reports segments only on an axis of its own gets no segment values.
-- The decision does not cover the reconciliation. ADR 0030 holds it.
+- The decision does not cover how the segments reconcile with the consolidated value.
 
 ## Open Questions
 
 - The labels of the members: a later design of company labels decides where they live.
 - A link between renamed members: the findings of 2026-10-18 leave it out of the MVP.
-- The owner of `sec/design/data_model/hybrid_data_model.md` confirms that section 3.4, "Dimensions",
-  fits this storage. If not, decision 3 reopens.
+- The owner of the data model thesis confirms that a set of axis and member pairs on each fact,
+  empty for a consolidated value, fits the thesis. If not, decision 3 reopens.
 
 ## Sources
 
-- `xbrl/DESIGN.md`, "Segment Values", "Dedup Rules", and "Roll-Up Tree", on `main` at `dee3756`.
-- `sec/design/pipeline/silver_layer.md`, `standardized_facts`, on `main` at `dee3756`.
+- The key of `core/dedup/newest-filing@1` in `xbrl/src/core/dedup.rs`, and `SlotKey` in
+  `xbrl/src/core/roll_up_check.rs`, at `dee3756`: both hold the dimensions.
 - Linear document "Segment Data for the Backfill and the Incremental Update: Findings",
   2026-10-18: the axes, the member shares, and the lead decision on per-report display.
 - `measure_segments.py`, `segment_tags.py`, and `segment_volume.py` on

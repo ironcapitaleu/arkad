@@ -14,8 +14,9 @@ segments, the inter-segment eliminations, and the corporate items add up to the 
 Filers tag the eliminations and the corporate items on `srt:ConsolidationItemsAxis`, but often they
 tag none.
 
-ADR 0029 makes each segment value a standardized fact with its dimensions. This ADR decides how a
-reader gets the reconciliation from those values.
+Each segment value is a standardized fact with its dimensions, a set of axis and member pairs. The
+plug-in of a concept names its segment axes, each with a kind, such as `BusinessSegment`. This ADR
+decides how a reader gets the reconciliation from those values.
 
 Terms in this ADR:
 
@@ -25,8 +26,10 @@ Terms in this ADR:
   more segments on `BusinessSegments`. The measurement counts only this axis.
 - **Adds up:** the difference is within 0.1% of the larger absolute value.
 - **Role:** segment, elimination, or corporate. The plug-in of a candidate gives the role of each
-  member of its axis of kind `ConsolidationItems`, through `SegmentAxes` (ADR 0029). For
-  `us_gaap`, the members are those of `xbrl/DESIGN.md`, "Reconciliation".
+  member of its axis of kind `ConsolidationItems`, through the trait `SegmentAxes`. For `us_gaap`,
+  on `ConsolidationItems`: `OperatingSegments` is a segment, `IntersegmentElimination` and
+  `ConsolidationEliminations` are eliminations, and `CorporateNonSegment` and
+  `MaterialReconcilingItems` are corporate items.
 
 The decision binds the read type of the reconciliation in `core`, the roles in the `SegmentAxes` of
 each plug-in, the silver writer, and the gold load.
@@ -74,8 +77,7 @@ Measured on 2026-11-15 on `2026_10_notes.zip` of the SEC, 978 10-K and 10-Q fili
 - C gives a finding for most filers, because 458 of 851 operating income groups (54%) do not add
   up.
 - D needs a member for the line in `dimensions` that no filer uses, and a stored copy goes stale
-  when a candidate changes. The other lines of the tree follow the same rule
-  (`xbrl/DESIGN.md`, "\"Other\" Lines").
+  when a candidate changes. Silver stores no other line of the statements for the same reason.
 
 Facts behind decisions 2 and 5:
 
@@ -117,7 +119,5 @@ Facts behind decisions 2 and 5:
 - `measure_segments.py` and `measure_segments_operating_first.py` on
   `https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2026_10_notes.zip`,
   run on 2026-11-15. The scripts and their output are attached to the ticket.
-- `xbrl/DESIGN.md`, "Segment Values" and "\"Other\" Lines".
 - The members of `ConsolidationItems`: `xbrl/taxonomy/us-gaap/2026/elts/us-gaap-2026.xsd` and
   `xbrl/taxonomy/srt/2026/elts/srt-2026.xsd`.
-- ADR 0029.
