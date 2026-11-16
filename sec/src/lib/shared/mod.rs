@@ -7,6 +7,7 @@
 //! - [`accession_number`]: Provides [`AccessionNumber`](accession_number::AccessionNumber), the accession number of one SEC filing.
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
+//! - [`company_data`]: Provides [`CompanyData`](company_data::CompanyData), the as-is facts and the filings of one company.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`edgar_exchange_code`]: Provides [`mic_of`](edgar_exchange_code::mic_of), the map from an EDGAR exchange code to the MIC of the exchange it names.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
@@ -40,6 +41,7 @@
 pub mod accession_number;
 pub mod build_info;
 pub mod cik;
+pub mod company_data;
 pub mod content_type;
 pub mod document_storage;
 pub mod edgar_exchange_code;

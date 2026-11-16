@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Proposed. The project lead confirms. Amendment 1: Accepted by the project lead on 2026-11-16 ([STA-472 comment `7596ff6d`](https://linear.app/state-machine/issue/STA-472#comment-7596ff6d)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-471](https://linear.app/state-machine/issue/STA-471/spike-plan-the-move-of-sec-financial-types-onto-xbrl) |
@@ -40,6 +40,31 @@ move, and each later `sec` state that reads facts.
 3. **`AccessionNumber` and the `Form` enum stay in `sec`, outside the fact model.** They move from
    `sec::shared::financial` to `sec::shared`, because the extraction states use them to pick and
    fetch filings.
+
+## Amendment 1: A Required Concept Passes by an Alias or a Part
+
+Date: 2026-11-16.
+
+**Reason.** [STA-472](https://linear.app/state-machine/issue/STA-472) ran `parse` and the required
+check on 11 real Company Facts bodies of `data.sec.gov`, fetched on 2026-11-16: CIKs 19617,
+34088, 104169, 200406, 320193, 789019, 1018724, 1045810, 1067983, 1318605, and 1652044. `parse`
+accepted all 11. A check by the `xbrl_keys` of `REQUIRED_CONCEPTS` alone passed 3 of them. Apple,
+Microsoft, NVIDIA, and Alphabet report no `ProfitLoss` and no
+`StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest`. They report the parts
+`NetIncomeLoss` and `StockholdersEquity`, which `xbrl::us_gaap::mappings::PART_CONCEPTS` holds.
+
+**Decision.** A required definition passes if a `us-gaap` fact has a local name in its
+`xbrl_keys`, or in the `parts` of the `PART_CONCEPTS` entry of the same standard concept.
+
+**Consequences.**
+
+- 7 of the 11 bodies pass. JPMorgan Chase (19617) and Exxon Mobil (34088) report no operating
+  income tag. Walmart (104169) and Amazon (1018724) report no `Liabilities`. The check of `sec` at
+  `163c5c4` also rejects these 4 bodies, for the same missing tags.
+- The check reads no `other_parts` and no `other_part_trees`. It asks whether a tag exists, not
+  which value a period resolves to. `resolve_aliases` applies the full rule of a part.
+- A standard concept that a company derives, such as liabilities from assets minus equity, is not
+  covered. The ticket that adds derivations decides it.
 
 ## Options Considered
 

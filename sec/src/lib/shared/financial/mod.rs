@@ -16,9 +16,7 @@
 //! - [`observation`]: Single measured data point with full typing and lineage.
 //! - [`concept_definition`]: XBRL concept specifications for data extraction.
 //! - [`company_fact`]: A company's reported data for a specific concept.
-//! - [`company_data`]: Top-level container for all resolved company facts.
 
-pub mod company_data;
 pub mod company_fact;
 pub mod concept_definition;
 pub mod entity_name;
