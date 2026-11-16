@@ -227,7 +227,8 @@ fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
     findings
 }
 
-fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
+/// Returns `true` if `left` and `right` lie at most 7 days apart.
+pub(super) fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
     (left - right).num_days().abs() <= TOLERANCE_DAYS
 }
 
@@ -1117,6 +1118,46 @@ mod tests {
         filings.extend(quarterly_filings());
 
         let expected_result = vec![debt_gap(bucket, date(2023, 9, 30), "FY")];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_gap_for_a_bucket_when_a_20_f_filer_misses_a_fiscal_year_end() {
+        let bucket = DebtMaturityConcept::DebtDueInYearOne;
+        let facts = vec![
+            debt_value(bucket, date(2022, 9, 24)),
+            debt_value(bucket, date(2024, 9, 28)),
+        ];
+        let filings = vec![
+            filing("20-F", date(2022, 9, 24), "0930"),
+            filing("20-F", date(2024, 9, 28), "0930"),
+        ];
+
+        let expected_result = vec![debt_gap(bucket, date(2023, 9, 28), "FY")];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_gap_for_a_bucket_when_a_10_q_filer_misses_the_fiscal_year_end_after_its_last_10_k()
+     {
+        let bucket = DebtMaturityConcept::DebtDueInYearOne;
+        let facts = vec![
+            debt_value(bucket, date(2022, 9, 24)),
+            debt_value(bucket, date(2024, 9, 24)),
+        ];
+        let filings = vec![
+            filing("10-K", date(2022, 9, 24), "0930"),
+            filing("10-Q", date(2022, 12, 24), "0930"),
+            filing("10-Q", date(2024, 9, 24), "0930"),
+        ];
+
+        let expected_result = vec![debt_gap(bucket, date(2023, 9, 24), "FY")];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 

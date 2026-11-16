@@ -5,6 +5,7 @@
 
 use super::alias::FilingCandidates;
 use super::candidate::Candidate;
+use super::chronology::is_near;
 use super::elements::Cadence;
 use super::filing::Filing;
 use super::period::Period;
@@ -17,12 +18,11 @@ const FISCAL_YEAR: &str = "FY";
 ///
 /// `filing` is the filing that gave the candidates. A concept with [`Cadence::EveryPeriod`] keeps
 /// every candidate. A concept with [`Cadence::FiscalYearEnd`] keeps a candidate only if the
-/// filing has the fiscal period `FY` and the candidate is the instant at the period of report of
-/// the filing. If the filing has no period of report or no fiscal period, the filter drops every
-/// candidate of such a concept. The facts of a dropped candidate stay as-is facts.
-///
-/// The filter reads the cadence from
-/// [`CanonicalElementKind::cadence`](super::elements::CanonicalElementKind::cadence).
+/// filing has the fiscal period `FY` and the candidate is an instant within 7 days of the period of
+/// report of the filing. The Notes data set rounds the period of report to the month end, and a
+/// 52-53 week year ends up to 6 days away from it. If the filing has no period of report or no
+/// fiscal period, the filter drops every candidate of such a concept. The facts of a dropped
+/// candidate stay as-is facts.
 ///
 /// # Examples
 ///
@@ -67,8 +67,8 @@ fn is_kept(candidate: &Candidate, filing: &Filing) -> bool {
     }
 }
 
-/// Returns `true` if `filing` reports a fiscal year and `period` is the instant at its period of
-/// report.
+/// Returns `true` if `filing` reports a fiscal year and `period` is an instant within 7 days of its
+/// period of report.
 fn is_fiscal_year_end_of(period: &Period, filing: &Filing) -> bool {
     let reports_fiscal_year = filing
         .fiscal_period
@@ -76,7 +76,7 @@ fn is_fiscal_year_end_of(period: &Period, filing: &Filing) -> bool {
         .is_some_and(|fiscal_period| fiscal_period.as_str() == FISCAL_YEAR);
     let is_report_instant = filing
         .period_of_report
-        .is_some_and(|report| *period == Period::Instant { end: report });
+        .is_some_and(|report| matches!(period, Period::Instant { end } if is_near(*end, report)));
     reports_fiscal_year && is_report_instant
 }
 
@@ -189,6 +189,23 @@ mod tests {
             vec![DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element()];
 
         let result = kept_concepts(&facts, &quarterly_report);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_bucket_candidate_when_the_instant_lies_within_7_days_of_the_period_of_report()
+    {
+        let annual_report = report("10-K", date(2024, 9, 30), "FY");
+        let facts = vec![instant_fact(
+            &annual_report,
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+            YEAR_END,
+        )];
+
+        let expected_result = vec![DebtMaturityConcept::DebtDueInYearTwo.element()];
+
+        let result = kept_concepts(&facts, &annual_report);
 
         assert_eq!(result, expected_result);
     }
