@@ -5,8 +5,10 @@
 //! - `innermost_concepts!` defines one innermost enum, such as `BalanceSheetConcept`, from one
 //!   list of variants and labels.
 //! - `middle_concepts!` defines the middle enums, `StatementConcept` and `DisclosureConcept`, the
-//!   conversions between the levels, `INNERMOST`, and `CanonicalElementKind::cadence`.
+//!   conversions between the levels, `INNERMOST`, `CanonicalElementKind::cadence`, and
+//!   `check_all_sums`.
 //! - `cadence_of!` gives the cadence of one concept from the trait list of its entry.
+//! - `sum_check_of!` runs the sum check of one enum if the trait list of its entry holds `Summed`.
 //! - `group_names!` defines the group enum of one statement, such as `BalanceSheetGroup`, from one
 //!   list of variants and their text.
 //!
@@ -97,7 +99,9 @@ macro_rules! innermost_concepts {
 /// `DebtMaturities(DebtMaturityConcept): Summed + Timed`. The macro checks at compile time that the
 /// enum implements each listed trait. From the list it writes
 /// [`CanonicalElementKind::cadence`](crate::core::elements::CanonicalElementKind::cadence), which
-/// calls [`Timed::cadence`](crate::core::elements::Timed::cadence) for an enum with `Timed`.
+/// calls [`Timed::cadence`](crate::core::elements::Timed::cadence) for an enum with `Timed`. It
+/// also writes [`check_all_sums`](crate::core::elements::check_all_sums), which calls
+/// [`check_sums`](crate::core::sum_check::check_sums) once for each enum with `Summed`.
 macro_rules! middle_concepts {
     (
         $(
@@ -232,6 +236,41 @@ macro_rules! middle_concepts {
                 }
             }
         }
+
+        /// Runs the check of each sum of a disclosure on the series of one entity, and returns a
+        /// [`Finding::SumMismatch`](crate::core::finding::Finding::SumMismatch) for each failed
+        /// check.
+        ///
+        /// Calls [`check_sums`](crate::core::sum_check::check_sums) once for each enum with
+        /// [`Summed`](crate::core::elements::Summed), in the order of the middle enums. `added`
+        /// holds the facts that later rules give for the series.
+        #[must_use]
+        pub fn check_all_sums(
+            series: &$crate::core::dedup::Series,
+            added: &[$crate::core::standardized::StandardizedFact],
+        ) -> Vec<$crate::core::finding::Finding> {
+            let mut findings = Vec::new();
+            $($(
+                sum_check_of!(findings, series, added, $inner; $($first_trait $(, $trait)*)?);
+            )+)+
+            findings
+        }
+    };
+}
+
+/// Runs the sum check of one enum from the trait list of its entry in `middle_concepts!`.
+///
+/// The input is the vector of findings, the series, the added facts, the innermost enum, a
+/// semicolon, and the traits separated by commas. If the list holds `Summed`, the macro extends
+/// the findings with [`check_sums`](crate::core::sum_check::check_sums) of the enum. Otherwise it
+/// writes nothing.
+macro_rules! sum_check_of {
+    ($findings:ident, $series:ident, $added:ident, $inner:ident;) => {};
+    ($findings:ident, $series:ident, $added:ident, $inner:ident; Summed $(, $rest:ident)*) => {
+        $findings.extend($crate::core::sum_check::check_sums::<$inner>($series, $added));
+    };
+    ($findings:ident, $series:ident, $added:ident, $inner:ident; $other:ident $(, $rest:ident)*) => {
+        sum_check_of!($findings, $series, $added, $inner; $($rest),*)
     };
 }
 

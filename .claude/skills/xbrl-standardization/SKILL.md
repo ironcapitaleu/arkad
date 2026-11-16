@@ -21,8 +21,10 @@ accounting background, such as the accounting identities and the fiscal periods,
 ## Identity Checks
 
 The standard concepts rest on the elements of FASB Concepts Statement 8, Chapter 4.
-Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", and the checks in
-"Roll-Up Tree", "Checks the Tree Gives". The weakest confidence of the inputs of a failed check
+Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", the checks in
+"Roll-Up Tree", "Checks the Tree Gives", and the sum check in "Debt Maturities", "Sum Check".
+`core::roll_up_check::check_roll_ups` and `core::sum_check::check_all_sums` run them on one series.
+The weakest confidence of the inputs of a failed check
 tells what the failure means:
 
 - All inputs `Exact`: the filing is inconsistent.
