@@ -1028,7 +1028,7 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
 - `check_sums` in `core/sum_check.rs` runs the check on the series of one entity, next to
   `check_roll_ups`. It reads the role, the name, and the tolerance from the trait `Summed`. It
   holds nothing that belongs to the ladder alone. `check_all_sums` calls it (see "The Traits
-  `Summed` and `Timed`").
+  `Summed` and `Timed`"). `sum_rule` gives the rule ID `core/sum/<SUM_NAME>@1`.
 
 Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions, on annual ladders only. A
 bucket value counts if its accession is a 10-K, 10-KT, 20-F, or 40-F, or an amendment of one, and
@@ -1098,7 +1098,9 @@ pub trait Timed: Concept {
 - The middle macro registers the traits of each innermost enum, as in
   `DebtMaturities(DebtMaturityConcept): Summed + Timed`. From this list it generates
   `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
-  generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`.
+  generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`. The helper
+  macro `sum_check_of!` reads the trait list of one entry, as `cadence_of!` does for `Timed`.
+  `check_all_sums` lives in `core::elements`, and `core::sum_check` re-exports it.
 - The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
   series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
   adds its enum, its impls, and its macro entry. None of the three callers changes.

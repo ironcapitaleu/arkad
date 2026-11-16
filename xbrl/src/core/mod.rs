@@ -38,6 +38,7 @@
 //! - [`segment`]: The segment reconciliation of one filing.
 //! - [`standardized`]: One value of one standard concept.
 //! - [`statement`]: The financial statements, laid out by their roll-up trees.
+//! - [`sum_check`]: The checks of the sums of disclosures on a standardized series.
 //! - [`suspicious_period`]: The check for periods that are most likely typos of the filer.
 //! - [`taxonomy`]: The trait of a taxonomy plug-in, and the registry.
 //! - [`unit`](mod@unit): Units and measures.
@@ -45,6 +46,7 @@
 pub mod alias;
 pub mod cadence_filter;
 pub mod candidate;
+mod check_tolerance;
 pub mod chronology;
 pub mod closed_group;
 pub mod concept;
@@ -71,6 +73,7 @@ pub mod rule;
 pub mod segment;
 pub mod standardized;
 pub mod statement;
+pub mod sum_check;
 pub mod suspicious_period;
 pub mod taxonomy;
 pub mod unit;
