@@ -679,8 +679,8 @@ quarter) or a month (year and month).
   the size and SHA-256 check, the run skips the download (STA-400). So a rerun downloads only the
   files that are missing or that the store cannot verify. If the store cannot verify a file, the
   run summary marks the new download as `replaced`. A file that the SEC replaces after the run stored it stays old.
-- `sec::shared::financial::quarter::Quarter` (Q1 to Q4) holds the quarter part. The month part
-  needs its own type.
+- `sec::shared::notes_period::Quarter` (Q1 to Q4) holds the quarter part, and
+  `sec::shared::notes_period::Month` holds the month part.
 
 The 2009q1 file holds the table headers and no rows (SEC readme, section 2). The run keeps it in
 the list, because it tests the empty case at the cost of one request of 28 KB.

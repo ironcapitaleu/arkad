@@ -48,7 +48,6 @@ pub mod edgar_exchange_code;
 pub mod filing_documents;
 pub mod filing_documents_ref;
 pub mod filing_ref;
-pub mod financial;
 pub mod form;
 pub mod form_index_row;
 pub mod headers;
