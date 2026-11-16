@@ -97,11 +97,11 @@ impl Display for FilingDocumentsRef {
 ///
 /// ```
 /// use chrono::NaiveDate;
+/// use sec::shared::accession_number::AccessionNumber;
 /// use sec::shared::cik::Cik;
 /// use sec::shared::filing_documents_ref::instance_key;
 /// use sec::shared::filing_ref::FilingRef;
-/// use sec::shared::financial::accession_number::AccessionNumber;
-/// use sec::shared::financial::form::{Form, ParsedForm};
+/// use sec::shared::form::{Form, ParsedForm};
 ///
 /// let filing = FilingRef::new(
 ///     Cik::new("3545").expect("A hardcoded valid CIK should always parse"),
@@ -165,9 +165,9 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
 
     fn sample_filing() -> FilingRef {
         FilingRef::new(

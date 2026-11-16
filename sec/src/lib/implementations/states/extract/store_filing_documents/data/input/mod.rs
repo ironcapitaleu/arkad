@@ -240,10 +240,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::headers::Headers;
     use crate::shared::response::implementations::sec_response::{SecResponse, XmlBody};
     use crate::shared::status_code::StatusCode;

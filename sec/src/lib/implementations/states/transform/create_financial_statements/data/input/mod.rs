@@ -9,7 +9,7 @@
 //! ## See Also
 //!
 //! - [`output`](super::output): The financial statements produced from this input.
-//! - [`crate::shared::financial::company_data`]: The [`CompanyData`] type carried here.
+//! - [`crate::shared::company_data`]: The [`CompanyData`] type carried here.
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -18,11 +18,11 @@ use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::financial::company_data::CompanyData;
+use crate::shared::company_data::CompanyData;
 use crate::traits::state_machine::state::StateData;
 
 // Deviation: `CompanyData` uses manual `Hash`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`
-// implementations because it contains a `HashMap`. This struct delegates to those
+// implementations because `AsIsFact` and `Filing` implement no `Ord`. This struct delegates to those
 // manual implementations rather than deriving them.
 #[derive(Debug, Clone, Serialize)]
 /// Input data for the [`CreateFinancialStatements`](super::super::CreateFinancialStatements) state.
@@ -39,17 +39,17 @@ impl CreateFinancialStatementsInput {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::HashMap;
-    /// use sec::shared::cik::Cik;
-    /// use sec::shared::financial::company_data::CompanyData;
-    /// use sec::shared::financial::entity_name::EntityName;
     /// use sec::implementations::states::transform::create_financial_statements::data::input::CreateFinancialStatementsInput;
+    /// use sec::shared::cik::Cik;
+    /// use sec::shared::company_data::CompanyData;
+    /// use xbrl::core::entity_name::EntityName;
     ///
     /// let cik = Cik::new("0000320193").expect("Hardcoded CIK should always be valid");
     /// let company_data = CompanyData::new(
     ///     cik.clone(),
     ///     EntityName::new("Apple Inc."),
-    ///     HashMap::new(),
+    ///     Vec::new(),
+    ///     Vec::new(),
     /// );
     /// let input = CreateFinancialStatementsInput::new(company_data);
     ///
@@ -191,18 +191,17 @@ impl Default for CreateFinancialStatementsInputUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::fmt::Debug;
     use std::hash::Hash;
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
+    use xbrl::core::entity_name::EntityName;
 
     use super::{CreateFinancialStatementsInput, CreateFinancialStatementsInputUpdaterBuilder};
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::financial::company_data::CompanyData;
-    use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::company_data::CompanyData;
     use crate::traits::state_machine::state::StateData;
 
     fn test_input() -> CreateFinancialStatementsInput {
@@ -212,7 +211,8 @@ mod tests {
         CreateFinancialStatementsInput::new(CompanyData::new(
             cik,
             EntityName::new("BERKSHIRE HATHAWAY INC"),
-            HashMap::new(),
+            Vec::new(),
+            Vec::new(),
         ))
     }
 
@@ -220,7 +220,7 @@ mod tests {
         let cik = Cik::new("0000320193").expect(
             "Given a valid hardcoded CIK, the creation of a CIK object should always succeed",
         );
-        CompanyData::new(cik, EntityName::new("Apple Inc."), HashMap::new())
+        CompanyData::new(cik, EntityName::new("Apple Inc."), Vec::new(), Vec::new())
     }
 
     #[test]

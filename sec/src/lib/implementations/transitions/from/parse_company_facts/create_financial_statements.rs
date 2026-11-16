@@ -3,7 +3,7 @@
 //! Implements the [`TryFrom`] conversion producing a [`CreateFinancialStatements`] from a
 //! [`ParseCompanyFacts`], the transform-phase transition.
 //!
-//! It moves the parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData) from the
+//! It moves the parsed [`CompanyData`](crate::shared::company_data::CompanyData) from the
 //! source state's output into the next state's input, and carries the CIK across via context. The
 //! supporting `From` impls perform the field-level conversions; the `TryFrom` is fallible because
 //! the source output may be absent.
@@ -54,17 +54,17 @@ impl TryFrom<ParseCompanyFacts> for CreateFinancialStatements {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
     use pretty_assertions::assert_eq;
     use storage::shared::Sha256Digest;
+    use xbrl::adapter::edgar::company_facts;
+    use xbrl::core::entity_name::EntityName;
 
     use super::*;
     use crate::error::state_machine::transition::MissingOutput;
     use crate::implementations::states::transform::parse_company_facts::ParseCompanyFactsInput;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::company_data::CompanyData;
-    use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::company_data::CompanyData;
 
     fn get_baseline_parse_state_without_output() -> ParseCompanyFacts {
         let json: serde_json::Value = serde_json::json!({});
@@ -80,7 +80,12 @@ mod tests {
     }
 
     fn test_company_data() -> CompanyData {
-        CompanyData::new(test_cik(), EntityName::new("Test Corp."), HashMap::new())
+        CompanyData::new(
+            test_cik(),
+            EntityName::new("Test Corp."),
+            Vec::new(),
+            Vec::new(),
+        )
     }
 
     #[test]
@@ -103,6 +108,48 @@ mod tests {
         let expected_result = CreateFinancialStatementsInput::new(company_data);
 
         let result = CreateFinancialStatementsInput::from(output);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_the_facts_when_converting_output_to_input() {
+        let json = serde_json::json!({
+            "cik": 1_234_567,
+            "entityName": "Test Corp.",
+            "facts": {
+                "us-gaap": {
+                    "Assets": {
+                        "units": {
+                            "USD": [{
+                                "end": "2023-12-31",
+                                "val": 1_000,
+                                "accn": "0001234567-24-000001",
+                                "fy": 2023,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2024-02-01"
+                            }]
+                        }
+                    }
+                }
+            }
+        });
+        let parsed = company_facts::parse(&json).expect(
+            "Given a hardcoded body with one valid data point, the parse should always succeed",
+        );
+        let company_data = CompanyData::new(
+            test_cik(),
+            EntityName::new("Test Corp."),
+            parsed.facts,
+            parsed.filings,
+        );
+        let output = ParseCompanyFactsOutput::new(company_data.clone());
+
+        let expected_result = company_data.facts();
+
+        let input = CreateFinancialStatementsInput::from(output);
+        let result = input.company_data().facts();
 
         assert_eq!(result, expected_result);
     }

@@ -39,7 +39,7 @@ let extract_state = ExtractCompanyFactsSuperState::builder()
 
 Validates, resolves, and structures the raw JSON response into typed financial domain objects:
 
-1. **ParseCompanyFacts** -- Validates that the SEC response contains all required XBRL concepts (Revenue, Net Income, Total Assets, etc.), resolves company-specific XBRL key aliases, and parses observations into strongly-typed `CompanyData` with full data lineage.
+1. **ParseCompanyFacts** -- Parses the SEC response with `xbrl::adapter::edgar::company_facts::parse` into `CompanyData`: the CIK, the entity name, every as-is fact, and one filing per accession number. It keeps every form, amendment, unit, and namespace. It fails if the body is about another CIK than the state context. It also fails if a standard concept of `xbrl::us_gaap::mappings::REQUIRED_CONCEPTS` has no `us-gaap` fact under one of its aliases or parts.
 2. **CreateFinancialStatements** -- (Scaffold) Will fan out `CompanyData` to multiple threads to create Balance Sheet, Income Statement, Cash Flow Statement, and Company Info.
 
 ## Running

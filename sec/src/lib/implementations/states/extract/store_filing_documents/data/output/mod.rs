@@ -119,10 +119,10 @@ mod tests {
     use state_maschine::prelude::StateData as SMStateData;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
 
     fn documents(has_label_file: bool) -> FilingDocumentsRef {
         let filing = FilingRef::new(

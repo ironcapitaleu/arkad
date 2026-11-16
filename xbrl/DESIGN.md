@@ -55,10 +55,12 @@ xbrl/
         mod.rs             <- trait Taxonomy
         family.rs          <- FamilyDeclaration, UriPattern
         reference.rs       <- ConceptAliases, CalculationTree, ElementReference
-        registry.rs        <- Registry, RegistryError
+        registry.rs        <- Registry, Plugin, RegistryError
+        segment.rs         <- trait SegmentAxes, SegmentAxis, MemberRole
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
       alias.rs             <- tiers 1 and 2 on one filing
+      cadence_filter.rs    <- keep a candidate only at the dates its concept has values
       dedup.rs             <- dedup rules of the standardized layer
       period_identity.rs   <- core/period/q4-from-fy@1
       chronology.rs        <- order over time, gap check
@@ -439,14 +441,14 @@ Duration values. The top line is `NetChangeInCash`.
 
 A disclosure is a set of concepts outside the trees of the statements. The concepts of `PerShare`
 have no parent, no other line, and no roll-up check. EPS sits on the face of the income statement
-(ASC 260-10-45-2), but it adds to no line, so it is a disclosure here. A later disclosure with its
-own sums, such as debt maturities, gets its own trait (see "Extension Model").
+(ASC 260-10-45-2), but it adds to no line, so it is a disclosure here. A disclosure with its own
+sum implements the trait `Summed` (see "Extension Model").
 
 - `PerShare`: `EarningsPerShareBasic` and `EarningsPerShareDiluted`. A per-share value does not add
   with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
-- Planned: a disclosure for the debt maturities and other financing data, from its own design.
-  Segments are not a disclosure. A segment value is a standard concept with a member of a segment axis, and
-  its own design decides how the tree applies to it.
+- `DebtMaturities`: the maturity ladder and its total (see "Debt Maturities").
+- Segments are not a disclosure. A segment value is a standard concept with a member of a segment
+  axis, and "Segment Values" says how the tree applies to it.
 
 A disclosure is a variant of `DisclosureConcept` with its own concept enum, such as
 `PerShare(PerShareConcept)`. A new disclosure adds a variant and its concepts (see "Extension
@@ -454,8 +456,8 @@ Model"). It changes no placement, no group, and no check of the trees.
 
 **Changes in equity** get no statement in the MVP. The statement of changes in equity is a roll
 forward per component of equity, such as retained earnings and treasury stock. Filers tag each
-column with a member of `StatementEquityComponentsAxis`. In the MVP, tiers 1 and 2 give a fact
-with dimensions no candidate. The balance sheet already holds the closing balance of each
+column with a member of `StatementEquityComponentsAxis`. Tiers 1 and 2 give such a fact no
+candidate, because the axis is no segment axis (see "Segment Values"). The balance sheet already holds the closing balance of each
 component, and the cash flow statement holds the dividends and repurchases paid. A later design
 adds the roll forward with the dimensions.
 
@@ -470,7 +472,7 @@ module and one variant, and its siblings do not change.
 | ------------ | ----------------- |
 | `ErrorKind` | `CanonicalElementKind` |
 | `StateMachine` | `StatementConcept`, `DisclosureConcept` |
-| `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept` |
+| `State`, `Transition` | `BalanceSheetConcept`, `IncomeStatementConcept`, `CashFlowConcept`, `PerShareConcept`, `DebtMaturityConcept` |
 | a leaf error | a concept, such as `Assets` |
 
 `CanonicalElementKind` is the top of the hierarchy. [ADR 0011](../docs/adr/0011-concept-hierarchy.md)
@@ -493,6 +495,7 @@ pub enum StatementConcept {
 #[non_exhaustive]
 pub enum DisclosureConcept {
     PerShare(PerShareConcept),
+    DebtMaturities(DebtMaturityConcept),
 }
 
 #[non_exhaustive]
@@ -508,8 +511,9 @@ impl TryFrom<CanonicalElementKind> for BalanceSheetConcept {
 
 ```
 xbrl/src/core/elements/
-  mod.rs                         CanonicalElementKind, Concept, Placed, and the call of the middle
-                                 macro: StatementConcept, DisclosureConcept, the conversions
+  mod.rs                         CanonicalElementKind, Concept, Placed, Summed, SumRole, Timed,
+                                 Cadence, and the call of the middle macro: StatementConcept,
+                                 DisclosureConcept, the conversions
   macros.rs                      the innermost macro and the middle macro
   roll_up.rs                     Placement, Weight, Group, GroupKind, GroupName
   statement/
@@ -520,6 +524,7 @@ xbrl/src/core/elements/
   disclosure/
     mod.rs                       the disclosure modules
     per_share.rs                 PerShareConcept
+    debt_maturities.rs           DebtMaturityConcept, its roles and cadences
 xbrl/src/core/statement/
   mod.rs                         FinancialStatement, StatementKind, Statement, StatementLine
   balance_sheet.rs               BalanceSheet view
@@ -556,14 +561,15 @@ pub trait Placed: Concept {
 
 - `Placed` is a subtrait of `Concept`, because every concept with a placement also has a name and
   a label. A disclosure implements `Concept` only, so the hierarchy alone says that a concept is a
-  disclosure. A later disclosure whose values add up, such as debt maturities, gets its own trait
-  next to these.
+  disclosure. A disclosure whose values add up, such as `DebtMaturities`, also implements
+  `Summed`, and `Timed` if a concept has values only at fiscal year ends (see "Debt Maturities").
 - A declarative macro defines each innermost enum and its `ALL` from one list of variants, so the
   two cannot drift.
 - A second macro defines each middle enum, `StatementConcept` and `DisclosureConcept`, from its
   list of innermost enums. The same macro builds `INNERMOST: &[&[CanonicalElementKind]]`, one entry
   per innermost enum, each built with `element()`. So a variant of a middle enum cannot miss
-  `INNERMOST`. The parse from the name and the uniqueness test walk it.
+  `INNERMOST`. The parse from the name and the uniqueness test walk it. Each entry also lists the
+  traits of the enum beyond `Concept`, such as `Summed` and `Timed` (see "Debt Maturities").
 - A trait method cannot be a `const fn`. The alias lists and the part rules are `const` tables. So
   each innermost enum also has an inherent `const fn element(self) -> CanonicalElementKind`, and a
   list writes `BalanceSheetConcept::Assets.element()`. Run-time code converts with `From` one level
@@ -592,7 +598,8 @@ A change touches these places, and no others:
 | A concept in an existing statement | a variant in the macro of its enum, an arm of each method of `Concept` and `Placed`, an alias list | nothing else |
 | A group | an entry in the groups of the module of its parent | nothing else |
 | A start of a step from another statement | an entry in `STARTS` of the view, and its accessor | nothing else |
-| A disclosure, such as debt maturities | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
+| A disclosure, such as `PerShare` | a module with its enum and its `impl Concept`, a variant of `DisclosureConcept`, alias lists | nothing else |
+| A disclosure with a sum, such as `DebtMaturities` | the same, an `impl Summed` with its name and tolerance, an `impl Timed` if a concept has values only at fiscal year ends, these traits in the macro entry of the disclosure, and the test of each trait | nothing else |
 | A statement, such as changes in equity | a module in `elements/statement` with its enum, its `impl Concept` and `impl Placed`, and its groups, a variant of `StatementConcept`, `StatementKind`, and `FinancialStatement`, a view with `From` and `TryFrom` | nothing else |
 
 Each enum is `#[non_exhaustive]`, so a `match` outside the crate keeps compiling when a variant
@@ -600,8 +607,8 @@ arrives. A new variant is outside the Open-Closed Principle, which covers traits
 
 #### Checks the Tree Gives
 
-The checks run in the series step, on the values after `core/dedup/newest-filing@1` and the period
-identities. Each failed check is a finding. A check never removes a value.
+The checks run in the series step, on the values without dimensions after
+`core/dedup/newest-filing@1` and the period identities. Each failed check is a finding. A check never removes a value.
 
 1. **Closed group.** The members of a closed group must equal the parent. This covers `assets`,
    `liabilities-and-equity`, `liabilities`, `equity`, `gross-profit`, `net-income-attribution`,
@@ -642,7 +649,8 @@ So the check of that group is skipped for that period.
 
 #### Derivation From a Closed Group
 
-A closed group with exactly one unknown member gives that member as a Tier 3 value. The unknown can
+A closed group with exactly one unknown member gives that member as a Tier 3 value. Only values
+without dimensions count. The unknown can
 be the parent, the start, or a child. A child that is zero if absent counts as known, except
 `ExchangeRateEffect` (see below).
 
@@ -731,6 +739,8 @@ The concepts of `CanonicalElementKind` take these places in the trees and disclo
 | `NetIncomeAttributableToNoncontrollingInterest` | child of `net-income-attribution` |
 | `NetChangeInCash` | top of the cash flow statement |
 | `ExchangeRateEffect` | child of `net-change-in-cash` |
+| `LongTermDebtIncludingCurrentMaturities` | disclosure `DebtMaturities`, total |
+| `DebtDueInYearOne` to `DebtDueInYearFive`, `DebtDueAfterYearFive` | disclosure `DebtMaturities`, parts |
 
 No standard concept holds expenses, gains, or losses. No US GAAP concept holds their totals, no
 rule fills them, and no filer presents them. The cascade holds them in `OperatingExpenses`,
@@ -914,6 +924,438 @@ The owner decided these on 2026-11-14.
    concept holds expenses, gains, or losses, so no check names them. The cash flow check matches
    the `accounting` skill.
 
+### Debt Maturities
+
+The disclosure `DebtMaturities` holds the maturity ladder. The ladder is the principal of
+long-term debt that falls due in each of the next five fiscal years and after them. The
+disclosure also holds the total long-term debt that the check compares the ladder with.
+[ADR 0027](../docs/adr/0027-debt-maturity-buckets-as-concepts.md) records the form of the values.
+[ADR 0028](../docs/adr/0028-debt-maturity-check-tolerance.md) records the tolerance of the check.
+
+#### Concepts of the Ladder
+
+`DebtMaturityConcept` holds seven concepts. The filer count is the number of filers with a value
+of the first concept in the frame `CY2024Q4I`, without dimensions (SEC frames API, read on
+2026-11-15). For a bucket, it counts only a value from an annual report at its period of report.
+The SEC submissions API gives the form and the report date of the accession of each value.
+
+| Concept | Role | Alias list | Filers |
+| ------- | ----- | ---------- | ------ |
+| `LongTermDebtIncludingCurrentMaturities` | total | `LongTermDebt` | 2,219 |
+| `DebtDueInYearOne` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInNextRollingTwelveMonths` | 1,487 |
+| `DebtDueInYearTwo` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo` | 1,495 |
+| `DebtDueInYearThree` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearThree` | 1,434 |
+| `DebtDueInYearFour` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFour` | 1,330 |
+| `DebtDueInYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFive` | 1,188 |
+| `DebtDueAfterYearFive` | part | `LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive`, `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingAfterYearFive` | 973 |
+
+- The 2026 calculation tree makes `us-gaap:LongTermDebt` the parent of the six buckets
+  (`us-gaap-stm-sfp-dbo1-cal-2026.xml`). The years two to five sit below the subtotals
+  `LongTermDebtMaturingInYearsTwoAndThree` and `LongTermDebtMaturingInYearsFourAndFive`.
+- `us-gaap:LongTermDebt` holds the current maturities. The balance sheet concept `LongTermDebt`
+  leaves them out, because its alias is `LongTermDebtNoncurrent`. So the total of the ladder is a
+  concept of its own. Neither concept holds finance leases.
+- A rolling bucket counts from the balance sheet date. A bucket without "rolling" counts in fiscal
+  years. At a fiscal year end, the two are the same amount, so the rolling concept is the second
+  alias. The rolling aliases add 52 filers that tag no bucket without "rolling".
+- These concepts are in no list, and they stay as-is facts:
+  - `LongTermDebtMaturingInYearsTwoAndThree` (14 filers), `LongTermDebtMaturingInYearsFourAndFive`
+    (13), and `LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwoAndThree` (3). Each
+    covers two buckets.
+  - The ladder of `LongTermDebtAndCapitalLeaseObligations`, such as
+    `LongTermDebtAndCapitalLeaseObligationsRepaymentsOfPrincipalInNextTwelveMonths` (17). It holds
+    finance leases.
+  - `LongTermDebtMaturitiesRepaymentsOfPrincipalRemainderOfFiscalYear` (86). Only an interim
+    report has it.
+- The rule IDs follow the existing form, for example `us-gaap/alias/debt-due-in-year-one@1`.
+- With the ladder, `CanonicalElementKind` holds 59 standard concepts.
+
+#### Period of a Bucket
+
+Each value is an instant at the fiscal year end. The bucket is part of the concept, not a future
+period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_facts` with
+`period_end` 2024-12-31 and `quarters` 0.
+
+- The standardize filing step gives a candidate of a bucket only for an instant that is the
+  period of report of a filing with the fiscal period `FY`. An interim ladder stays an as-is fact.
+  In an interim report, a bucket without "rolling" counts from the fiscal year end, and a rolling
+  bucket counts from the balance sheet date. So the two hold different amounts there.
+- A filter after `resolve_aliases` drops the other candidates of a bucket. It reads the `Filing`
+  and the trait `Timed`. `resolve_aliases` and the `Taxonomy` trait do not change. The filter is
+  `keep_by_cadence` in `core/cadence_filter.rs`. An instant within 7 days of the period of report
+  counts, because the Notes data set rounds the period of report to the month end. If a filing
+  has no period of report or no fiscal period, the filter drops its bucket candidates. The Company
+  Facts adapter gives no period of report, so the filter drops the bucket candidates of its
+  filings.
+- The total `LongTermDebtIncludingCurrentMaturities` is a balance sheet value. It gets a candidate
+  at every balance sheet date, as `LongTermDebt` does.
+- Each annual report gives a new ladder. The series of `DebtDueInYearOne` shows, for each year,
+  the debt due in the next year.
+- The gap check expects only fiscal year ends on the timeline of a bucket. Otherwise every 10-Q
+  filer gets three `Gap` findings for each bucket and year. The timeline of the total expects
+  every period.
+- The instant is the balance sheet date, so "Suspicious Periods" never flags a bucket. The ends
+  10 to 100 years away belong to the facts of single notes, such as `DebtInstrumentMaturityDate`.
+  These stay as-is facts.
+
+#### Not Reported Against Zero
+
+- A bucket that the filer tags with zero is a row with the value 0. The annual ladders of the
+  frame `CY2024Q4I` hold 1,082 bucket values of zero.
+- A bucket that the filer does not tag has no row. Silver never writes a zero for it, and no rule
+  derives it.
+- A reader shows a bucket with no row as "not reported in machine-readable form". It never shows
+  zero for it. A missing row can mean no debt, or a schedule that the filer did not tag. Silver
+  cannot tell the two apart.
+
+#### Sum Check
+
+`core/sum/debt-maturities@1` compares the sum of the six buckets with
+`LongTermDebtIncludingCurrentMaturities`.
+
+- The check runs only if all seven concepts have a value at the instant. A missing bucket is not
+  reported, so it never counts as zero.
+- The tolerance is ±5% of the largest absolute value in the group (ADR 0028). The buckets hold
+  principal. The total holds the carrying amount, net of discounts, premiums, and issuance costs.
+- All seven values must have the same unit. Otherwise the check does not run. The derivation
+  from a closed group has the same rule.
+- A failure is a `SumMismatch` finding. `concepts` holds the total first, then the buckets in
+  the order of the table. `periods` holds the instant. `reason` holds the `SUM_NAME` of the sum,
+  here `debt-maturities`.
+  `confidence` holds the weakest confidence of the inputs.
+- The check derives no value, and the ladder has no other line. The gap between principal and
+  carrying amount is no line that the filer presents.
+- `check_sums` in `core/sum_check.rs` runs the check on the series of one entity, next to
+  `check_roll_ups`. It reads the role, the name, and the tolerance from the trait `Summed`. It
+  holds nothing that belongs to the ladder alone. `check_all_sums` calls it (see "The Traits
+  `Summed` and `Timed`"). `sum_rule` gives the rule ID `core/sum/<SUM_NAME>@1`.
+
+Measured on 2026-11-15 in the frame `CY2024Q4I`, without dimensions, on annual ladders only. A
+bucket value counts if its accession is a 10-K, 10-KT, 20-F, or 40-F, or an amendment of one, and
+the report date equals the instant. This drops 678 values of interim reports. The bucket concept
+is the first alias, or the rolling alias if the filer tags only that. 1,634 filers tag a bucket.
+1,252 of them also tag `LongTermDebt` at the same instant.
+
+| Group | Base | Filers | Findings at ±0.1% | At ±1% | At ±5% |
+| ----- | ---- | ------ | ----------------- | ------ | ------ |
+| All six buckets | `LongTermDebt` | 723 | 446 (62%) | 230 (32%) | 65 (9%) |
+| Any bucket, a missing bucket as zero | `LongTermDebt` | 1,252 | 772 (62%) | 494 (39%) | 223 (18%) |
+
+The base `LongTermDebt` fits the ladder best. For the 1,161 filers with the years one to five, the
+sum agrees within 0.1% with these bases:
+
+| Base | Filers with the base | Within 0.1% |
+| ---- | -------------------- | ----------- |
+| `LongTermDebt` | 874 | 329 |
+| `LongTermDebt` + `FinanceLeaseLiability` | 376 | 37 |
+| `LongTermDebtNoncurrent` + `LongTermDebtCurrent` | 544 | 78 |
+| `LongTermDebtNoncurrent` | 647 | 12 |
+
+Of the 545 filers outside 0.1% of `LongTermDebt`, 276 tag a net discount or issuance cost. Adding
+it brings 136 of them within 0.1%.
+
+#### The Traits `Summed` and `Timed`
+
+```rust
+/// The role of a concept in the sum of its disclosure.
+#[non_exhaustive]
+pub enum SumRole {
+    /// The total that the parts add up to.
+    Total,
+    /// A part of the total.
+    Part,
+}
+
+/// A concept of a disclosure whose values add up to a total of the same disclosure.
+pub trait Summed: Concept {
+    /// The name of the sum, such as `debt-maturities`: the `reason` of its finding.
+    const SUM_NAME: &'static str;
+    /// The tolerance of the check in basis points of the largest absolute value in the group.
+    const TOLERANCE_BASIS_POINTS: u32;
+    /// Returns whether the concept is the total or a part.
+    fn role(self) -> SumRole;
+}
+
+/// The dates at which a concept has values.
+#[non_exhaustive]
+pub enum Cadence {
+    /// Every period that the entity reports.
+    EveryPeriod,
+    /// Only the fiscal year ends.
+    FiscalYearEnd,
+}
+
+/// A concept whose values can exist at fewer dates than the periods the entity reports.
+pub trait Timed: Concept {
+    /// Returns the dates at which the concept has values.
+    fn cadence(self) -> Cadence;
+}
+```
+
+- `DebtMaturityConcept` implements `Concept`, `Summed`, and `Timed`. `SUM_NAME` is
+  `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
+  `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
+- The middle macro registers the traits of each innermost enum, as in
+  `DebtMaturities(DebtMaturityConcept): Summed + Timed`. From this list it generates
+  `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
+  generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`. The helper
+  macro `sum_check_of!` reads the trait list of one entry, as `cadence_of!` does for `Timed`.
+  `check_all_sums` lives in `core::elements`, and `core::sum_check` re-exports it.
+- The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
+  series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
+  adds its enum, its impls, and its macro entry. None of the three callers changes.
+- A test in each module with `impl Timed` walks `ALL` and compares
+  `c.element().cadence()` with `c.cadence()`. A test in each module with
+  `impl Summed` shows that `check_all_sums` gives a `SumMismatch` for a sum that does not add up.
+  So a missing macro entry fails a test.
+- `SumMismatch` is the finding of every sum. Its `reason` holds the `SUM_NAME`, so a reader
+  filters on the kind and the reason.
+- `Summed` and `Timed` are subtraits of `Concept`, because every such concept also has a name and
+  a label. `Timed` is not a subtrait of `Summed`, because a concept can have a cadence without a
+  sum.
+- `Summed` is not `Placed`. A group of the roll-up tree has a tolerance of ±0.1%, an other line,
+  and Tier 3 derivation. The ladder has none of these.
+
+#### Other Financing Values
+
+Financing data, as this section uses the term, is the ladder, the notes, the average interest
+rates, share classes, buybacks, and dividends. No type of the crate groups them. The MVP holds
+these in the standardized layer:
+
+| Value | In the MVP | Why |
+| ----- | ---------- | --- |
+| Maturity ladder | yes, `DebtMaturities` | 1,634 filers with an annual ladder in `CY2024Q4I` |
+| Buybacks | yes, `ShareRepurchases` of the cash flow statement | |
+| Dividends paid | yes, `DividendsPaid` of the cash flow statement | |
+| Average interest rates | no, as-is facts | `LongtermDebtWeightedAverageInterestRate` has 87 filers and `ShortTermDebtWeightedAverageInterestRate` 187, of 2,219 filers of `LongTermDebt` |
+| Dividends per share declared | no, as-is facts | `CommonStockDividendsPerShareDeclared` has 1,245 filers in `CY2024`. A later round can add it to `PerShare` |
+| Notes, with amount and coupon | no, as-is facts | Each note is a member of `DebtInstrumentAxis` that the company defines. `DebtInstrumentAxis` is no segment axis (see "Segment Values") |
+| Share classes | no, as-is facts | Each class is a member of `StatementClassOfStockAxis` |
+
+The as-is layer keeps every value of the table. A view can show the as-is values per company.
+
+#### Fit With the Segments Design
+
+- The ladder has no dimensions. A ladder per legal entity, such as a bank that splits its debt
+  between the parent and its subsidiaries, stays as-is.
+- A fact on `DebtInstrumentAxis` is no segment fact (see "Segment Values"). So the notes per
+  company stay as-is facts in the MVP.
+- A later design for values per note adds its own trait next to `SegmentAxes`, as "Segment Values"
+  says. The ladder concepts and `Summed` do not change for it.
+
+#### Other Taxonomies
+
+- The seven concepts belong to `CanonicalElementKind`, not to US GAAP. A plug-in maps its own
+  concepts to them through `Taxonomy::aliases()`. `Summed`, `Timed`, the filter, and the sum check
+  then apply with no new code. The filter reads the fiscal period of `Filing`, which every adapter
+  fills.
+- A plug-in maps a concept to a bucket only if the concept holds the principal of long-term debt
+  due in that span. Otherwise the concept stays an as-is fact (see "Standard Concept Set").
+- The 5% tolerance rests on US GAAP filings only (ADR 0028). A plug-in maps no ladder alias until
+  its design measures its own filings against this tolerance.
+
+### Segment Values
+
+A segment value is the value of a standard concept for one part of the company, such as a business
+segment, a region, or a product line. The standardized layer holds it as a `StandardizedFact` whose
+`dimensions` hold the axis and member pairs as filed. A value without dimensions is the consolidated
+value. [ADR 0029](../docs/adr/0029-segment-values-keep-their-dimensions.md) records why segment
+values keep their dimensions and stay out of the tree.
+[ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md) records why the reconciliation
+runs per report. The code holds the rules of "Segment Axes", "Concepts a Segment Can Carry",
+"Resolution of a Segment Value", and "Reconciliation".
+
+#### Segment Axes
+
+The plug-in of a concept names the axes whose members split the company, through the trait
+`SegmentAxes` (see "The `SegmentAxes` Trait"). A fact is a **segment fact** if it has dimensions
+and the plug-in that resolves its concept names each of its axes. `core` names no axis and no
+member. It reads the kind of each axis:
+
+| Kind | What the members are |
+| ---- | -------------------- |
+| `BusinessSegment` | Business segments |
+| `Geography` | Countries and regions |
+| `Product` | Products and services |
+| `ConsolidationItems` | The role of a value in the reconciliation |
+| `Subsegment` | Parts of one segment |
+| `SubsegmentConsolidationItems` | Eliminations below one segment |
+
+The segment axes of `us_gaap`, written as in `dimensions`, without prefix (see "Decisions for the
+Transform Design"):
+
+| Axis in `dimensions` | Axis in the taxonomy | Kind |
+| -------------------- | -------------------- | ---- |
+| `BusinessSegments` | `us-gaap:StatementBusinessSegmentsAxis` | `BusinessSegment` |
+| `SegmentReportingInformationBySegment` | `us-gaap:SegmentReportingInformationBySegmentAxis`, in filings of 2011 | `BusinessSegment` |
+| `Geographical` | `srt:StatementGeographicalAxis` | `Geography` |
+| `ProductOrService` | `srt:ProductOrServiceAxis` | `Product` |
+| `ConsolidationItems` | `srt:ConsolidationItemsAxis` | `ConsolidationItems` |
+| `Subsegments` | `us-gaap:SubsegmentsAxis` | `Subsegment` |
+| `SubsegmentsConsolidationItems` | `us-gaap:SubsegmentsConsolidationItemsAxis` | `SubsegmentConsolidationItems` |
+
+- A fact with any other axis, such as `LegalEntity` or `DebtInstrument`, is no segment fact. It
+  stays an as-is fact.
+- Members stay as filed, with no mapping. `US` from the `country` namespace and a company member
+  such as `AmazonWebServices` both keep their names.
+- A company that reports its segments only on an axis of its own gets no segment values.
+- A fact whose concept routes to a plug-in without `SegmentAxes` gives no segment value. An `ifrs`
+  plug-in names the axes of `ifrs-full` in the same way (see "What `ifrs` Needs on Top").
+- A design that needs another axis for its own concepts, such as values per debt note, adds its
+  own trait next to `SegmentAxes`.
+
+#### Concepts a Segment Can Carry
+
+A segment value can carry every standard concept of a statement, with the alias lists of the
+consolidated value. It carries no concept of a disclosure. A per-share value counts the shares of
+the whole company, so `EarningsPerShareBasic` with a segment member gives no candidate.
+[ADR 0029, Amendment 1](../docs/adr/0029-segment-values-keep-their-dimensions.md#amendment-1-a-segment-fact-gives-no-candidate-of-a-disclosure-concept)
+records why.
+
+In the Notes file `2026_10_notes.zip`, 665 of 978 10-K and 10-Q filings report a value on
+`BusinessSegments` (2026-11-15). The concepts that most filings use:
+
+| Concept | Filings | Standard concept |
+| ------- | ------- | ---------------- |
+| `RevenueFromContractWithCustomerExcludingAssessedTax` | 371 | `Revenue` |
+| `OperatingIncomeLoss` | 267 | `OperatingIncome` |
+| `Assets` | 259 | `Assets` |
+| `SegmentReportingOtherItemAmount` | 237 | None |
+| `Goodwill` | 234 | `Goodwill` |
+| `Revenues` | 218 | `Revenue` |
+| `SegmentExpenditureAdditionToLongLivedAssets` | 208 | None |
+| `DepreciationDepletionAndAmortization` | 207 | `DepreciationAmortization` |
+| `CostOfGoodsAndServicesSold` | 189 | `CostOfRevenue` |
+| `SellingGeneralAndAdministrativeExpense` | 160 | `SellingGeneralAdmin` |
+
+`SegmentReportingOtherItemAmount` and `SegmentExpenditureAdditionToLongLivedAssets` exist only for
+segments. No standard concept holds them, so they stay as-is facts.
+
+#### Resolution of a Segment Value
+
+- **Tiers 1 and 2** run on each segment fact as on a fact without dimensions. A filing gives at
+  most one candidate per standard concept, period, and set of dimensions. The rule IDs and the
+  confidence levels are the same.
+- A fact with an axis that the plug-in of its concept does not name gives no candidate.
+- The part rule stays as it is. An other part in any dimension blocks a part.
+- A conflict on a segment fact blocks the candidate of its own dimensions. The candidate of the
+  consolidated value stays.
+- **`core/dedup/newest-filing@1`** keys on the dimensions already. A segment series is one entity,
+  standard concept, period end, length in quarters, unit, and set of dimensions.
+- **The tree, the identities, the period identity, and Tier 4** run only on values without
+  dimensions: `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`,
+  the sums along the calculation tree of a plug-in, and the checks of "Checks the Tree Gives". A
+  segment value gets no derived or computed value, no check, no other line, and no `MixedStarts`
+  finding.
+- **Chronology** runs only on values without dimensions. A segment value still gets `restated`.
+- `FactSet` and the statement output types take only values without dimensions. A segment value
+  enters no statement.
+
+#### Reconciliation
+
+The reconciliation shows how the business segments add up to the consolidated value. It runs on
+the candidates of one filing, for one standard concept, period, and unit. A **business-segment
+axis** is an axis of kind `BusinessSegment`. The plug-in that resolved a candidate gives the role of
+each member of its axis of kind `ConsolidationItems`. Each value takes a role from its dimensions:
+
+| Role | Dimensions | Role rule ID |
+| ---- | ---------- | ------------ |
+| Segment | A business-segment axis = *m* alone, or with a member of role `Segment` | None |
+| Elimination | A member of role `Elimination`, alone | `core/segment/elimination@1` |
+| Corporate | A member of role `Corporate`, alone | `core/segment/corporate@1` |
+| Unreconciled | None, a line of the reconciliation | `core/segment/unreconciled@1` |
+
+A member with a role sits on an axis of kind `ConsolidationItems`.
+
+The roles of `us_gaap`, all on `ConsolidationItems`:
+
+| Member | Role |
+| ------ | ---- |
+| `OperatingSegments` | `Segment` |
+| `IntersegmentElimination`, `ConsolidationEliminations` | `Elimination` |
+| `CorporateNonSegment`, `MaterialReconcilingItems` | `Corporate` |
+
+```
+unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
+```
+
+- A segment, elimination, or corporate line is a reported candidate. It keeps the rule that
+  resolved it, such as `us-gaap/alias/revenue@1`. An elimination or corporate line carries its role
+  rule ID next to it. A segment line carries none.
+- The unreconciled line has no candidate. Its role rule ID is its only rule. So a reader tells the
+  derived line from a reported one by the role rule ID `core/segment/unreconciled@1`.
+- Each role has the weight `+1`, and each value keeps the sign of the filing. An elimination is
+  mostly negative.
+- If a segment *m* has both forms, the value without a pair on an axis of kind `ConsolidationItems`
+  counts, even if it is blocked.
+- A plug-in gives a role only to a member of its own taxonomies. A value with a member of the
+  company on `ConsolidationItems`, such as `CorporateAndEliminations`, has no role. Its amount lands
+  in the unreconciled line.
+- The unreconciled line exists only if the filing has the consolidated candidate and at least one
+  segment candidate, and neither the consolidated candidate nor a candidate with a role is blocked.
+  A blocked candidate shows as blocked, so a reader tells a block from an untagged item.
+- The unreconciled line holds every reconciling item that the filer does not tag with a role.
+- A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
+  (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
+- A single-segment company gets the same reconciliation with one segment.
+- Axes of kind `Geography` and `Product` get no reconciliation. Their members can overlap, such as
+  `US`, `NonUs`, and `Americas` in one filing, so a sum counts an amount twice. A reader shows their
+  values as reported.
+- An unreconciled line other than zero gives no finding. The line itself shows the difference.
+- **Silver stores no line of the reconciliation**, as for the other lines. `reconcile` in
+  `core/segment.rs` builds the reconciliations of each filing from its candidates. For each candidate, it
+  takes the axes and the roles from the plug-in that resolves the family of the first input.
+
+Measured on `2026_10_notes.zip` on 2026-11-15. A group is one filing, concept, period, and unit
+with two or more segments on `BusinessSegments`. A group adds up if the difference is within 0.1%
+of the larger absolute value:
+
+| Concept | Groups | Segments alone add up | Add up with elimination and corporate | Do not add up | No elimination or corporate tagged |
+| ------- | ------ | --------------------- | ------------------------------------- | ------------- | ---------------------------------- |
+| `Revenue` | 1,817 | 1,246 (69%) | 243 (13%) | 328 (18%) | 1,014 (56%) |
+| `OperatingIncome` | 851 | 204 (24%) | 189 (22%) | 458 (54%) | 509 (60%) |
+| `Assets` | 479 | 131 (27%) | 222 (46%) | 126 (26%) | 201 (42%) |
+
+- Operating income fails to add up in 54% of the groups, so the unreconciled line holds a value in
+  most filings. A check would give a finding for most filers.
+- Of the 590 revenue values with an elimination role alone, 444 are negative, 88 positive, and 58
+  zero. A flip of the sign of the positive ones closes 7 more groups. So the sign stays as filed.
+- Of 6,819 cases of one filing, concept, period, and unit with a corporate role, 343 carry both
+  `CorporateNonSegment` and `MaterialReconcilingItems`. In 49 of them the two values are equal, so
+  the corporate role likely counts one amount twice. The unreconciled line then holds that amount
+  with the opposite sign.
+- Of 1,750 segment values filed in both forms, 1,103 are equal. Plain values close more revenue
+  groups than values with `OperatingSegments`: 1,489 against 1,430.
+- Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
+  consolidated value.
+
+#### Values With Two Axes
+
+`Dimensions` holds a set of pairs. No axis comes first in storage. A value with two segment axes,
+such as segment × product, is a series of its own. It takes no role in the reconciliation, except
+the segment form with a member of role `Segment`. A reader shows it below the value whose
+dimensions are its own less the axis whose kind comes last in the table of kinds in "Segment
+Axes". `BusinessSegments` = `Cloud` and `ProductOrService` = `Software` sit below
+`BusinessSegments` = `Cloud`.
+
+Of 142,142 values in `2026_10_notes.zip` whose axes are all segment axes, 73,383 have two or more
+axes. Most pair a segment with a role: 46,452 values are `BusinessSegments` × `ConsolidationItems`.
+Segment × product has 6,776 values, and segment × geography 2,983.
+
+#### Renamed and Merged Segments
+
+- **Per report.** The reconciliation and the segment view of a report read the candidates of its
+  filing. ASC 280 requires a company to recast its earlier years when its segments change. So one
+  report shows every year under one structure.
+- **As a series.** A segment series is keyed on the member. A renamed member starts a new series,
+  and the series of the old name ends. The newest filing recasts its comparative years under the
+  new name, so the new series reaches back two or three years.
+- A merged segment ends the series of the old members. The series of the new member starts with
+  the recast comparative years.
+- No table links an old member to a new one. A member name that a company reuses for another
+  structure keeps one series. The newest filing replaces the values of the years it covers and sets
+  `restated`. Earlier years keep the old structure.
+
 ---
 
 ## 1) Taxonomy Plug-ins
@@ -950,7 +1392,8 @@ pub struct TaxonomyRelease {
 Accounting identities and period identities are not part of the trait. They are core rules, the same
 for every taxonomy.
 
-**Registry.** The core holds a list of `&dyn Taxonomy`. The caller owns the plug-ins, and the
+**Registry.** The core holds a list of plug-ins. Each one is a `&dyn Taxonomy`, or a
+`&dyn SegmentAxes` (see "The `SegmentAxes` Trait"). The caller owns the plug-ins, and the
 registry borrows them. The
 registry routes each as-is fact to the plug-in that resolves the namespace family of its concept. A
 filing can mix families, for example a 20-F with `ifrs-full` and `dei`, so the routing works per
@@ -977,6 +1420,67 @@ Alternatives:
 | Trait object in a registry (chosen) | One fact set can hold facts of several taxonomies | Methods must be object safe |
 | Generic `Resolver<T: Taxonomy>` | No dynamic call | One pass per taxonomy and a merge for a mixed filing |
 | Enum of all taxonomies in the core | Simple match | The core names every taxonomy |
+
+### The `SegmentAxes` Trait
+
+A plug-in that knows the segment axes of its taxonomy implements this trait next to `Taxonomy`.
+"Segment Values" gives the rules that read it.
+
+```rust
+/// The axes whose members split a company, and the role of each member in the reconciliation.
+pub trait SegmentAxes: Taxonomy {
+    /// Each segment axis, as written in `dimensions`, with its kind.
+    fn segment_axes(&self) -> &[SegmentAxis];
+    /// Each member of an axis of kind `ConsolidationItems` that has a role.
+    fn member_roles(&self) -> &[MemberRole];
+}
+
+pub struct SegmentAxis {
+    name: &'static str,          // "BusinessSegments"
+    kind: SegmentAxisKind,       // BusinessSegment | Geography | Product | ConsolidationItems | …
+}
+
+pub struct MemberRole {
+    axis: &'static str,          // "ConsolidationItems"
+    member: &'static str,        // "IntersegmentElimination"
+    role: ReconciliationRole,    // Segment | Elimination | Corporate
+}
+```
+
+- `SegmentAxes` is a subtrait of `Taxonomy`. The registry routes a fact to the plug-in that
+  resolves its concept, so a segment axis without a resolving plug-in has no fact to apply to.
+- `Taxonomy` does not change (`AGENTS.md`, "Open-Closed Principle"). A plug-in without segment data
+  implements only `Taxonomy`.
+- The registry reaches the segment axes through a second constructor. `Registry::new` keeps its
+  signature, so none of its 90 calls changes:
+
+  ```rust
+  pub enum Plugin<'a> {
+      Taxonomy(&'a dyn Taxonomy),
+      WithSegmentAxes(&'a dyn SegmentAxes),
+  }
+
+  impl<'a> Registry<'a> {
+      /// Takes plug-ins with or without segment axes. `new` wraps each plug-in in `Plugin::Taxonomy`.
+      pub fn with_plugins(plugins: Vec<Plugin<'a>>) -> Result<Self, RegistryError>;
+      /// The plug-in that resolves the family, as `&dyn Taxonomy`, by trait upcasting.
+      pub fn resolver(&self, family: &NamespaceFamily) -> Option<&'a dyn Taxonomy>;
+      /// The segment axes of the plug-in that resolves the family, or `None`.
+      pub fn segment_axes(&self, family: &NamespaceFamily) -> Option<&'a dyn SegmentAxes>;
+  }
+  ```
+
+- The transform builds its registry with `with_plugins` and `Plugin::WithSegmentAxes(&us_gaap)`. A
+  registry from `new` gives no segment values and no finding. So every caller that standardizes
+  facts moves to `with_plugins` in the PR that admits segment facts: the transform, the test
+  fixtures of the two adapters, and the integration tests on real filings.
+- Each `MemberRole` names an axis of `segment_axes` of kind `ConsolidationItems`. A test of each
+  plug-in checks this, so a typo in an axis name cannot send every elimination to the unreconciled
+  line.
+- `SegmentAxisKind` and `ReconciliationRole` are `#[non_exhaustive]` enums in `core`. The names of
+  axes and members are data of the plug-in.
+- A name in `dimensions` has no prefix. So the axes of a fact come from the plug-in of its concept,
+  never from a search over all plug-ins.
 
 ### Namespace
 
@@ -1266,6 +1770,12 @@ ticket decides where the removed elements live.
   out of `us_gaap`.
 - **Labels in more languages.** `ElementReference` holds the English standard label. Other
   languages stay out of the MVP.
+- **Segment axes.** `ifrs` implements `SegmentAxes` with the segment axis of IFRS 8 and its members
+  for eliminations and unallocated amounts. Its design names them from the `ifrs-full` release.
+- **No debt maturity aliases.** The maturity analysis of IFRS 7 (paragraphs 39 and B11) covers all
+  financial liabilities, holds undiscounted cash flows with interest, and uses time bands that the
+  company chooses. It is no faithful match for the buckets of `DebtMaturities`, so `ifrs` maps no
+  alias to them (see "Debt Maturities").
 
 The open `NamespaceFamily` and `Unit` cover new namespaces and currencies. No new core type is needed.
 
@@ -1424,7 +1934,7 @@ StandardizedFact {
     concept:     CanonicalElementKind
     period:      Period
     unit:        Unit
-    dimensions:  Dimensions        // empty in the MVP
+    dimensions:  Dimensions        // empty, or the pairs of a segment fact (see "Segment Values")
     value:       Decimal
     confidence:  Confidence        // Exact | Synonym | Derived | Computed
     rule:        RuleId            // "us-gaap/alias/revenue@1"
@@ -1451,7 +1961,7 @@ the set. It checks in this order: the entity of the fact, its period, and its di
 periods are the same if they are of one kind and have the same end and length, and the same exact
 start if both give one. So an instant fact never belongs to a set of a duration, and a fiscal year
 needs one set for its duration and one for the instant at its end. A fact with dimensions never
-belongs to the set, because a standardized fact has no dimensions in the MVP. A fact of a standard
+belongs to the set (see "Segment Values"). A fact of a standard
 concept that the set holds replaces the held fact.
 
 ### Rule IDs
@@ -1465,6 +1975,10 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
+- `core/sum/debt-maturities@1`: the check of a sum of a disclosure, `core/sum/<SUM_NAME>@1`. It
+  gives findings and no value. Its own kind keeps the names of sums apart from other checks.
+- `core/segment/elimination@1`, `core/segment/corporate@1`, `core/segment/unreconciled@1`: the
+  roles of the segment reconciliation (see "Segment Values").
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
@@ -1518,7 +2032,7 @@ year. `core/period/q4-from-fy@1` derives Q4 = FY − 9-month YTD, which is the s
 FY − Q1 − Q2 − Q3. The YTD form also works for the cash flow statement, which a 10-Q reports as
 year-to-date only. The result has confidence `Derived`.
 
-- The rule applies only to duration concepts in one currency, with no per-share unit. EPS, share counts,
+- The rule applies only to duration concepts in one currency, with no per-share unit and no dimensions. EPS, share counts,
   and ratios get no Q4 derivation, because they do not add over periods.
 - Both inputs come from one fiscal year, after `core/dedup/newest-filing@1`.
 - If an input has `restated`, the Q4 value has `restated` too, and chronology reports it.
@@ -1641,10 +2155,12 @@ The order of resolution and dedup, per entity and period. A period here is an ex
 and a length in quarters, as in the value key:
 
 1. `core/dedup/more-precise@1` on the as-is facts of each filing.
-2. Tiers 1 and 2 on each filing: at most one candidate per standard concept and filing.
+2. Tiers 1 and 2 on each filing: at most one candidate per standard concept, set of dimensions,
+   and filing.
 3. `core/dedup/newest-filing@1` across filings, on the standard concept. A newer filing wins over
    the alias order, so a restatement under a renamed concept wins.
-4. Tiers 3 and 4 on the values that remain.
+4. Tiers 3 and 4 on the values that remain, only on values without dimensions (see "Segment
+   Values").
 
 **Conflict.** If a copy disagrees with rank 0, the ranks are two or more facts with one exact
 period.
@@ -1662,7 +2178,8 @@ Finding::Conflict {
 
 - If tiers 1 and 2 would pick the conflicting concept, that filing gives a blocked candidate for
   the standard concept. A conflict on a lower alias, on a concept no plug-in maps, or on a fact
-  with dimensions blocks nothing.
+  with dimensions that is no segment fact blocks nothing. A conflict on a segment fact blocks only the
+  candidate of its own dimensions (see "Segment Values").
 - Step 3 ranks a blocked candidate with the others. If it wins, the standard concept has no value
   for that entity and period. Step 3 does not fall back to an older filing, because the newer
   filing can hold the restatement. Step 4 derives no value for the blocked concept.
@@ -1684,9 +2201,9 @@ Rules the code fixes where the table above leaves a choice:
 - A fact gets `restated` if an older candidate of its series reports a value that disagrees with it,
   by the rule of "Agreement of copies". A blocked older candidate sets nothing.
 - In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
-  registry routes its family to the plug-in of the alias list. A fact with dimensions gives no
-  candidate. It still counts as an other part in the part rule, and its conflict still gives a
-  `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
+  registry routes its family to the plug-in of the alias list. A fact with dimensions gives a
+  candidate only if it is a segment fact (see "Segment Values"). Every fact with dimensions still
+  counts as an other part in the part rule, and its conflict still gives a `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
   name order wins.
 - If no concept of an alias list resolves, the part rule runs on its `PartAliases`. Of the parts
   that the filing reports, the first that no other part blocks wins, with `Synonym`. An other part
@@ -1717,7 +2234,7 @@ restatement, it sets `restated`, and chronology reports it.
 ### Gap Check
 
 The gap check runs on the standardized series of one entity and one concept. It reports findings.
-It never fails.
+It never fails. Chronology reads only values without dimensions (see "Segment Values").
 
 - **Expected periods** come from the forms the entity files. A 10-Q filer expects Q1, Q2, Q3, and
   FY. A filer of only 10-K, 20-F, or 40-F expects FY.
@@ -1727,7 +2244,7 @@ It never fails.
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`), the entity, the
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`), the entity, the
   concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
   not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
@@ -1773,7 +2290,9 @@ It never fails.
   - If no value of the timeline is a duration, as on a balance sheet, the gap has 0 quarters.
 - **Same periods for every timeline.** Every timeline of an entity expects the same periods. So a
   concept that a 10-Q filer reports only in its 10-K gets a gap for each quarter. This follows
-  "A 10-Q filer expects Q1, Q2, Q3, and FY" above.
+  "A 10-Q filer expects Q1, Q2, Q3, and FY" above. A concept with the cadence `FiscalYearEnd` of
+  the trait `Timed` is the exception: its timeline expects only the fiscal year ends (see "Debt
+  Maturities").
 - **Fiscal year change.** The filings count in the order they were filed, because a filing
   states its fiscal year end as of its filing date. An amendment does not count, because it can
   state the end of the year it amends. The text `0930` of the Notes data set and
@@ -2030,6 +2549,7 @@ Specific checks include:
 - Balance Sheet Identity holds (`Assets == LiabilitiesAndEquity`)
 - Each closed group of the roll-up tree adds up, and no other line of a breakdown falls below zero
   (see "Roll-Up Tree", "Checks the Tree Gives")
+- The debt maturity ladder adds up to the total long-term debt within ±5% (see "Debt Maturities")
 - Sign checks (Assets > 0, Liabilities > 0, Revenue > 0 for non-loss companies)
 - Cross-statement consistency (Net Income in IS == Net Income in CF reconciliation)
 - Rules inspired by DQC Rules (https://github.com/DataQualityCommittee/dqc_us_rules)
@@ -2038,7 +2558,7 @@ Specific checks include:
 
 For values computed by the resolution engine (Tiers 3 and 4), precision must be exactly 100% — our math must be exact.
 
-When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the largest absolute value in the group of the check, as "Roll-Up Tree", "Checks the Tree Gives", explains.
+When cross-checking a company's own reported values (e.g., their reported `Assets` vs the sum of their reported `AssetsCurrent + AssetsNoncurrent`), allow a small tolerance. Companies report in thousands or millions, introducing ±1 rounding differences. Threshold: ±0.1% of the largest absolute value in the group of the check, as "Roll-Up Tree", "Checks the Tree Gives", explains. The debt maturity ladder uses ±5%, because its parts hold principal and its total holds the carrying amount ([ADR 0028](../docs/adr/0028-debt-maturity-check-tolerance.md)).
 
 Rule: **our math must be exact, their math gets a tolerance.**
 
@@ -2315,7 +2835,7 @@ concept keeps the tiered resolution: exact, synonym, derived, computed.
 
 **Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
 
-**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The as-is layer keeps every fact with its dimensions.
+**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The as-is layer keeps every fact with its dimensions. In tiers 1 and 2, a fact with dimensions gives a candidate only if every axis is a segment axis. "Segment Values" gives the rules.
 
 **Coregistrants** — A coregistrant is a second registrant, with its own CIK, that files the same report as the main filer. An example is a subsidiary in the combined report of a utility group. Its facts carry a member of the legal entity axis, which the instance XML gives as `dei:LegalEntityAxis` and Notes as `coreg`. A filer can also tag other entities on that axis, such as its parent. Both parsers write the member into `dimensions` on the `LegalEntity` axis. So tiers 1 and 2 give a coregistrant fact no candidate, and the standardized layer holds only facts of the main filer.
 
@@ -2349,40 +2869,126 @@ The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided
 
 ## Follow-Up: Migrate `sec` Crate to Consume `xbrl` Types
 
-The `sec` crate currently has its own financial domain types (`CompanyData`, `CompanyFact`,
-`Observation`, `sec::shared::financial::FilingSource`, `ConceptDefinition`) that duplicate what `xbrl`
-now provides.
+`sec/src/lib/shared/financial` holds a fact model of its own, which no state reads. The state
+`ParseCompanyFacts` calls the Company Facts parser of `xbrl`. `sec` uses the types of `xbrl` and
+imports them at each call site, with no re-export and no wrapper.
+[ADR 0026](../docs/adr/0026-sec-uses-xbrl-fact-types.md) holds the reasons and the options.
+The table in "Order of the Pull Requests" names the ticket of each step.
 
-This requires two follow-up tickets:
+### The Types of `sec::shared::financial`
 
-### Ticket 1: Design the integration pathway (SPIKE)
+| `sec` type | Plan | Type that replaces it |
+| ---------- | ---- | --------------------- |
+| `AccessionNumber` | Keep. In `sec::shared::accession_number` | None |
+| `Form` | Keep. In `sec::shared::form` | None |
+| `CompanyData` | Keep. In `sec::shared::company_data`, with the fields of "`CompanyData`" | None |
+| `CompanyFact` | Delete | The `AsIsFact` values of one concept |
+| `ConceptDefinition` and its constants | Delete | `xbrl::us_gaap::mappings::ConceptDefinition`, `REQUIRED_CONCEPTS`, `OPTIONAL_CONCEPTS` |
+| `EntityName` | Replace | `xbrl::core::entity_name::EntityName` |
+| `FilingSource` | Replace | `xbrl::core::fact::FilingSource` and `xbrl::core::filing::Filing` |
+| `FiscalPeriod` | Replace | `xbrl::core::fiscal_period::FiscalPeriod` |
+| `FiscalYear` | Replace | `xbrl::core::fiscal_year::FiscalYear` |
+| `Frame`, `Quarter` | Delete | None. `parse` keeps no `frame` field |
+| `Observation` | Replace | `xbrl::core::fact::AsIsFact` |
+| `Period` | Replace | `xbrl::core::period::Period` |
+| `Unit` | Replace | `xbrl::core::unit::Unit` |
 
-Research and decide:
-- How `Cik` (sec-specific) interacts with `EntityName` (xbrl) in `CompanyData`
-- Whether `CompanyData.facts` key becomes `CanonicalElementKind` or stays as a definition reference
-- Whether `sec` types become re-exports of `xbrl` types or thin wrappers with `From` impls
-- How to handle the `&'static ConceptDefinition` reference pattern (sec's constants vs xbrl's)
-- Migration strategy that keeps the `sec` crate compiling at every step
-- Impact on downstream consumers (`CreateFinancialStatements`, pipeline tests, binaries)
+`AccessionNumber` and `Form` are extraction types. On `main` at `dee3756`, 35 files of `sec/src`
+outside `sec::shared::financial` name `AccessionNumber`.
 
-Output: a design doc section or ADR with the recommended approach.
+### `CompanyData`
 
-### Ticket 2: Implement the migration
+`CompanyData` holds four fields:
 
-Based on the design from Ticket 1:
-1. Replace `sec::shared::financial::Observation` with `xbrl::core::fact::AsIsFact`, and
-   `sec::shared::financial::FilingSource` with `xbrl::core::fact::FilingSource` (filing ID and
-   dates) and `Filing` (form, fiscal year, fiscal period). The two `FilingSource` types share a
-   name, not their fields
-2. Replace `sec::shared::financial::ConceptDefinition` with `xbrl::us_gaap::mappings::ConceptDefinition`
-3. Update `CompanyData` to use xbrl types for its key and value types
-4. Update `ParseCompanyFacts::compute_output_data_async()` to delegate to `xbrl::adapter::edgar::company_facts::parse()`
-5. Remove the inline `resolve_concept`, `parse_observation`, `build_period`, `build_filing_source` from `sec`
-6. Remove duplicated type definitions from `sec::shared::financial/`
+```text
+CompanyData {
+    cik:         sec::shared::cik::Cik
+    entity_name: xbrl::core::entity_name::EntityName
+    facts:       Vec<AsIsFact>   // from CompanyFacts::facts
+    filings:     Vec<Filing>     // from CompanyFacts::filings
+}
+```
 
-**Blocker for Ticket 2**: `CompanyData` uses `Cik` (sec-specific) and `&'static ConceptDefinition` as
-HashMap keys (pointing to sec's constants). Both need to change before the delegation works.
-This touches the `sec` crate's public API and downstream consumers.
+The `Cik` stays, because the context of each `sec` state holds a `Cik`. Each fact also carries the
+CIK as its `EntityId`, with the scheme `CIK_SCHEME`. The map keyed by `&'static ConceptDefinition`
+goes away. A later state resolves the as-is facts with `resolve_aliases` and keys each standardized
+fact by `CanonicalElementKind`.
+
+`CompanyData` stays the output of `ParseCompanyFacts` until `CreateFinancialStatements` emits
+`FactSet` values. That later step retires `CompanyData`, as
+`sec/design/data_model/hybrid_data_model.md`, "Migration From the Current (Immature) Skeleton",
+step 5, says.
+
+### `ParseCompanyFacts`
+
+`compute_output_data_async` runs four steps:
+
+1. Call `xbrl::adapter::edgar::company_facts::parse` on the JSON body. A `ParseErrorKind` becomes a
+   state error.
+2. Read the entity name with `company_facts::extract_entity_name`. Compare the CIK of the context
+   with the `cik` of the body, which `parse` gives each fact as its `EntityId`. If they differ,
+   return a state error. The check also runs on a body with no facts.
+3. Check each definition of `xbrl::us_gaap::mappings::REQUIRED_CONCEPTS`. A definition passes if a
+   `us-gaap` fact has a local name in its `xbrl_keys`, or in the `parts` of the `PART_CONCEPTS`
+   entry of its standard concept. If one fails, return `IncompleteCompanyFacts` with the labels of
+   the missing standard concepts. The check reads no unit.
+   [ADR 0026](../docs/adr/0026-sec-uses-xbrl-fact-types.md), "Amendment 1", gives the reasons.
+4. Build `CompanyData` from the `CompanyFacts` of step 1.
+
+`ParseCompanyFacts` keeps every form, amendment, unit, and
+namespace. A later state applies the newest-filing dedup rule, which picks one value per period.
+
+### `FilingId` From `AccessionNumber`
+
+A `FilingId` of the SEC is `sec:<accession>`, for example `sec:0000320193-24-000123`:
+
+```rust,ignore
+let filing_id = FilingId::new(SEC_FILING_SOURCE, accession_number.value())?;
+```
+
+`SEC_FILING_SOURCE` is the constant of `xbrl::adapter::edgar::company_facts`. `FilingId::new`
+fails on empty text or whitespace, and an `AccessionNumber` has neither. The other way can fail:
+`parse` accepts any `accn` text with no whitespace, so `AccessionNumber::new(filing_id.id())`
+rejects an `accn` of the wrong shape. `parse` builds the `FilingId`
+from the `accn` text, so the migration needs no conversion. The first state that joins a filing of
+the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec`.
+
+### Callers That Change
+
+- `ParseCompanyFacts`, its output data, and its tests use `parse` and the `CompanyData` of
+  `sec::shared::company_data`.
+- `CreateFinancialStatements` and its input data take that `CompanyData`. The state builds no
+  statement yet.
+- The transition from `ParseCompanyFacts` to `CreateFinancialStatements`, and the `Transform`
+  super state, carry that `CompanyData`.
+- `sec/README.md`, "ParseCompanyFacts", and `sec/design/data_model/hybrid_data_model.md` describe
+  the parse. PR 3 updates the docs that name
+  `sec::shared::financial`, such as `sec/design/pipeline/ingestion_paths.md`.
+
+PR 3 does not change the callers of `AccessionNumber` and `Form`. Both are in `sec::shared`.
+
+No binary and no integration test names a fact-model type. The pipeline coverage test ends before
+`Transform`.
+
+### Order of the Pull Requests
+
+Each PR keeps `main` compiling.
+
+| # | Ticket | PR | Reviewable lines |
+| - | ------ | -- | ---------------- |
+| 1 | [STA-527](https://linear.app/state-machine/issue/STA-527) | Move `AccessionNumber` and `Form` to `sec::shared` | About 0. A move of 2 modules, and the new paths on 83 lines in 37 files |
+| 2 | [STA-472](https://linear.app/state-machine/issue/STA-472) | `ParseCompanyFacts` delegates to `parse`, and `CompanyData` holds the `xbrl` types | About 250, an estimate |
+| 3 | [STA-528](https://linear.app/state-machine/issue/STA-528) | Delete `sec::shared::financial` | About 0. A deletion of 11 modules |
+| 4 | [STA-529](https://linear.app/state-machine/issue/STA-529) | Delete the `company_concept` and `frames` placeholders of `xbrl` | About 10 |
+
+PR 3 needs PRs 1 and 2. PR 4 needs no other PR.
+
+### Company Concept and Frames APIs
+
+`sec` needs neither API. No request kind of `sec` fetches them. The Company Facts body holds every
+concept of a company, so the Company Concept API adds no fact. The Frames API serves one concept of
+many companies, and no state reads one concept across companies. PR 4 deletes the two placeholder
+modules and their rows in "Crate Structure" and "Handling Different SEC API Schemas".
 
 ---
 

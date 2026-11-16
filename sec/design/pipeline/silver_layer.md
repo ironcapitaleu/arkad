@@ -119,7 +119,7 @@ store holds today.
 | `filings` | `Filing`, with the company attributes as filed | Notes `sub.tsv` and `txt.tsv`, or the instance and `submissions` | Parse filing |
 | `candidates` | Standardized candidate of one filing, blocked ones included | `as_is_facts` | Standardize filing |
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
-| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, or `MixedStarts` finding | Both standardize steps | Standardize filing, standardize series |
+| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` finding | Both standardize steps | Standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
 | `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
 
@@ -228,15 +228,18 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 
 ### `candidates`
 
-One row per standard concept and filing, from steps 1 and 2 of the dedup order in
+One row per standard concept, set of dimensions, and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
 `standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `decimals`, `blocked`,
 and `entity_bucket`. Step 3 needs `decimals` to tell a restatement from a repeated comparative. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
-the rule that picked the conflicting concept.
+the rule that picked the conflicting concept. The segment view of a report and its reconciliation
+read the rows of one filing, see [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values).
 
 The owner decided on 2026-11-08 that `candidates` stays a dataset of its own. When a new filing arrives,
-the series step runs again over every filing of the entity. It reads about 50 candidate rows per
-past filing instead of about 1,000 as-is rows, and it does not run steps 1 and 2 again.
+the series step runs again over every filing of the entity. It reads about 50 candidate rows of
+consolidated values per past filing instead of about 1,000 as-is rows, and it does not run steps 1
+and 2 again. Segment values add candidate rows. In `2026_10_notes.zip`, a 10-K or 10-Q had a mean
+of 79 segment values on concepts of an alias list (2026-11-15).
 
 Inside a `candidates` part, rows sort by `entity_bucket`, then by `filing_id`. The writer starts a
 new row group at each change of `entity_bucket`, so a series task reads only the row groups of its
@@ -248,7 +251,7 @@ bucket, by their statistics.
 | ------ | ---------- | ---- |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concept` | `utf8` | `CanonicalElementKind::name()`, for example `Revenue` |
-| `period_end`, `period_start`, `quarters`, `dimensions` | as in `as_is_facts` | Dimensions are empty in the MVP |
+| `period_end`, `period_start`, `quarters`, `dimensions` | as in `as_is_facts` | `dimensions` is empty for a consolidated value. A segment value holds its pairs as filed, all on the segment axes of [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values) |
 | `unit` | `utf8` | `StandardizedFact::unit`, never null |
 | `value` | `decimal128(38, 10)` | |
 | `confidence` | `utf8` | `Exact`, `Synonym`, `Derived`, or `Computed` |
@@ -265,22 +268,29 @@ bucket, by their statistics.
 line and no statement layout. The roll-up tree of `xbrl/DESIGN.md`, "Roll-Up Tree", computes both
 at read time.
 
+A bucket of the debt maturity ladder, such as `DebtDueInYearTwo`, is an instant row at the fiscal
+year end, with `quarters` 0. The bucket is part of `concept`, so the ladder needs no new column. A
+bucket that the filer does not tag has no row, never a row of zero (`xbrl/DESIGN.md`, "Debt
+Maturities").
+
 `standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
 entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. The current value of a key is
-its row with the latest `computed_at`, unless that row has `change` = `removed`.
+its row with the latest `computed_at`, unless that row has `change` = `removed`. A read of the
+consolidated values takes the rows with empty `dimensions`. Silver stores no line of the segment
+reconciliation.
 
 ### `findings`
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
-| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, or `MixedStarts` |
+| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` |
 | `entity_scheme`, `entity_id` | `utf8` | |
-| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table |
+| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table. For `SumMismatch`, the total of the sum, then its parts, for example `LongTermDebtIncludingCurrentMaturities` and the six buckets of the ladder in the order of `xbrl/DESIGN.md`, "Debt Maturities" |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity. For `SumMismatch`, the name of the sum, for example `debt-maturities` |
 | `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
-| `confidence` | `utf8`, nullable | For `RollUpMismatch` and `NegativeOther`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
+| `confidence` | `utf8`, nullable | For `RollUpMismatch`, `NegativeOther`, and `SumMismatch`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
 | `step` | `utf8` | `filing` or `series` |
 | `change` | `utf8`, nullable | `new`, `changed`, or `resolved` for a series row. Null for a filing row |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
@@ -336,7 +346,7 @@ The row key of `content_digest`, by dataset:
 
 - `as_is_facts`: the value key.
 - `filings`: `filing_id`.
-- `candidates`: `filing_id`, then `concept`.
+- `candidates`: `filing_id`, then `concept`, then `dimensions`.
 - `standardized_facts` and `findings`: the key in the section of the dataset. A row without
   `filing_id` falls in the digest group of its entity.
 - `taxonomy_elements`: the digest group is the release. Rows sort by `concept_family`, then by

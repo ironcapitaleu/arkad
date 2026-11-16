@@ -20,11 +20,11 @@ use uuid::Uuid;
 
 use sec::implementations::states::extract::filing::ExtractFilingSuperState;
 use sec::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+use sec::shared::accession_number::AccessionNumber;
 use sec::shared::cik::Cik;
 use sec::shared::filing_documents_ref::FilingDocumentsRef;
 use sec::shared::filing_ref::FilingRef;
-use sec::shared::financial::accession_number::AccessionNumber;
-use sec::shared::financial::form::{Form, ParsedForm};
+use sec::shared::form::{Form, ParsedForm};
 use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::raw_document::RawDocument;

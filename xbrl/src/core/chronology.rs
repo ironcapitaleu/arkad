@@ -10,14 +10,14 @@ use chrono::{Months, NaiveDate};
 
 use super::candidate::SeriesKey;
 use super::dedup::Series;
-use super::elements::CanonicalElementKind;
+use super::elements::{Cadence, CanonicalElementKind};
 use super::fact::Dimensions;
 use super::filing::{EntityId, Filing};
 use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
 use super::fiscal_year_end::FiscalYearEnd;
 use super::form::Form;
-use super::period::{Duration, Period, TOLERANCE_DAYS, days_of_quarters};
+use super::period::{Duration, Period, TOLERANCE_DAYS, days_of_quarters, is_near};
 use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
 
@@ -58,8 +58,8 @@ pub struct Chronology {
     pub findings: Vec<Finding>,
 }
 
-/// Checks the values of each entity, concept, unit, and dimensions over time, and returns them
-/// with the findings. The check reports and never fails.
+/// Checks the values without dimensions of each entity, concept, and unit over time, and returns
+/// all values of `series` with the findings. The check reports and never fails.
 ///
 /// The forms the entity files give the expected periods. An entity that files a `10-Q` expects
 /// `Q1`, `Q2`, `Q3`, and `FY` in the years it closes with a `10-K` or `10-KT`. A filer of only
@@ -70,7 +70,9 @@ pub struct Chronology {
 /// After the last year end, it steps forward up to the latest period of report: every 3 months if
 /// the last annual report is a `10-K` or `10-KT` and the entity filed any quarterly report,
 /// otherwise every 12 months. The period of report of a quarterly report replaces the expected end
-/// within 7 days of it, or adds one. Every timeline of the entity expects the same periods.
+/// within 7 days of it, or adds one. Every timeline of the entity expects the same periods, except
+/// a timeline whose concept has the cadence [`Cadence::FiscalYearEnd`]: it expects only the fiscal
+/// year ends.
 ///
 /// - A **gap** is an expected period between the first and the last filled period, with no value
 ///   that ends within 7 days of it. A value of any length fills it. A blocked value gives the
@@ -100,7 +102,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
         series
             .facts
             .iter()
-            .filter(|fact| fact.restated)
+            .filter(|fact| fact.restated && fact.dimensions.is_empty())
             .map(|fact| Finding::Restatement {
                 key: fact.series_key(),
             }),
@@ -113,7 +115,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
     }
 }
 
-/// The values of one entity, concept, unit, and dimensions over time.
+/// The values without dimensions of one entity, concept, and unit over time.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Timeline {
     entity: EntityId,
@@ -156,13 +158,21 @@ struct Ends {
 
 fn timelines(series: &Series) -> BTreeMap<Timeline, Ends> {
     let mut timelines: BTreeMap<Timeline, Ends> = BTreeMap::new();
-    for fact in &series.facts {
+    for fact in series
+        .facts
+        .iter()
+        .filter(|fact| fact.dimensions.is_empty())
+    {
         let key = fact.series_key();
         let ends = timelines.entry(Timeline::of(&key)).or_default();
         ends.reported.insert((key.period_end, key.quarters));
         ends.has_duration |= matches!(fact.period, Period::Duration(_));
     }
-    for key in &series.blocked {
+    for key in series
+        .blocked
+        .iter()
+        .filter(|key| key.dimensions.is_empty())
+    {
         let ends = timelines.entry(Timeline::of(key)).or_default();
         ends.blocked.insert(key.period_end);
     }
@@ -170,18 +180,19 @@ fn timelines(series: &Series) -> BTreeMap<Timeline, Ends> {
 }
 
 fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
-    let filled = |expected: &Expected| {
+    let expected = calendar.expected_for(timeline.concept);
+    let filled = |expected: &&Expected| {
         ends.reported
             .iter()
             .any(|(end, _)| is_near(*end, expected.end))
     };
     let (Some(first), Some(last)) = (
-        calendar.expected.iter().position(filled),
-        calendar.expected.iter().rposition(filled),
+        expected.iter().position(filled),
+        expected.iter().rposition(filled),
     ) else {
         return Vec::new();
     };
-    calendar.expected[first..last]
+    expected[first..last]
         .iter()
         .filter(|expected| !filled(expected))
         .map(|expected| Finding::Gap {
@@ -224,16 +235,14 @@ fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
     findings
 }
 
-fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
-    (left - right).num_days().abs() <= TOLERANCE_DAYS
-}
-
-/// One expected period: its end, its fiscal period, if it is known, and its length in quarters.
+/// One expected period: its end, its fiscal period, if it is known, its length in quarters, and
+/// whether it ends a fiscal year.
 #[derive(Debug, Clone)]
 struct Expected {
     end: NaiveDate,
     fiscal_period: Option<FiscalPeriod>,
     quarters: u16,
+    is_fiscal_year_end: bool,
 }
 
 /// The expected periods of one entity, sorted by end, and the spans in which it changed its
@@ -271,6 +280,7 @@ impl Calendar {
                 end: year_end,
                 fiscal_period: fiscal_period(0),
                 quarters: year_length(&filings, previous, year_end),
+                is_fiscal_year_end: true,
             });
             previous = Some(year_end);
         }
@@ -297,6 +307,7 @@ impl Calendar {
                     end: report,
                     fiscal_period: filing.fiscal_period.clone(),
                     quarters: QUARTER_LENGTH,
+                    is_fiscal_year_end: false,
                 }),
             }
         }
@@ -305,6 +316,18 @@ impl Calendar {
             expected,
             changes: changes(&filings),
         }
+    }
+
+    /// Returns the expected periods of a timeline of `concept`: only the fiscal year ends if the
+    /// concept has the cadence [`Cadence::FiscalYearEnd`], otherwise every expected period.
+    fn expected_for(&self, concept: CanonicalElementKind) -> Vec<&Expected> {
+        self.expected
+            .iter()
+            .filter(|expected| match concept.cadence() {
+                Cadence::EveryPeriod => true,
+                Cadence::FiscalYearEnd => expected.is_fiscal_year_end,
+            })
+            .collect()
     }
 
     /// Returns the reason of a gap at `end`. [`GapReason::Conflict`] wins over
@@ -383,6 +406,7 @@ fn steps_back(previous: NaiveDate, year_end: NaiveDate, step: u16) -> Vec<Expect
                 end,
                 fiscal_period: fiscal_period(months),
                 quarters: step,
+                is_fiscal_year_end: months % YEAR_MONTHS == 0,
             })
         })
         .collect()
@@ -399,6 +423,7 @@ fn steps_forward(last: NaiveDate, latest: NaiveDate, step: u16) -> Vec<Expected>
                 end,
                 fiscal_period: fiscal_period((YEAR_MONTHS - months % YEAR_MONTHS) % YEAR_MONTHS),
                 quarters: step,
+                is_fiscal_year_end: months % YEAR_MONTHS == 0,
             })
         })
         .collect()
@@ -455,10 +480,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::core::elements::IncomeStatementConcept;
+    use crate::core::elements::{DebtMaturityConcept, IncomeStatementConcept};
     use crate::core::finding::PeriodSignal;
     use crate::core::standardized::StandardizedFact;
-    use crate::tests::fixtures::sample_fact::{date, fact, filing, source, standardized};
+    use crate::tests::fixtures::sample_fact::{
+        date, fact, filing, in_cloud_segment, source, standardized,
+    };
 
     fn value(end: NaiveDate, quarters: u16) -> StandardizedFact {
         standardized(
@@ -541,6 +568,23 @@ mod tests {
         let filings = quarterly_filings();
 
         let expected_result = vec![gap(date(2024, 3, 30), "Q2", 1, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_gap_when_the_series_carries_a_business_segment() {
+        let facts = in_cloud_segment(vec![
+            value(date(2023, 9, 30), 4),
+            value(date(2023, 12, 30), 1),
+            value(date(2024, 6, 29), 1),
+            value(date(2024, 9, 28), 4),
+        ]);
+        let filings = quarterly_filings();
+
+        let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -671,6 +715,20 @@ mod tests {
     }
 
     #[test]
+    fn should_report_no_overlap_when_the_series_carries_a_business_segment() {
+        let facts = in_cloud_segment(vec![
+            value(date(2022, 12, 31), 4),
+            value(date(2023, 6, 30), 4),
+        ]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_report_no_overlap_when_52_53_week_years_follow_each_other() {
         let facts = vec![value(date(2023, 9, 30), 4), value(date(2024, 9, 28), 4)];
 
@@ -691,6 +749,34 @@ mod tests {
         }];
 
         let result = check_chronology(series(vec![restated], Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_restatement_when_the_restated_value_carries_a_business_segment() {
+        let mut restated = value(date(2024, 9, 28), 4);
+        restated.restated = true;
+        let facts = in_cloud_segment(vec![restated]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_suspicious_period_when_the_value_carries_a_business_segment() {
+        let report = filing("10-K", date(2025, 12, 31), "1231");
+        // 7,297 quarters before the end of 2024 start in the year 200, as in a real 10-K.
+        let mut flagged = value(date(2024, 12, 31), 7297);
+        flagged.inputs[0].filing = report.id.clone();
+        let facts = in_cloud_segment(vec![flagged]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[report], Vec::new()).findings;
 
         assert_eq!(result, expected_result);
     }
@@ -1019,6 +1105,125 @@ mod tests {
         let filings = quarterly_filings();
 
         let expected_result = vec![gap(date(2024, 3, 30), "Q2", 1, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns the standardized value of `concept` at the instant `end`.
+    fn debt_value(concept: DebtMaturityConcept, end: NaiveDate) -> StandardizedFact {
+        let mut debt = standardized(Period::Instant { end }, "500000000");
+        debt.concept = concept.element();
+        debt
+    }
+
+    /// Returns the gap of `concept` at the instant `end` with the fiscal period `fiscal_period`.
+    fn debt_gap(concept: DebtMaturityConcept, end: NaiveDate, fiscal_period: &str) -> Finding {
+        let template = debt_value(concept, end);
+        Finding::Gap {
+            entity: template.entity,
+            concept: template.concept,
+            unit: template.unit,
+            dimensions: Dimensions::default(),
+            period_end: end,
+            fiscal_period: Some(FiscalPeriod::new(fiscal_period).expect(
+                "Given a hardcoded period without whitespace, the creation should always succeed",
+            )),
+            quarters: 0,
+            reason: None,
+        }
+    }
+
+    #[test]
+    fn should_report_no_gap_for_a_bucket_when_a_10_q_filer_reports_the_ladder_in_each_10_k() {
+        let facts = vec![
+            debt_value(DebtMaturityConcept::DebtDueInYearTwo, date(2023, 9, 30)),
+            debt_value(DebtMaturityConcept::DebtDueInYearTwo, date(2024, 9, 28)),
+        ];
+        let filings = quarterly_filings();
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_gap_for_each_quarter_of_the_total_when_a_10_q_filer_reports_it_only_in_each_10_k()
+     {
+        let total = DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities;
+        let facts = vec![
+            debt_value(total, date(2023, 9, 30)),
+            debt_value(total, date(2024, 9, 28)),
+        ];
+        let filings = quarterly_filings();
+
+        let expected_result = vec![
+            debt_gap(total, date(2023, 12, 30), "Q1"),
+            debt_gap(total, date(2024, 3, 30), "Q2"),
+            debt_gap(total, date(2024, 6, 29), "Q3"),
+        ];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_gap_for_a_bucket_when_a_fiscal_year_end_between_its_values_has_no_value() {
+        let bucket = DebtMaturityConcept::DebtDueInYearOne;
+        let facts = vec![
+            debt_value(bucket, date(2022, 9, 24)),
+            debt_value(bucket, date(2024, 9, 28)),
+        ];
+        let mut filings = vec![filing("10-K", date(2022, 9, 24), "0930")];
+        filings.extend(quarterly_filings());
+
+        let expected_result = vec![debt_gap(bucket, date(2023, 9, 30), "FY")];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_gap_for_a_bucket_when_a_20_f_filer_misses_a_fiscal_year_end() {
+        let bucket = DebtMaturityConcept::DebtDueInYearOne;
+        let facts = vec![
+            debt_value(bucket, date(2022, 9, 24)),
+            debt_value(bucket, date(2024, 9, 28)),
+        ];
+        let filings = vec![
+            filing("20-F", date(2022, 9, 24), "0930"),
+            filing("20-F", date(2024, 9, 28), "0930"),
+        ];
+
+        let expected_result = vec![debt_gap(bucket, date(2023, 9, 28), "FY")];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_gap_for_a_bucket_when_a_10_q_filer_misses_the_fiscal_year_end_after_its_last_10_k()
+     {
+        // The 10-K for 2024 is missing from the filings, so the calendar steps forward past the
+        // year ends 2023 and 2024. The test checks only how the calendar marks those steps.
+        let bucket = DebtMaturityConcept::DebtDueInYearOne;
+        let facts = vec![
+            debt_value(bucket, date(2022, 9, 24)),
+            debt_value(bucket, date(2024, 9, 24)),
+        ];
+        let filings = vec![
+            filing("10-K", date(2022, 9, 24), "0930"),
+            filing("10-Q", date(2022, 12, 24), "0930"),
+            filing("10-Q", date(2024, 12, 24), "0930"),
+        ];
+
+        let expected_result = vec![debt_gap(bucket, date(2023, 9, 24), "FY")];
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 

@@ -86,8 +86,8 @@ mod tests {
     use super::*;
     use crate::error::state_machine::state::{FailedDocumentSelection, FailedRequestExecution};
     use crate::prelude::StreamEvent;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::filing_documents::{FilingDocumentRole, FilingDocumentsError};
-    use crate::shared::financial::accession_number::AccessionNumber;
     use crate::shared::http_client::implementations::sec_client::error::FailedSecRequest;
     use crate::shared::response::implementations::sec_response::error::{
         ErrorReason, InvalidSecResponse,

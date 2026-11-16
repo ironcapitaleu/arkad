@@ -150,10 +150,10 @@ mod tests {
         ExecuteSecRequestContext, ExecuteSecRequestInput,
     };
     use crate::prelude::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::{FilingDocumentSetRef, FilingDocuments};
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::user_agent::UserAgent;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use crate::tests::fixtures::sample_write_repository::{

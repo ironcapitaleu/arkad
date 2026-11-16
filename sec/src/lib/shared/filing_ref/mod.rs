@@ -11,9 +11,9 @@ use std::ops::RangeInclusive;
 use chrono::NaiveDate;
 use serde::Serialize;
 
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::cik::Cik;
-use crate::shared::financial::accession_number::AccessionNumber;
-use crate::shared::financial::form::{Form, ParsedForm, SELECTED_FORMS, UnsupportedForm};
+use crate::shared::form::{Form, ParsedForm, SELECTED_FORMS, UnsupportedForm};
 use crate::shared::form_index_row::FormIndexRow;
 
 /// The filer, the accession number, the form, and the date filed of one filing to fetch.

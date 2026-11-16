@@ -1,12 +1,11 @@
 //! # Parse Company Facts State
 //!
-//! Provides the [`ParseCompanyFacts`] state, which resolves raw SEC Company Facts JSON into
-//! strongly-typed [`CompanyData`].
+//! Provides the [`ParseCompanyFacts`] state, which parses the SEC Company Facts JSON into
+//! [`CompanyData`].
 //!
-//! The SEC returns facts as deeply-nested XBRL JSON keyed by namespace and concept alias.
-//! This state walks that structure, resolving each required and optional concept into typed
-//! observations, and fails if any required concept is absent. Turning loosely-typed JSON into
-//! [`CompanyData`] here means the financial-statements state can work with validated domain types.
+//! The state calls the Company Facts parser of `xbrl` and keeps every fact of every form,
+//! amendment, unit, and namespace. It fails if the body is about another company than the CIK
+//! of its context, or if a required standard concept has no `us-gaap` fact.
 //!
 //! ## Modules
 //!
@@ -17,39 +16,27 @@
 //! ## See Also
 //!
 //! - [`crate::implementations::states::transform`]: Parent module describing the transform flow.
-//! - [`crate::shared::financial`]: The financial domain types this state produces.
+//! - [`crate::shared::company_data`]: The [`CompanyData`] this state produces.
 //! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`ParseCompanyFacts`].
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt;
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
+use xbrl::adapter::edgar::company_facts;
+use xbrl::core::entity_name::EntityName;
+use xbrl::core::fact::AsIsFact;
+use xbrl::us_gaap::mappings::{PART_CONCEPTS, PartDefinition, REQUIRED_CONCEPTS};
 
 use crate::error::State as StateError;
+use crate::error::state_machine::state::failed_company_facts_parse::FailedCompanyFactsParse;
 use crate::error::state_machine::state::incomplete_company_facts::{
     IncompleteCompanyFacts, MissingFields,
 };
-use crate::shared::cik::Cik;
-use crate::shared::financial::accession_number::AccessionNumber;
-use crate::shared::financial::company_data::CompanyData;
-use crate::shared::financial::company_fact::CompanyFact;
-use crate::shared::financial::concept_definition::ConceptDefinition;
-use crate::shared::financial::concept_definition::constants::{
-    COMPANY_INFO_NAMESPACE, OPTIONAL_CONCEPTS, REQUIRED_CONCEPTS, REQUIRED_FACTS_NAMESPACE,
-    SHARES_OUTSTANDING,
-};
-use crate::shared::financial::entity_name::EntityName;
-use crate::shared::financial::filing_source::FilingSource;
-use crate::shared::financial::fiscal_period::FiscalPeriod;
-use crate::shared::financial::fiscal_year::FiscalYear;
-use crate::shared::financial::form::Form;
-use crate::shared::financial::frame::Frame;
-use crate::shared::financial::observation::Observation;
-use crate::shared::financial::period::Period;
-use crate::shared::financial::unit::Unit;
+use crate::error::state_machine::state::unexpected_cik::UnexpectedCik;
+use crate::shared::company_data::CompanyData;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -62,12 +49,10 @@ pub use data::ParseCompanyFactsInput;
 pub use data::ParseCompanyFactsOutput;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-/// Resolves Company Facts JSON into [`CompanyData`].
+/// Parses the Company Facts JSON into [`CompanyData`].
 ///
-/// Reads the CIK, entity name, and facts from the SEC JSON, then resolves each required and
-/// optional XBRL concept by trying its key aliases across the relevant namespaces and
-/// collecting the matching observations. The computation fails if any *required* concept is
-/// absent, so a successful output is guaranteed to carry the full required fact set.
+/// A successful output holds every fact of the body, is about the CIK of the context, and has a
+/// `us-gaap` fact for each required standard concept.
 pub struct ParseCompanyFacts {
     input: ParseCompanyFactsInput,
     context: ParseCompanyFactsContext,
@@ -120,189 +105,77 @@ impl ParseCompanyFacts {
     }
 }
 
-/// Attempts to parse a date string in `YYYY-MM-DD` format into a [`NaiveDate`].
-fn parse_date(s: &str) -> Option<NaiveDate> {
-    NaiveDate::parse_from_str(s, "%Y-%m-%d").ok()
-}
-
-/// Builds the [`Period`] for an observation entry from the SEC JSON.
+/// Returns the labels of the required standard concepts that no `us-gaap` fact reports.
 ///
-/// SEC data uses `"end"` for all entries and optionally `"start"` for duration measurements.
-/// If `"start"` is present, it is a duration; otherwise, it is an instant.
-fn build_period(entry: &serde_json::Value) -> Option<Period> {
-    let end = parse_date(entry.get("end")?.as_str()?)?;
-    if let Some(start_val) = entry.get("start") {
-        let start = parse_date(start_val.as_str()?)?;
-        Some(Period::Duration { start, end })
-    } else {
-        Some(Period::Instant { date: end })
-    }
-}
+/// A standard concept is reported if a `us-gaap` fact has a local name in its `xbrl_keys` or in
+/// the parts of its [`PART_CONCEPTS`] entry.
+fn missing_required_concepts(facts: &[AsIsFact]) -> Vec<String> {
+    let reported: HashSet<&str> = facts
+        .iter()
+        .filter(|fact| fact.concept.family().as_str() == constants::US_GAAP_FAMILY)
+        .map(|fact| fact.concept.local_name())
+        .collect();
 
-/// The forms whose facts this state keeps. Amendments are dropped.
-///
-/// Deviation: this is narrower than [`SELECTED_FORMS`](crate::shared::financial::form::SELECTED_FORMS).
-/// Widening it changes the Company Facts output and needs a rule for facts that amendments
-/// duplicate. STA-332 decides both.
-const COMPANY_FACTS_FORMS: [Form; 2] = [Form::TenK, Form::TenQ];
-
-/// Builds a [`FilingSource`] from an SEC observation JSON entry.
-///
-/// Returns `None` for a form outside [`COMPANY_FACTS_FORMS`], for an amendment, and for a
-/// missing or malformed field, such as an `accn` that [`AccessionNumber::new`] rejects.
-fn build_filing_source(entry: &serde_json::Value) -> Option<FilingSource> {
-    let accn = AccessionNumber::new(entry.get("accn")?.as_str()?).ok()?;
-    let parsed_form = Form::from_sec_str(entry.get("form")?.as_str()?).ok()?;
-    if parsed_form.is_amendment() || !COMPANY_FACTS_FORMS.contains(&parsed_form.form()) {
-        return None;
-    }
-    let form = parsed_form.form();
-    let fy = FiscalYear::try_from(entry.get("fy")?.as_u64()?).ok()?;
-    let fp = FiscalPeriod::from_sec_str(entry.get("fp")?.as_str()?)?;
-    let filed = parse_date(entry.get("filed")?.as_str()?)?;
-    let end = parse_date(entry.get("end")?.as_str()?)?;
-
-    Some(FilingSource::new(accn, form, fy, fp, filed, end))
-}
-
-/// Parses a single observation entry from the SEC JSON unit array.
-fn parse_observation(entry: &serde_json::Value, unit: Unit) -> Option<Observation> {
-    let value = entry.get("val")?.as_i64()?;
-    let period = build_period(entry)?;
-    let frame = entry
-        .get("frame")
-        .and_then(serde_json::Value::as_str)
-        .and_then(Frame::parse);
-    let filing = build_filing_source(entry)?;
-
-    Some(Observation::new(value, unit, period, frame, filing))
-}
-
-/// Determines the JSON namespace key for a given concept definition.
-///
-/// Returns the namespaces to search for a concept, in priority order.
-///
-/// Most concepts live in `us-gaap`. The `SHARES_OUTSTANDING` concept is searched
-/// in `dei` first (where `EntityCommonStockSharesOutstanding` lives), then falls
-/// back to `us-gaap` (where `CommonStockSharesOutstanding` lives for some companies).
-fn namespaces_for_concept(concept: &ConceptDefinition) -> &'static [&'static str] {
-    if concept.canonical_name() == SHARES_OUTSTANDING {
-        &[COMPANY_INFO_NAMESPACE, REQUIRED_FACTS_NAMESPACE]
-    } else {
-        &[REQUIRED_FACTS_NAMESPACE]
-    }
-}
-
-/// Attempts to resolve a [`ConceptDefinition`] from the SEC facts JSON.
-///
-/// Searches across all applicable namespaces and XBRL key aliases.
-/// Returns `Some(CompanyFact)` if the concept was found,
-/// or `None` if none of the aliases matched in any namespace.
-fn resolve_concept(
-    facts: &serde_json::Value,
-    concept: &'static ConceptDefinition,
-) -> Option<CompanyFact> {
-    for namespace in namespaces_for_concept(concept) {
-        let Some(namespace_data) = facts.get(namespace) else {
-            continue;
-        };
-
-        for &xbrl_key in concept.xbrl_keys() {
-            if let Some(concept_data) = namespace_data.get(xbrl_key) {
-                let company_label = concept_data
-                    .get("label")
-                    .and_then(serde_json::Value::as_str)
-                    .unwrap_or_else(|| concept.canonical_name())
-                    .to_string();
-
-                let unit_key = concept.expected_unit().to_string();
-                let units_data = concept_data.get("units")?;
-                let unit_array = units_data.get(&unit_key)?.as_array()?;
-
-                let observations: Vec<Observation> = unit_array
-                    .iter()
-                    .filter_map(|entry| parse_observation(entry, concept.expected_unit()))
-                    .collect();
-
-                return Some(CompanyFact::new(
-                    company_label,
-                    xbrl_key.to_string(),
-                    observations,
-                ));
-            }
-        }
-    }
-
-    None
+    REQUIRED_CONCEPTS
+        .iter()
+        .filter(|definition| {
+            let parts = PART_CONCEPTS
+                .iter()
+                .filter(|part| part.canonical_element() == definition.canonical_element())
+                .flat_map(PartDefinition::parts);
+            !definition
+                .xbrl_keys()
+                .iter()
+                .chain(parts)
+                .any(|name| reported.contains(name))
+        })
+        .map(|definition| definition.canonical_element().to_string())
+        .collect()
 }
 
 #[async_trait]
 impl State for ParseCompanyFacts {
-    /// Resolves the Company Facts JSON into [`CompanyData`] and stores it as output.
+    /// Parses the Company Facts JSON into [`CompanyData`] and stores it as output.
     ///
     /// # Errors
     ///
-    /// Returns [`StateError::IncompleteCompanyFacts`] when a required concept is missing, or
-    /// [`StateError::FailedOutputComputation`] when the JSON lacks the expected top-level
-    /// structure (`cik`, `entityName`, or `facts`).
+    /// Returns [`StateError::FailedCompanyFactsParse`] when the parser rejects the JSON,
+    /// [`StateError::UnexpectedCik`] when the body is about another CIK than the context, and
+    /// [`StateError::IncompleteCompanyFacts`] when a required standard concept has no `us-gaap`
+    /// fact.
     async fn compute_output_data_async(&mut self) -> Result<(), StateError> {
+        let state_name = self.state_name().to_string();
         let response = &self.input.response;
+        let cik = self.context.cik();
 
-        // Validate top-level structure
-        let obj = response
-            .as_object()
-            .ok_or(StateError::FailedOutputComputation)?;
+        let parsed = company_facts::parse(response)
+            .map_err(|error| FailedCompanyFactsParse::new(&state_name, error))?;
+        let entity_name = company_facts::extract_entity_name(response)
+            .map_err(|error| FailedCompanyFactsParse::new(&state_name, error))?;
 
-        let cik_value = obj.get("cik").ok_or(StateError::FailedOutputComputation)?;
-
-        let cik_str = if let Some(n) = cik_value.as_u64() {
-            n.to_string()
-        } else if let Some(s) = cik_value.as_str() {
-            s.to_string()
-        } else {
-            return Err(StateError::FailedOutputComputation);
-        };
-
-        let cik = Cik::new(&cik_str).map_err(|_| StateError::FailedOutputComputation)?;
-
-        let entity_name_str = obj
-            .get("entityName")
-            .and_then(serde_json::Value::as_str)
-            .ok_or(StateError::FailedOutputComputation)?;
-
-        let entity_name = EntityName::new(entity_name_str);
-
-        let facts = obj
-            .get("facts")
-            .ok_or(StateError::FailedOutputComputation)?;
-
-        // Resolve required and optional concepts
-        let mut resolved_facts: HashMap<&'static ConceptDefinition, CompanyFact> = HashMap::new();
-        let mut missing_fields: Vec<String> = Vec::new();
-
-        for concept in REQUIRED_CONCEPTS {
-            if let Some(fact) = resolve_concept(facts, concept) {
-                resolved_facts.insert(concept, fact);
-            } else {
-                missing_fields.push(concept.canonical_name().to_string());
-            }
+        // `parse` has checked that `cik` is a number, and gives each fact this CIK as its entity.
+        let found = response
+            .get(company_facts::KEY_CIK)
+            .and_then(serde_json::Value::as_u64)
+            .map(|number| format!("{number:010}"))
+            .unwrap_or_default();
+        if found != *cik.value() {
+            return Err(UnexpectedCik::new(state_name, cik.clone(), found).into());
         }
 
-        if !missing_fields.is_empty() {
-            let error = IncompleteCompanyFacts::new(
-                self.state_name().to_string(),
-                MissingFields::new(missing_fields),
+        let missing = missing_required_concepts(&parsed.facts);
+        if !missing.is_empty() {
+            return Err(
+                IncompleteCompanyFacts::new(state_name, MissingFields::new(missing)).into(),
             );
-            return Err(error.into());
         }
 
-        for concept in OPTIONAL_CONCEPTS {
-            if let Some(fact) = resolve_concept(facts, concept) {
-                resolved_facts.insert(concept, fact);
-            }
-        }
-
-        let company_data = CompanyData::new(cik, entity_name, resolved_facts);
+        let company_data = CompanyData::new(
+            cik.clone(),
+            EntityName::new(entity_name),
+            parsed.facts,
+            parsed.filings,
+        );
         self.output = Some(ParseCompanyFactsOutput::new(company_data));
 
         Ok(())
@@ -383,10 +256,13 @@ mod tests {
     use pretty_assertions::assert_eq;
     use storage::shared::Sha256Digest;
     use tokio;
+    use xbrl::error::parsing::ParseErrorKind;
 
     use super::*;
     use crate::shared::cik::Cik;
-    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
+    use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK;
+
+    const APPLE_CIK: &str = "0000320193";
 
     fn test_input() -> ParseCompanyFactsInput {
         let json = serde_json::json!({});
@@ -395,9 +271,13 @@ mod tests {
     }
 
     fn test_context() -> ParseCompanyFactsContext {
-        let cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
-            .expect("Hardcoded Berkshire Hathaway CIK should always be valid");
+        let cik = Cik::new(APPLE_CIK).expect("Hardcoded Apple CIK should always be valid");
         ParseCompanyFactsContext::new(cik)
+    }
+
+    fn input_of(json: serde_json::Value) -> ParseCompanyFactsInput {
+        let digest = Sha256Digest::of(json.to_string());
+        ParseCompanyFactsInput::new(json, digest)
     }
 
     fn get_baseline_parse_state() -> ParseCompanyFacts {
@@ -407,6 +287,9 @@ mod tests {
     }
 
     /// Creates a minimal valid SEC Company Facts JSON for testing.
+    ///
+    /// It reports Net Income and Equity only by their parts, `NetIncomeLoss` and
+    /// `StockholdersEquity`, so the required check passes only if it counts parts.
     #[allow(clippy::too_many_lines)]
     fn get_baseline_company_facts_json() -> serde_json::Value {
         serde_json::json!({
@@ -625,83 +508,6 @@ mod tests {
         })
     }
 
-    fn get_observation_entry_with_form(form: &str) -> serde_json::Value {
-        serde_json::json!({
-            "end": "2023-09-30",
-            "val": 1,
-            "accn": "0000320193-23-000106",
-            "fy": 2023,
-            "fp": "FY",
-            "form": form,
-            "filed": "2023-11-03"
-        })
-    }
-
-    #[test]
-    fn should_build_filing_source_when_form_is_10q() {
-        let entry = get_observation_entry_with_form("10-Q");
-
-        let expected_result = Some(FilingSource::new(
-            AccessionNumber::new("0000320193-23-000106").expect(
-                "Given a hardcoded accession number of the right shape, creation should always succeed",
-            ),
-            Form::TenQ,
-            FiscalYear::from(2023_u16),
-            FiscalPeriod::Fy,
-            NaiveDate::from_ymd_opt(2023, 11, 3).expect("Hardcoded date should always be valid"),
-            NaiveDate::from_ymd_opt(2023, 9, 30).expect("Hardcoded date should always be valid"),
-        ));
-
-        let result = build_filing_source(&entry);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_drop_filing_source_when_accn_is_malformed() {
-        let mut entry = get_observation_entry_with_form("10-Q");
-        entry["accn"] = serde_json::json!("0000320193-23-00010");
-
-        let expected_result = None;
-
-        let result = build_filing_source(&entry);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_drop_filing_source_when_form_is_10k_amendment() {
-        let entry = get_observation_entry_with_form("10-K/A");
-
-        let expected_result = None;
-
-        let result = build_filing_source(&entry);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_drop_filing_source_when_form_is_20f() {
-        let entry = get_observation_entry_with_form("20-F");
-
-        let expected_result = None;
-
-        let result = build_filing_source(&entry);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_drop_filing_source_when_form_is_40f() {
-        let entry = get_observation_entry_with_form("40-F");
-
-        let expected_result = None;
-
-        let result = build_filing_source(&entry);
-
-        assert_eq!(result, expected_result);
-    }
-
     #[test]
     fn should_return_name_of_parse_state_when_in_parse_state() {
         let parse_state = get_baseline_parse_state();
@@ -777,20 +583,17 @@ mod tests {
             .expect("Output should be present after successful computation")
             .company_data()
             .entity_name()
-            .value();
+            .as_str();
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
-    async fn should_resolve_all_required_concepts_when_computing_valid_json() {
-        let json = get_baseline_company_facts_json();
-        let digest = Sha256Digest::of(json.to_string());
-        let input = ParseCompanyFactsInput::new(json, digest);
-        let context = test_context();
-        let mut parse_state = ParseCompanyFacts::new(input, context);
+    async fn should_keep_every_fact_when_computing_valid_json() {
+        let input = input_of(get_baseline_company_facts_json());
+        let mut parse_state = ParseCompanyFacts::new(input, test_context());
 
-        let expected_result = REQUIRED_CONCEPTS.len();
+        let expected_result = 11;
 
         parse_state
             .compute_output_data_async()
@@ -807,7 +610,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_error_when_required_concept_is_missing() {
+    async fn should_keep_one_filing_per_accession_number_when_computing_valid_json() {
+        let input = input_of(get_baseline_company_facts_json());
+        let mut parse_state = ParseCompanyFacts::new(input, test_context());
+
+        let expected_result = 1;
+
+        parse_state
+            .compute_output_data_async()
+            .await
+            .expect("Valid complete JSON should always parse successfully");
+        let result = parse_state
+            .output_data()
+            .expect("Output should be present after successful computation")
+            .company_data()
+            .filings()
+            .len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_incomplete_company_facts_when_no_required_concept_is_reported() {
         let json = serde_json::json!({
             "cik": 320_193,
             "entityName": "Apple Inc.",
@@ -816,10 +640,7 @@ mod tests {
                 "dei": {}
             }
         });
-        let digest = Sha256Digest::of(json.to_string());
-        let input = ParseCompanyFactsInput::new(json, digest);
-        let context = test_context();
-        let mut parse_state = ParseCompanyFacts::new(input, context);
+        let mut parse_state = ParseCompanyFacts::new(input_of(json), test_context());
 
         let expected_result = Some(StateError::IncompleteCompanyFacts(
             IncompleteCompanyFacts::new(
@@ -827,15 +648,13 @@ mod tests {
                 MissingFields::new(vec![
                     "Revenue".to_string(),
                     "Operating Income".to_string(),
-                    "Income Tax".to_string(),
                     "Net Income".to_string(),
-                    "Total Assets".to_string(),
-                    "Total Liabilities".to_string(),
-                    "Stockholders' Equity".to_string(),
-                    "Cash from Operations".to_string(),
-                    "Cash from Investing".to_string(),
-                    "Cash from Financing".to_string(),
-                    "Shares Outstanding".to_string(),
+                    "Assets".to_string(),
+                    "Liabilities".to_string(),
+                    "Equity".to_string(),
+                    "Operating Cash Flow".to_string(),
+                    "Investing Cash Flow".to_string(),
+                    "Financing Cash Flow".to_string(),
                 ]),
             ),
         ));
@@ -846,12 +665,105 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_incomplete_company_facts_when_required_concept_is_outside_us_gaap() {
+        let mut json = get_baseline_company_facts_json();
+        let assets = json["facts"]["us-gaap"]
+            .as_object_mut()
+            .expect("The baseline JSON should always hold a us-gaap object")
+            .remove("Assets")
+            .expect("The baseline JSON should always hold an Assets concept");
+        json["facts"]["dei"]["Assets"] = assets;
+        let mut parse_state = ParseCompanyFacts::new(input_of(json), test_context());
+
+        let expected_result = Some(StateError::IncompleteCompanyFacts(
+            IncompleteCompanyFacts::new(
+                "Parse Company Facts",
+                MissingFields::new(vec!["Assets".to_string()]),
+            ),
+        ));
+
+        let result = parse_state.compute_output_data_async().await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unexpected_cik_when_facts_are_about_another_company() {
+        let input = input_of(get_baseline_company_facts_json());
+        let berkshire = Cik::new(BERKSHIRE_HATHAWAY_CIK)
+            .expect("Hardcoded Berkshire Hathaway CIK should always be valid");
+        let mut parse_state =
+            ParseCompanyFacts::new(input, ParseCompanyFactsContext::new(berkshire.clone()));
+
+        let expected_result = Some(StateError::UnexpectedCik(UnexpectedCik::new(
+            "Parse Company Facts",
+            berkshire,
+            APPLE_CIK,
+        )));
+
+        let result = parse_state.compute_output_data_async().await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unexpected_cik_when_body_of_another_company_has_no_facts() {
+        let json = serde_json::json!({
+            "cik": 1_067_983,
+            "entityName": "BERKSHIRE HATHAWAY INC",
+            "facts": {}
+        });
+        let mut parse_state = ParseCompanyFacts::new(input_of(json), test_context());
+
+        let expected_result = Some(StateError::UnexpectedCik(UnexpectedCik::new(
+            "Parse Company Facts",
+            Cik::new(APPLE_CIK).expect("Hardcoded Apple CIK should always be valid"),
+            BERKSHIRE_HATHAWAY_CIK,
+        )));
+
+        let result = parse_state.compute_output_data_async().await.err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_facts_of_amendments_and_other_forms_when_computing_valid_json() {
+        let mut json = get_baseline_company_facts_json();
+        let data_points = json["facts"]["us-gaap"]["Assets"]["units"]["USD"]
+            .as_array_mut()
+            .expect("The baseline JSON should always hold an Assets USD array");
+        for (form, accession) in [
+            ("10-K/A", "0000320193-24-000001"),
+            ("10-Q", "0000320193-24-000002"),
+            ("20-F", "0000320193-24-000003"),
+        ] {
+            let mut data_point = data_points[0].clone();
+            data_point["form"] = serde_json::json!(form);
+            data_point["accn"] = serde_json::json!(accession);
+            data_points.push(data_point);
+        }
+        let mut parse_state = ParseCompanyFacts::new(input_of(json), test_context());
+
+        let expected_result = 14;
+
+        parse_state
+            .compute_output_data_async()
+            .await
+            .expect("Valid complete JSON should always parse successfully");
+        let result = parse_state
+            .output_data()
+            .expect("Output should be present after successful computation")
+            .company_data()
+            .facts()
+            .len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let json = get_baseline_company_facts_json();
-        let digest = Sha256Digest::of(json.to_string());
-        let input = ParseCompanyFactsInput::new(json, digest);
-        let context = test_context();
-        let mut parse_state = ParseCompanyFacts::new(input, context);
+        let input = input_of(get_baseline_company_facts_json());
+        let mut parse_state = ParseCompanyFacts::new(input, test_context());
 
         let expected_result = &parse_state.input_data().clone();
 
@@ -865,14 +777,18 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_error_when_response_is_not_an_object() {
-        let json = serde_json::json!("not an object");
-        let digest = Sha256Digest::of(json.to_string());
-        let input = ParseCompanyFactsInput::new(json, digest);
-        let context = test_context();
-        let mut parse_state = ParseCompanyFacts::new(input, context);
+    async fn should_return_failed_company_facts_parse_when_response_is_not_an_object() {
+        let input = input_of(serde_json::json!("not an object"));
+        let mut parse_state = ParseCompanyFacts::new(input, test_context());
 
-        let expected_result = Some(StateError::FailedOutputComputation);
+        let expected_result = Some(StateError::FailedCompanyFactsParse(
+            FailedCompanyFactsParse::new(
+                "Parse Company Facts",
+                ParseErrorKind::InvalidJson {
+                    reason: "Expected a JSON object at the top level".to_string(),
+                },
+            ),
+        ));
 
         let result = parse_state.compute_output_data_async().await.err();
 

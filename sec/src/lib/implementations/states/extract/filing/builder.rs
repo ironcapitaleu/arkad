@@ -329,10 +329,10 @@ where
     /// ```compile_fail,E0599
     /// use chrono::NaiveDate;
     /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_ref::FilingRef;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
-    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::form::{Form, ParsedForm};
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::{RawFilingIndex, RawXbrlInstance, RawXbrlLabels};
@@ -377,10 +377,10 @@ where
     /// ```compile_fail,E0271,E0599
     /// use chrono::NaiveDate;
     /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_ref::FilingRef;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
-    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::form::{Form, ParsedForm};
     /// use sec::shared::http_client::implementations::sec_client::SecClient;
     /// use sec::shared::raw_document::RawDocument;
     /// use sec::shared::raw_source::{RawFilingIndex, RawXbrlInstance, RawXbrlLabels};
@@ -454,9 +454,9 @@ mod tests {
     use storage::WriteError;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;
     use crate::tests::fixtures::sample_input_document::daily_index_inputs;
     use crate::tests::fixtures::sample_write_repository::{

@@ -15,9 +15,9 @@ use super::PENDING_DAYS;
 use crate::error::{State as StateError, StateMachine};
 use crate::implementations::extraction::notes::summary::is_absent_file;
 use crate::prelude::StreamError;
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::cik::Cik;
 use crate::shared::filing_documents::FilingDocumentsError;
-use crate::shared::financial::accession_number::AccessionNumber;
 
 /// The outcome of one date.
 #[derive(Debug)]

@@ -1,7 +1,7 @@
 //! # Create Financial Statements State
 //!
 //! Provides the [`CreateFinancialStatements`] state, which builds financial statements from
-//! parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData).
+//! parsed [`CompanyData`](crate::shared::company_data::CompanyData).
 //!
 //! This state is currently a **scaffold**: it accepts the parsed company data and produces a
 //! placeholder output, with the statement-building logic to be filled in a future iteration.
@@ -16,7 +16,7 @@
 //! ## See Also
 //!
 //! - [`crate::implementations::states::transform`]: Parent module describing the transform flow.
-//! - [`crate::shared::financial::company_data::CompanyData`]: The input data type this state consumes.
+//! - [`crate::shared::company_data::CompanyData`]: The input data type this state consumes.
 //! - [`crate::traits::state_machine::state::State`]: The trait implemented by [`CreateFinancialStatements`].
 
 use std::fmt;
@@ -40,11 +40,11 @@ pub use data::CreateFinancialStatementsOutput;
 use serde::Serialize;
 
 // Deviation: `CreateFinancialStatementsInput` wraps `CompanyData` which uses
-// manual `Hash`, `PartialEq`, `Eq`, `PartialOrd`, `Ord` implementations due to
-// containing a `HashMap`. This struct therefore also uses manual implementations
+// manual `Hash`, `PartialEq`, `Eq`, `PartialOrd`, `Ord` implementations because
+// `AsIsFact` and `Filing` implement no `Ord`. This struct therefore also uses manual implementations
 // for these traits.
 #[derive(Debug, Clone, Serialize)]
-/// Builds financial statements from [`CompanyData`](crate::shared::financial::company_data::CompanyData).
+/// Builds financial statements from [`CompanyData`](crate::shared::company_data::CompanyData).
 ///
 /// A **scaffold**: it accepts the parsed company data and currently produces a placeholder
 /// [`CreateFinancialStatementsOutput`]. The statement-building logic is deferred to a future
@@ -61,16 +61,14 @@ impl CreateFinancialStatements {
     /// # Examples
     ///
     /// ```
-    /// use std::collections::HashMap;
-    ///
     /// use sec::implementations::states::transform::create_financial_statements::*;
     /// use sec::shared::cik::Cik;
-    /// use sec::shared::financial::company_data::CompanyData;
-    /// use sec::shared::financial::entity_name::EntityName;
+    /// use sec::shared::company_data::CompanyData;
     /// use state_maschine::prelude::State as SMState;
+    /// use xbrl::core::entity_name::EntityName;
     ///
     /// let cik = Cik::new("0000320193").expect("A hardcoded valid CIK should always parse");
-    /// let company_data = CompanyData::new(cik.clone(), EntityName::new("Apple Inc."), HashMap::new());
+    /// let company_data = CompanyData::new(cik.clone(), EntityName::new("Apple Inc."), Vec::new(), Vec::new());
     /// let input = CreateFinancialStatementsInput::new(company_data);
     /// let context = CreateFinancialStatementsContext::new(cik);
     /// let state = CreateFinancialStatements::new(input, context);
@@ -222,17 +220,16 @@ impl fmt::Display for CreateFinancialStatements {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
     use tokio;
+    use xbrl::core::entity_name::EntityName;
 
     use super::*;
     use crate::shared::cik::Cik;
     use crate::shared::cik::constants::BERKSHIRE_HATHAWAY_CIK_RAW;
-    use crate::shared::financial::company_data::CompanyData;
-    use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::company_data::CompanyData;
 
     fn test_context() -> CreateFinancialStatementsContext {
         CreateFinancialStatementsContext::new(Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW).expect(
@@ -247,7 +244,8 @@ mod tests {
         CreateFinancialStatementsInput::new(CompanyData::new(
             cik,
             EntityName::new("BERKSHIRE HATHAWAY INC"),
-            HashMap::new(),
+            Vec::new(),
+            Vec::new(),
         ))
     }
 
