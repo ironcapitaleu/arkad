@@ -55,7 +55,8 @@ xbrl/
         mod.rs             <- trait Taxonomy
         family.rs          <- FamilyDeclaration, UriPattern
         reference.rs       <- ConceptAliases, CalculationTree, ElementReference
-        registry.rs        <- Registry, RegistryError
+        registry.rs        <- Registry, Plugin, RegistryError
+        segment.rs         <- trait SegmentAxes, SegmentAxis, MemberRole
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
       alias.rs             <- tiers 1 and 2 on one filing
