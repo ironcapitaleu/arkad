@@ -32,8 +32,8 @@ use crate::error::State as StateError;
 use crate::error::state_machine::state::incomplete_company_facts::{
     IncompleteCompanyFacts, MissingFields,
 };
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::cik::Cik;
-use crate::shared::financial::accession_number::AccessionNumber;
 use crate::shared::financial::company_data::CompanyData;
 use crate::shared::financial::company_fact::CompanyFact;
 use crate::shared::financial::concept_definition::ConceptDefinition;
@@ -45,11 +45,11 @@ use crate::shared::financial::entity_name::EntityName;
 use crate::shared::financial::filing_source::FilingSource;
 use crate::shared::financial::fiscal_period::FiscalPeriod;
 use crate::shared::financial::fiscal_year::FiscalYear;
-use crate::shared::financial::form::Form;
 use crate::shared::financial::frame::Frame;
 use crate::shared::financial::observation::Observation;
 use crate::shared::financial::period::Period;
 use crate::shared::financial::unit::Unit;
+use crate::shared::form::Form;
 use crate::traits::state_machine::state::State;
 
 pub mod constants;
@@ -141,7 +141,7 @@ fn build_period(entry: &serde_json::Value) -> Option<Period> {
 
 /// The forms whose facts this state keeps. Amendments are dropped.
 ///
-/// Deviation: this is narrower than [`SELECTED_FORMS`](crate::shared::financial::form::SELECTED_FORMS).
+/// Deviation: this is narrower than [`SELECTED_FORMS`](crate::shared::form::SELECTED_FORMS).
 /// Widening it changes the Company Facts output and needs a rule for facts that amendments
 /// duplicate. STA-332 decides both.
 const COMPANY_FACTS_FORMS: [Form; 2] = [Form::TenK, Form::TenQ];

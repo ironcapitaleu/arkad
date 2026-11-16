@@ -81,10 +81,10 @@ mod tests {
         SelectFilingDocumentsContext, SelectFilingDocumentsInput,
     };
     use crate::prelude::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::{FilingDocuments, FolderIndex};
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
 
     const ACCESSION_NUMBER: &str = "0000003545-26-000047";
     const OTHER_ACCESSION_NUMBER: &str = "0000003545-26-000048";

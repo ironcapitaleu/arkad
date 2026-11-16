@@ -22,8 +22,8 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::cik::Cik;
-use crate::shared::financial::accession_number::AccessionNumber;
 
 pub mod form_index_error;
 

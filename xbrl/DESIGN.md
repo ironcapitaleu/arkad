@@ -60,6 +60,7 @@ xbrl/
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
       alias.rs             <- tiers 1 and 2 on one filing
+      cadence_filter.rs    <- keep a candidate only at the dates its concept has values
       dedup.rs             <- dedup rules of the standardized layer
       period_identity.rs   <- core/period/q4-from-fy@1
       chronology.rs        <- order over time, gap check
@@ -980,7 +981,12 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   In an interim report, a bucket without "rolling" counts from the fiscal year end, and a rolling
   bucket counts from the balance sheet date. So the two hold different amounts there.
 - A filter after `resolve_aliases` drops the other candidates of a bucket. It reads the `Filing`
-  and the trait `Timed`. `resolve_aliases` and the `Taxonomy` trait do not change.
+  and the trait `Timed`. `resolve_aliases` and the `Taxonomy` trait do not change. The filter is
+  `keep_by_cadence` in `core/cadence_filter.rs`. An instant within 7 days of the period of report
+  counts, because the Notes data set rounds the period of report to the month end. If a filing
+  has no period of report or no fiscal period, the filter drops its bucket candidates. The Company
+  Facts adapter gives no period of report, so the filter drops the bucket candidates of its
+  filings.
 - The total `LongTermDebtIncludingCurrentMaturities` is a balance sheet value. It gets a candidate
   at every balance sheet date, as `LongTermDebt` does.
 - Each annual report gives a new ladder. The series of `DebtDueInYearOne` shows, for each year,
@@ -1090,14 +1096,14 @@ pub trait Timed: Concept {
   `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
   `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
 - The middle macro registers the traits of each innermost enum, as in
-  `DebtMaturities(DebtMaturityConcept): Summed, Timed`. From this list it generates
+  `DebtMaturities(DebtMaturityConcept): Summed + Timed`. From this list it generates
   `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
   generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`.
 - The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
   series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
   adds its enum, its impls, and its macro entry. None of the three callers changes.
 - A test in each module with `impl Timed` walks `ALL` and compares
-  `CanonicalElementKind::from(c).cadence()` with `c.cadence()`. A test in each module with
+  `c.element().cadence()` with `c.cadence()`. A test in each module with
   `impl Summed` shows that `check_all_sums` gives a `SumMismatch` for a sum that does not add up.
   So a missing macro entry fails a test.
 - `SumMismatch` is the finding of every sum. Its `reason` holds the `SUM_NAME`, so a reader
@@ -2868,8 +2874,8 @@ The table in "Order of the Pull Requests" names the ticket of each step.
 
 | `sec` type | Plan | Type that replaces it |
 | ---------- | ---- | --------------------- |
-| `AccessionNumber` | Keep. Move to `sec::shared::accession_number` | None |
-| `Form` | Keep. Move to `sec::shared::form` | None |
+| `AccessionNumber` | Keep. In `sec::shared::accession_number` | None |
+| `Form` | Keep. In `sec::shared::form` | None |
 | `CompanyData` | Keep. Change its fields | None |
 | `CompanyFact` | Delete | The `AsIsFact` values of one concept |
 | `ConceptDefinition` and its constants | Delete | `xbrl::us_gaap::mappings::ConceptDefinition`, `REQUIRED_CONCEPTS`, `OPTIONAL_CONCEPTS` |
@@ -2948,11 +2954,11 @@ the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec
   type of its input changes.
 - The transition from `ParseCompanyFacts` to `CreateFinancialStatements`, and the `Transform`
   super state.
-- The 37 files that name the paths `financial::accession_number` or `financial::form` change
-  83 lines. This set holds `sec/tests/extract_filing.rs`, and files that name only `Form`.
 - PR 2 updates the docs that describe the parse: `sec/README.md`, "ParseCompanyFacts", and
   `sec/design/data_model/hybrid_data_model.md`. PR 3 updates the docs that name
   `sec::shared::financial`, such as `sec/design/pipeline/ingestion_paths.md`.
+
+PR 3 does not change the callers of `AccessionNumber` and `Form`. Both are in `sec::shared`.
 
 No binary and no integration test names a fact-model type. The pipeline coverage test ends before
 `Transform`.
@@ -2963,7 +2969,7 @@ Each PR keeps `main` compiling.
 
 | # | Ticket | PR | Reviewable lines |
 | - | ------ | -- | ---------------- |
-| 1 | [STA-527](https://linear.app/state-machine/issue/STA-527) | Move `AccessionNumber` and `Form` to `sec::shared` | About 0. A move, with 83 changed lines in 37 files |
+| 1 | [STA-527](https://linear.app/state-machine/issue/STA-527) | Move `AccessionNumber` and `Form` to `sec::shared` | About 0. A move of 2 modules, and the new paths on 83 lines in 37 files |
 | 2 | [STA-472](https://linear.app/state-machine/issue/STA-472) | `ParseCompanyFacts` delegates to `parse`, and `CompanyData` holds the `xbrl` types | About 250, an estimate |
 | 3 | [STA-528](https://linear.app/state-machine/issue/STA-528) | Delete `sec::shared::financial` | About 0. A deletion of 12 modules |
 | 4 | [STA-529](https://linear.app/state-machine/issue/STA-529) | Delete the `company_concept` and `frames` placeholders of `xbrl` | About 10 |
