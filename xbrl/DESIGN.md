@@ -446,7 +446,7 @@ own sums, such as debt maturities, gets its own trait (see "Extension Model").
   with other lines, and it does not add over periods. `core/period/q4-from-fy@1` already skips it.
 - Planned: a disclosure for the debt maturities and other financing data, from its own design.
   Segments are not a disclosure. A segment value is a standard concept with a member of a segment axis, and
-  its own design decides how the tree applies to it.
+  "Segment Values" says how the tree applies to it.
 
 A disclosure is a variant of `DisclosureConcept` with its own concept enum, such as
 `PerShare(PerShareConcept)`. A new disclosure adds a variant and its concepts (see "Extension
@@ -454,8 +454,8 @@ Model"). It changes no placement, no group, and no check of the trees.
 
 **Changes in equity** get no statement in the MVP. The statement of changes in equity is a roll
 forward per component of equity, such as retained earnings and treasury stock. Filers tag each
-column with a member of `StatementEquityComponentsAxis`. In the MVP, tiers 1 and 2 give a fact
-with dimensions no candidate. The balance sheet already holds the closing balance of each
+column with a member of `StatementEquityComponentsAxis`. Tiers 1 and 2 give such a fact no
+candidate, because the axis is no segment axis (see "Segment Values"). The balance sheet already holds the closing balance of each
 component, and the cash flow statement holds the dividends and repurchases paid. A later design
 adds the roll forward with the dimensions.
 
@@ -600,8 +600,8 @@ arrives. A new variant is outside the Open-Closed Principle, which covers traits
 
 #### Checks the Tree Gives
 
-The checks run in the series step, on the values after `core/dedup/newest-filing@1` and the period
-identities. Each failed check is a finding. A check never removes a value.
+The checks run in the series step, on the values without dimensions after
+`core/dedup/newest-filing@1` and the period identities. Each failed check is a finding. A check never removes a value.
 
 1. **Closed group.** The members of a closed group must equal the parent. This covers `assets`,
    `liabilities-and-equity`, `liabilities`, `equity`, `gross-profit`, `net-income-attribution`,
@@ -642,7 +642,8 @@ So the check of that group is skipped for that period.
 
 #### Derivation From a Closed Group
 
-A closed group with exactly one unknown member gives that member as a Tier 3 value. The unknown can
+A closed group with exactly one unknown member gives that member as a Tier 3 value. Only values
+without dimensions count. The unknown can
 be the parent, the start, or a child. A child that is zero if absent counts as known, except
 `ExchangeRateEffect` (see below).
 
@@ -914,6 +915,204 @@ The owner decided these on 2026-11-14.
    concept holds expenses, gains, or losses, so no check names them. The cash flow check matches
    the `accounting` skill.
 
+### Segment Values
+
+A segment value is the value of a standard concept for one part of the company, such as a business
+segment, a region, or a product line. The standardized layer holds it as a `StandardizedFact` whose
+`dimensions` hold the axis and member pairs as filed. A value without dimensions is the consolidated
+value. [ADR 0029](../docs/adr/0029-segment-values-keep-their-dimensions.md) records why segment
+values keep their dimensions and stay out of the tree.
+[ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md) records why the reconciliation
+runs per report. The code does not hold the rules of this section.
+
+#### Segment Axes
+
+The plug-in of a concept names the axes whose members split the company, through the trait
+`SegmentAxes` (see "The `SegmentAxes` Trait"). A fact is a **segment fact** if it has dimensions
+and the plug-in that resolves its concept names each of its axes. `core` names no axis and no
+member. It reads the kind of each axis:
+
+| Kind | What the members are |
+| ---- | -------------------- |
+| `BusinessSegment` | Business segments |
+| `Geography` | Countries and regions |
+| `Product` | Products and services |
+| `ConsolidationItems` | The role of a value in the reconciliation |
+| `Subsegment` | Parts of one segment |
+| `SubsegmentConsolidationItems` | Eliminations below one segment |
+
+The segment axes of `us_gaap`, written as in `dimensions`, without prefix (see "Decisions for the
+Transform Design"):
+
+| Axis in `dimensions` | Axis in the taxonomy | Kind |
+| -------------------- | -------------------- | ---- |
+| `BusinessSegments` | `us-gaap:StatementBusinessSegmentsAxis` | `BusinessSegment` |
+| `SegmentReportingInformationBySegment` | `us-gaap:SegmentReportingInformationBySegmentAxis`, in filings of 2011 | `BusinessSegment` |
+| `Geographical` | `srt:StatementGeographicalAxis` | `Geography` |
+| `ProductOrService` | `srt:ProductOrServiceAxis` | `Product` |
+| `ConsolidationItems` | `srt:ConsolidationItemsAxis` | `ConsolidationItems` |
+| `Subsegments` | `us-gaap:SubsegmentsAxis` | `Subsegment` |
+| `SubsegmentsConsolidationItems` | `us-gaap:SubsegmentsConsolidationItemsAxis` | `SubsegmentConsolidationItems` |
+
+- A fact with any other axis, such as `LegalEntity` or `DebtInstrument`, is no segment fact. It
+  stays an as-is fact.
+- Members stay as filed, with no mapping. `US` from the `country` namespace and a company member
+  such as `AmazonWebServices` both keep their names.
+- A company that reports its segments only on an axis of its own gets no segment values.
+- A fact whose concept routes to a plug-in without `SegmentAxes` gives no segment value. An `ifrs`
+  plug-in names the axes of `ifrs-full` in the same way (see "What `ifrs` Needs on Top").
+- A design that needs another axis for its own concepts, such as values per debt note, adds its
+  own trait next to `SegmentAxes`.
+
+#### Concepts a Segment Can Carry
+
+A segment value can carry every standard concept of a statement, with the alias lists of the
+consolidated value. It carries no concept of a disclosure. A per-share value counts the shares of
+the whole company, so `EarningsPerShareBasic` with a segment member gives no candidate.
+
+In the Notes file `2026_10_notes.zip`, 665 of 978 10-K and 10-Q filings report a value on
+`BusinessSegments` (2026-11-15). The concepts that most filings use:
+
+| Concept | Filings | Standard concept |
+| ------- | ------- | ---------------- |
+| `RevenueFromContractWithCustomerExcludingAssessedTax` | 371 | `Revenue` |
+| `OperatingIncomeLoss` | 267 | `OperatingIncome` |
+| `Assets` | 259 | `Assets` |
+| `SegmentReportingOtherItemAmount` | 237 | None |
+| `Goodwill` | 234 | `Goodwill` |
+| `Revenues` | 218 | `Revenue` |
+| `SegmentExpenditureAdditionToLongLivedAssets` | 208 | None |
+| `DepreciationDepletionAndAmortization` | 207 | `DepreciationAmortization` |
+| `CostOfGoodsAndServicesSold` | 189 | `CostOfRevenue` |
+| `SellingGeneralAndAdministrativeExpense` | 160 | `SellingGeneralAdmin` |
+
+`SegmentReportingOtherItemAmount` and `SegmentExpenditureAdditionToLongLivedAssets` exist only for
+segments. No standard concept holds them, so they stay as-is facts.
+
+#### Resolution of a Segment Value
+
+- **Tiers 1 and 2** run on each segment fact as on a fact without dimensions. A filing gives at
+  most one candidate per standard concept, period, and set of dimensions. The rule IDs and the
+  confidence levels are the same.
+- A fact with an axis that the plug-in of its concept does not name gives no candidate.
+- The part rule stays as it is. An other part in any dimension blocks a part.
+- A conflict on a segment fact blocks the candidate of its own dimensions. The candidate of the
+  consolidated value stays.
+- **`core/dedup/newest-filing@1`** keys on the dimensions already. A segment series is one entity,
+  standard concept, period end, length in quarters, unit, and set of dimensions.
+- **The tree, the identities, the period identity, and Tier 4** run only on values without
+  dimensions: `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`,
+  the sums along the calculation tree of a plug-in, and the checks of "Checks the Tree Gives". A
+  segment value gets no derived or computed value, no check, no other line, and no `MixedStarts`
+  finding.
+- **Chronology** runs only on values without dimensions. A segment value still gets `restated`.
+- `FactSet` and the statement output types take only values without dimensions. A segment value
+  enters no statement.
+
+#### Reconciliation
+
+The reconciliation shows how the business segments add up to the consolidated value. It runs on
+the candidates of one filing, for one standard concept, period, and unit. A **business-segment
+axis** is an axis of kind `BusinessSegment`. The plug-in that resolved a candidate gives the role of
+each member of its axis of kind `ConsolidationItems`. Each value takes a role from its dimensions:
+
+| Role | Dimensions | Role rule ID |
+| ---- | ---------- | ------------ |
+| Segment | A business-segment axis = *m* alone, or with a member of role `Segment` | None |
+| Elimination | A member of role `Elimination`, alone | `core/segment/elimination@1` |
+| Corporate | A member of role `Corporate`, alone | `core/segment/corporate@1` |
+| Unreconciled | None, a line of the reconciliation | `core/segment/unreconciled@1` |
+
+A member with a role sits on an axis of kind `ConsolidationItems`.
+
+The roles of `us_gaap`, all on `ConsolidationItems`:
+
+| Member | Role |
+| ------ | ---- |
+| `OperatingSegments` | `Segment` |
+| `IntersegmentElimination`, `ConsolidationEliminations` | `Elimination` |
+| `CorporateNonSegment`, `MaterialReconcilingItems` | `Corporate` |
+
+```
+unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
+```
+
+- A segment, elimination, or corporate line is a reported candidate. It keeps the rule that
+  resolved it, such as `us-gaap/alias/revenue@1`. An elimination or corporate line carries its role
+  rule ID next to it. A segment line carries none.
+- The unreconciled line has no candidate. Its role rule ID is its only rule. So a reader tells the
+  derived line from a reported one by the role rule ID `core/segment/unreconciled@1`.
+- Each role has the weight `+1`, and each value keeps the sign of the filing. An elimination is
+  mostly negative.
+- If a segment *m* has both forms, the value without a pair on an axis of kind `ConsolidationItems`
+  counts, even if it is blocked.
+- A plug-in gives a role only to a member of its own taxonomies. A value with a member of the
+  company on `ConsolidationItems`, such as `CorporateAndEliminations`, has no role. Its amount lands
+  in the unreconciled line.
+- The unreconciled line exists only if the filing has the consolidated candidate and at least one
+  segment candidate, and neither the consolidated candidate nor a candidate with a role is blocked.
+  A blocked candidate shows as blocked, so a reader tells a block from an untagged item.
+- The unreconciled line holds every reconciling item that the filer does not tag with a role.
+- A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
+  (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
+- A single-segment company gets the same reconciliation with one segment.
+- Axes of kind `Geography` and `Product` get no reconciliation. Their members can overlap, such as
+  `US`, `NonUs`, and `Americas` in one filing, so a sum counts an amount twice. A reader shows their
+  values as reported.
+- An unreconciled line other than zero gives no finding. The line itself shows the difference.
+- **Silver stores no line of the reconciliation**, as for the other lines. A read type in `core`
+  computes the lines from the candidates of one filing.
+
+Measured on `2026_10_notes.zip` on 2026-11-15. A group is one filing, concept, period, and unit
+with two or more segments on `BusinessSegments`. A group adds up if the difference is within 0.1%
+of the larger absolute value:
+
+| Concept | Groups | Segments alone add up | Add up with elimination and corporate | Do not add up | No elimination or corporate tagged |
+| ------- | ------ | --------------------- | ------------------------------------- | ------------- | ---------------------------------- |
+| `Revenue` | 1,817 | 1,246 (69%) | 243 (13%) | 328 (18%) | 1,014 (56%) |
+| `OperatingIncome` | 851 | 204 (24%) | 189 (22%) | 458 (54%) | 509 (60%) |
+| `Assets` | 479 | 131 (27%) | 222 (46%) | 126 (26%) | 201 (42%) |
+
+- Operating income fails to add up in 54% of the groups, so the unreconciled line holds a value in
+  most filings. A check would give a finding for most filers.
+- Of the 590 revenue values with an elimination role alone, 444 are negative, 88 positive, and 58
+  zero. A flip of the sign of the positive ones closes 7 more groups. So the sign stays as filed.
+- Of 6,819 cases of one filing, concept, period, and unit with a corporate role, 343 carry both
+  `CorporateNonSegment` and `MaterialReconcilingItems`. In 49 of them the two values are equal, so
+  the corporate role likely counts one amount twice. The unreconciled line then holds that amount
+  with the opposite sign.
+- Of 1,750 segment values filed in both forms, 1,103 are equal. Plain values close more revenue
+  groups than values with `OperatingSegments`: 1,489 against 1,430.
+- Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
+  consolidated value.
+
+#### Values With Two Axes
+
+`Dimensions` holds a set of pairs. No axis comes first in storage. A value with two segment axes,
+such as segment × product, is a series of its own. It takes no role in the reconciliation, except
+the segment form with a member of role `Segment`. A reader shows it below the value whose
+dimensions are its own less the axis whose kind comes last in the table of kinds in "Segment
+Axes". `BusinessSegments` = `Cloud` and `ProductOrService` = `Software` sit below
+`BusinessSegments` = `Cloud`.
+
+Of 142,142 values in `2026_10_notes.zip` whose axes are all segment axes, 73,383 have two or more
+axes. Most pair a segment with a role: 46,452 values are `BusinessSegments` × `ConsolidationItems`.
+Segment × product has 6,776 values, and segment × geography 2,983.
+
+#### Renamed and Merged Segments
+
+- **Per report.** The reconciliation and the segment view of a report read the candidates of its
+  filing. ASC 280 requires a company to recast its earlier years when its segments change. So one
+  report shows every year under one structure.
+- **As a series.** A segment series is keyed on the member. A renamed member starts a new series,
+  and the series of the old name ends. The newest filing recasts its comparative years under the
+  new name, so the new series reaches back two or three years.
+- A merged segment ends the series of the old members. The series of the new member starts with
+  the recast comparative years.
+- No table links an old member to a new one. A member name that a company reuses for another
+  structure keeps one series. The newest filing replaces the values of the years it covers and sets
+  `restated`. Earlier years keep the old structure.
+
 ---
 
 ## 1) Taxonomy Plug-ins
@@ -950,7 +1149,8 @@ pub struct TaxonomyRelease {
 Accounting identities and period identities are not part of the trait. They are core rules, the same
 for every taxonomy.
 
-**Registry.** The core holds a list of `&dyn Taxonomy`. The caller owns the plug-ins, and the
+**Registry.** The core holds a list of plug-ins. Each one is a `&dyn Taxonomy`, or a
+`&dyn SegmentAxes` (see "The `SegmentAxes` Trait"). The caller owns the plug-ins, and the
 registry borrows them. The
 registry routes each as-is fact to the plug-in that resolves the namespace family of its concept. A
 filing can mix families, for example a 20-F with `ifrs-full` and `dei`, so the routing works per
@@ -977,6 +1177,67 @@ Alternatives:
 | Trait object in a registry (chosen) | One fact set can hold facts of several taxonomies | Methods must be object safe |
 | Generic `Resolver<T: Taxonomy>` | No dynamic call | One pass per taxonomy and a merge for a mixed filing |
 | Enum of all taxonomies in the core | Simple match | The core names every taxonomy |
+
+### The `SegmentAxes` Trait
+
+A plug-in that knows the segment axes of its taxonomy implements this trait next to `Taxonomy`.
+"Segment Values" gives the rules that read it.
+
+```rust
+/// The axes whose members split a company, and the role of each member in the reconciliation.
+pub trait SegmentAxes: Taxonomy {
+    /// Each segment axis, as written in `dimensions`, with its kind.
+    fn segment_axes(&self) -> &[SegmentAxis];
+    /// Each member of an axis of kind `ConsolidationItems` that has a role.
+    fn member_roles(&self) -> &[MemberRole];
+}
+
+pub struct SegmentAxis {
+    name: &'static str,          // "BusinessSegments"
+    kind: SegmentAxisKind,       // BusinessSegment | Geography | Product | ConsolidationItems | …
+}
+
+pub struct MemberRole {
+    axis: &'static str,          // "ConsolidationItems"
+    member: &'static str,        // "IntersegmentElimination"
+    role: ReconciliationRole,    // Segment | Elimination | Corporate
+}
+```
+
+- `SegmentAxes` is a subtrait of `Taxonomy`. The registry routes a fact to the plug-in that
+  resolves its concept, so a segment axis without a resolving plug-in has no fact to apply to.
+- `Taxonomy` does not change (`AGENTS.md`, "Open-Closed Principle"). A plug-in without segment data
+  implements only `Taxonomy`.
+- The registry reaches the segment axes through a second constructor. `Registry::new` keeps its
+  signature, so none of its 90 calls changes:
+
+  ```rust
+  pub enum Plugin<'a> {
+      Taxonomy(&'a dyn Taxonomy),
+      WithSegmentAxes(&'a dyn SegmentAxes),
+  }
+
+  impl<'a> Registry<'a> {
+      /// Takes plug-ins with or without segment axes. `new` wraps each plug-in in `Plugin::Taxonomy`.
+      pub fn with_plugins(plugins: Vec<Plugin<'a>>) -> Result<Self, RegistryError>;
+      /// The plug-in that resolves the family, as `&dyn Taxonomy`, by trait upcasting.
+      pub fn resolver(&self, family: &NamespaceFamily) -> Option<&'a dyn Taxonomy>;
+      /// The segment axes of the plug-in that resolves the family, or `None`.
+      pub fn segment_axes(&self, family: &NamespaceFamily) -> Option<&'a dyn SegmentAxes>;
+  }
+  ```
+
+- The transform builds its registry with `with_plugins` and `Plugin::WithSegmentAxes(&us_gaap)`. A
+  registry from `new` gives no segment values and no finding. So every caller that standardizes
+  facts moves to `with_plugins` in the PR that admits segment facts: the transform, the test
+  fixtures of the two adapters, and the integration tests on real filings.
+- Each `MemberRole` names an axis of `segment_axes` of kind `ConsolidationItems`. A test of each
+  plug-in checks this, so a typo in an axis name cannot send every elimination to the unreconciled
+  line.
+- `SegmentAxisKind` and `ReconciliationRole` are `#[non_exhaustive]` enums in `core`. The names of
+  axes and members are data of the plug-in.
+- A name in `dimensions` has no prefix. So the axes of a fact come from the plug-in of its concept,
+  never from a search over all plug-ins.
 
 ### Namespace
 
@@ -1266,6 +1527,8 @@ ticket decides where the removed elements live.
   out of `us_gaap`.
 - **Labels in more languages.** `ElementReference` holds the English standard label. Other
   languages stay out of the MVP.
+- **Segment axes.** `ifrs` implements `SegmentAxes` with the segment axis of IFRS 8 and its members
+  for eliminations and unallocated amounts. Its design names them from the `ifrs-full` release.
 
 The open `NamespaceFamily` and `Unit` cover new namespaces and currencies. No new core type is needed.
 
@@ -1424,7 +1687,7 @@ StandardizedFact {
     concept:     CanonicalElementKind
     period:      Period
     unit:        Unit
-    dimensions:  Dimensions        // empty in the MVP
+    dimensions:  Dimensions        // empty, or the pairs of a segment fact (see "Segment Values")
     value:       Decimal
     confidence:  Confidence        // Exact | Synonym | Derived | Computed
     rule:        RuleId            // "us-gaap/alias/revenue@1"
@@ -1451,7 +1714,7 @@ the set. It checks in this order: the entity of the fact, its period, and its di
 periods are the same if they are of one kind and have the same end and length, and the same exact
 start if both give one. So an instant fact never belongs to a set of a duration, and a fiscal year
 needs one set for its duration and one for the instant at its end. A fact with dimensions never
-belongs to the set, because a standardized fact has no dimensions in the MVP. A fact of a standard
+belongs to the set (see "Segment Values"). A fact of a standard
 concept that the set holds replaces the held fact.
 
 ### Rule IDs
@@ -1465,6 +1728,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
 - `core/dedup/newest-filing@1`: a dedup rule.
+- `core/segment/elimination@1`, `core/segment/corporate@1`, `core/segment/unreconciled@1`: the
+  roles of the segment reconciliation (see "Segment Values").
 
 The version goes up when we change the rule itself. A new release changes the release on the fact,
 not the version. A core rule carries the release of the plug-in that resolved the concept.
@@ -1518,7 +1783,7 @@ year. `core/period/q4-from-fy@1` derives Q4 = FY − 9-month YTD, which is the s
 FY − Q1 − Q2 − Q3. The YTD form also works for the cash flow statement, which a 10-Q reports as
 year-to-date only. The result has confidence `Derived`.
 
-- The rule applies only to duration concepts in one currency, with no per-share unit. EPS, share counts,
+- The rule applies only to duration concepts in one currency, with no per-share unit and no dimensions. EPS, share counts,
   and ratios get no Q4 derivation, because they do not add over periods.
 - Both inputs come from one fiscal year, after `core/dedup/newest-filing@1`.
 - If an input has `restated`, the Q4 value has `restated` too, and chronology reports it.
@@ -1641,10 +1906,12 @@ The order of resolution and dedup, per entity and period. A period here is an ex
 and a length in quarters, as in the value key:
 
 1. `core/dedup/more-precise@1` on the as-is facts of each filing.
-2. Tiers 1 and 2 on each filing: at most one candidate per standard concept and filing.
+2. Tiers 1 and 2 on each filing: at most one candidate per standard concept, set of dimensions,
+   and filing.
 3. `core/dedup/newest-filing@1` across filings, on the standard concept. A newer filing wins over
    the alias order, so a restatement under a renamed concept wins.
-4. Tiers 3 and 4 on the values that remain.
+4. Tiers 3 and 4 on the values that remain, only on values without dimensions (see "Segment
+   Values").
 
 **Conflict.** If a copy disagrees with rank 0, the ranks are two or more facts with one exact
 period.
@@ -1662,7 +1929,8 @@ Finding::Conflict {
 
 - If tiers 1 and 2 would pick the conflicting concept, that filing gives a blocked candidate for
   the standard concept. A conflict on a lower alias, on a concept no plug-in maps, or on a fact
-  with dimensions blocks nothing.
+  with dimensions that is no segment fact blocks nothing. A conflict on a segment fact blocks only the
+  candidate of its own dimensions (see "Segment Values").
 - Step 3 ranks a blocked candidate with the others. If it wins, the standard concept has no value
   for that entity and period. Step 3 does not fall back to an older filing, because the newer
   filing can hold the restatement. Step 4 derives no value for the blocked concept.
@@ -1684,9 +1952,9 @@ Rules the code fixes where the table above leaves a choice:
 - A fact gets `restated` if an older candidate of its series reports a value that disagrees with it,
   by the rule of "Agreement of copies". A blocked older candidate sets nothing.
 - In tiers 1 and 2, a fact counts only if it has a unit and a numeric value, and only if the
-  registry routes its family to the plug-in of the alias list. A fact with dimensions gives no
-  candidate. It still counts as an other part in the part rule, and its conflict still gives a
-  `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
+  registry routes its family to the plug-in of the alias list. A fact with dimensions gives a
+  candidate only if it is a segment fact (see "Segment Values"). Every fact with dimensions still
+  counts as an other part in the part rule, and its conflict still gives a `Finding::Conflict`. If two plug-ins map one standard concept, the plug-in of the first family in
   name order wins.
 - If no concept of an alias list resolves, the part rule runs on its `PartAliases`. Of the parts
   that the filing reports, the first that no other part blocks wins, with `Synonym`. An other part
@@ -1717,7 +1985,7 @@ restatement, it sets `restated`, and chronology reports it.
 ### Gap Check
 
 The gap check runs on the standardized series of one entity and one concept. It reports findings.
-It never fails.
+It never fails. Chronology reads only values without dimensions (see "Segment Values").
 
 - **Expected periods** come from the forms the entity files. A 10-Q filer expects Q1, Q2, Q3, and
   FY. A filer of only 10-K, 20-F, or 40-F expects FY.
@@ -2315,7 +2583,7 @@ concept keeps the tiered resolution: exact, synonym, derived, computed.
 
 **Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
 
-**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The standardized layer uses facts with no dimensions in the MVP: in tiers 1 and 2, a fact with dimensions gives no candidate. The as-is layer keeps every fact with its dimensions.
+**Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The as-is layer keeps every fact with its dimensions. In tiers 1 and 2, a fact with dimensions gives a candidate only if every axis is a segment axis. "Segment Values" gives the rules.
 
 **Coregistrants** — A coregistrant is a second registrant, with its own CIK, that files the same report as the main filer. An example is a subsidiary in the combined report of a utility group. Its facts carry a member of the legal entity axis, which the instance XML gives as `dei:LegalEntityAxis` and Notes as `coreg`. A filer can also tag other entities on that axis, such as its parent. Both parsers write the member into `dimensions` on the `LegalEntity` axis. So tiers 1 and 2 give a coregistrant fact no candidate, and the standardized layer holds only facts of the main filer.
 
