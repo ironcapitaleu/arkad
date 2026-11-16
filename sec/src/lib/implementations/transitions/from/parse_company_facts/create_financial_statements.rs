@@ -57,6 +57,7 @@ mod tests {
 
     use pretty_assertions::assert_eq;
     use storage::shared::Sha256Digest;
+    use xbrl::adapter::edgar::company_facts;
     use xbrl::core::entity_name::EntityName;
 
     use super::*;
@@ -107,6 +108,48 @@ mod tests {
         let expected_result = CreateFinancialStatementsInput::new(company_data);
 
         let result = CreateFinancialStatementsInput::from(output);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_the_facts_when_converting_output_to_input() {
+        let json = serde_json::json!({
+            "cik": 1_234_567,
+            "entityName": "Test Corp.",
+            "facts": {
+                "us-gaap": {
+                    "Assets": {
+                        "units": {
+                            "USD": [{
+                                "end": "2023-12-31",
+                                "val": 1_000,
+                                "accn": "0001234567-24-000001",
+                                "fy": 2023,
+                                "fp": "FY",
+                                "form": "10-K",
+                                "filed": "2024-02-01"
+                            }]
+                        }
+                    }
+                }
+            }
+        });
+        let parsed = company_facts::parse(&json).expect(
+            "Given a hardcoded body with one valid data point, the parse should always succeed",
+        );
+        let company_data = CompanyData::new(
+            test_cik(),
+            EntityName::new("Test Corp."),
+            parsed.facts,
+            parsed.filings,
+        );
+        let output = ParseCompanyFactsOutput::new(company_data.clone());
+
+        let expected_result = company_data.facts();
+
+        let input = CreateFinancialStatementsInput::from(output);
+        let result = input.company_data().facts();
 
         assert_eq!(result, expected_result);
     }

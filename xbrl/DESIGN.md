@@ -2923,7 +2923,8 @@ step 5, says.
 1. Call `xbrl::adapter::edgar::company_facts::parse` on the JSON body. A `ParseErrorKind` becomes a
    state error.
 2. Read the entity name with `company_facts::extract_entity_name`. Compare the CIK of the context
-   with the `EntityId` of the facts. If they differ, return a state error.
+   with the `cik` of the body, which `parse` gives each fact as its `EntityId`. If they differ,
+   return a state error. The check also runs on a body with no facts.
 3. Check each definition of `xbrl::us_gaap::mappings::REQUIRED_CONCEPTS`. A definition passes if a
    `us-gaap` fact has a local name in its `xbrl_keys`, or in the `parts` of the `PART_CONCEPTS`
    entry of its standard concept. If one fails, return `IncompleteCompanyFacts` with the labels of

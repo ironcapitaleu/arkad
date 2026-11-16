@@ -6,7 +6,7 @@
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
 //! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`FailedCompanyFactsParse`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
-//! [`UnexpectedCik`] carries the failing state's name, the CIK of the state, and the entity ID of the facts.
+//! [`UnexpectedCik`] carries the failing state's name, the CIK of the state, and the CIK of the body.
 //! [`MissingDailyIndex`] carries the failing state's name and the date. [`MissingFullIndexDate`]
 //! carries the failing state's name, the date, and the last date of the full index.
 //! [`InvalidFiledDateRange`]

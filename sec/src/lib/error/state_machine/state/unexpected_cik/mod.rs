@@ -1,7 +1,7 @@
 //! # Unexpected CIK Error
 //!
-//! Provides the [`UnexpectedCik`] error: a Company Facts body whose facts are about another
-//! company than the CIK of the state.
+//! Provides the [`UnexpectedCik`] error: a Company Facts body about another company than the CIK
+//! of the state.
 
 use thiserror::Error;
 
@@ -16,7 +16,7 @@ pub struct UnexpectedCik {
     pub state_name: String,
     /// The CIK of the state context.
     pub expected: Cik,
-    /// The entity ID of the facts.
+    /// The CIK of the body, padded to 10 digits.
     pub found: String,
 }
 
