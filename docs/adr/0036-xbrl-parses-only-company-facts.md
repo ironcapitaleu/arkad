@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-16 ([STA-529 comment `60834c35`](https://linear.app/state-machine/issue/STA-529#comment-60834c35)) |
 | Date | 2026-11-16 |
 | Deciders | The project lead |
 | Ticket | [STA-529](https://linear.app/state-machine/issue/STA-529) |
