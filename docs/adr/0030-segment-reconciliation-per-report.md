@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-16 ([STA-502 comment `0ac1cf99`](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer#comment-0ac1cf99)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-502](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer) |
