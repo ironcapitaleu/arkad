@@ -28,6 +28,9 @@ pub mod routes;
 pub mod shared;
 pub mod traits;
 
+#[cfg(test)]
+pub mod tests;
+
 pub use routes::INTERNAL_DOCS_PATH;
 
 /// Builds the router of the crate. See [`routes::router`].
