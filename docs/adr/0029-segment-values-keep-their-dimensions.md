@@ -57,7 +57,7 @@ Date: 2026-11-16.
 **Reason.** Decision 1 says that tiers 1 and 2 run on a segment fact with the alias lists of the
 consolidated value, with no exception. Some of those lists belong to a disclosure, not to a
 statement. A per-share value divides by the shares of the whole company. On a segment member, such
-as `EarningsPerShareBasic` with `BusinessSegments` = `Cloud`, it is no value of that segment. The
+as `EarningsPerShareBasic` with `BusinessSegments` = `Cloud`, it is not a value of that segment. The
 rule must hold for each plug-in, so a later `ifrs` plug-in follows it too.
 
 **Decision.** A segment fact gives no candidate of a standard concept of kind

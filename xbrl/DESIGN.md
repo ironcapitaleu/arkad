@@ -1207,6 +1207,8 @@ Transform Design"):
 A segment value can carry every standard concept of a statement, with the alias lists of the
 consolidated value. It carries no concept of a disclosure. A per-share value counts the shares of
 the whole company, so `EarningsPerShareBasic` with a segment member gives no candidate.
+[ADR 0029, Amendment 1](../docs/adr/0029-segment-values-keep-their-dimensions.md#amendment-1-a-segment-fact-gives-no-candidate-of-a-disclosure-concept)
+records why.
 
 In the Notes file `2026_10_notes.zip`, 665 of 978 10-K and 10-Q filings report a value on
 `BusinessSegments` (2026-11-15). The concepts that most filings use:
