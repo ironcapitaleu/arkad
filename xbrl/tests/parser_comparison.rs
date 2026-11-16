@@ -12,8 +12,10 @@
 //! - Notes collapses whitespace and removes the markup of a text block (readme).
 //! - Notes cuts a footnote at 512 characters (readme), and drops a footnote that no statement page
 //!   shows ("Measured Result").
+//! - Notes writes a duration whose start equals its end with `qtrs` 0 and `durp` 0, as an instant.
 //!
-//! Any other difference is a difference in parser logic, and fails the test.
+//! Any other difference is a difference in parser logic, and fails the test. The Notes parser
+//! computes the exact start of every other duration from `durp`, so the comparison checks it.
 //!
 //! ## External Dependencies
 //!
@@ -24,6 +26,7 @@ use std::collections::HashMap;
 use bigdecimal::RoundingMode;
 use pretty_assertions::assert_eq;
 use xbrl::core::fact::{AsIsFact, FactKey, FactValue};
+use xbrl::core::period::Period;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 
@@ -115,6 +118,16 @@ fn same_value(notes: &FactValue, instance: &FactValue) -> bool {
     }
 }
 
+/// Returns `true` if the instance period equals the Notes period after the Notes losses.
+fn same_period(notes: &Period, instance: &Period) -> bool {
+    match (notes, instance) {
+        (Period::Instant { end }, Period::Duration(duration)) => {
+            duration.start() == Some(*end) && duration.end() == *end
+        }
+        (notes, instance) => notes == instance,
+    }
+}
+
 /// Returns `true` if the instance footnotes equal the Notes footnotes after the Notes losses.
 fn same_footnotes(notes: &[String], instance: &[String]) -> bool {
     if notes.is_empty() {
@@ -161,11 +174,43 @@ fn should_give_the_same_content_per_value_key_from_both_parsers_for_a_real_filin
         .filter(|(notes, instance)| {
             !same_value(&notes.value, &instance.value)
                 || notes.decimals != instance.decimals
+                || !same_period(&notes.context.period, &instance.context.period)
                 || notes.context.entity != instance.context.entity
                 || !same_footnotes(&notes.footnotes, &instance.footnotes)
         })
         .map(|(notes, _)| format!("{:?}", notes.key()))
         .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_every_notes_duration_the_exact_start_of_the_instance_for_a_real_filing() {
+    let notes = parse_notes_fixture().facts;
+    let instance: HashMap<FactKey, AsIsFact> = parse_instance_fixture()
+        .facts
+        .into_iter()
+        .map(|fact| (fact.key(), fact))
+        .collect();
+
+    // 403 Notes durations, each with the start of the instance fact of its value key.
+    let expected_result = (403, Vec::<String>::new());
+
+    let durations: Vec<&AsIsFact> = notes
+        .iter()
+        .filter(|fact| matches!(fact.context.period, Period::Duration(_)))
+        .collect();
+    let differences: Vec<String> = durations
+        .iter()
+        .filter(|notes| {
+            instance
+                .get(&notes.key())
+                .map(|fact| fact.context.period.start())
+                != Some(notes.context.period.start())
+        })
+        .map(|notes| format!("{:?}", notes.key()))
+        .collect();
+    let result = (durations.len(), differences);
 
     assert_eq!(result, expected_result);
 }

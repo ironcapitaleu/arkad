@@ -189,8 +189,7 @@ fn should_add_up_the_balance_sheet_of_2026_09_30_for_the_fixture_filing() {
 #[test]
 fn should_add_up_the_income_statement_of_june_2026_for_the_fixture_filing() {
     let facts = standardized_facts();
-    // Dedup blocks each quarter of the income statement, so the month of June is the period with
-    // the most lines.
+    // June lasts 30 days, so its facts have 0 quarters.
     let income_statement_facts = facts_of(&facts, date(2026, 6, 30), 0, |concept| {
         matches!(
             concept,
@@ -257,85 +256,27 @@ fn should_add_up_the_income_statement_of_june_2026_for_the_fixture_filing() {
     assert_eq!(result, expected_result);
 }
 
-#[test]
-fn should_add_up_the_cash_flow_statement_of_the_quarter_to_2026_09_30_for_the_fixture_filing() {
-    let facts = standardized_facts();
-    let cash_flow_facts = facts_of(&facts, date(2026, 9, 30), 1, |concept| {
-        matches!(
-            concept,
-            CanonicalElementKind::Statement(StatementConcept::CashFlow(_))
-        )
-    });
-
-    // Dedup blocks net income and D&A, so the other operating cash flow holds both: 390 - 16 =
-    // 374. The members of the closed `net-change-in-cash` add up: 390 - 138 - 114 - 1 = 137.
-    let expected_result = Ok(vec![
-        (
-            standard(CashFlowConcept::NetChangeInCash),
-            Some(millions(137)),
-        ),
-        (standard(IncomeStatementConcept::NetIncome), None),
-        (standard(CashFlowConcept::DepreciationAmortization), None),
-        (
-            standard(CashFlowConcept::ShareBasedCompensation),
-            Some(millions(16)),
-        ),
-        (
-            other(CashFlowGroup::OperatingCashFlow.name()),
-            Some(millions(374)),
-        ),
-        (
-            standard(CashFlowConcept::OperatingCashFlow),
-            Some(millions(390)),
-        ),
-        (
-            standard(CashFlowConcept::InvestingCashFlow),
-            Some(millions(-138)),
-        ),
-        (
-            standard(CashFlowConcept::CapitalExpenditures),
-            Some(millions(151)),
-        ),
-        (
-            other(CashFlowGroup::InvestingCashFlow.name()),
-            Some(millions(13)),
-        ),
-        (
-            standard(CashFlowConcept::FinancingCashFlow),
-            Some(millions(-114)),
-        ),
-        (standard(CashFlowConcept::DividendsPaid), None),
-        (standard(CashFlowConcept::ShareRepurchases), None),
-        (
-            other(CashFlowGroup::FinancingCashFlow.name()),
-            Some(millions(-114)),
-        ),
-        (
-            standard(CashFlowConcept::ExchangeRateEffect),
-            Some(millions(-1)),
-        ),
-    ]);
-
-    let result = Statement::build(StatementKind::CashFlow, cash_flow_facts)
-        .map(|statement| lines(&statement));
-
-    assert_eq!(result, expected_result);
-}
-
-#[test]
-fn should_build_the_cash_flow_statement_of_the_quarter_to_2026_09_30_from_the_instance_facts() {
-    let facts = standardized(&parse_instance_fixture().facts);
-    let cash_flow_facts = facts_of(&facts, date(2026, 9, 30), 1, |concept| {
+/// Builds the cash flow statement of the quarter to 2026-09-30 from the standardized `facts`, with
+/// net income as the start of `operating-cash-flow`.
+fn cash_flow_of_the_quarter_to_2026_09_30(
+    facts: &[StandardizedFact],
+) -> Result<Vec<(Line, Option<BigDecimal>)>, InvalidStatementFacts> {
+    let cash_flow_facts = facts_of(facts, date(2026, 9, 30), 1, |concept| {
         matches!(
             concept,
             CanonicalElementKind::Statement(StatementConcept::CashFlow(_))
         ) || concept == IncomeStatementConcept::NetIncome.element()
     });
+    Statement::build(StatementKind::CashFlow, cash_flow_facts).map(|statement| lines(&statement))
+}
 
-    // Net income and D&A cover the quarter from 1 July. The other lines cover four months from
-    // 1 June. So `operating-cash-flow` mixes two starts and gets no other line. The other groups
-    // hold four-month values only and keep their other lines.
-    let expected_result = Ok(vec![
+/// The lines of the cash flow statement of the quarter to 2026-09-30, in both sources.
+///
+/// Net income and D&A cover the quarter from 1 July. The other lines cover four months from 1 June.
+/// So `operating-cash-flow` mixes two starts and gets no other line. The other groups hold
+/// four-month values only and keep their other lines.
+fn expected_cash_flow_of_the_quarter_to_2026_09_30() -> Vec<(Line, Option<BigDecimal>)> {
+    vec![
         (
             standard(CashFlowConcept::NetChangeInCash),
             Some(millions(137)),
@@ -382,10 +323,27 @@ fn should_build_the_cash_flow_statement_of_the_quarter_to_2026_09_30_from_the_in
             standard(CashFlowConcept::ExchangeRateEffect),
             Some(millions(-1)),
         ),
-    ]);
+    ]
+}
 
-    let result = Statement::build(StatementKind::CashFlow, cash_flow_facts)
-        .map(|statement| lines(&statement));
+#[test]
+fn should_build_the_cash_flow_statement_of_the_quarter_to_2026_09_30_from_the_notes_facts() {
+    let facts = standardized_facts();
+
+    let expected_result = Ok(expected_cash_flow_of_the_quarter_to_2026_09_30());
+
+    let result = cash_flow_of_the_quarter_to_2026_09_30(&facts);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_build_the_cash_flow_statement_of_the_quarter_to_2026_09_30_from_the_instance_facts() {
+    let facts = standardized(&parse_instance_fixture().facts);
+
+    let expected_result = Ok(expected_cash_flow_of_the_quarter_to_2026_09_30());
+
+    let result = cash_flow_of_the_quarter_to_2026_09_30(&facts);
 
     assert_eq!(result, expected_result);
 }

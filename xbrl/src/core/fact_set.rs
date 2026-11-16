@@ -148,9 +148,6 @@ pub enum FactSetError {
 
 /// Returns `true` if `set` and `fact` are of one kind and have the same end and length, and the same
 /// exact start if both give one.
-///
-/// A source such as the Notes data set often gives no exact start, so a missing start matches any
-/// start.
 fn is_same_period(set: Period, fact: Period) -> bool {
     match (set, fact) {
         (Period::Instant { end: set_end }, Period::Instant { end: fact_end }) => {

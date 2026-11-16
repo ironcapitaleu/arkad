@@ -94,15 +94,18 @@ pub(crate) fn days_of_quarters(quarters: u16) -> i64 {
 
 /// A span of time: an exact end, a length in quarters, and the exact start if the source gives it.
 ///
-/// The Notes data set gives the length but often no exact start. So the length is a field, and the
-/// start is optional. If the start is known, [`Duration::from_dates`] computes the length, so the
-/// two cannot disagree.
+/// The Notes parser and the instance parser give the start, and [`Duration::from_dates`] computes
+/// the length from it, so the two cannot disagree. [`Duration::from_end_and_quarters`] gives a
+/// duration with no start.
 ///
 /// The length needs 16 bits: Notes `qtrs` reaches 4,007.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct Duration {
+    /// The exact start, or `None` if the source gives no start.
     start: Option<NaiveDate>,
+    /// The exact end.
     end: NaiveDate,
+    /// The length in quarters. It is a field, because the value key and the series key use it.
     quarters: u16,
 }
 
@@ -162,8 +165,7 @@ impl Duration {
         })
     }
 
-    /// Creates a [`Duration`] from an exact end and a length in quarters, for a source with no
-    /// exact start, such as the Notes data set.
+    /// Creates a [`Duration`] from an exact end and a length in quarters, with no exact start.
     #[must_use]
     pub const fn from_end_and_quarters(end: NaiveDate, quarters: u16) -> Self {
         Self {

@@ -10,9 +10,8 @@
 //! length nearer to a full quarter first, and the Notes parser follows the order of `iprx`. The
 //! four months hold June plus the quarter, so no pair agrees.
 //!
-//! The instance gives each duration its exact start, so the two ranks are two facts, and no key is
-//! a conflict. The Notes parser gives no exact start, so the two ranks compare as copies, and all
-//! 99 keys are conflicts.
+//! Both parsers give each duration its exact start: the instance from `startDate`, Notes from
+//! `durp`. So the two ranks of each key are two facts, and no key is a conflict.
 //!
 //! The tests that resolve use [`UsGaap`] and its alias lists. They check revenue, and the count of
 //! standardized facts per standard concept.
@@ -28,20 +27,17 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::{FilingCandidates, resolve_aliases};
-use xbrl::core::candidate::{CandidateValue, SeriesKey};
-use xbrl::core::concept::{ConceptName, NamespaceFamily};
+use xbrl::core::candidate::CandidateValue;
 use xbrl::core::confidence::Confidence;
 use xbrl::core::dedup::{Series, more_precise, newest_filing};
 use xbrl::core::elements::{
     BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, DebtMaturityConcept,
     IncomeStatementConcept, PerShareConcept,
 };
-use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, FactValue, TaxonomyVersion};
-use xbrl::core::filing::{EntityId, FilingId};
+use xbrl::core::fact::{AsIsFact, Dimensions, FactValue};
 use xbrl::core::finding::Finding;
 use xbrl::core::rule::RuleId;
 use xbrl::core::taxonomy::registry::{Plugin, Registry};
-use xbrl::core::unit::Unit;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::tests::fixtures::sample_fact::date;
@@ -58,30 +54,27 @@ fn candidates_of(facts: &[AsIsFact]) -> FilingCandidates {
     resolve_aliases(&more_precise(facts), &registry)
 }
 
-/// Returns the rank, period, and value of each copy of revenue with `dimensions` in the quarter
-/// that ends on 2026-09-30, or an empty list if that key has no conflict.
+/// Returns the rank, period, and value of each rank of revenue with `dimensions` whose value key
+/// ends on 2026-09-30 and has 1 quarter.
 fn revenue_ranks(facts: &[AsIsFact], dimensions: &Dimensions) -> Vec<(u16, String, FactValue)> {
-    more_precise(facts)
-        .conflicts()
+    let mut ranks: Vec<(u16, String, FactValue)> = facts
         .iter()
-        .find(|ranks| {
-            ranks[0].concept.local_name() == REVENUE_CONCEPT
-                && ranks[0].context.period.end() == date(2026, 9, 30)
-                && ranks[0].context.dimensions == *dimensions
+        .filter(|fact| {
+            fact.concept.local_name() == REVENUE_CONCEPT
+                && fact.context.period.end() == date(2026, 9, 30)
+                && fact.context.period.quarters() == 1
+                && fact.context.dimensions == *dimensions
         })
-        .map(|ranks| {
-            ranks
-                .iter()
-                .map(|fact| {
-                    (
-                        fact.copy_rank,
-                        fact.context.period.to_string(),
-                        fact.value.clone(),
-                    )
-                })
-                .collect()
+        .map(|fact| {
+            (
+                fact.copy_rank,
+                fact.context.period.to_string(),
+                fact.value.clone(),
+            )
         })
-        .unwrap_or_default()
+        .collect();
+    ranks.sort_by_key(|(rank, ..)| *rank);
+    ranks
 }
 
 /// Runs the dedup rules on `facts`, and returns the count of standardized facts without dimensions
@@ -98,66 +91,16 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
     counts
 }
 
-/// The count of standardized facts per standard concept in the Notes facts of the fixture filing.
+/// The count of standardized facts per standard concept in the Notes facts and in the instance facts
+/// of the fixture filing.
 ///
 /// Equity and equity attributable to parent have 3 facts each, because the filing reports
 /// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
-/// Interest expense has 1, because a conflict blocks the 2026 quarter. Every other concept has 2.
-fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
-    BTreeMap::from([
-        (BalanceSheetConcept::Assets.element(), 2),
-        (BalanceSheetConcept::Equity.element(), 3),
-        (IncomeStatementConcept::Revenue.element(), 2),
-        (IncomeStatementConcept::NetIncome.element(), 2),
-        (CashFlowConcept::OperatingCashFlow.element(), 2),
-        (CashFlowConcept::InvestingCashFlow.element(), 2),
-        (CashFlowConcept::FinancingCashFlow.element(), 2),
-        (BalanceSheetConcept::CurrentAssets.element(), 2),
-        (BalanceSheetConcept::CashAndEquivalents.element(), 2),
-        (BalanceSheetConcept::Goodwill.element(), 2),
-        (BalanceSheetConcept::CurrentLiabilities.element(), 2),
-        (BalanceSheetConcept::NonCurrentLiabilities.element(), 2),
-        (BalanceSheetConcept::RetainedEarnings.element(), 2),
-        (IncomeStatementConcept::OperatingIncome.element(), 2),
-        (IncomeStatementConcept::InterestExpense.element(), 1),
-        (PerShareConcept::EarningsPerShareBasic.element(), 2),
-        (PerShareConcept::EarningsPerShareDiluted.element(), 2),
-        (CashFlowConcept::DepreciationAmortization.element(), 2),
-        (CashFlowConcept::CapitalExpenditures.element(), 2),
-        (CashFlowConcept::ShareBasedCompensation.element(), 2),
-        (IncomeStatementConcept::PretaxIncome.element(), 2),
-        (IncomeStatementConcept::IncomeTaxExpense.element(), 2),
-        (
-            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
-            2,
-        ),
-        (CashFlowConcept::NetChangeInCash.element(), 2),
-        (CashFlowConcept::ExchangeRateEffect.element(), 2),
-        (BalanceSheetConcept::LiabilitiesAndEquity.element(), 2),
-        (BalanceSheetConcept::AccountsPayable.element(), 2),
-        (
-            DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
-            2,
-        ),
-        (BalanceSheetConcept::ShortTermDebt.element(), 2),
-        (BalanceSheetConcept::EquityAttributableToParent.element(), 3),
-        (BalanceSheetConcept::AdditionalPaidInCapital.element(), 2),
-        (
-            BalanceSheetConcept::AccumulatedOtherComprehensiveIncome.element(),
-            2,
-        ),
-    ])
-}
-
-/// The count of standardized facts per standard concept in the instance facts of the fixture filing.
-///
-/// Equity and equity attributable to parent have 3 facts each, because the filing reports
-/// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
-/// The instance gives each duration its exact start, so no conflict blocks a quarter. The concepts
+/// Both sources give each duration its exact start, so no conflict blocks a quarter. The concepts
 /// of the income statement, the earnings per share, and D&A get both quarters next to both months
 /// of June, so each has 4. Interest expense gets both quarters and no June, so it has 2. Every
 /// other concept has 2.
-fn expected_instance_counts() -> BTreeMap<CanonicalElementKind, usize> {
+fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
         (BalanceSheetConcept::Assets.element(), 2),
         (BalanceSheetConcept::Equity.element(), 3),
@@ -213,43 +156,19 @@ fn number(text: &str) -> BigDecimal {
         .expect("Given a hardcoded decimal text, the parse should always succeed")
 }
 
-fn usd() -> Unit {
-    Unit::from_str("USD")
-        .expect("Given a hardcoded unit with one measure, the parse should always succeed")
-}
-
-fn fedex_freight() -> EntityId {
-    EntityId::new("http://www.sec.gov/CIK", "0002082247").expect(
-        "Given the hardcoded scheme and CIK of the filer, the creation should always succeed",
-    )
-}
-
 /// Returns the dimensions `BusinessSegments` = `ReportableSegment`, the one segment of the filer.
 fn reportable_segment() -> Dimensions {
     Dimensions::new([("BusinessSegments", "ReportableSegment")])
         .expect("Given one hardcoded axis and member, the creation should always succeed")
 }
 
-/// Returns the series key of revenue in USD without dimensions for the quarter that ends on
-/// `period_end`.
-fn revenue_quarter(period_end: NaiveDate) -> SeriesKey {
-    SeriesKey {
-        entity: fedex_freight(),
-        concept: IncomeStatementConcept::Revenue.element(),
-        period_end,
-        quarters: 1,
-        unit: usd(),
-        dimensions: Dimensions::default(),
-    }
-}
-
 #[test]
-fn should_find_99_conflicts_when_more_precise_runs_on_the_notes_facts() {
+fn should_find_no_conflict_when_more_precise_runs_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // 613 facts: 415 keys with one rank, and 99 keys with two ranks that disagree. 415 + 2 x 99 =
-    // 613, so no rank agrees with rank 0 and drops out.
-    let expected_result = (415, 99);
+    // 613 facts in 514 keys. The two ranks of each of the 99 keys with two ranks have different
+    // exact starts, and the quarter is rank 0, so each key keeps rank 0.
+    let expected_result = (514, 0);
 
     let copies = more_precise(&facts);
     let result = (copies.facts().len(), copies.conflicts().len());
@@ -296,20 +215,42 @@ fn should_give_the_3_month_revenue_of_each_quarter_when_the_dedup_rules_run_on_t
 }
 
 #[test]
+fn should_give_the_3_month_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_facts() {
+    let facts = parse_notes_fixture().facts;
+
+    let expected_result = vec![
+        ("2025-07-01 to 2025-09-30".to_string(), number("2259000000")),
+        ("2026-07-01 to 2026-09-30".to_string(), number("2442000000")),
+    ];
+
+    let result: Vec<(String, BigDecimal)> = newest_filing(&candidates_of(&facts).candidates)
+        .facts
+        .into_iter()
+        .filter(|fact| {
+            fact.concept == IncomeStatementConcept::Revenue.element()
+                && fact.dimensions.is_empty()
+                && fact.period.quarters() == 1
+        })
+        .map(|fact| (fact.period.to_string(), fact.value))
+        .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
 fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_value_key_in_notes()
 {
     let facts = parse_notes_fixture().facts;
 
-    // Notes gives no exact start, so only the value tells the quarter from the four months.
     let expected_result = vec![
         (
             0,
-            "1 quarters to 2026-09-30".to_string(),
+            "2026-07-01 to 2026-09-30".to_string(),
             FactValue::Numeric(number("2442000000")),
         ),
         (
             1,
-            "1 quarters to 2026-09-30".to_string(),
+            "2026-06-01 to 2026-09-30".to_string(),
             FactValue::Numeric(number("3281000000")),
         ),
     ];
@@ -320,62 +261,15 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_
 }
 
 #[test]
-fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_quarter_has_a_conflict_in_notes()
- {
-    let facts = parse_notes_fixture().facts;
-    let filing = FilingId::new("sec", "0001628280-26-068246")
-        .expect("Given the hardcoded ID of the fixture filing, the creation should always succeed");
-    let family = NamespaceFamily::new("us-gaap")
-        .expect("Given a hardcoded family without whitespace, the creation should always succeed");
-
-    let expected_result = Some(Finding::Conflict {
-        entity: fedex_freight(),
-        key: FactKey {
-            filing,
-            concept: ConceptName::new(family, REVENUE_CONCEPT).expect(
-                "Given a hardcoded local name without a colon, the creation should always succeed",
-            ),
-            taxonomy_version: Some(
-                TaxonomyVersion::new("us-gaap/2026")
-                    .expect("Given a hardcoded version, the creation should always succeed"),
-            ),
-            period_end: date(2026, 9, 30),
-            quarters: 1,
-            unit: Some(usd()),
-            dimensions: Dimensions::default(),
-            copy_rank: 0,
-        },
-        ranks: vec![1],
-        standard_concept: Some(IncomeStatementConcept::Revenue.element()),
-    });
-
-    let result = candidates_of(&facts).findings.into_iter().find(|finding| {
-        matches!(
-            finding,
-            Finding::Conflict { key, .. }
-                if key.concept.local_name() == REVENUE_CONCEPT
-                    && key.period_end == date(2026, 9, 30)
-                    && key.dimensions == Dimensions::default()
-        )
-    });
-
-    assert_eq!(result, expected_result);
-}
-
-#[test]
-fn should_give_a_conflict_finding_for_each_conflict_with_dimensions_when_tiers_1_and_2_run_on_the_notes_facts()
- {
+fn should_give_no_conflict_finding_when_tiers_1_and_2_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // 52 of the 99 conflicts are on facts with dimensions. Each still gives a finding.
-    let expected_result = 52;
+    let expected_result = 0;
 
     let result = candidates_of(&facts)
         .findings
         .iter()
-        .filter(|finding| {
-            matches!(finding, Finding::Conflict { key, .. } if !key.dimensions.is_empty())
-        })
+        .filter(|finding| matches!(finding, Finding::Conflict { .. }))
         .count();
 
     assert_eq!(result, expected_result);
@@ -385,8 +279,8 @@ fn should_give_a_conflict_finding_for_each_conflict_with_dimensions_when_tiers_1
 fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // Only the month of June has no conflict. June lasts 30 days, so its length rounds to 0
-    // quarters. Its concept is a part of revenue, so its confidence is a synonym.
+    // June lasts 30 days, so its length rounds to 0 quarters. Its concept is a part of revenue, so
+    // its confidence is a synonym.
     let expected_result = vec![
         (
             date(2025, 6, 30),
@@ -408,7 +302,9 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
     } = newest_filing(&candidates_of(&facts).candidates);
     let result: Vec<(NaiveDate, u16, BigDecimal, Confidence)> = standardized
         .into_iter()
-        .filter(|fact| fact.concept == IncomeStatementConcept::Revenue.element())
+        .filter(|fact| {
+            fact.concept == IncomeStatementConcept::Revenue.element() && fact.period.quarters() == 0
+        })
         .map(|fact| {
             (
                 fact.period.end(),
@@ -416,27 +312,6 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
                 fact.value,
                 fact.confidence,
             )
-        })
-        .collect();
-
-    assert_eq!(result, expected_result);
-}
-
-#[test]
-fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_facts() {
-    let facts = parse_notes_fixture().facts;
-
-    // The revenue concept has a conflict in each quarter, so each quarter gets no revenue.
-    let expected_result = vec![
-        revenue_quarter(date(2025, 9, 30)),
-        revenue_quarter(date(2026, 9, 30)),
-    ];
-
-    let result: Vec<SeriesKey> = newest_filing(&candidates_of(&facts).candidates)
-        .blocked
-        .into_iter()
-        .filter(|key| {
-            key.concept == IncomeStatementConcept::Revenue.element() && key.dimensions.is_empty()
         })
         .collect();
 
@@ -452,12 +327,12 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_the_reportable
     let expected_result = vec![
         (
             0,
-            "1 quarters to 2026-09-30".to_string(),
+            "2026-07-01 to 2026-09-30".to_string(),
             FactValue::Numeric(number("2442000000")),
         ),
         (
             1,
-            "1 quarters to 2026-09-30".to_string(),
+            "2026-06-01 to 2026-09-30".to_string(),
             FactValue::Numeric(number("3281000000")),
         ),
     ];
@@ -468,21 +343,19 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_the_reportable
 }
 
 #[test]
-fn should_give_a_blocked_revenue_candidate_of_the_reportable_segment_when_tiers_1_and_2_run_on_the_notes_facts()
+fn should_give_the_3_month_revenue_candidate_of_the_reportable_segment_when_tiers_1_and_2_run_on_the_notes_facts()
  {
     let facts = parse_notes_fixture().facts;
     let segment = reportable_segment();
 
-    // The two ranks of the segment revenue disagree, so `core/dedup/more-precise@1` blocks the
-    // candidate.
+    // The four months have another exact start, so the candidate holds the value of the quarter.
     let expected_result = vec![(
         rule("us-gaap/part/revenue@1"),
-        date(2026, 9, 30),
-        1,
-        CandidateValue::Blocked,
+        "2026-07-01 to 2026-09-30".to_string(),
+        Some(number("2442000000")),
     )];
 
-    let result: Vec<(RuleId, NaiveDate, u16, CandidateValue)> = candidates_of(&facts)
+    let result: Vec<(RuleId, String, Option<BigDecimal>)> = candidates_of(&facts)
         .candidates
         .into_iter()
         .filter(|candidate| {
@@ -491,12 +364,11 @@ fn should_give_a_blocked_revenue_candidate_of_the_reportable_segment_when_tiers_
                 && candidate.period.end() == date(2026, 9, 30)
         })
         .map(|candidate| {
-            (
-                candidate.rule,
-                candidate.period.end(),
-                candidate.period.quarters(),
-                candidate.value,
-            )
+            let value = match candidate.value {
+                CandidateValue::Reported { value, .. } => Some(value),
+                CandidateValue::Blocked => None,
+            };
+            (candidate.rule, candidate.period.to_string(), value)
         })
         .collect();
 
@@ -504,7 +376,7 @@ fn should_give_a_blocked_revenue_candidate_of_the_reportable_segment_when_tiers_
 }
 
 #[test]
-fn should_give_65_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_84_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -519,7 +391,7 @@ fn should_give_84_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_
 {
     let facts = parse_instance_fixture().facts;
 
-    let expected_result = expected_instance_counts();
+    let expected_result = expected_standardized_counts();
 
     let result = standardized_counts(&facts);
 

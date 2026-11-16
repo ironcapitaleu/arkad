@@ -78,37 +78,37 @@ fn should_restore_shares_and_rank_copies_of_basic_earnings_per_share_for_a_real_
 
     let expected_result = vec![
         (
-            "0 quarters to 2025-06-30".to_owned(),
+            "2025-06-01 to 2025-06-30".to_owned(),
             "USD/shares".to_owned(),
             "0.7600".to_owned(),
             0,
         ),
         (
-            "1 quarters to 2025-09-30".to_owned(),
+            "2025-07-01 to 2025-09-30".to_owned(),
             "USD/shares".to_owned(),
             "1.9500".to_owned(),
             0,
         ),
         (
-            "1 quarters to 2025-09-30".to_owned(),
+            "2025-06-01 to 2025-09-30".to_owned(),
             "USD/shares".to_owned(),
             "2.7000".to_owned(),
             1,
         ),
         (
-            "0 quarters to 2026-06-30".to_owned(),
+            "2026-06-01 to 2026-06-30".to_owned(),
             "USD/shares".to_owned(),
             "0.5600".to_owned(),
             0,
         ),
         (
-            "1 quarters to 2026-09-30".to_owned(),
+            "2026-07-01 to 2026-09-30".to_owned(),
             "USD/shares".to_owned(),
             "0.9800".to_owned(),
             0,
         ),
         (
-            "1 quarters to 2026-09-30".to_owned(),
+            "2026-06-01 to 2026-09-30".to_owned(),
             "USD/shares".to_owned(),
             "1.5400".to_owned(),
             1,
@@ -142,7 +142,7 @@ fn should_map_the_document_type_into_a_text_fact_for_a_real_filing() {
 
     let expected_result = vec![(
         "dei:DocumentType".to_owned(),
-        "1 quarters to 2026-09-30".to_owned(),
+        "2026-06-01 to 2026-09-30".to_owned(),
         FactValue::Text("10-Q".to_owned()),
     )];
 

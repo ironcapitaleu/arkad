@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 
-use bigdecimal::{BigDecimal, Zero};
+use bigdecimal::{BigDecimal, RoundingMode, ToPrimitive, Zero};
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeDelta, TimeZone, Utc};
 use chrono_tz::America::New_York;
 
@@ -77,6 +77,12 @@ const PREFIX_SEPARATOR: char = ':';
 
 /// The characters other than letters and digits that a prefix or a local name can hold.
 const NAME_PUNCTUATION: [char; 3] = ['_', '-', '.'];
+
+/// The days of a quarter in `durp`, in hundredths of a day: 91.25 days.
+const DURP_QUARTER_HUNDREDTHS: i64 = 9125;
+
+/// The scale of [`DURP_QUARTER_HUNDREDTHS`]: two digits after the decimal point.
+const HUNDREDTHS_SCALE: i64 = 2;
 
 /// The character between the whole and the fractional part of `datp`, as in `-15.0`.
 const DECIMAL_POINT: char = '.';
@@ -219,13 +225,15 @@ impl NumRow {
 
     /// Returns the period: the exact end is `ddate` minus `datp` days.
     ///
-    /// The SEC rounds `qtrs`, so a duration under about 45 days has `qtrs` 0. Its `durp` is not 0,
-    /// so it becomes a duration of 0 quarters. Only a row with `qtrs` 0 and `durp` 0 is an instant.
+    /// A row with `qtrs` 0 and `durp` 0 is an instant. Every other row is a duration. Its exact
+    /// start is the exact end minus `round((qtrs - durp) * 91.25)` days, and
+    /// [`Duration::from_dates`] computes its length in quarters. The SEC rounds `qtrs`, so a
+    /// duration under about 45 days has `qtrs` 0 and a `durp` that is not 0.
     ///
     /// # Errors
     ///
     /// Returns [`InvalidValue`] if `ddate` is not a date, `datp` is not a whole number of days,
-    /// `qtrs` is not a number of 16 bits, or `qtrs` is 0 and `durp` is not a number.
+    /// `qtrs` is not a number of 16 bits, `durp` is not a number, or the start lies after the end.
     pub fn period(&self) -> Result<Period, InvalidValue> {
         period(
             Self::TYPE_NAME,
@@ -517,15 +525,31 @@ fn period(
     let quarters: u16 = qtrs
         .parse()
         .map_err(|_| invalid(InvalidValueReason::NotANumber, qtrs))?;
-    let is_instant = quarters == 0
-        && BigDecimal::from_str(durp)
-            .map_err(|_| invalid(InvalidValueReason::NotANumber, durp))?
-            .is_zero();
-    Ok(if is_instant {
-        Period::Instant { end }
-    } else {
-        Period::Duration(Duration::from_end_and_quarters(end, quarters))
-    })
+    let durp_quarters =
+        BigDecimal::from_str(durp).map_err(|_| invalid(InvalidValueReason::NotANumber, durp))?;
+    if quarters == 0 && durp_quarters.is_zero() {
+        return Ok(Period::Instant { end });
+    }
+    let start = end
+        .checked_sub_signed(length_days(type_name, quarters, &durp_quarters, durp)?)
+        .ok_or_else(|| invalid(InvalidValueReason::OutOfRange, durp))?;
+    Duration::from_dates(start, end).map(Period::Duration)
+}
+
+/// Returns the true length of a duration: `round((qtrs - durp) * 91.25)` days.
+fn length_days(
+    type_name: &'static str,
+    quarters: u16,
+    durp_quarters: &BigDecimal,
+    durp: &str,
+) -> Result<TimeDelta, InvalidValue> {
+    let invalid = || InvalidValue::new(type_name, InvalidValueReason::OutOfRange, durp);
+    let quarter_days = BigDecimal::new(DURP_QUARTER_HUNDREDTHS.into(), HUNDREDTHS_SCALE);
+    let days = ((BigDecimal::from(quarters) - durp_quarters) * quarter_days)
+        .with_scale_round(0, RoundingMode::HalfUp)
+        .to_i64()
+        .ok_or_else(invalid)?;
+    TimeDelta::try_days(days).ok_or_else(invalid)
 }
 
 fn datp_days(type_name: &'static str, datp: &str) -> Result<TimeDelta, InvalidValue> {
@@ -797,18 +821,16 @@ mod tests {
     }
 
     #[test]
-    fn should_give_a_duration_with_no_start_when_qtrs_is_not_zero() {
+    fn should_give_an_instant_when_qtrs_and_durp_are_zero() {
         let row = NumRow {
-            ddate: "20250930".to_owned(),
-            qtrs: "4".to_owned(),
-            datp: "3.0".to_owned(),
+            qtrs: "0".to_owned(),
+            durp: "0.0".to_owned(),
             ..num_row()
         };
 
-        let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
-            date(2025, 9, 27),
-            4,
-        )));
+        let expected_result = Ok(Period::Instant {
+            end: date(2026, 9, 30),
+        });
 
         let result = row.period();
 
@@ -816,7 +838,57 @@ mod tests {
     }
 
     #[test]
-    fn should_give_a_duration_of_no_quarters_when_qtrs_is_zero_and_durp_is_not() {
+    fn should_give_the_exact_start_from_durp_when_the_row_is_a_quarter() {
+        let row = NumRow {
+            qtrs: "1".to_owned(),
+            durp: "0.002740".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result =
+            Duration::from_dates(date(2026, 7, 1), date(2026, 9, 30)).map(Period::Duration);
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_exact_start_from_durp_when_the_row_is_a_four_month_stub() {
+        let row = NumRow {
+            qtrs: "1".to_owned(),
+            durp: "-0.326027".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result =
+            Duration::from_dates(date(2026, 6, 1), date(2026, 9, 30)).map(Period::Duration);
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_exact_start_from_durp_when_the_exact_end_lies_before_ddate() {
+        let row = NumRow {
+            ddate: "20250930".to_owned(),
+            qtrs: "4".to_owned(),
+            durp: "0.010959".to_owned(),
+            datp: "3.0".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result =
+            Duration::from_dates(date(2024, 9, 28), date(2025, 9, 27)).map(Period::Duration);
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_duration_of_no_quarters_with_its_start_when_qtrs_is_zero_and_durp_is_not() {
         let row = NumRow {
             ddate: "20250630".to_owned(),
             qtrs: "0".to_owned(),
@@ -824,10 +896,8 @@ mod tests {
             ..num_row()
         };
 
-        let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
-            date(2025, 6, 30),
-            0,
-        )));
+        let expected_result =
+            Duration::from_dates(date(2025, 6, 1), date(2025, 6, 30)).map(Period::Duration);
 
         let result = row.period();
 
@@ -835,17 +905,37 @@ mod tests {
     }
 
     #[test]
-    fn should_give_a_duration_without_reading_durp_when_qtrs_is_not_zero() {
+    fn should_reject_the_period_when_durp_is_not_a_number_and_qtrs_is_not_zero() {
         let row = NumRow {
             qtrs: "4".to_owned(),
             durp: String::new(),
             ..num_row()
         };
 
-        let expected_result = Ok(Period::Duration(Duration::from_end_and_quarters(
-            date(2026, 9, 30),
-            4,
-        )));
+        let expected_result = Err(InvalidValue::new(
+            "NumRow",
+            InvalidValueReason::NotANumber,
+            "",
+        ));
+
+        let result = row.period();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_period_when_durp_puts_the_start_after_the_end() {
+        let row = NumRow {
+            qtrs: "0".to_owned(),
+            durp: "1.0".to_owned(),
+            ..num_row()
+        };
+
+        let expected_result = Err(InvalidValue::new(
+            "Duration",
+            InvalidValueReason::EndBeforeStart,
+            "2026-12-30 to 2026-09-30",
+        ));
 
         let result = row.period();
 
