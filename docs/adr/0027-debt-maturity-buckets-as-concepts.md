@@ -86,8 +86,8 @@ and the report date of the accession of each value. An annual ladder is a value 
 
 ## Open Questions
 
-- The segments design decides whether a standardized fact can carry a member that the company
-  defines. That decision reopens the notes per company, not this form.
+- A design for values per note adds its own trait next to `SegmentAxes` (`xbrl/DESIGN.md`,
+  "Segment Values"). It adds the notes per company and does not reopen this form.
 - A demand for interim ladders reopens decision 2.
 
 ## Sources

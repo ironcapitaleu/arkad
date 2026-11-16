@@ -228,15 +228,18 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 
 ### `candidates`
 
-One row per standard concept and filing, from steps 1 and 2 of the dedup order in
+One row per standard concept, set of dimensions, and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
 `standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `decimals`, `blocked`,
 and `entity_bucket`. Step 3 needs `decimals` to tell a restatement from a repeated comparative. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
-the rule that picked the conflicting concept.
+the rule that picked the conflicting concept. The segment view of a report and its reconciliation
+read the rows of one filing, see [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values).
 
 The owner decided on 2026-11-08 that `candidates` stays a dataset of its own. When a new filing arrives,
-the series step runs again over every filing of the entity. It reads about 50 candidate rows per
-past filing instead of about 1,000 as-is rows, and it does not run steps 1 and 2 again.
+the series step runs again over every filing of the entity. It reads about 50 candidate rows of
+consolidated values per past filing instead of about 1,000 as-is rows, and it does not run steps 1
+and 2 again. Segment values add candidate rows. In `2026_10_notes.zip`, a 10-K or 10-Q had a mean
+of 79 segment values on concepts of an alias list (2026-11-15).
 
 Inside a `candidates` part, rows sort by `entity_bucket`, then by `filing_id`. The writer starts a
 new row group at each change of `entity_bucket`, so a series task reads only the row groups of its
@@ -248,7 +251,7 @@ bucket, by their statistics.
 | ------ | ---------- | ---- |
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concept` | `utf8` | `CanonicalElementKind::name()`, for example `Revenue` |
-| `period_end`, `period_start`, `quarters`, `dimensions` | as in `as_is_facts` | Dimensions are empty in the MVP |
+| `period_end`, `period_start`, `quarters`, `dimensions` | as in `as_is_facts` | `dimensions` is empty for a consolidated value. A segment value holds its pairs as filed, all on the segment axes of [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values) |
 | `unit` | `utf8` | `StandardizedFact::unit`, never null |
 | `value` | `decimal128(38, 10)` | |
 | `confidence` | `utf8` | `Exact`, `Synonym`, `Derived`, or `Computed` |
@@ -272,7 +275,9 @@ Maturities").
 
 `standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
 entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. The current value of a key is
-its row with the latest `computed_at`, unless that row has `change` = `removed`.
+its row with the latest `computed_at`, unless that row has `change` = `removed`. A read of the
+consolidated values takes the rows with empty `dimensions`. Silver stores no line of the segment
+reconciliation.
 
 ### `findings`
 
@@ -341,7 +346,7 @@ The row key of `content_digest`, by dataset:
 
 - `as_is_facts`: the value key.
 - `filings`: `filing_id`.
-- `candidates`: `filing_id`, then `concept`.
+- `candidates`: `filing_id`, then `concept`, then `dimensions`.
 - `standardized_facts` and `findings`: the key in the section of the dataset. A row without
   `filing_id` falls in the digest group of its entity.
 - `taxonomy_elements`: the digest group is the release. Rows sort by `concept_family`, then by
