@@ -16,11 +16,12 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 
 use super::candidate::{Candidate, CandidateValue};
 use super::elements::CanonicalElementKind;
 use super::fact::Dimensions;
-use super::period::Period;
+use super::filing::FilingId;
 use super::rule::RuleId;
 use super::taxonomy::registry::Registry;
 use super::taxonomy::segment::{
@@ -28,22 +29,26 @@ use super::taxonomy::segment::{
 };
 use super::unit::Unit;
 
-/// The segment reconciliation of one standard concept, period, and unit in one filing.
+/// The segment reconciliation of one filing, standard concept, period, and unit.
 ///
 /// unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate. Each value keeps the sign
 /// of the filing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Reconciliation {
+    /// The filing.
+    pub filing: FilingId,
     /// The standard concept.
     pub concept: CanonicalElementKind,
-    /// The instant or duration the values cover.
-    pub period: Period,
+    /// The exact end of the period.
+    pub period_end: NaiveDate,
+    /// The length in quarters.
+    pub quarters: u16,
     /// The unit.
     pub unit: Unit,
     /// The candidate without dimensions, if the filing gives one.
     pub consolidated: Option<Candidate>,
-    /// The segment lines sorted by dimensions, then the elimination lines, then the corporate
-    /// lines, then the unreconciled line if it exists.
+    /// The segment lines sorted by dimensions, then the elimination lines and the corporate lines
+    /// in the order of the input, then the unreconciled line if it exists.
     pub lines: Vec<ReconciliationLine>,
 }
 
@@ -81,8 +86,9 @@ impl ReconciliationLine {
     }
 }
 
-/// Builds one [`Reconciliation`] per standard concept, period, and unit from the candidates of one
-/// filing.
+/// Builds one [`Reconciliation`] per filing, standard concept, period, and unit from `candidates`.
+///
+/// A period is its exact end and its length in quarters, as in the value key.
 ///
 /// A reconciliation exists only if a candidate has a role. The role of a candidate with dimensions
 /// comes from the [`SegmentAxes`] of the family of its first input. A candidate with an axis of
@@ -94,9 +100,15 @@ impl ReconciliationLine {
 /// are reported, and a segment line exists.
 #[must_use]
 pub fn reconcile(candidates: &[Candidate], registry: &Registry<'_>) -> Vec<Reconciliation> {
-    let mut groups: BTreeMap<(CanonicalElementKind, Period, Unit), Group> = BTreeMap::new();
+    let mut groups: BTreeMap<GroupKey, Group> = BTreeMap::new();
     for candidate in candidates {
-        let key = (candidate.concept, candidate.period, candidate.unit.clone());
+        let key = GroupKey {
+            filing: candidate.source.filing.clone(),
+            concept: candidate.concept,
+            period_end: candidate.period.end(),
+            quarters: candidate.period.quarters(),
+            unit: candidate.unit.clone(),
+        };
         if candidate.dimensions.is_empty() {
             groups.entry(key).or_default().consolidated = Some(candidate.clone());
         } else if let Some(role) = role_of(candidate, registry) {
@@ -106,8 +118,18 @@ pub fn reconcile(candidates: &[Candidate], registry: &Registry<'_>) -> Vec<Recon
     groups
         .into_iter()
         .filter(|(_, group)| group.has_role())
-        .map(|((concept, period, unit), group)| group.into_reconciliation(concept, period, unit))
+        .map(|(key, group)| group.into_reconciliation(key))
         .collect()
+}
+
+/// The filing, standard concept, period, and unit of one [`Reconciliation`].
+#[derive(PartialEq, Eq, PartialOrd, Ord)]
+struct GroupKey {
+    filing: FilingId,
+    concept: CanonicalElementKind,
+    period_end: NaiveDate,
+    quarters: u16,
+    unit: Unit,
 }
 
 /// The role of a candidate with dimensions.
@@ -198,12 +220,7 @@ impl Group {
         !(self.segments.is_empty() && self.eliminations.is_empty() && self.corporate.is_empty())
     }
 
-    fn into_reconciliation(
-        self,
-        concept: CanonicalElementKind,
-        period: Period,
-        unit: Unit,
-    ) -> Reconciliation {
+    fn into_reconciliation(self, key: GroupKey) -> Reconciliation {
         let mut lines: Vec<ReconciliationLine> = self
             .segments
             .into_values()
@@ -223,9 +240,11 @@ impl Group {
             lines.push(ReconciliationLine::Unreconciled(unreconciled));
         }
         Reconciliation {
-            concept,
-            period,
-            unit,
+            filing: key.filing,
+            concept: key.concept,
+            period_end: key.period_end,
+            quarters: key.quarters,
+            unit: key.unit,
             consolidated: self.consolidated,
             lines,
         }
@@ -313,7 +332,8 @@ mod tests {
             .unwrap_or_default()
     }
 
-    fn unreconciled(value: i64) -> ReconciliationLine {
+    /// Returns the unreconciled line `value`.
+    fn unreconciled_line(value: i64) -> ReconciliationLine {
         ReconciliationLine::Unreconciled(BigDecimal::from(value))
     }
 
@@ -326,7 +346,7 @@ mod tests {
             revenue("-10", &[("ConsolidationItems", "IntersegmentElimination")]),
         ];
 
-        let expected_result = Some(unreconciled(0));
+        let expected_result = Some(unreconciled_line(0));
 
         let result = last_line(&reconcile_with_us_gaap(&candidates));
 
@@ -342,7 +362,7 @@ mod tests {
             revenue("-15", &[("ConsolidationItems", "CorporateAndEliminations")]),
         ];
 
-        let expected_result = Some(unreconciled(-15));
+        let expected_result = Some(unreconciled_line(-15));
 
         let result = last_line(&reconcile_with_us_gaap(&candidates));
 
@@ -354,7 +374,7 @@ mod tests {
         let cloud = revenue("100", &[("BusinessSegments", "Cloud")]);
         let candidates = vec![revenue("100", &[]), cloud.clone()];
 
-        let expected_result = vec![ReconciliationLine::Segment(cloud), unreconciled(0)];
+        let expected_result = vec![ReconciliationLine::Segment(cloud), unreconciled_line(0)];
 
         let result = lines(&reconcile_with_us_gaap(&candidates));
 
@@ -385,6 +405,61 @@ mod tests {
         let expected_result = vec![ReconciliationLine::Segment(cloud)];
 
         let result = lines(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_unreconciled_line_when_an_elimination_is_blocked() {
+        let cloud = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let elimination = blocked(revenue(
+            "-10",
+            &[("ConsolidationItems", "IntersegmentElimination")],
+        ));
+        let candidates = vec![revenue("90", &[]), cloud.clone(), elimination.clone()];
+
+        let expected_result = vec![
+            ReconciliationLine::Segment(cloud),
+            ReconciliationLine::Elimination(elimination),
+        ];
+
+        let result = lines(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_role_when_the_value_is_the_segment_total_or_intersegment_revenue() {
+        let candidates = vec![
+            revenue("100", &[]),
+            revenue("100", &[("BusinessSegments", "Cloud")]),
+            revenue("100", &[("ConsolidationItems", "OperatingSegments")]),
+            revenue(
+                "5",
+                &[
+                    ("BusinessSegments", "Cloud"),
+                    ("ConsolidationItems", "IntersegmentElimination"),
+                ],
+            ),
+        ];
+
+        let expected_result = Some(unreconciled_line(0));
+
+        let result = last_line(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_one_reconciliation_per_filing_when_two_filings_report_the_period() {
+        let original = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let mut amendment = revenue("100", &[("BusinessSegments", "Cloud")]);
+        amendment.source = source("0000320193-24-000200", date(2024, 12, 1));
+        let candidates = vec![original, amendment];
+
+        let expected_result = 2;
+
+        let result = reconcile_with_us_gaap(&candidates).len();
 
         assert_eq!(result, expected_result);
     }
@@ -450,7 +525,7 @@ mod tests {
             revenue("100", &[("BusinessSegments", "Cloud")]),
         ];
 
-        let expected_result = Some(unreconciled(0));
+        let expected_result = Some(unreconciled_line(0));
 
         let result = last_line(&reconcile_with_us_gaap(&candidates));
 
@@ -470,7 +545,7 @@ mod tests {
             ),
         ];
 
-        let expected_result = Some(unreconciled(0));
+        let expected_result = Some(unreconciled_line(0));
 
         let result = last_line(&reconcile_with_us_gaap(&candidates));
 
@@ -483,7 +558,7 @@ mod tests {
             ReconciliationLine::Segment(revenue("1", &[])),
             ReconciliationLine::Elimination(revenue("1", &[])),
             ReconciliationLine::Corporate(revenue("1", &[])),
-            unreconciled(0),
+            unreconciled_line(0),
         ];
 
         let expected_result = vec![

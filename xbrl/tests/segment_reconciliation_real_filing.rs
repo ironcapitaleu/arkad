@@ -4,22 +4,41 @@
 //! [`xbrl::adapter::edgar::notes::parse`] gives it.
 //!
 //! Each segment value and each consolidated revenue of a quarter is a conflict between a quarter
-//! and a period of four months, so each candidate is blocked. The reconciliation then has no
-//! unreconciled line.
+//! and a period of four months, so each candidate is blocked. Each of the 10 reconciliations holds a
+//! blocked consolidated value and one blocked segment line, and no unreconciled line.
 //!
 //! ## External Dependencies
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
-use std::collections::BTreeSet;
-
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::resolve_aliases;
+use xbrl::core::candidate::{Candidate, CandidateValue};
 use xbrl::core::dedup::more_precise;
-use xbrl::core::segment::{ReconciliationLine, reconcile};
+use xbrl::core::segment::{Reconciliation, ReconciliationLine, reconcile};
 use xbrl::core::taxonomy::registry::{Plugin, Registry};
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::us_gaap::UsGaap;
+
+/// Returns the state of each line of `reconciliation`: `"reported segment"`, `"blocked segment"`,
+/// and so on, or `"unreconciled"`.
+fn line_states(reconciliation: &Reconciliation) -> Vec<&'static str> {
+    reconciliation
+        .lines
+        .iter()
+        .map(|line| match line {
+            ReconciliationLine::Segment(candidate) if is_blocked(candidate) => "blocked segment",
+            ReconciliationLine::Segment(_) => "reported segment",
+            ReconciliationLine::Elimination(_) => "elimination",
+            ReconciliationLine::Corporate(_) => "corporate",
+            ReconciliationLine::Unreconciled(_) => "unreconciled",
+        })
+        .collect()
+}
+
+fn is_blocked(candidate: &Candidate) -> bool {
+    candidate.value == CandidateValue::Blocked
+}
 
 #[test]
 fn should_give_no_unreconciled_line_for_the_blocked_segments_of_the_fixture_filing() {
@@ -29,15 +48,15 @@ fn should_give_no_unreconciled_line_for_the_blocked_segments_of_the_fixture_fili
     let candidates =
         resolve_aliases(&more_precise(&parse_notes_fixture().facts), &registry).candidates;
 
-    let expected_result = BTreeSet::from([false]);
+    let expected_result = vec![(Some(true), vec!["blocked segment"]); 10];
 
-    let result: BTreeSet<bool> = reconcile(&candidates, &registry)
+    let result: Vec<(Option<bool>, Vec<&str>)> = reconcile(&candidates, &registry)
         .iter()
         .map(|reconciliation| {
-            reconciliation
-                .lines
-                .iter()
-                .any(|line| matches!(line, ReconciliationLine::Unreconciled(_)))
+            (
+                reconciliation.consolidated.as_ref().map(is_blocked),
+                line_states(reconciliation),
+            )
         })
         .collect();
 
