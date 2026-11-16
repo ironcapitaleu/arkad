@@ -10,6 +10,7 @@ keywords = ["api", "axum", "http", "fundamentals"]
 readme = "../README.md"
 
 [dependencies]
+async-trait = "0.1.88"
 # Every default feature except `tower-log`. It turns on the `log` feature of `tracing` for the whole
 # workspace, which makes every `tracing` macro of `sec` count as more complex for clippy.
 axum = { version = "0.8.9", default-features = false, features = [
@@ -26,6 +27,7 @@ bigdecimal = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+storage = { version = "0.1.0", path = "../storage" }
 thiserror = "2"
 tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "signal"] }
 tracing = "0.1"

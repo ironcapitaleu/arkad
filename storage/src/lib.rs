@@ -46,8 +46,8 @@ pub mod traits;
 
 pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
 pub use shared::{
-    CompanyId, CompanyIdentifier, CompanyScheme, InvalidMic, InvalidSha256Digest, ListingId,
-    ListingIdentifier, ListingScheme, Mic, Sha256Digest,
+    AccountId, CompanyId, CompanyIdentifier, CompanyScheme, InvalidAccountId, InvalidMic,
+    InvalidSha256Digest, ListingId, ListingIdentifier, ListingScheme, Mic, Sha256Digest,
 };
 pub use traits::repository::{
     ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
