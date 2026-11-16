@@ -9,11 +9,12 @@
 
 ## Context
 
-The facts of the pipeline come from two sources: the Financial Statement and Notes data set for
-the backfill, and the XBRL instance document of each new filing from the daily index.
+The facts of the pipeline come from two sources. The Financial Statement and Notes data set
+serves the backfill. The XBRL instance document of each new filing from the daily index serves the
+rest.
 `xbrl::adapter::edgar::notes` and `xbrl::adapter::edgar::instance` parse them. The
 `companyfacts` JSON is a cross-check only, because it drops every value with a dimension
-([`ingestion_paths.md`](../../sec/design/pipeline/ingestion_paths.md), "Extraction Overview").
+([`ingestion_paths.md`](../../sec/design/pipeline/ingestion_paths.md), "Sources").
 
 The SEC also serves XBRL facts through three JSON APIs on `data.sec.gov`:
 
@@ -62,8 +63,8 @@ Checked on 2026-11-16 on `main` at `d0af124`.
 
 ## Open Questions
 
-- The decision reopens if a state of `sec` must read one concept across many companies faster
-  than a Notes period allows, such as a peer comparison between two Notes releases.
+- The decision reopens if a state of `sec` must read one concept across many companies, and the
+  stored Notes rows and instance documents cannot serve that read.
 
 ## Sources
 
