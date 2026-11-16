@@ -432,9 +432,9 @@ Duration values. The top line is `NetChangeInCash`.
   the receipts and payments less net income.
 - `NetIncome` in the cash flow statement is the same standardized fact as in the income statement.
   So the cross-statement check of "5) Validation" on net income always holds and needs no code.
-- The cash balance at the start and the end of the period is not in the tree. A check of
-  `NetChangeInCash` against two balances needs the balance at the start date. The Notes parser
-  sets no exact start, so the design has no such check.
+- The cash balance at the start and the end of the period is not in the tree, and the design has
+  no check of `NetChangeInCash` against two balances. Such a check needs the balance at the day
+  before the exact start of the period.
 
 #### Disclosures
 
@@ -677,10 +677,10 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
   group that holds the member, so a disagreement is a `RollUpMismatch` finding.
   [ADR 0013](../docs/adr/0013-order-of-the-groups.md) records the order.
 - The series key (`period_end`, `quarters`) does not tell a three-month value from a four-month
-  value in Notes. If one concept has only a three-month copy and another has only a four-month
-  copy, no dedup conflict arises, and the rule can combine them. In the fixture of "Worked
-  Example", the series gets operating cash flow of four months and no net income, because dedup
-  blocks net income.
+  value. If one concept has only a three-month value and another has only a four-month value,
+  both enter one slot. The exact start tells them apart, so a group that holds both derives
+  nothing (see "Checks the Tree Gives"). In the fixture of "Worked Example", `operating-cash-flow`
+  starts from the three-month net income and holds four-month lines, so it derives nothing.
 
 This rule fills common gaps. In CY2025, 5,564 filers reported `Liabilities`, and 6,090 reported
 `LiabilitiesAndStockholdersEquity`. Only 781 reported `AssetsNoncurrent`, against 4,908 for
@@ -1869,8 +1869,7 @@ section 4.
 - The exact start stays on the fact. It is not part of the key
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The instance gives `startDate`. The
   Notes parser computes the start as the exact end less `round((qtrs − durp) × 91.25)` days. On
-  2026-11-15, the two starts agreed for 7,173 of 7,173 Notes durations in 14 filings. The Notes
-  parser does not compute the start.
+  2026-11-15, the two starts agreed for 7,173 of 7,173 Notes durations in 14 filings.
 - The rank makes the key unique, but it does not make two ranks one fact. Of the 395 measured
   collisions, 266 are one period with two precisions, which are copies. 129 are two exact periods
   with the same end and length, which are two facts. The exact start tells the two cases apart in
@@ -2067,8 +2066,6 @@ year-to-date only. The result has confidence `Derived`.
     the entity (`10-K`, `10-KT`, `20-F`, or `40-F`). This catches a change of the fiscal year end
     from the dates alone. The `fye` field of a filing can lag the change by several filings, so
     the rule does not read it.
-- The Notes parser sets no exact start (see "Value Key"), so a short first fiscal year in Notes
-  with no `10-KT` and no earlier annual report still gets a Q4.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
@@ -2493,7 +2490,7 @@ Where each field of `AsIsFact` comes from:
 | `entity` | `sub.cik` | The entity identifier of the context |
 | `concept` | `tag` with the namespace of `version`, from `num` or `txt` | The element name |
 | `taxonomy_version` | `num.version` or `txt.version` | The registry split of the namespace URI. The namespace whose prefix names the schema file, as `fdxf` names `fdxf-20260930.xsd`, is the extension |
-| `period` | The end is `ddate` minus `datp`. The start is the end minus `round((qtrs − durp) × 91.25)` days, which the parser does not compute. `qtrs` 0 is an instant only if `durp` is 0 | The period of the context |
+| `period` | The end is `ddate` minus `datp`. The start is the end minus `round((qtrs − durp) × 91.25)` days, and the length in quarters follows from the start and the end. `qtrs` 0 is an instant only if `durp` is 0, so a duration whose start equals its end becomes an instant | The period of the context |
 | `unit` | `num.uom`, with `/shares` restored if `tag.datatype` is `perShare`. `None` for a `txt` row | The unit of the fact |
 | `dimensions` | `dim.segments` through `dimh`, and `coreg`. A lowercase prefix before a capitalized name is stripped. A typed member such as `abc:Def` loses its prefix too. A row with `segt` 1 is cut and gives a finding | The members of the context, without prefixes. An explicit axis loses a leading `Statement` and a trailing `Axis`, and its member loses a trailing `Member` or `Domain`. A typed axis loses only a trailing `Axis`. A typed member keeps its content, and loses a prefix by the Notes rule |
 | `value` | `num.value` or `txt.value`. An empty `num.value` is nil. An empty `txt.value` is nil only if `txt.srclen` is 0, else an empty text. The parser drops `txt.lang`, which is not part of the key of `txt`. Every `txt` row of `2026_10` is `en-US` | The content of the fact, or `xsi:nil` |
