@@ -2,9 +2,10 @@
 
 > **Status:** proposed, for review by the owner. [ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md),
 > [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md),
-> [ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md), and
-> [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) hold the decisions of this document.
-> All four are "Proposed".
+> [ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md),
+> [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md), and
+> [ADR 0036](../../../docs/adr/0036-gcs-backend-in-storage.md) hold the decisions of this document.
+> All five are "Proposed".
 >
 > **Marks:** "Measured" means checked on 2026-11-08 against a downloaded SEC file, as the silver
 > prototype findings record it. "Estimate" means not measured. Every other statement is a proposal.
@@ -110,8 +111,10 @@ Principle"):
 
 The GCS backend sets `ifGenerationMatch=0` on each object write, and `ifGenerationMatch=<generation>`
 when it replaces an expired lease. The bucket mount shows no generation, so silver does not use
-it. The backend sits behind the cargo feature `gcs`, so a binary that does not write silver does
-not compile the client. The client must use `rustls`, and `cargo tree -i openssl-sys` must find no
+it. The backend sits behind the cargo feature `gcs`. A build that turns the feature on compiles the
+client into each of its binaries, the extract binaries included
+([ADR 0036](../../../docs/adr/0036-gcs-backend-in-storage.md)). The backend sends its requests
+through `reqwest`, which `sec` already compiles, so `cargo tree -i openssl-sys` still finds no
 package.
 
 The filesystem backend opens each file with `create_new`. Tests and local runs use it.
@@ -407,14 +410,18 @@ workflow only starts a run ([ADR 0034](../../../docs/adr/0034-transform-jobs-cha
 2. **Group.** Each message names its unit key. A `NotesArchiveRef` gives its `NotesPeriod`, for
    example `2024q1`. A `FilingDocumentsRef` gives the filed date of its `FilingRef`, from the
    daily index. Each distinct key becomes one unit and one task.
-3. **Carry over.** The plan step adds each unit of the latest plan of its job kind that has no
-   `silver_files` row with the inputs of that plan. So a unit that failed runs again.
+3. **Carry over.** The plan step adds each unit of the latest plan of its job kind whose task did
+   not succeed. A task succeeds if it wrote the unit, or skipped it by rule 2 of a write. Each
+   task records its result as a write-once object `plans/<job kind>/<plan id>/done/<unit key>`
+   in the control bucket. The carried units go through the same grouping, so a key is in a plan
+   once. So a unit that failed runs again, and a skipped unit does not.
 4. **Write the plan, then acknowledge.** The plan step writes the plan, then acknowledges the
-   messages. The plan holds the work from then on. A run can last hours, longer than a queue
+   messages. From then on, the plan holds the work. A run can last hours, longer than a queue
    keeps a pulled message without an acknowledgement.
 
 A message only names a key. The worker task builds the unit from every document of that key in
-the raw store: every stored instance of the day, not only the filings of the messages. So the
+the raw store: every filing of the stored daily index `form.<YYYYMMDD>.idx` of that day whose
+instance the store holds, not only the filings of the messages. So the
 unit does not depend on which messages arrived in which batch.
 
 The transform never waits for a day to be complete. A filing that arrives later publishes a
@@ -544,8 +551,9 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 6. FEATURE: `SilverRecord` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
-8. FEATURE: the transform plan step and task runner: units from the queue or the raw store, one
-   unit per task, threads, and the lease check.
+8. FEATURE: the transform plan step and task runner: units from the queue or the raw store, the
+   carry-over with a test that a skipped unit leaves the plan, one unit per task, threads, and
+   the lease check.
 9. FEATURE: failure handling and the run summary of the transform task.
 10. FEATURE: `xbrl::core::series::standardize_series`.
 11. FEATURE: the series plan and `compare_series`, with the keys of a base after a failed base.
@@ -565,12 +573,15 @@ jobs, and are not in this list.
   returns it. The series step writes the findings that its functions return, so silver holds no
   `MixedStarts` row until `xbrl` has a function that returns one.
 - **Cost of the byte form.** Not measured. The feature of the digest measures it on `2024q1`.
-- **Time of a series task.** Not measured. The feature of the super-state measures one bucket of a
-  base run.
+- **Time of a series task.** Not measured. Each task reads every `candidates` part whole, so a
+  base run of 64 tasks reads all of `candidates` 64 times: about 64 to 128 GB (estimate: 58
+  million rows at 20 to 40 bytes each). The feature of the super-state measures one base task. If
+  its read takes more than a few minutes, a range read comes first.
 - **The startup of an execution.** Not measured. ADR 0034 names it.
 - **The mount for silver.** Not tested: whether the GCS bucket mount honors "create only if
-  absent". If it does, `SilverObjectStore` can write through the mount, and only `LeaseStore`
-  needs the GCS client.
+  absent". An upload through the mount also carries no CRC32C, so GCS cannot reject a damaged
+  upload, and only integrity check 1 finds it. If both are acceptable, `SilverObjectStore` can
+  write through the mount, and only `LeaseStore` needs the GCS client.
 - **A signal for a rule change.** The design of the replay of the standardized layer adds a signal
   that starts a base run. The plan step reads it next to the conditions of [Mode](#mode).
 - **Gold.** The load step and its ledger belong to the gold design.

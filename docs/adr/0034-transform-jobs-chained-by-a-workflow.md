@@ -32,7 +32,7 @@ Facts that bound the choice:
   90 filings on a business day.
 
 The choice binds the transform, series, and checks binaries, the deployment of MVP Operations, and
-the queue port, which will start the same jobs.
+the queue port, which holds the work of the transform.
 
 Terms in this ADR:
 
@@ -84,7 +84,7 @@ Compared on 2026-11-16, on the facts in "Context".
   day to be complete, which no message marks. The series step still runs as a batch over many
   units, so it needs a barrier too.
 - E starts many runs that stop at once, and a message that arrives during a run waits for the
-  next start anyway.
+  next start.
 
 ## Consequences
 
