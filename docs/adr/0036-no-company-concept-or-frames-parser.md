@@ -10,11 +10,10 @@
 ## Context
 
 The facts of the pipeline come from two sources. The Financial Statement and Notes data set
-serves the backfill. The XBRL instance document of each new filing from the daily index serves the
-rest.
+serves the backfill. The XBRL instance document of each filing after the cut-over date serves the
+new filings.
 `xbrl::adapter::edgar::notes` and `xbrl::adapter::edgar::instance` parse them. The
-`companyfacts` JSON is a cross-check only, because it drops every value with a dimension
-([`ingestion_paths.md`](../../sec/design/pipeline/ingestion_paths.md), "Sources").
+`companyfacts` JSON is a cross-check only, because it drops every value with a dimension.
 
 The SEC also serves XBRL facts through three JSON APIs on `data.sec.gov`:
 
@@ -68,6 +67,11 @@ Checked on 2026-11-16 on `main` at `d0af124`.
 
 ## Sources
 
+- [STA-284](https://linear.app/state-machine/issue/STA-284), "Choosing the Data Sources and the
+  Ingestion Pattern: Findings", accepted by the project lead on 2026-10-16
+  (`https://linear.app/state-machine/document/choosing-the-data-sources-and-the-ingestion-pattern-findings-f9010119b241`):
+  the SEC sources of the pipeline, and the use of `companyfacts` as a cross-check only, read on
+  2026-11-16.
 - `sec/src/lib/shared/request/implementations/sec_request/constants.rs` at `d0af124`: the URL
   prefixes of the request kinds of `sec`, read on 2026-11-16.
 - SEC, "EDGAR Application Programming Interfaces",
