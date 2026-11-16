@@ -1021,9 +1021,9 @@ each member of its axis of kind `ConsolidationItems`. Each value takes a role fr
 | Segment | A business-segment axis = *m* alone, or with a member of role `Segment` | None |
 | Elimination | A member of role `Elimination`, alone | `core/segment/elimination@1` |
 | Corporate | A member of role `Corporate`, alone | `core/segment/corporate@1` |
+| Unreconciled | None, a line of the reconciliation | `core/segment/unreconciled@1` |
 
 A member with a role sits on an axis of kind `ConsolidationItems`.
-| Unreconciled | None, a line of the reconciliation | `core/segment/unreconciled@1` |
 
 The roles of `us_gaap`, all on `ConsolidationItems`:
 
@@ -1228,7 +1228,9 @@ pub struct MemberRole {
   ```
 
 - The transform builds its registry with `with_plugins` and `Plugin::WithSegmentAxes(&us_gaap)`. A
-  registry from `new` gives no segment values.
+  registry from `new` gives no segment values and no finding. So every caller that standardizes
+  facts moves to `with_plugins` in the PR that admits segment facts: the transform, the test
+  fixtures of the two adapters, and the integration tests on real filings.
 - Each `MemberRole` names an axis of `segment_axes` of kind `ConsolidationItems`. A test of each
   plug-in checks this, so a typo in an axis name cannot send every elimination to the unreconciled
   line.
