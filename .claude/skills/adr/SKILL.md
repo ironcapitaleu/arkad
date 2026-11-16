@@ -8,7 +8,7 @@ description: >
   long-term trade-offs for the system or the team. Also use for one that a later engineer will
   question. Also use when you remove history or a past decision from a document, to check whether
   the decision needs an ADR first.
-version: 0.6.0
+version: 0.7.0
 allowed-tools: [AskUserQuestion]
 ---
 
@@ -123,7 +123,8 @@ decision.>
 
 ## Sources
 
-<Each source of a fact above: a file, a URL, a ticket comment, or a command, with its date.>
+<Each source of a fact above: a code or data file at a fixed commit, a URL, a ticket comment, or a
+command, with its date. Never a design document, a guideline, a skill, or another ADR.>
 ```
 
 Keep the order of the six sections. Leave out a section only if it has no content. A long ADR can
@@ -150,6 +151,10 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
   the text still names the item.
 - A link never replaces a fact. Copy each fact the decision rests on into the ADR, because a person
   can delete a ticket or a document.
+- An ADR links no document that can change or go away: no design document, guideline, skill, or
+  other ADR. Copy the fact instead. An ADR stays as written, so a link to a changing document makes
+  it say something else later. Only a superseded ADR and the ADR that supersedes it name each
+  other.
 - State what the decision does not cover. A reader must not take a gap for a covered case.
 - The reasons and the options live in the ADR only. `AGENTS.md` can state the rule that the
   decision adds, with a link to the ADR. A design doc links to the ADR and does not repeat the
