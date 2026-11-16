@@ -218,7 +218,7 @@ pub fn standardized(period: Period, value: &str) -> StandardizedFact {
 ///
 /// # Panics
 ///
-/// Never panics: the axis and the member are valid.
+/// Panics if the hardcoded axis or member is not a valid name.
 #[must_use]
 pub fn in_cloud_segment(facts: Vec<StandardizedFact>) -> Vec<StandardizedFact> {
     let cloud = Dimensions::new([("BusinessSegments", "Cloud")])

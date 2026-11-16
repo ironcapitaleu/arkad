@@ -113,7 +113,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
     }
 }
 
-/// The values of one entity, concept, unit, and dimensions over time.
+/// The values without dimensions of one entity, concept, and unit over time.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Timeline {
     entity: EntityId,
