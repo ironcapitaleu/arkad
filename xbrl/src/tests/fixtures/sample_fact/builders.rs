@@ -214,6 +214,24 @@ pub fn standardized(period: Period, value: &str) -> StandardizedFact {
     }
 }
 
+/// Returns `facts`, each with the dimensions `BusinessSegments` = `Cloud`.
+///
+/// # Panics
+///
+/// Panics if the hardcoded axis or member is not a valid name.
+#[must_use]
+pub fn in_cloud_segment(facts: Vec<StandardizedFact>) -> Vec<StandardizedFact> {
+    let cloud = Dimensions::new([("BusinessSegments", "Cloud")])
+        .expect("Given one hardcoded axis and member, the creation should always succeed");
+    facts
+        .into_iter()
+        .map(|fact| StandardizedFact {
+            dimensions: cloud.clone(),
+            ..fact
+        })
+        .collect()
+}
+
 /// Returns the filing of Apple of `form` for the period that ends on `period_of_report`, filed 30
 /// days later, under the fiscal year end `fiscal_year_end`, for example `0930`.
 ///

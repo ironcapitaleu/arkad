@@ -58,8 +58,8 @@ pub struct Chronology {
     pub findings: Vec<Finding>,
 }
 
-/// Checks the values of each entity, concept, unit, and dimensions over time, and returns them
-/// with the findings. The check reports and never fails.
+/// Checks the values without dimensions of each entity, concept, and unit over time, and returns
+/// all values of `series` with the findings. The check reports and never fails.
 ///
 /// The forms the entity files give the expected periods. An entity that files a `10-Q` expects
 /// `Q1`, `Q2`, `Q3`, and `FY` in the years it closes with a `10-K` or `10-KT`. A filer of only
@@ -102,7 +102,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
         series
             .facts
             .iter()
-            .filter(|fact| fact.restated)
+            .filter(|fact| fact.restated && fact.dimensions.is_empty())
             .map(|fact| Finding::Restatement {
                 key: fact.series_key(),
             }),
@@ -115,7 +115,7 @@ pub fn check_chronology(series: Series, filings: &[Filing], findings: Vec<Findin
     }
 }
 
-/// The values of one entity, concept, unit, and dimensions over time.
+/// The values without dimensions of one entity, concept, and unit over time.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Timeline {
     entity: EntityId,
@@ -158,13 +158,21 @@ struct Ends {
 
 fn timelines(series: &Series) -> BTreeMap<Timeline, Ends> {
     let mut timelines: BTreeMap<Timeline, Ends> = BTreeMap::new();
-    for fact in &series.facts {
+    for fact in series
+        .facts
+        .iter()
+        .filter(|fact| fact.dimensions.is_empty())
+    {
         let key = fact.series_key();
         let ends = timelines.entry(Timeline::of(&key)).or_default();
         ends.reported.insert((key.period_end, key.quarters));
         ends.has_duration |= matches!(fact.period, Period::Duration(_));
     }
-    for key in &series.blocked {
+    for key in series
+        .blocked
+        .iter()
+        .filter(|key| key.dimensions.is_empty())
+    {
         let ends = timelines.entry(Timeline::of(key)).or_default();
         ends.blocked.insert(key.period_end);
     }
@@ -475,7 +483,9 @@ mod tests {
     use crate::core::elements::{DebtMaturityConcept, IncomeStatementConcept};
     use crate::core::finding::PeriodSignal;
     use crate::core::standardized::StandardizedFact;
-    use crate::tests::fixtures::sample_fact::{date, fact, filing, source, standardized};
+    use crate::tests::fixtures::sample_fact::{
+        date, fact, filing, in_cloud_segment, source, standardized,
+    };
 
     fn value(end: NaiveDate, quarters: u16) -> StandardizedFact {
         standardized(
@@ -558,6 +568,23 @@ mod tests {
         let filings = quarterly_filings();
 
         let expected_result = vec![gap(date(2024, 3, 30), "Q2", 1, None)];
+
+        let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_gap_when_the_series_carries_a_business_segment() {
+        let facts = in_cloud_segment(vec![
+            value(date(2023, 9, 30), 4),
+            value(date(2023, 12, 30), 1),
+            value(date(2024, 6, 29), 1),
+            value(date(2024, 9, 28), 4),
+        ]);
+        let filings = quarterly_filings();
+
+        let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_chronology(series(facts, Vec::new()), &filings, Vec::new()).findings;
 
@@ -688,6 +715,20 @@ mod tests {
     }
 
     #[test]
+    fn should_report_no_overlap_when_the_series_carries_a_business_segment() {
+        let facts = in_cloud_segment(vec![
+            value(date(2022, 12, 31), 4),
+            value(date(2023, 6, 30), 4),
+        ]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_report_no_overlap_when_52_53_week_years_follow_each_other() {
         let facts = vec![value(date(2023, 9, 30), 4), value(date(2024, 9, 28), 4)];
 
@@ -708,6 +749,34 @@ mod tests {
         }];
 
         let result = check_chronology(series(vec![restated], Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_restatement_when_the_restated_value_carries_a_business_segment() {
+        let mut restated = value(date(2024, 9, 28), 4);
+        restated.restated = true;
+        let facts = in_cloud_segment(vec![restated]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[], Vec::new()).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_no_suspicious_period_when_the_value_carries_a_business_segment() {
+        let report = filing("10-K", date(2025, 12, 31), "1231");
+        // 7,297 quarters before the end of 2024 start in the year 200, as in a real 10-K.
+        let mut flagged = value(date(2024, 12, 31), 7297);
+        flagged.inputs[0].filing = report.id.clone();
+        let facts = in_cloud_segment(vec![flagged]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_chronology(series(facts, Vec::new()), &[report], Vec::new()).findings;
 
         assert_eq!(result, expected_result);
     }

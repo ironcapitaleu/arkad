@@ -49,6 +49,9 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 /// with zero, except `ExchangeRateEffect`. Open groups derive nothing, and `gross-profit` never
 /// derives `GrossProfit`.
 ///
+/// The rule reads only values without dimensions. The identities of the tree do not hold for the
+/// value of one segment.
+///
 /// The group derives nothing for a period if a member is blocked by a dedup conflict, has values in
 /// two units, or has another unit than the other members.
 ///
@@ -155,8 +158,8 @@ pub(super) fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
     }
 }
 
-/// The period of a value, without its concept and unit. Each member of a group has one value per
-/// slot.
+/// The period of a value without dimensions, without its concept and unit. Each member of a group
+/// has one value per slot.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Slot {
     entity: EntityId,
@@ -189,7 +192,11 @@ impl KnownValues {
             values: BTreeMap::new(),
             blocked: BTreeMap::new(),
         };
-        for key in &series.blocked {
+        for key in series
+            .blocked
+            .iter()
+            .filter(|key| key.dimensions.is_empty())
+        {
             let concept = key.concept;
             known
                 .blocked
@@ -197,7 +204,12 @@ impl KnownValues {
                 .or_default()
                 .insert(concept);
         }
-        for fact in series.facts.iter().chain(fourth_quarters) {
+        for fact in series
+            .facts
+            .iter()
+            .chain(fourth_quarters)
+            .filter(|fact| fact.dimensions.is_empty())
+        {
             known.insert(Slot::of(fact.series_key()), fact.clone());
         }
         known
@@ -275,7 +287,7 @@ mod tests {
     use crate::core::period::{Duration, Period};
     use crate::core::release::{Sha256, TaxonomyRelease};
     use crate::core::unit::Unit;
-    use crate::tests::fixtures::sample_fact::{date, standardized};
+    use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
 
     /// The concept, value, confidence, and rule of a derived fact.
     type Summary = (CanonicalElementKind, BigDecimal, Confidence, String);
@@ -347,6 +359,21 @@ mod tests {
             7468,
             "core/roll-up/liabilities-and-equity@1",
         )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_members_of_a_closed_group_carry_a_business_segment() {
+        let facts = series(in_cloud_segment(vec![
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "7216"),
+            balance_sheet(BalanceSheetConcept::Equity, "-252"),
+            balance_sheet(BalanceSheetConcept::EquityAttributableToParent, "-252"),
+        ]));
+
+        let expected_result: Vec<Summary> = Vec::new();
 
         let result = summary(derive_from_closed_groups(&facts, &[]));
 
