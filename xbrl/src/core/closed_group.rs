@@ -158,8 +158,8 @@ pub(super) fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
     }
 }
 
-/// The period of a value without dimensions, without its concept and unit. Each member of a group
-/// has one value per slot.
+/// The period of a value without dimensions. The slot leaves out the concept and the unit. Each
+/// member of a group has one value per slot.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Slot {
     entity: EntityId,

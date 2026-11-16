@@ -24,7 +24,7 @@ use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::{FilingCandidates, resolve_aliases};
-use xbrl::core::candidate::SeriesKey;
+use xbrl::core::candidate::{CandidateValue, SeriesKey};
 use xbrl::core::concept::{ConceptName, NamespaceFamily};
 use xbrl::core::confidence::Confidence;
 use xbrl::core::dedup::{Series, more_precise, newest_filing};
@@ -36,7 +36,7 @@ use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, FactValue, TaxonomyVersion
 use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::finding::Finding;
 use xbrl::core::rule::RuleId;
-use xbrl::core::taxonomy::registry::Registry;
+use xbrl::core::taxonomy::registry::{Plugin, Registry};
 use xbrl::core::unit::Unit;
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
@@ -49,21 +49,21 @@ const REVENUE_CONCEPT: &str = "RevenueFromContractWithCustomerExcludingAssessedT
 /// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts` with [`UsGaap`].
 fn candidates_of(facts: &[AsIsFact]) -> FilingCandidates {
     let plugin = UsGaap::new();
-    let registry = Registry::new(vec![&plugin])
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
     resolve_aliases(&more_precise(facts), &registry)
 }
 
-/// Returns the rank, period, and value of each copy of revenue without dimensions in the quarter
+/// Returns the rank, period, and value of each copy of revenue with `dimensions` in the quarter
 /// that ends on 2026-09-30, or an empty list if that key has no conflict.
-fn revenue_ranks(facts: &[AsIsFact]) -> Vec<(u16, String, FactValue)> {
+fn revenue_ranks(facts: &[AsIsFact], dimensions: &Dimensions) -> Vec<(u16, String, FactValue)> {
     more_precise(facts)
         .conflicts()
         .iter()
         .find(|ranks| {
             ranks[0].concept.local_name() == REVENUE_CONCEPT
                 && ranks[0].context.period.end() == date(2026, 9, 30)
-                && ranks[0].context.dimensions == Dimensions::default()
+                && ranks[0].context.dimensions == *dimensions
         })
         .map(|ranks| {
             ranks
@@ -80,11 +80,15 @@ fn revenue_ranks(facts: &[AsIsFact]) -> Vec<(u16, String, FactValue)> {
         .unwrap_or_default()
 }
 
-/// Runs the dedup rules on `facts`, and returns the count of standardized facts per standard
-/// concept.
+/// Runs the dedup rules on `facts`, and returns the count of standardized facts without dimensions
+/// per standard concept.
 fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usize> {
     let mut counts = BTreeMap::new();
-    for fact in newest_filing(&candidates_of(facts).candidates).facts {
+    for fact in newest_filing(&candidates_of(facts).candidates)
+        .facts
+        .into_iter()
+        .filter(|fact| fact.dimensions.is_empty())
+    {
         *counts.entry(fact.concept).or_insert(0) += 1;
     }
     counts
@@ -95,7 +99,6 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
 /// Equity and equity attributable to parent have 3 facts each, because the filing reports
 /// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
 /// Interest expense has 1, because a conflict blocks the 2026 quarter. Every other concept has 2.
-/// Facts with dimensions give no standardized fact.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
         (BalanceSheetConcept::Assets.element(), 2),
@@ -163,6 +166,12 @@ fn fedex_freight() -> EntityId {
     )
 }
 
+/// Returns the dimensions `BusinessSegments` = `ReportableSegment`, the one segment of the filer.
+fn reportable_segment() -> Dimensions {
+    Dimensions::new([("BusinessSegments", "ReportableSegment")])
+        .expect("Given one hardcoded axis and member, the creation should always succeed")
+}
+
 /// Returns the series key of revenue in USD without dimensions for the quarter that ends on
 /// `period_end`.
 fn revenue_quarter(period_end: NaiveDate) -> SeriesKey {
@@ -222,7 +231,7 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_
         ),
     ];
 
-    let result = revenue_ranks(&facts);
+    let result = revenue_ranks(&facts, &Dimensions::default());
 
     assert_eq!(result, expected_result);
 }
@@ -246,7 +255,7 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_
         ),
     ];
 
-    let result = revenue_ranks(&facts);
+    let result = revenue_ranks(&facts, &Dimensions::default());
 
     assert_eq!(result, expected_result);
 }
@@ -358,8 +367,7 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
 fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
-    // The revenue concept has a conflict in each quarter, so each quarter gets no revenue. The
-    // segment members of revenue have conflicts too, but a fact with dimensions gives no candidate.
+    // The revenue concept has a conflict in each quarter, so each quarter gets no revenue.
     let expected_result = vec![
         revenue_quarter(date(2025, 9, 30)),
         revenue_quarter(date(2026, 9, 30)),
@@ -368,7 +376,69 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
     let result: Vec<SeriesKey> = newest_filing(&candidates_of(&facts).candidates)
         .blocked
         .into_iter()
-        .filter(|key| key.concept == IncomeStatementConcept::Revenue.element())
+        .filter(|key| {
+            key.concept == IncomeStatementConcept::Revenue.element() && key.dimensions.is_empty()
+        })
+        .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_rank_the_quarter_before_the_four_months_when_revenue_of_the_reportable_segment_shares_a_value_key_in_notes()
+ {
+    let facts = parse_notes_fixture().facts;
+    let segment = reportable_segment();
+
+    let expected_result = vec![
+        (
+            0,
+            "1 quarters to 2026-09-30".to_string(),
+            FactValue::Numeric(number("2442000000")),
+        ),
+        (
+            1,
+            "1 quarters to 2026-09-30".to_string(),
+            FactValue::Numeric(number("3281000000")),
+        ),
+    ];
+
+    let result = revenue_ranks(&facts, &segment);
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_a_blocked_revenue_candidate_of_the_reportable_segment_when_tiers_1_and_2_run_on_the_notes_facts()
+ {
+    let facts = parse_notes_fixture().facts;
+    let segment = reportable_segment();
+
+    // The two ranks of the segment revenue disagree, so `core/dedup/more-precise@1` blocks the
+    // candidate.
+    let expected_result = vec![(
+        rule("us-gaap/part/revenue@1"),
+        date(2026, 9, 30),
+        1,
+        CandidateValue::Blocked,
+    )];
+
+    let result: Vec<(RuleId, NaiveDate, u16, CandidateValue)> = candidates_of(&facts)
+        .candidates
+        .into_iter()
+        .filter(|candidate| {
+            candidate.concept == IncomeStatementConcept::Revenue.element()
+                && candidate.dimensions == segment
+                && candidate.period.end() == date(2026, 9, 30)
+        })
+        .map(|candidate| {
+            (
+                candidate.rule,
+                candidate.period.end(),
+                candidate.period.quarters(),
+                candidate.value,
+            )
+        })
         .collect();
 
     assert_eq!(result, expected_result);
