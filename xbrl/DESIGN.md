@@ -1120,7 +1120,7 @@ these in the standardized layer:
 | Dividends paid | yes, `DividendsPaid` of the cash flow statement | |
 | Average interest rates | no, as-is facts | `LongtermDebtWeightedAverageInterestRate` has 87 filers and `ShortTermDebtWeightedAverageInterestRate` 187, of 2,219 filers of `LongTermDebt` |
 | Dividends per share declared | no, as-is facts | `CommonStockDividendsPerShareDeclared` has 1,245 filers in `CY2024`. A later round can add it to `PerShare` |
-| Notes, with amount and coupon | no, as-is facts | Each note is a member of `DebtInstrumentAxis` that the company defines. A standardized fact has no dimensions in the MVP |
+| Notes, with amount and coupon | no, as-is facts | Each note is a member of `DebtInstrumentAxis` that the company defines. `DebtInstrumentAxis` is no segment axis (see "Segment Values") |
 | Share classes | no, as-is facts | Each class is a member of `StatementClassOfStockAxis` |
 
 The as-is layer keeps every value of the table. A view can show the as-is values per company.
@@ -1142,8 +1142,8 @@ The as-is layer keeps every value of the table. A view can show the as-is values
   fills.
 - A plug-in maps a concept to a bucket only if the concept holds the principal of long-term debt
   due in that span. Otherwise the concept stays an as-is fact (see "Standard Concept Set").
-- The 5% tolerance rests on US GAAP filings only (ADR 0028). A new plug-in measures its own filings
-  before its ladders enter the check.
+- The 5% tolerance rests on US GAAP filings only (ADR 0028). A plug-in maps no ladder alias until
+  its design measures its own filings against this tolerance.
 
 ### Segment Values
 

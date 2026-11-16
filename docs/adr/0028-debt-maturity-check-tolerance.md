@@ -71,6 +71,8 @@ rolling concept if the filer tags only that. The total is `LongTermDebt` at the 
 ## Open Questions
 
 - A measurement on a later frame reopens the number. A rate of findings far above 9% reopens it.
+- The measurement covers US GAAP filings only. A plug-in that maps a ladder alias reopens the
+  number.
 
 ## Sources
 
