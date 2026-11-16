@@ -77,9 +77,7 @@ xbrl/
           row.rs           <- SubRow, NumRow, TxtRow, DimRow, TagRow
         instance.rs        <- one instance document -> AsIsFact, Filing
         company_facts.rs   <- Company Facts JSON -> AsIsFact, Filing
-        company_concept.rs <- Company Concept JSON -> AsIsFact, Filing
-        frames.rs          <- Frames JSON -> AsIsFact, Filing
-        frame.rs, quarter.rs <- the `frame` field of the SEC JSON APIs
+        frame.rs, quarter.rs <- the `frame` field of the Company Facts JSON
 ```
 
 ```mermaid
@@ -1910,21 +1908,11 @@ The SEC has three relevant JSON APIs:
 
 All three serve data points with the same 9 keys: `accn`, `end`, `filed`, `form`, `fp`, `frame`, `fy`, `start`, `val`. The JSON envelope differs but the data points are identical.
 
-Handle with separate deserializers that all produce the same output:
+Of the three, `xbrl` parses only Company Facts. `xbrl::adapter::edgar::company_facts` parses it into
+`Vec<AsIsFact>` and `Vec<Filing>`. `xbrl` has no parser for Company Concept or Frames
+([ADR 0036](../docs/adr/0036-no-company-concept-or-frames-parser.md)).
 
-```
-xbrl::adapter::edgar::company_facts    -> Vec<AsIsFact>, Vec<Filing>
-xbrl::adapter::edgar::company_concept  -> Vec<AsIsFact>, Vec<Filing>
-xbrl::adapter::edgar::frames           -> Vec<AsIsFact>, Vec<Filing>
-```
-
-The resolution engine does not know which API an as-is fact came from.
-
-`sec` reads only the Company Facts API. The Company Facts body holds every concept of a company,
-so the Company Concept API adds no fact. The Frames API serves one concept of many companies, and
-no state reads one concept across companies. So `company_concept` and `frames` are placeholders
-that no code calls. [STA-529](https://linear.app/state-machine/issue/STA-529) deletes them and
-their rows here and in "Crate Structure".
+The resolution engine does not know which source an as-is fact came from.
 
 ---
 
