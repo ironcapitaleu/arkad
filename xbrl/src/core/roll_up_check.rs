@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use bigdecimal::{BigDecimal, Signed};
 use chrono::NaiveDate;
 
+use super::check_tolerance::{exceeds_tolerance, weakest};
 use super::closed_group::{members, roll_up_rule, signed};
-use super::confidence::Confidence;
 use super::dedup::Series;
 use super::elements::statement::balance_sheet::BalanceSheetGroup;
 use super::elements::statement::groups;
@@ -38,8 +38,8 @@ const NEGATIVE_OTHER_GROUPS: [GroupName; 5] = [
     IncomeStatementGroup::OperatingExpenses.name(),
 ];
 
-/// The tolerance of a check as a share of its base: 1 in 1,000, or 0.1%.
-const TOLERANCE_DIVISOR: u32 = 1_000;
+/// The tolerance of a check in basis points of its base: 10, or 0.1%.
+const TOLERANCE_BASIS_POINTS: u32 = 10;
 
 /// Runs the checks of the roll-up tree on the series of one entity, and returns a finding for each
 /// failed check.
@@ -183,7 +183,7 @@ impl<'a> Slot<'a> {
             .map(|(sign, fact)| signed(*sign, &fact.value))
             .sum();
         let facts: Vec<&StandardizedFact> = inputs.into_iter().map(|(_, fact)| fact).collect();
-        exceeds_tolerance(&difference, &facts)
+        exceeds_tolerance(&difference, &facts, TOLERANCE_BASIS_POINTS)
             .then(|| self.mismatch(RollUpCheck::Group(group.name), &facts))
     }
 
@@ -195,7 +195,7 @@ impl<'a> Slot<'a> {
             .get(&BalanceSheetConcept::LiabilitiesAndEquity.element())?;
         let difference = &assets.value - &liabilities_and_equity.value;
         let facts = [assets, liabilities_and_equity];
-        exceeds_tolerance(&difference, &facts)
+        exceeds_tolerance(&difference, &facts, TOLERANCE_BASIS_POINTS)
             .then(|| self.mismatch(RollUpCheck::BalanceSheet, &facts))
     }
 
@@ -219,7 +219,7 @@ impl<'a> Slot<'a> {
                 continue;
             };
             let facts = self.parent_and_children(*group);
-            if value.is_negative() && exceeds_tolerance(value, &facts) {
+            if value.is_negative() && exceeds_tolerance(value, &facts, TOLERANCE_BASIS_POINTS) {
                 findings.push(Finding::NegativeOther {
                     entity: self.entity.clone(),
                     period: self.period,
@@ -291,25 +291,6 @@ const fn statement_of(concept: CanonicalElementKind) -> Option<StatementKind> {
     }
 }
 
-/// Returns `true` if `amount` lies outside ±0.1% of the largest absolute value of `facts`.
-fn exceeds_tolerance(amount: &BigDecimal, facts: &[&StandardizedFact]) -> bool {
-    let base = facts
-        .iter()
-        .map(|fact| fact.value.abs())
-        .max()
-        .unwrap_or_default();
-    amount.abs() * BigDecimal::from(TOLERANCE_DIVISOR) > base
-}
-
-/// Returns the weakest confidence of `facts`.
-fn weakest(facts: &[&StandardizedFact]) -> Confidence {
-    facts
-        .iter()
-        .map(|fact| fact.confidence)
-        .max()
-        .unwrap_or(Confidence::Exact)
-}
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -318,6 +299,7 @@ mod tests {
 
     use super::*;
     use crate::core::candidate::SeriesKey;
+    use crate::core::confidence::Confidence;
     use crate::core::elements::statement::cash_flow::CashFlowGroup;
     use crate::core::elements::{CashFlowConcept, IncomeStatementConcept};
     use crate::core::period::Duration;

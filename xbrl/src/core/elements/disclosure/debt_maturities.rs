@@ -178,6 +178,7 @@ mod tests {
             facts,
             blocked: Vec::new(),
         };
+        let added = Vec::new();
         let fact = standardized(instant, "0");
 
         // The test fails if the middle macro misses `Summed` in the entry of the disclosure.
@@ -199,7 +200,7 @@ mod tests {
             confidence: Confidence::Exact,
         }];
 
-        let result = check_all_sums(&series, &[]);
+        let result = check_all_sums(&series, &added);
 
         assert_eq!(result, expected_result);
     }

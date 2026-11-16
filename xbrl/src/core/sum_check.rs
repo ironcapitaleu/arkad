@@ -10,7 +10,7 @@ use std::str::FromStr;
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 
-use super::confidence::Confidence;
+use super::check_tolerance::{exceeds_tolerance, weakest};
 use super::dedup::Series;
 use super::elements::{CanonicalElementKind, SumRole, Summed};
 use super::fact::Dimensions;
@@ -22,9 +22,6 @@ use super::taxonomy::reference::PeriodType;
 use super::unit::Unit;
 
 pub use super::elements::check_all_sums;
-
-/// One basis point as a share: 1 in 10,000.
-const BASIS_POINTS_DIVISOR: u32 = 10_000;
 
 /// Runs the check of the sum of `S` on the series of one entity, and returns a
 /// [`Finding::SumMismatch`] for each failed check.
@@ -149,30 +146,12 @@ impl<'a> Slot<'a> {
     }
 }
 
-/// Returns `true` if `amount` lies outside `basis_points` of the largest absolute value of `facts`.
-fn exceeds_tolerance(amount: &BigDecimal, facts: &[&StandardizedFact], basis_points: u32) -> bool {
-    let base = facts
-        .iter()
-        .map(|fact| fact.value.abs())
-        .max()
-        .unwrap_or_default();
-    amount.abs() * BigDecimal::from(BASIS_POINTS_DIVISOR) > base * BigDecimal::from(basis_points)
-}
-
-/// Returns the weakest confidence of `facts`.
-fn weakest(facts: &[&StandardizedFact]) -> Confidence {
-    facts
-        .iter()
-        .map(|fact| fact.confidence)
-        .max()
-        .unwrap_or(Confidence::Exact)
-}
-
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::confidence::Confidence;
     use crate::core::elements::{Concept, DebtMaturityConcept};
     use crate::core::period::Period;
     use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
@@ -184,24 +163,39 @@ mod tests {
         }
     }
 
-    /// Returns the value `amount` of `concept` at [`instant`].
-    fn value(concept: DebtMaturityConcept, amount: &str) -> StandardizedFact {
-        let mut fact = standardized(instant(), amount);
+    /// Returns the fiscal year end before [`instant`].
+    const fn earlier_instant() -> Period {
+        Period::Instant {
+            end: date(2024, 12, 31),
+        }
+    }
+
+    /// Returns the value `amount` of `concept` at `period`.
+    fn value(period: Period, concept: DebtMaturityConcept, amount: &str) -> StandardizedFact {
+        let mut fact = standardized(period, amount);
         fact.concept = concept.element();
         fact
     }
 
-    /// Returns a ladder with the total 1,000, five buckets of 100, and `after_year_five` after
-    /// year five. The tolerance of 5% of 1,000 is 50, so the ladder fails above 550.
+    /// Returns a ladder at [`instant`] with the total 1,000, five buckets of 100, and
+    /// `after_year_five` after year five. The tolerance of 5% of 1,000 is 50, so the ladder fails
+    /// above 550 and below 450.
     fn ladder(after_year_five: &str) -> Vec<StandardizedFact> {
+        ladder_at(instant(), after_year_five)
+    }
+
+    /// Returns the ladder of [`ladder`] at `period`.
+    fn ladder_at(period: Period, after_year_five: &str) -> Vec<StandardizedFact> {
         DebtMaturityConcept::ALL
             .iter()
             .map(|concept| match concept {
                 DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities => {
-                    value(*concept, "1000")
+                    value(period, *concept, "1000")
                 }
-                DebtMaturityConcept::DebtDueAfterYearFive => value(*concept, after_year_five),
-                _ => value(*concept, "100"),
+                DebtMaturityConcept::DebtDueAfterYearFive => {
+                    value(period, *concept, after_year_five)
+                }
+                _ => value(period, *concept, "100"),
             })
             .collect()
     }
@@ -214,10 +208,14 @@ mod tests {
     }
 
     fn mismatch(confidence: Confidence) -> Finding {
-        let fact = standardized(instant(), "0");
+        mismatch_at(instant(), confidence)
+    }
+
+    fn mismatch_at(period: Period, confidence: Confidence) -> Finding {
+        let fact = standardized(period, "0");
         Finding::SumMismatch {
             entity: fact.entity,
-            period: instant(),
+            period,
             unit: fact.unit,
             dimensions: Dimensions::default(),
             concepts: vec![
@@ -237,10 +235,11 @@ mod tests {
     #[test]
     fn should_return_no_finding_when_the_ladder_misses_by_exactly_the_tolerance() {
         let facts = series(ladder("550"));
+        let added = Vec::new();
 
         let expected_result: Vec<Finding> = Vec::new();
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -248,10 +247,11 @@ mod tests {
     #[test]
     fn should_report_a_sum_mismatch_when_the_ladder_misses_by_more_than_the_tolerance() {
         let facts = series(ladder("551"));
+        let added = Vec::new();
 
         let expected_result = vec![mismatch(Confidence::Exact)];
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -260,10 +260,11 @@ mod tests {
     fn should_report_a_sum_mismatch_when_the_parts_sum_below_the_total_by_more_than_the_tolerance()
     {
         let facts = series(ladder("449"));
+        let added = Vec::new();
 
         let expected_result = vec![mismatch(Confidence::Exact)];
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -273,10 +274,11 @@ mod tests {
         let mut facts = ladder("0");
         facts.retain(|fact| fact.concept != DebtMaturityConcept::DebtDueInYearThree.element());
         let facts = series(facts);
+        let added = Vec::new();
 
         let expected_result: Vec<Finding> = Vec::new();
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -286,10 +288,11 @@ mod tests {
         let mut facts = ladder("5000");
         facts.remove(0);
         let facts = series(facts);
+        let added = Vec::new();
 
         let expected_result: Vec<Finding> = Vec::new();
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -300,10 +303,11 @@ mod tests {
         facts[1].unit = Unit::from_str("EUR")
             .expect("Given a hardcoded unit with one measure, the parse should always succeed");
         let facts = series(facts);
+        let added = Vec::new();
 
         let expected_result: Vec<Finding> = Vec::new();
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -311,10 +315,11 @@ mod tests {
     #[test]
     fn should_return_no_finding_when_the_values_carry_a_business_segment() {
         let facts = series(in_cloud_segment(ladder("5000")));
+        let added = Vec::new();
 
         let expected_result: Vec<Finding> = Vec::new();
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -325,10 +330,11 @@ mod tests {
         facts[0].confidence = Confidence::Synonym;
         facts[4].confidence = Confidence::Derived;
         let facts = series(facts);
+        let added = Vec::new();
 
         let expected_result = vec![mismatch(Confidence::Derived)];
 
-        let result = check_sums::<DebtMaturityConcept>(&facts, &[]);
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 
         assert_eq!(result, expected_result);
     }
@@ -340,6 +346,20 @@ mod tests {
         let facts = series(facts);
 
         let expected_result = vec![mismatch(Confidence::Exact)];
+
+        let result = check_sums::<DebtMaturityConcept>(&facts, &added);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_only_the_failed_ladder_when_the_series_holds_two_fiscal_year_ends() {
+        let mut facts = ladder_at(earlier_instant(), "551");
+        facts.extend(ladder("550"));
+        let facts = series(facts);
+        let added = Vec::new();
+
+        let expected_result = vec![mismatch_at(earlier_instant(), Confidence::Exact)];
 
         let result = check_sums::<DebtMaturityConcept>(&facts, &added);
 

@@ -45,6 +45,7 @@
 pub mod alias;
 pub mod cadence_filter;
 pub mod candidate;
+mod check_tolerance;
 pub mod chronology;
 pub mod closed_group;
 pub mod concept;

@@ -144,7 +144,8 @@ pub enum Finding {
         confidence: Confidence,
     },
     /// The parts of a sum of a disclosure do not add up to its total. The difference exceeds the
-    /// tolerance of the sum, in basis points of the largest absolute value of the check.
+    /// tolerance of the sum. The tolerance is in basis points of the largest absolute value of the
+    /// check.
     SumMismatch {
         /// The entity the values are about.
         entity: EntityId,
