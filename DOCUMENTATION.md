@@ -76,7 +76,7 @@ This project uses two kinds of modules:
 | Category | Purpose | Example |
 |----------|---------|---------|
 | **Grouping module** | Organizes multiple related child modules under a shared namespace | `shared/mod.rs` (groups `cik`, `http_client`, `response`, etc.) |
-| **Single-type module** | Namespaces one primary struct or enum with its supporting code | `fiscal_year/mod.rs` (holds `FiscalYear` newtype + impls + tests) |
+| **Single-type module** | Namespaces one primary struct or enum with its supporting code | `accession_number/mod.rs` (holds `AccessionNumber` newtype + impls + tests) |
 
 Both require module docs, but at different levels of detail:
 - **Grouping modules** need the full structure: title, what, why/how, `## Modules`, `## See Also`.

@@ -31,6 +31,8 @@ has two parallel, non-integrated models and one raw-document store:
 - `sec` crate (live): `ParseCompanyFacts` calls `xbrl::adapter::edgar::company_facts::parse` and
   emits `CompanyData { Cik, EntityName, Vec<AsIsFact>, Vec<Filing> }`. Identity is
   **`Cik`-centric** (SEC-specific). No concept is resolved yet.
+  [ADR 0026](../../../docs/adr/0026-sec-uses-xbrl-fact-types.md) records why `sec` uses the `xbrl`
+  types with no wrapper, and its Amendment 1 sets the check of the required concepts.
 - `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElementKind` (36
   standard concepts, nested by statement), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
@@ -45,7 +47,7 @@ What to carry forward vs. change (detail in §10):
 | `xbrl::StandardizedFact` + `Confidence` + `rule` + `inputs` | **Keep & promote** — becomes the universal `CanonicalFact`, minus SEC specifics |
 | `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElementKind) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
-| `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (internal key, §4), resolved at load time |
+| `sec::Cik`-centric identity, `AccessionNumber` and `Form` | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (internal key, §4), resolved at load time |
 | `sec::CompanyData` (the `xbrl` as-is facts and filings) | **Replace** — `FactSet` supersedes it (§10, step 5) |
 
 ## 2. Architectural Spine — Metadata Store Over Source Stores
@@ -389,7 +391,7 @@ logical model. ADR 0007, "Open Questions", leaves the gold tables to the gold de
 | `unit` | string | `Unit` | ISO 4217 currency, `shares`, `pure`, … |
 | `period_kind` | enum | `Period` | Instant / Duration |
 | `period_start` | date? | `Period::Duration.start` | null for Instant |
-| `period_end` | date | `Period` | Instant.date or Duration.end |
+| `period_end` | date | `Period` | Instant.end or Duration.end |
 | `fiscal_year` | int | `FiscalYear` | reporting entity's fiscal calendar |
 | `fiscal_period` | enum | `FiscalPeriod` | Q1..Q4 / FY |
 | `dimension_sig` | string? | dimension signature | null/empty = consolidated total |
