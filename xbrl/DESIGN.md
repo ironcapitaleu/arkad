@@ -1160,8 +1160,8 @@ segment, a region, or a product line. The standardized layer holds it as a `Stan
 value. [ADR 0029](../docs/adr/0029-segment-values-keep-their-dimensions.md) records why segment
 values keep their dimensions and stay out of the tree.
 [ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md) records why the reconciliation
-runs per report. The code holds the rules of "Segment Axes", "Concepts a Segment Can Carry", and
-"Resolution of a Segment Value". It holds no reconciliation.
+runs per report. The code holds the rules of "Segment Axes", "Concepts a Segment Can Carry",
+"Resolution of a Segment Value", and "Reconciliation".
 
 #### Segment Axes
 
@@ -1300,8 +1300,9 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
   `US`, `NonUs`, and `Americas` in one filing, so a sum counts an amount twice. A reader shows their
   values as reported.
 - An unreconciled line other than zero gives no finding. The line itself shows the difference.
-- **Silver stores no line of the reconciliation**, as for the other lines. A read type in `core`
-  computes the lines from the candidates of one filing.
+- **Silver stores no line of the reconciliation**, as for the other lines. `reconcile` in
+  `core/segment.rs` builds the reconciliations of each filing from its candidates. For each candidate, it
+  takes the axes and the roles from the plug-in that resolves the family of the first input.
 
 Measured on `2026_10_notes.zip` on 2026-11-15. A group is one filing, concept, period, and unit
 with two or more segments on `BusinessSegments`. A group adds up if the difference is within 0.1%
