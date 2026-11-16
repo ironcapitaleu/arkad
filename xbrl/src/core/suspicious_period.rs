@@ -175,7 +175,9 @@ mod tests {
     use crate::core::elements::IncomeStatementConcept;
     use crate::core::period::Duration;
     use crate::core::period_identity::derive_q4;
-    use crate::tests::fixtures::sample_fact::{date, filing as sample_filing, standardized};
+    use crate::tests::fixtures::sample_fact::{
+        date, filing as sample_filing, in_cloud_segment, standardized,
+    };
 
     /// Returns the value `value` of the period that ends on `end` and lasts `quarters`, with no
     /// exact start, reported in `filing`.
@@ -235,6 +237,20 @@ mod tests {
             &[PeriodSignal::StartBeforeEarliestYear],
             None,
         )];
+
+        let result = suspicious_periods(&facts, &[report]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_flag_nothing_when_the_value_carries_a_business_segment() {
+        let report = sample_filing("10-K", date(2025, 12, 31), "1231");
+        // 7,297 quarters before the end of 2024 start in the year 200, as in a real 10-K.
+        let flagged = value_in(&report, date(2024, 12, 31), 7297, "16218");
+        let facts = series(in_cloud_segment(vec![flagged]));
+
+        let expected_result: Vec<Finding> = Vec::new();
 
         let result = suspicious_periods(&facts, &[report]);
 

@@ -81,7 +81,7 @@ pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Findin
 }
 
 /// The key of a [`Slot`]: the entity, the period end, the length in quarters, the period type, the
-/// unit, and the dimensions.
+/// unit, and the dimensions, which are always empty.
 type SlotKey<'a> = (
     &'a EntityId,
     NaiveDate,
@@ -91,7 +91,7 @@ type SlotKey<'a> = (
     &'a Dimensions,
 );
 
-/// The values of one entity, period, unit, and set of dimensions, by concept.
+/// The values without dimensions of one entity, period, and unit, by concept.
 struct Slot<'a> {
     entity: EntityId,
     period: Period,

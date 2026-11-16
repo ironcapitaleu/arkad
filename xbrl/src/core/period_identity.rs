@@ -47,8 +47,8 @@ const TRANSITION_REPORT_FORMS: [&str; 1] = ["10-KT"];
 /// start, the starts must be equal. The fourth quarter is the year less the nine months. It runs
 /// from the day after the nine-month end to the year end.
 ///
-/// The rule derives only values without dimensions, in one currency, such as `USD`. Per-share values, share counts,
-/// and ratios do not add over periods. The rule derives nothing for a fourth quarter that the
+/// The rule reads only fiscal year values without dimensions, in one currency, such as `USD`.
+/// Per-share values, share counts, and ratios do not add over periods. The rule derives nothing for a fourth quarter that the
 /// series already holds or that a conflict blocks.
 ///
 /// The rule derives nothing from a short year, because its fourth quarter is not the year less
