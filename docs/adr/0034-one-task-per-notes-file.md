@@ -9,8 +9,8 @@
 
 ## Context
 
-A `notes_file` unit holds every filing of one Notes file. A Cloud Run task has a limit of one
-hour. The target is 15 minutes for the largest Notes file, so the limit is 4 times the target
+A `notes_file` unit holds every filing of one Notes file. STA-463 sets a task timeout of one
+hour and a target of 15 minutes for the largest Notes file, so the timeout is 4 times the target
 (STA-463, Definition of Done). If a file breaks the target, the transform must split it across
 tasks, and those tasks must write one `silver_files` row.
 
@@ -57,7 +57,7 @@ Compared on 2026-11-16, on the measurements in "Context".
 
 - The backfill transform runs one task per Notes file, about 80 tasks.
 - The time of the largest file bounds the job. The job starts the largest files first.
-- A file that breaks the target shows as `unit_slow` before it reaches the limit of one hour.
+- A file that breaks the target shows as `unit_slow` before it reaches the task timeout of one hour.
 - If the decision reopens, option B is the fallback. Its digest needs no change, because the
   silver contract sorts the filing hashes of `content_digest` by filing ID, whatever the parts.
 

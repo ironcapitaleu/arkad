@@ -21,7 +21,7 @@ Facts that bound the choice:
   with the bucket split, on one thread. A `filing_day` unit of 167 filings took 4.6 s (Linear
   document "STA-424 Findings: Silver Parquet Layer and Polars for the Transform Step", section 3
   and section 4).
-- A Cloud Run task has a limit of one hour (STA-463, Definition of Done).
+- STA-463 sets a task timeout of one hour in its Definition of Done.
 - The backfill transform has about 80 units. A first series run has 64 entity buckets.
 - A run of a job kind needs a plan before its tasks start: the units, the task count, and, for the
   series step, the start time of the run, which every task writes as `computed_at`.
@@ -34,14 +34,16 @@ the queue port, which will start the same jobs.
 Terms in this ADR:
 
 - **Barrier:** a step starts only after the execution of the step before it ended.
-- **Plan step:** an execution of one task that takes the lease of its job kind, the object that lets one run of the kind write and
-  writes the plan of the run as a write-once object `_control/plans/<job kind>/<plan id>.json`.
+- **Lease:** a GCS object in a control bucket that lets one run of a job kind write.
+- **Plan step:** an execution of one task. It takes the lease of its job kind. It writes the plan
+  of the run as a write-once object `plans/<job kind>/<plan id>.json` in the control bucket.
 - **Worker step:** an execution with the task count of the plan. Each task reads the plan.
 
 ## Decision
 
-1. **Transform, series, and checks run as Cloud Run jobs, not as a service.** Each run of a job
-   kind is a plan step, then a worker step.
+1. **Transform, series, and checks run as Cloud Run jobs, not as a service.** Each run of the
+   transform and of the series step is a plan step, then a worker step. The checks write no silver
+   unit, so they run as one step.
 2. **A Cloud Workflows workflow chains the steps.** It starts each execution after the execution
    before it ended. It reads the plan object and starts the worker step with the task count and the
    plan ID of the plan.

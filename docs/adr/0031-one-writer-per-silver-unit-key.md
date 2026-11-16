@@ -23,9 +23,9 @@ Two other facts bound the choice:
 
 - A `series_base` run and a `series_delta` run must never overlap. Both write new unit keys for
   each run, so a rule per unit key cannot stop the overlap. A rule per run is needed.
-- Assumption, not checked in this session: Cloud Run starts a new attempt of a task only after the
-  previous attempt of that task ended. The network policy of the session blocked the Cloud Run
-  documentation on 2026-11-16.
+- Assumptions, not checked in this session: Cloud Run starts a new attempt of a task only after
+  the previous attempt of that task ended, and it stops an attempt at its task timeout. The
+  network policy of the session blocked the Cloud Run documentation on 2026-11-16.
 
 The choice binds the silver writer, the silver reader, the transform jobs, the series job, and the
 replay jobs of the as-is and the standardized layer.
@@ -40,16 +40,23 @@ Terms in this ADR:
 ## Decision
 
 1. **One run of a job kind writes at a time.** The plan step of a run creates the lease object
-   `_control/leases/<job kind>` with `ifGenerationMatch=0`. The lease holds the plan ID and an
-   expiry time. If the object exists and its expiry has passed, the plan step replaces it with
-   `ifGenerationMatch=<generation>`. Otherwise the run stops before any write.
-2. **Each task checks the lease before its first write.** If the lease does not name the plan of
-   the task, or its expiry has passed, the task writes nothing and fails.
-3. **The orchestrator deletes the lease after the worker execution ends,** with
+   `leases/<job kind>` in a control bucket apart from the silver bucket, with
+   `ifGenerationMatch=0`. The lease holds the plan ID and an expiry time. If the object exists
+   and its expiry has passed, the plan step replaces it with `ifGenerationMatch=<generation>`.
+   Otherwise the run stops before any write.
+2. **The plan step computes the expiry from the run.** The expiry is the plan time, plus the
+   rounds of tasks times the task timeout times the attempts per task, plus a margin of 10
+   minutes for the start of the worker step. The rounds are the unit count divided by the
+   parallel tasks, rounded up.
+3. **Each task checks the lease before its first write.** If the lease does not name the plan of
+   the task, or less than one task timeout remains before its expiry, the task writes nothing and
+   fails. Cloud Run stops an attempt at its task timeout, so a task that passes the check ends
+   before the expiry.
+4. **The orchestrator deletes the lease after the worker execution ends,** with
    `ifGenerationMatch=<generation>`. It deletes the lease after a failed execution too.
-4. **Inside one run, one task writes one unit key.** The plan lists the units, and task `i` takes
-   the units at the positions `i`, `i + n`, and so on, for `n` tasks.
-5. **`written_at` rises with each unit of a key.** The writer reads the current unit of the key
+5. **Inside one run, one task writes one unit key.** The plan lists the units, and task `i` takes
+   unit `i`.
+6. **`written_at` rises with each unit of a key.** The writer reads the current unit of the key
    for rule 2 of a write. It sets `written_at` to the later of the time now and the `written_at` of
    that unit plus 1 ms. So clock skew between two machines cannot give a tie.
 
@@ -86,7 +93,8 @@ Checked on 2026-11-16 against the silver contract on `main` at commit `fa72cb3`.
 
 - If a later design lets two job kinds write one unit key, this decision opens again.
 - If silver moves to a table format with its own commit, such as Delta Lake, the lease can go.
-- If two attempts of one task can run at the same time, decision 4 does not hold. The feature of
+- If two attempts of one task can run at the same time, or an attempt can outlive its timeout,
+  decisions 3 and 5 do not hold. The feature of
   the lease checks the assumption of "Context" against the Cloud Run documentation.
 
 ## Sources

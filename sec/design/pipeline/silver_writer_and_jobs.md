@@ -9,7 +9,7 @@
 > **Marks:** "Measured" means checked on 2026-11-08 against a downloaded SEC file, as the silver
 > prototype findings record it. "Estimate" means not measured. Every other statement is a proposal.
 
-This document fixes how the code meets the silver contract of [`silver_layer.md`](silver_layer.md).
+This document sets how the code meets the silver contract of [`silver_layer.md`](silver_layer.md).
 It covers how a unit reaches silver, how the series step runs, and how the jobs run and fail. It does not
 change the contract. The per-filing work of the transform, its states, parsers, standardize filing,
 and checks, belongs to the per-filing transform design. This document calls that work "the filing
@@ -97,7 +97,7 @@ The ports are new traits, so no existing trait changes (`AGENTS.md`, "Open-Close
   has `create(key, bytes) -> Result<StoredObject, WriteError>`.
 - A Parquet reader reads the footer and the row groups by byte range. `ReadRangeRepository` has
   `read_range(key, range) -> Result<Bytes, ReadError>`. The size comes from `silver_files`.
-- `LeaseStore` has `acquire`, `current`, and `release`. See [One Writer per Unit Key](#one-writer-per-unit-key).
+- `LeaseStore` has `acquire` and `current`. The workflow deletes a lease through the GCS API. See [One Writer per Unit Key](#one-writer-per-unit-key).
 
 The GCS backend sets `ifGenerationMatch=0` on each create, and sends the CRC32C of the bytes, so
 GCS rejects a damaged upload. It returns the size and the CRC32C from the object resource that GCS
@@ -135,7 +135,9 @@ pub trait DigestRow {
 - `to_batch` builds the Arrow arrays column by column. It does not go through JSON. The prototype
   found that the `arbitrary_precision` feature of `serde_json`, which `xbrl` turns on, breaks the
   Arrow JSON decoder.
-- `from_batch` rejects a batch whose fields differ from the schema of `SCHEMA_VERSION`.
+- `from_batch` takes the `schema_version` of the unit from its `silver_files` row. It rejects a
+  batch whose fields differ from the schema of that version. Each row type keeps the schema of
+  every version that a stored unit can hold, because a unit stays current until a replay.
 - `DigestRow` is a separate trait. A type can have a digest without an Arrow form, for example the
   fixture rows of the golden test.
 
@@ -236,6 +238,7 @@ rules of one entity in this order:
    dedup. It gives `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod`, then the conflicts.
 
 `SeriesOutcome` holds the standardized facts of step 7 and the findings of steps 5, 6, and 7.
+`standardize_series` returns no error, because none of the functions it calls returns one.
 
 - `candidates` holds one `candidates` unit per filing, by the current facts rule of the contract.
 - `filings` holds the `filings` rows of the entity, for the forms and the fiscal year end.
@@ -298,15 +301,17 @@ The plan step picks `base` if one of these holds. Otherwise it picks `delta`.
 - The operator sets `ARKAD_SERIES_MODE=base`.
 
 A base run computes every entity with a current `candidates` unit. It writes each row with
-`change = new`, and each open finding again with `change = new`. Its unit keys are
-`base-<computed_at>-t<n>`.
+`change = new`, and each open finding again with `change = new`. The first base has the unit
+keys `base-t<n>`. A later base has `base-<computed_at>-t<n>`, as the contract gives them.
 
 ### Entity Set of a Delta
 
 The plan step compares two sets of `candidates` units:
 
 - **Now:** the current units, by the current facts rule.
-- **Then:** the units that the `inputs` of the latest run that counts listed.
+- **Then:** the `candidates` units in the `inputs` field of the plan of the latest run that counts.
+  The plan ID of a series run is its `computed_at`, so the plan step finds that plan from the
+  `computed_at` of the run in `silver_files`. The control bucket keeps every plan.
 
 The entity set is the entities of each unit in "now" and not in "then", plus the entities of each
 unit in "then" and not in "now". The second part covers a unit that a replay replaced, so an entity
@@ -348,15 +353,14 @@ the code:
 - `LeaseStore::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
   if absent. It replaces the object if its expiry passed. Otherwise it returns `LeaseHeld` with
   the plan that holds it.
-- Each worker task calls `LeaseStore::current(kind)` before its first write, and fails with
-  `LeaseLost` if the lease names another plan or its expiry passed.
+- The plan step computes `expires_at`: the plan time, plus `ceil(units / parallel tasks)` times
+  the task timeout times the attempts per task, plus 10 minutes for the start of the worker step.
+  For 80 Notes files, 10 parallel tasks, a timeout of 1 hour, and 2 attempts, that is 16 hours and
+  10 minutes.
+- Each worker task calls `LeaseStore::current(kind)` before its first write. It fails with
+  `LeaseLost` if the lease names another plan, or if less than one task timeout remains before
+  the expiry. Cloud Run stops an attempt at its timeout, so the task ends before the expiry.
 - The workflow deletes the lease after the worker step, with the generation that `acquire` returned.
-
-| Job kind | Expiry after the plan time (estimate) |
-| -------- | ------------------------------------- |
-| `transform-notes` | 16 hours: 8 rounds of 10 tasks, 1 hour per attempt, 2 attempts |
-| `transform-daily` | 2 hours: 1 round, 1 hour per attempt, 2 attempts |
-| `series` | 4 hours: 4 rounds of 16 tasks, 30 minutes per attempt, 2 attempts |
 
 The control bucket holds the leases and the plans. It is not the silver bucket, so the cleanup of
 unread silver files never meets a control object.
@@ -374,7 +378,7 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 | `transform` | `ARKAD_JOB_STEP=work` | | Task `i` takes unit `i` of the plan |
 | `series` | `ARKAD_JOB_STEP=plan` | See [The Series Plan](#the-series-plan) | `run_tasks` |
 | `series` | `ARKAD_JOB_STEP=work` | | Task `t` takes its buckets |
-| `checks` | One step | | One per unit that the run wrote |
+| `checks` | One step. It writes no silver unit, so it takes no lease | | Set by the design of the checks |
 
 - The plan of `transform-notes` sorts the Notes files by size, largest first, so the largest files
   get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
@@ -426,7 +430,7 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 ## Time per Task
 
 [ADR 0034](../../../docs/adr/0034-one-task-per-notes-file.md) keeps one task per Notes file. The
-target is 15 minutes per largest Notes file, within the one-hour limit of a Cloud Run task. The
+target is 15 minutes per largest Notes file, within the task timeout of one hour. The
 prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
@@ -447,15 +451,16 @@ prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thre
 
 | Failure | Example | Unit | Task and run | Retry |
 | ------- | ------- | ---- | ------------ | ----- |
-| Transient | GCS answers 429 or 503, a read times out, a connection drops | Fails if three attempts fail | The task goes on with its next unit, then exits with an error | Each request: 3 attempts, waits of 1 s and 2 s with jitter, as for SEC requests. Then Cloud Run retries the task once. Rule 2 skips the units already written |
+| Transient | GCS answers 429 or 503, a read times out, a connection drops | Fails if three attempts fail | The task exits with an error | Each request: 3 attempts, waits of 1 s and 2 s with jitter, as for SEC requests. Then Cloud Run retries the task once. A later run skips each written unit by rule 2 |
 | Bad filing | The parser rejects one filing | Written without the filing. `dropped_rows` counts it as `rejected_filing` | The run summary counts it | None |
-| Bad unit | The SHA-256 of the raw file differs from its metadata, the ZIP is damaged, a table is missing, too many filings rejected | Fails. Its attempt files stay unread | The task goes on with its next unit, then exits with an error. The run fails | Cloud Run retries the task once, and the unit fails again |
+| Bad unit | The SHA-256 of the raw file differs from its metadata, the ZIP is damaged, a table is missing, too many filings rejected | Fails. Its attempt files stay unread | The task exits with an error. The run fails | Cloud Run retries the task once, and the unit fails again |
 | Timeout | A unit runs past one hour | Fails. Its attempt files stay unread | Cloud Run stops the task | Cloud Run retries the task once. A second timeout fails the execution. `unit_slow` warns at 15 minutes |
 | Out of memory | A task passes its memory limit | As a timeout | As a timeout | As a timeout |
 | Bug, with a panic | `panic = "abort"` of the release profile ends the process | As a timeout | As a timeout. A series run with a panic never counts | As a timeout. Each later run fails the same way until a fix |
 | Bug, wrong output | A rule gives a wrong value and no error | Written | Not detected by the run | A fix gets a new `transform_version`. A replay of the as-is layer writes new units, and the next series run writes a base |
+| Bad silver unit in the series | A `candidates` unit cannot be read or has an unknown `schema_version` | The series unit of the task is not written | The task fails. The run never counts, and each later run fails the same way | A replay of the transform unit writes a new current unit. The next series run then reads it |
 | Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops | The next scheduled run |
-| Lease lost | A worker task finds another plan in the lease | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
+| Lease lost | A worker task finds another plan in the lease, or less than one task timeout before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
 
 - The per-filing transform design decides which filing the parser rejects, and the share of
   rejected filings that fails a unit.
@@ -488,21 +493,23 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 
 1. FEATURE: the ports `CreateRepository` and `ReadRangeRepository` in `storage`, with fakes and
    the filesystem backend.
-2. FEATURE: the crate `storage-gcs` with the GCS backend of the silver ports.
-3. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
-4. FEATURE: `SilverRecord` for `as_is_facts` and `filings`, with the schema tests.
-5. FEATURE: `SilverRecord` for `candidates`, `standardized_facts`, `findings`,
-   `taxonomy_elements`, and `silver_files`.
-6. FEATURE: the silver writer: rules of a write, parts, footer, and `written_at`.
-7. FEATURE: the silver reader: current units, units as of a time, and series units.
-8. FEATURE: `LeaseStore` and the plan objects of the transform and series jobs.
-9. FEATURE: the task runner of the transform: threads, one unit per task, failure handling, and
-   the run summary.
-10. FEATURE: `xbrl::core::series::standardize_series`.
-11. FEATURE: the series plan: mode, entity set, and inputs.
-12. FEATURE: `compare_series`: the rows of a delta, with `removed` and `resolved` copies.
-13. FEATURE: the standardize series super-state per set of entity buckets, and the binary `series`.
-14. FEATURE: the workflows `silver-daily` and `silver-backfill`.
+2. FEATURE: the port `LeaseStore` in `storage`, with a fake and the filesystem backend.
+3. FEATURE: the crate `storage-gcs` with the GCS backend of the three ports.
+4. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
+5. FEATURE: `SilverRecord` for `as_is_facts` and `filings`, with the schema tests.
+6. FEATURE: `SilverRecord` for `candidates` and `silver_files`.
+7. FEATURE: `SilverRecord` for `standardized_facts`, `findings`, and `taxonomy_elements`.
+8. FEATURE: the silver writer: rules of a write, parts, footer, and `written_at`.
+9. FEATURE: the silver reader: current units, units as of a time, series units, and every
+   `schema_version`.
+10. FEATURE: the plan objects of the transform and series jobs, and the lease check of a task.
+11. FEATURE: the task runner of the transform: threads and one unit per task.
+12. FEATURE: failure handling and the run summary of the transform task.
+13. FEATURE: `xbrl::core::series::standardize_series`.
+14. FEATURE: the series plan: mode, entity set, and inputs.
+15. FEATURE: `compare_series`: the rows of a delta, with `removed` and `resolved` copies.
+16. FEATURE: the standardize series super-state per set of entity buckets, and the binary `series`.
+17. FEATURE: the workflows `silver-daily` and `silver-backfill`.
 
 ## Open Points
 
@@ -511,6 +518,9 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
   So each task of a base run reads every `Conflict` row of silver. The prototype found 99
   `Conflict` rows in one 10-Q. The cost is not measured. The owner decides whether `findings` gets
   `entity_bucket` as `candidates` has it.
+- **`MixedStarts`.** The contract lists it as a kind of `findings`. No function of `xbrl::core`
+  returns it. The series step writes the findings that its functions return, so silver holds no
+  `MixedStarts` row until `xbrl` has a function that returns one.
 - **Cost of the byte form.** Not measured. The feature of the digest measures it on `2024q1`.
 - **Time of a series task.** Not measured. The feature of the super-state measures one bucket of a
   base run.
