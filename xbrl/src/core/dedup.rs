@@ -208,7 +208,7 @@ pub(super) fn conflicts_with(first: &AsIsFact, rank: &AsIsFact) -> bool {
 }
 
 /// Returns `true` if the length of `rank` lies nearer to its whole number of quarters than the
-/// length of `first`.
+/// length of `first`. On a tie, which needs a multiple of 8 quarters, `first` stays.
 fn is_nearer_to_full_quarters(rank: &AsIsFact, first: &AsIsFact) -> bool {
     match (distance(rank), distance(first)) {
         (Some(rank_distance), Some(first_distance)) => rank_distance < first_distance,
