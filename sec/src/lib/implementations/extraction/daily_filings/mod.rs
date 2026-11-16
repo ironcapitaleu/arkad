@@ -750,8 +750,8 @@ mod tests {
 
     use super::*;
     use crate::implementations::extraction::Extraction;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::accession_number::AccessionNumber;
+    use crate::shared::form::{Form, ParsedForm};
 
     fn sample_filing() -> FilingRef {
         FilingRef::new(

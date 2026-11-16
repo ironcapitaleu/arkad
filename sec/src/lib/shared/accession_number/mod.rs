@@ -33,7 +33,7 @@ impl AccessionNumber {
     /// # Examples
     ///
     /// ```
-    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::accession_number::AccessionNumber;
     ///
     /// let accn = AccessionNumber::new("0000320193-23-000106")
     ///     .expect("Given a hardcoded accession number of the right shape, creation should always succeed");

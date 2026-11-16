@@ -6,7 +6,7 @@
 //!
 //! A full index holds every row of its quarter, so the state drops the rows outside the range
 //! first. It keeps the rows that [`select_filings_filed_in`] accepts: the forms in
-//! [`SELECTED_FORMS`](crate::shared::financial::form::SELECTED_FORMS) and their amendments.
+//! [`SELECTED_FORMS`](crate::shared::form::SELECTED_FORMS) and their amendments.
 //!
 //! ## Modules
 //!

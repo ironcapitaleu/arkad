@@ -48,10 +48,10 @@ mod tests {
     use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
 
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::request::implementations::sec_request::{FilingDocument, SecRequest};
     use crate::shared::response::SecResponse as SecResponseTrait;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::always_responding::AlwaysRespondingSecClient;
