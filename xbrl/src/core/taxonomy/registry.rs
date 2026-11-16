@@ -7,8 +7,9 @@ use std::collections::BTreeMap;
 
 use thiserror::Error;
 
+use super::Taxonomy;
 use super::family::FamilyDeclaration;
-use super::{SegmentAxes, Taxonomy};
+use super::segment::SegmentAxes;
 use crate::core::concept::NamespaceFamily;
 use crate::core::fact::TaxonomyVersion;
 use crate::core::release::TaxonomyReleaseId;
@@ -36,7 +37,7 @@ pub struct Registry<'a> {
 /// One plug-in of a [`Registry`], with or without segment axes.
 #[derive(Clone, Copy)]
 pub enum Plugin<'a> {
-    /// A plug-in without segment axes.
+    /// A plug-in whose segment axes, if any, the registry does not read.
     Taxonomy(&'a dyn Taxonomy),
     /// A plug-in that names its segment axes.
     WithSegmentAxes(&'a dyn SegmentAxes),

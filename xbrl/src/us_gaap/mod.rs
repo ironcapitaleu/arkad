@@ -23,12 +23,13 @@ use bigdecimal::BigDecimal;
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
 use crate::core::rule::RuleId;
+use crate::core::taxonomy::Taxonomy;
 use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{
     CalculationArc, CalculationTree, ConceptAliases, ElementReference, PartAliases,
 };
-use crate::core::taxonomy::{
-    MemberRole, ReconciliationRole, SegmentAxes, SegmentAxis, SegmentAxisKind, Taxonomy,
+use crate::core::taxonomy::segment::{
+    MemberRole, ReconciliationRole, SegmentAxes, SegmentAxis, SegmentAxisKind,
 };
 
 // rustdoc sees the generator too, so the doc check covers it. A normal build leaves it out.
@@ -456,6 +457,7 @@ mod tests {
     use crate::core::taxonomy::reference::{Balance, PeriodType};
     use crate::core::taxonomy::registry::{Plugin, Registry};
     use crate::tests::fixtures::sample_fact::{date, fact, source};
+    use crate::tests::fixtures::sample_taxonomy::{declaration, plugin};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -593,6 +595,33 @@ mod tests {
         let us_gaap = UsGaap::new();
         let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
             .expect("Given one plug-in with distinct families, the registry should always start");
+        let us_gaap_family = family("us-gaap");
+
+        let expected_result = Some(SEGMENT_AXES);
+
+        let result = registry
+            .segment_axes(&us_gaap_family)
+            .map(SegmentAxes::segment_axes);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_segment_axes_of_us_gaap_when_us_gaap_is_the_second_plugin() {
+        let ifrs = plugin(
+            "ifrs-full/2025",
+            vec![declaration(
+                "ifrs-full",
+                "https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full",
+                true,
+            )],
+        );
+        let us_gaap = UsGaap::new();
+        let registry = Registry::with_plugins(vec![
+            Plugin::Taxonomy(&ifrs),
+            Plugin::WithSegmentAxes(&us_gaap),
+        ])
+        .expect("Given two plug-ins with distinct families, the registry should always start");
         let us_gaap_family = family("us-gaap");
 
         let expected_result = Some(SEGMENT_AXES);

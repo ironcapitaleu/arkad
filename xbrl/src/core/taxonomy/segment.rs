@@ -10,7 +10,12 @@ use super::Taxonomy;
 
 /// The axes whose members split a company, and the role of each member in the reconciliation.
 ///
-/// A plug-in without segment data implements only [`Taxonomy`].
+/// A plug-in without segment data implements only [`Taxonomy`]. Each [`MemberRole`] names an axis
+/// that [`SegmentAxes::segment_axes`] returns with kind [`SegmentAxisKind::ConsolidationItems`].
+///
+/// # Required Traits
+///
+/// [`Taxonomy`]: the registry reads the axes of the plug-in that resolves the concept of a fact.
 pub trait SegmentAxes: Taxonomy {
     /// Returns each segment axis, as written in `dimensions`, with its kind.
     fn segment_axes(&self) -> &[SegmentAxis];
