@@ -157,8 +157,8 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
   can delete a ticket or a document.
 - An ADR links no design document, guideline, or skill, and no ADR with the status "Proposed".
   These can change or be deleted. An ADR stays as written, so such a link makes it say something
-  else later. Copy the fact instead. An ADR can link an accepted or a superseded ADR, because the
-  text of neither changes. An amendment adds a section and leaves the original text as it is.
+  else later. Copy the fact instead. An ADR can link an accepted or a superseded ADR, because
+  neither changes its existing text. An amendment only adds a section and a status.
 - State what the decision does not cover. A reader must not take a gap for a covered case.
 - The reasons and the options live in the ADR only. `AGENTS.md` can state the rule that the
   decision adds, with a link to the ADR. A design doc links to the ADR and does not repeat the
