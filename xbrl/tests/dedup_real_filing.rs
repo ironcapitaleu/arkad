@@ -29,8 +29,8 @@ use xbrl::core::concept::{ConceptName, NamespaceFamily};
 use xbrl::core::confidence::Confidence;
 use xbrl::core::dedup::{Series, more_precise, newest_filing};
 use xbrl::core::elements::{
-    BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, IncomeStatementConcept,
-    PerShareConcept,
+    BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, DebtMaturityConcept,
+    IncomeStatementConcept, PerShareConcept,
 };
 use xbrl::core::fact::{AsIsFact, Dimensions, FactKey, FactValue, TaxonomyVersion};
 use xbrl::core::filing::{EntityId, FilingId};
@@ -128,6 +128,10 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
         (CashFlowConcept::ExchangeRateEffect.element(), 2),
         (BalanceSheetConcept::LiabilitiesAndEquity.element(), 2),
         (BalanceSheetConcept::AccountsPayable.element(), 2),
+        (
+            DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+            2,
+        ),
         (BalanceSheetConcept::ShortTermDebt.element(), 2),
         (BalanceSheetConcept::EquityAttributableToParent.element(), 3),
         (BalanceSheetConcept::AdditionalPaidInCapital.element(), 2),
@@ -371,7 +375,7 @@ fn should_block_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_notes_fa
 }
 
 #[test]
-fn should_give_63_standardized_facts_in_31_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_65_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -382,7 +386,7 @@ fn should_give_63_standardized_facts_in_31_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_63_standardized_facts_in_31_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_65_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
@@ -526,6 +530,10 @@ fn should_resolve_seven_concepts_by_their_part_rules_when_the_dedup_rules_run_on
         (
             BalanceSheetConcept::AccumulatedOtherComprehensiveIncome.element(),
             rule("us-gaap/alias/accumulated-other-comprehensive-income@1"),
+        ),
+        (
+            DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+            rule("us-gaap/alias/long-term-debt-including-current-maturities@1"),
         ),
     ]);
 

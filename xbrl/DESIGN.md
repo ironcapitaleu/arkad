@@ -1090,14 +1090,14 @@ pub trait Timed: Concept {
   `debt-maturities`, and `TOLERANCE_BASIS_POINTS` is 500. The six buckets have the cadence
   `FiscalYearEnd`, and the total has `EveryPeriod`. `PerShareConcept` implements `Concept` only.
 - The middle macro registers the traits of each innermost enum, as in
-  `DebtMaturities(DebtMaturityConcept): Summed, Timed`. From this list it generates
+  `DebtMaturities(DebtMaturityConcept): Summed + Timed`. From this list it generates
   `CanonicalElementKind::cadence`, which gives `EveryPeriod` for an enum without `Timed`. It also
   generates `check_all_sums`, which calls `check_sums` once for each enum with `Summed`.
 - The filter after `resolve_aliases` and the gap check call `CanonicalElementKind::cadence`. The
   series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
   adds its enum, its impls, and its macro entry. None of the three callers changes.
 - A test in each module with `impl Timed` walks `ALL` and compares
-  `CanonicalElementKind::from(c).cadence()` with `c.cadence()`. A test in each module with
+  `c.element().cadence()` with `c.cadence()`. A test in each module with
   `impl Summed` shows that `check_all_sums` gives a `SumMismatch` for a sum that does not add up.
   So a missing macro entry fails a test.
 - `SumMismatch` is the finding of every sum. Its `reason` holds the `SUM_NAME`, so a reader
