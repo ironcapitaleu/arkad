@@ -1,5 +1,5 @@
-// `json!` recurses once per element, and the list of every mapped concept passes the default
-// limit of 128.
+// `json!` recurses once per element, and the list of every mapped concept is longer than the
+// default limit of 128.
 #![recursion_limit = "256"]
 
 use api::config::InternalDocs;
