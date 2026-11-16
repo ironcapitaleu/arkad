@@ -15,8 +15,8 @@ API: `ifGenerationMatch=0`, to create an object only if it is absent, and
 shows no generation, so silver needs a client of the JSON API.
 
 [ADR 0005](0005-storage-ports-crate.md) puts the Postgres backend in a crate of its own. Its reason
-is feature unification: Cargo unifies the features of one crate across a build, so one binary that
-turns a feature of `storage` on turns it on for every crate in that build. ADR 0005 covers backends
+is feature unification: Cargo unifies the features of one crate across a build, so if one binary turns
+a feature of `storage` on, the feature is on for `storage` in the whole build. ADR 0005 covers backends
 with a database driver. A GCS client of the JSON API is no database driver, so ADR 0005 does not
 decide this case.
 

@@ -413,14 +413,15 @@ workflow only starts a run ([ADR 0034](../../../docs/adr/0034-transform-jobs-cha
 3. **Carry over.** The plan step adds each unit of the latest plan of its job kind whose task did
    not succeed. A task succeeds if it wrote the unit, or skipped it by rule 2 of a write. Each
    task records its result as a write-once object `plans/<job kind>/<plan id>/done/<unit key>`
-   in the control bucket. The carried units go through the same grouping, so a key is in a plan
+   in the control bucket, after rule 4 of a write or after a skip by rule 2. If the object exists,
+   the task counts its result as recorded. The carried units go through the same grouping, so a key is in a plan
    once. So a unit that failed runs again, and a skipped unit does not.
 4. **Write the plan, then acknowledge.** The plan step writes the plan, then acknowledges the
    messages. From then on, the plan holds the work. A run can last hours, longer than a queue
    keeps a pulled message without an acknowledgement.
 
 A message only names a key. The worker task builds the unit from every document of that key in
-the raw store: every filing of the stored daily index `form.<YYYYMMDD>.idx` of that day whose
+the raw store: every filing of the stored daily index `sec/daily-index/form.<YYYYMMDD>.idx` of that day whose
 instance the store holds, not only the filings of the messages. So the
 unit does not depend on which messages arrived in which batch.
 
@@ -552,7 +553,8 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
 8. FEATURE: the transform plan step and task runner: units from the queue or the raw store, the
-   carry-over with a test that a skipped unit leaves the plan, one unit per task, threads, and
+   carry-over with tests that a skipped unit leaves the plan and that a unit whose task failed
+   before rule 4 stays in it, one unit per task, threads, and
    the lease check.
 9. FEATURE: failure handling and the run summary of the transform task.
 10. FEATURE: `xbrl::core::series::standardize_series`.
@@ -574,7 +576,7 @@ jobs, and are not in this list.
   `MixedStarts` row until `xbrl` has a function that returns one.
 - **Cost of the byte form.** Not measured. The feature of the digest measures it on `2024q1`.
 - **Time of a series task.** Not measured. Each task reads every `candidates` part whole, so a
-  base run of 64 tasks reads all of `candidates` 64 times: about 64 to 128 GB (estimate: 58
+  base run of 64 tasks reads all of `candidates` 64 times: about 75 to 150 GB (estimate: 58
   million rows at 20 to 40 bytes each). The feature of the super-state measures one base task. If
   its read takes more than a few minutes, a range read comes first.
 - **The startup of an execution.** Not measured. ADR 0034 names it.
