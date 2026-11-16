@@ -2,10 +2,11 @@
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
 //! Notes period validation, index date validation, daily index and full index parsing, SEC request execution, a missing daily index,
-//! the selection of filing documents, document writes, data completeness, and input/context/output handling.
+//! the selection of filing documents, document writes, the Company Facts parse, the CIK of the Company Facts, data completeness, and input/context/output handling.
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
-//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
+//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`FailedCompanyFactsParse`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
+//! [`UnexpectedCik`] carries the failing state's name, the CIK of the state, and the entity ID of the facts.
 //! [`MissingDailyIndex`] carries the failing state's name and the date. [`MissingFullIndexDate`]
 //! carries the failing state's name, the date, and the last date of the full index.
 //! [`InvalidFiledDateRange`]
@@ -25,10 +26,14 @@
 //! - [`missing_daily_index`]: The [`MissingDailyIndex`] error for a daily index the SEC did not send.
 //! - [`missing_full_index_date`]: The [`MissingFullIndexDate`] error for a date that the full index does not cover yet.
 //! - [`failed_document_write`]: The [`FailedDocumentWrite`] error wrapping a rejected store write.
+//! - [`failed_company_facts_parse`]: The [`FailedCompanyFactsParse`] error wrapping a Company Facts body that does not parse.
+//! - [`unexpected_cik`]: The [`UnexpectedCik`] error for a Company Facts body about another company.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
 
 use thiserror::Error;
 
+pub mod failed_company_facts_parse;
+pub use failed_company_facts_parse::FailedCompanyFactsParse;
 pub mod failed_document_selection;
 pub use failed_document_selection::FailedDocumentSelection;
 pub mod failed_document_write;
@@ -53,6 +58,8 @@ pub mod missing_daily_index;
 pub use missing_daily_index::MissingDailyIndex;
 pub mod missing_full_index_date;
 pub use missing_full_index_date::MissingFullIndexDate;
+pub mod unexpected_cik;
+pub use unexpected_cik::UnexpectedCik;
 
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
@@ -135,6 +142,12 @@ pub enum State {
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
     #[error(transparent)]
     IncompleteCompanyFacts(IncompleteCompanyFacts),
+
+    #[error(transparent)]
+    FailedCompanyFactsParse(FailedCompanyFactsParse),
+
+    #[error(transparent)]
+    UnexpectedCik(UnexpectedCik),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     #[error(

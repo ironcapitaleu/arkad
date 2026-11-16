@@ -3,7 +3,7 @@
 //! Implements the [`TryFrom`] conversion producing a [`CreateFinancialStatements`] from a
 //! [`ParseCompanyFacts`], the transform-phase transition.
 //!
-//! It moves the parsed [`CompanyData`](crate::shared::financial::company_data::CompanyData) from the
+//! It moves the parsed [`CompanyData`](crate::shared::company_data::CompanyData) from the
 //! source state's output into the next state's input, and carries the CIK across via context. The
 //! supporting `From` impls perform the field-level conversions; the `TryFrom` is fallible because
 //! the source output may be absent.
@@ -54,17 +54,16 @@ impl TryFrom<ParseCompanyFacts> for CreateFinancialStatements {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
 
     use pretty_assertions::assert_eq;
     use storage::shared::Sha256Digest;
+    use xbrl::core::entity_name::EntityName;
 
     use super::*;
     use crate::error::state_machine::transition::MissingOutput;
     use crate::implementations::states::transform::parse_company_facts::ParseCompanyFactsInput;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::company_data::CompanyData;
-    use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::company_data::CompanyData;
 
     fn get_baseline_parse_state_without_output() -> ParseCompanyFacts {
         let json: serde_json::Value = serde_json::json!({});
@@ -80,7 +79,12 @@ mod tests {
     }
 
     fn test_company_data() -> CompanyData {
-        CompanyData::new(test_cik(), EntityName::new("Test Corp."), HashMap::new())
+        CompanyData::new(
+            test_cik(),
+            EntityName::new("Test Corp."),
+            Vec::new(),
+            Vec::new(),
+        )
     }
 
     #[test]
