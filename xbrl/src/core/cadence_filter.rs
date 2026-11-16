@@ -5,10 +5,9 @@
 
 use super::alias::FilingCandidates;
 use super::candidate::Candidate;
-use super::chronology::is_near;
 use super::elements::Cadence;
 use super::filing::Filing;
-use super::period::Period;
+use super::period::{Period, is_near};
 
 /// The fiscal period of a filing that reports a fiscal year.
 const FISCAL_YEAR: &str = "FY";

@@ -985,7 +985,8 @@ period. So `DebtDueInYearTwo` of the 10-K for 2024 is a row of `standardized_fac
   `keep_by_cadence` in `core/cadence_filter.rs`. An instant within 7 days of the period of report
   counts, because the Notes data set rounds the period of report to the month end. If a filing
   has no period of report or no fiscal period, the filter drops its bucket candidates. The Company
-  Facts adapter gives no period of report, so its filings give no candidate of a bucket.
+  Facts adapter gives no period of report, so the filter drops the bucket candidates of its
+  filings.
 - The total `LongTermDebtIncludingCurrentMaturities` is a balance sheet value. It gets a candidate
   at every balance sheet date, as `LongTermDebt` does.
 - Each annual report gives a new ladder. The series of `DebtDueInYearOne` shows, for each year,

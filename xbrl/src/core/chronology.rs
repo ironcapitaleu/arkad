@@ -17,7 +17,7 @@ use super::finding::{Finding, GapReason};
 use super::fiscal_period::FiscalPeriod;
 use super::fiscal_year_end::FiscalYearEnd;
 use super::form::Form;
-use super::period::{Duration, Period, TOLERANCE_DAYS, days_of_quarters};
+use super::period::{Duration, Period, TOLERANCE_DAYS, days_of_quarters, is_near};
 use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
 
@@ -225,11 +225,6 @@ fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
         }
     }
     findings
-}
-
-/// Returns `true` if `left` and `right` lie at most 7 days apart.
-pub(super) fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
-    (left - right).num_days().abs() <= TOLERANCE_DAYS
 }
 
 /// One expected period: its end, its fiscal period, if it is known, its length in quarters, and
@@ -1146,6 +1141,8 @@ mod tests {
     #[test]
     fn should_report_a_gap_for_a_bucket_when_a_10_q_filer_misses_the_fiscal_year_end_after_its_last_10_k()
      {
+        // The 10-K for 2024 is missing from the filings, so the calendar steps forward past the
+        // year ends 2023 and 2024. The test checks only how the calendar marks those steps.
         let bucket = DebtMaturityConcept::DebtDueInYearOne;
         let facts = vec![
             debt_value(bucket, date(2022, 9, 24)),
@@ -1154,7 +1151,7 @@ mod tests {
         let filings = vec![
             filing("10-K", date(2022, 9, 24), "0930"),
             filing("10-Q", date(2022, 12, 24), "0930"),
-            filing("10-Q", date(2024, 9, 24), "0930"),
+            filing("10-Q", date(2024, 12, 24), "0930"),
         ];
 
         let expected_result = vec![debt_gap(bucket, date(2023, 9, 24), "FY")];

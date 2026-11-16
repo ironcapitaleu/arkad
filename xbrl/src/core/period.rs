@@ -67,6 +67,11 @@ impl fmt::Display for Period {
 /// fiscal year ends up to 6 days away from the end of its month.
 pub(super) const TOLERANCE_DAYS: i64 = 7;
 
+/// Returns `true` if `left` and `right` lie at most [`TOLERANCE_DAYS`] days apart.
+pub(super) fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
+    (left - right).num_days().abs() <= TOLERANCE_DAYS
+}
+
 /// A quarter is `QUARTER_NUMERATOR / QUARTER_DENOMINATOR` days, that is 91.3125 days.
 const QUARTER_NUMERATOR: i64 = 1461;
 
