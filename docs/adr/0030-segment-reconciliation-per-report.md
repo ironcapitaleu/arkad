@@ -19,15 +19,17 @@ reader gets the reconciliation from those values.
 
 Terms in this ADR:
 
-- **Business-segment axis:** `BusinessSegments` or `SegmentReportingInformationBySegment`.
+- **Business-segment axis:** a segment axis of kind `BusinessSegment`. For `us_gaap`,
+  `BusinessSegments` or `SegmentReportingInformationBySegment`.
 - **Group:** the values of one filing, one standard concept, one period, and one unit, with two or
   more segments on `BusinessSegments`. The measurement counts only this axis.
 - **Adds up:** the difference is within 0.1% of the larger absolute value.
-- **Role:** segment, elimination, or corporate, by the member of `ConsolidationItems`
-  (`xbrl/DESIGN.md`, "Reconciliation").
+- **Role:** segment, elimination, or corporate. The plug-in of a candidate gives the role of each
+  member of its axis of kind `ConsolidationItems`, through `SegmentAxes` (ADR 0029). For
+  `us_gaap`, the members are those of `xbrl/DESIGN.md`, "Reconciliation".
 
-The decision binds the read type of the reconciliation in `core`, the silver writer, and the gold
-load.
+The decision binds the read type of the reconciliation in `core`, the roles in the `SegmentAxes` of
+each plug-in, the silver writer, and the gold load.
 
 ## Decision
 
@@ -42,8 +44,8 @@ load.
 3. **Silver stores no line of the reconciliation.** A read type computes the lines, as the
    statement output type computes the other lines.
 4. **An unreconciled line other than zero gives no finding.**
-5. **If a segment is filed in both forms, the value without `ConsolidationItems` counts, even if it
-   is blocked.**
+5. **If a segment is filed in both forms, the value without the `ConsolidationItems` pair counts,
+   even if it is blocked.**
 
 ## Options Considered
 
@@ -85,13 +87,14 @@ Facts behind decisions 2 and 5:
 
 - A reader sees the unreconciled line next to the tagged roles. Only the unreconciled line has no
   candidate rule, so a reader tells it from a reported line.
-- Members of a company on `ConsolidationItems`, such as `CorporateAndEliminations`, have no role.
+- A plug-in gives a role only to members of its own taxonomies. Members of a company on
+  `ConsolidationItems`, such as `CorporateAndEliminations`, have no role.
   Their amount lands in the unreconciled line.
 - A value of a segment with a second pair, such as its inter-segment revenue, has no role. A filer
   can report the segment revenue with or without it, so the unreconciled line absorbs the
   difference.
-- The reconciliation runs only on the business-segment axes. Members on `Geographical` and
-  `ProductOrService` can overlap, such as `US`, `NonUs`, and `Americas` in one filing. A sum then
+- The reconciliation runs only on the business-segment axes. Members on axes of kind `Geography`
+  and `Product` can overlap, such as `US`, `NonUs`, and `Americas` in one filing. A sum then
   counts an amount twice, so these axes get no reconciliation.
 - Of 456 cases of one filing, revenue, period, and unit with one segment, 425 (93%) equal the
   consolidated value.
@@ -104,6 +107,8 @@ Facts behind decisions 2 and 5:
 
 - A finding for a large unreconciled line: if users ask for one, a later design sets a threshold
   from a measurement over more Notes files.
+- The measurement covers SEC filings only. The design of the `ifrs` plug-in measures the same
+  shares on ESEF filings before it names its roles.
 - The measurement covers one month of filings. A run over the files of a full year can move the
   shares, but it does not change the options.
 

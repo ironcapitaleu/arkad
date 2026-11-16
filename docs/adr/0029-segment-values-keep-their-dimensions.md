@@ -25,20 +25,23 @@ Segment data differs from the consolidated statements in three ways:
 
 Terms in this ADR:
 
-- **Segment axes:** the seven axes of `xbrl/DESIGN.md`, "Segment Axes".
+- **Segment axes:** the axes that the plug-in of a concept names through the trait `SegmentAxes`.
+  For `us_gaap`, the seven axes of `xbrl/DESIGN.md`, "Segment Axes".
 - **Segment fact:** a fact with dimensions whose axes are all segment axes.
 - **The tree:** the roll-up tree, its closed-group rule, its checks, and its other lines, with the
   balance sheet identity, the period identity `core/period/q4-from-fy@1`, and the sums of Tier 4.
 
-The decision binds `core::alias`, `core::closed_group`, `core::roll_up_check`,
-`core::period_identity`, `core::chronology`, the Tier 4 engine in `core::graph`, the silver writer, and the rows of `candidates` and
-`standardized_facts`.
+The decision binds `core::taxonomy`, `core::alias`, `core::closed_group`, `core::roll_up_check`,
+`core::period_identity`, `core::chronology`, the Tier 4 engine in `core::graph`, each taxonomy
+plug-in, the silver writer, and the rows of `candidates` and `standardized_facts`.
 
 ## Decision
 
 1. **A segment fact gives a candidate under its own dimensions.** Tiers 1 and 2 run on it with the
    alias lists of the consolidated value. The candidate keeps the pairs as filed, with no mapping
-   and no change of form. A fact with any other axis gives no candidate.
+   and no change of form. A fact with any other axis gives no candidate. The plug-in that resolves
+   the concept names its segment axes through a new trait `SegmentAxes`, next to `Taxonomy`. `core`
+   reads only the kind of each axis, so it names no axis of a taxonomy.
 2. **The tree and chronology run only on values without dimensions.** A segment value gets no
    derived or computed value, no check, no other line, no Q4 from the fiscal year, and no chronology finding.
    It still gets `restated`.
@@ -68,6 +71,19 @@ scripts listed under "Sources".
 - D leaves the alias lists out. A reader then maps `Revenues` and
   `RevenueFromContractWithCustomerExcludingAssessedTax` again for segments. 371 and 218 filings use
   these two on the business-segment axis.
+
+Where the segment axes live, checked against `xbrl/DESIGN.md`, "The `Taxonomy` Trait", on
+2026-11-16:
+
+| Option | An IFRS filing | Change to `Taxonomy` |
+| ------ | -------------- | -------------------- |
+| **A: a trait `SegmentAxes` in each plug-in (chosen)** | Gets segment values once `ifrs` implements the trait | None |
+| B: a `const` list in `core` | Gets none. The list names US GAAP and `srt` axes only | None |
+| C: a method on `Taxonomy` | Gets segment values | Every plug-in implements it |
+
+- B makes `core` name the axes of one taxonomy, while the alias lists already live in the plug-in.
+- C changes a trait that other code implements (`AGENTS.md`, "Open-Closed Principle"). A plug-in
+  with no segment data then implements an empty method.
 
 Pairs filed in two forms stay apart: of 1,750 segment values that a filing reports both with
 `BusinessSegments` alone and with `ConsolidationItems` = `OperatingSegments` added, 647 differ. So
