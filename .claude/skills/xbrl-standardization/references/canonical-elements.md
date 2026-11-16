@@ -1,17 +1,17 @@
 ---
 source: xbrl/src/core/elements/
-last-verified: 2026-11-15
+last-verified: 2026-11-16
 update-frequency: on-code-change
 ---
 
 # Standard Concepts
 
-These are the 52 standard concepts the system resolves to. `CanonicalElementKind` nests them by
+These are the 59 standard concepts the system resolves to. `CanonicalElementKind` nests them by
 statement and disclosure:
 
 - `CanonicalElementKind::Statement(StatementConcept)`: `BalanceSheetConcept`,
   `IncomeStatementConcept`, `CashFlowConcept`.
-- `CanonicalElementKind::Disclosure(DisclosureConcept)`: `PerShareConcept`.
+- `CanonicalElementKind::Disclosure(DisclosureConcept)`: `PerShareConcept`, `DebtMaturityConcept`.
 
 A table names a concept as `BalanceSheetConcept::Assets.element()`. Silver stores the variant name,
 such as `Assets`, from `Concept::name()`.
@@ -104,6 +104,21 @@ A disclosure. Its concepts have no placement, and they do not add over periods.
 | --- |
 | EarningsPerShareBasic |
 | EarningsPerShareDiluted |
+
+## Debt Maturities (`DebtMaturityConcept`)
+
+A disclosure. Its concepts have no placement. Each value is an instant. The six buckets add up to
+the total within ±5% (`Summed`), and a bucket has values only at fiscal year ends (`Timed`).
+
+| Concept | Role | Cadence |
+| --- | --- | --- |
+| LongTermDebtIncludingCurrentMaturities | Total | EveryPeriod |
+| DebtDueInYearOne | Part | FiscalYearEnd |
+| DebtDueInYearTwo | Part | FiscalYearEnd |
+| DebtDueInYearThree | Part | FiscalYearEnd |
+| DebtDueInYearFour | Part | FiscalYearEnd |
+| DebtDueInYearFive | Part | FiscalYearEnd |
+| DebtDueAfterYearFive | Part | FiscalYearEnd |
 
 ## Groups
 

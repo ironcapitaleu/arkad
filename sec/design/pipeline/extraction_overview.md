@@ -387,7 +387,7 @@ lets a check reconcile one company against its stored filings.
 
 ### Filings We Select
 
-Both paths keep the same forms: `SELECTED_FORMS` in `sec/src/lib/shared/financial/form/mod.rs`.
+Both paths keep the same forms: `SELECTED_FORMS` in `sec/src/lib/shared/form/mod.rs`.
 
 - 10-K, 10-Q, 20-F, and 40-F, and the amendment of each (`/A`).
 - The filings of all companies, with no company list.

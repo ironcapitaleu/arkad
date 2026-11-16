@@ -13,8 +13,8 @@ use futures_util::StreamExt;
 use serde::{Serialize, Serializer};
 
 use crate::prelude::{StateMachineStream, StreamError, StreamItem};
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::cik::Cik;
-use crate::shared::financial::accession_number::AccessionNumber;
 use crate::shared::quarter::Quarter;
 
 /// One event of a batch run: a successful stream item, or an error and its kind.

@@ -315,10 +315,10 @@ impl FilingIndexBuilder<FilingRef> {
     ///
     /// ```
     /// use chrono::NaiveDate;
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_ref::FilingRef;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
-    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::form::{Form, ParsedForm};
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
     /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
@@ -388,10 +388,10 @@ impl FilingDocumentBuilder<FilingRef, String> {
     ///
     /// ```
     /// use chrono::NaiveDate;
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_ref::FilingRef;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
-    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::form::{Form, ParsedForm};
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
     /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
@@ -468,11 +468,11 @@ impl FilingDocumentSetBuilder<FilingRef, FilingDocuments> {
     ///
     /// ```
     /// use chrono::NaiveDate;
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_documents::FilingDocuments;
     /// use sec::shared::filing_ref::FilingRef;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
-    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::form::{Form, ParsedForm};
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
     /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
@@ -654,11 +654,11 @@ mod tests {
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::FilingDocuments;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::index_date::IndexDate;
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::quarter::Quarter;

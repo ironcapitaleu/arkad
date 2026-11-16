@@ -61,7 +61,7 @@ impl Form {
     /// # Examples
     ///
     /// ```
-    /// use sec::shared::financial::form::{Form, ParsedForm};
+    /// use sec::shared::form::{Form, ParsedForm};
     ///
     /// let sec_string = "10-K/A";
     ///

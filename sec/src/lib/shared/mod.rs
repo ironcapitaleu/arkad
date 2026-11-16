@@ -4,13 +4,16 @@
 //! These components provide reusable logic and strongly-typed representations for common SEC concepts, such as the Central Index Key (CIK).
 //!
 //! ## Modules
+//! - [`accession_number`]: Provides [`AccessionNumber`](accession_number::AccessionNumber), the accession number of one SEC filing.
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
+//! - [`company_data`]: Provides [`CompanyData`](company_data::CompanyData), the as-is facts and the filings of one company.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`edgar_exchange_code`]: Provides [`mic_of`](edgar_exchange_code::mic_of), the map from an EDGAR exchange code to the MIC of the exchange it names.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
 //! - [`filing_documents_ref`]: Provides [`FilingDocumentsRef`](filing_documents_ref::FilingDocumentsRef), the filing and the keys of its stored XBRL instance and label file.
 //! - [`filing_ref`]: Provides [`FilingRef`](filing_ref::FilingRef), which names one filing to fetch.
+//! - [`form`]: Provides [`Form`](form::Form), the SEC form types a data point can originate from, and the forms both ingestion paths keep.
 //! - [`form_index_row`]: Provides [`FormIndexRow`](form_index_row::FormIndexRow), one row of an EDGAR daily index or full index, and the parser of the whole index.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
 //! - [`index_date`]: Provides [`IndexDate`](index_date::IndexDate), the date of one EDGAR daily index, and the parts of its URL.
@@ -35,8 +38,10 @@
 //! - [`crate::implementations`]: Concrete state and state machine implementations that use these shared utilities.
 //! - [`crate::error`]: Error types that may reference shared domain types for detailed error reporting.
 
+pub mod accession_number;
 pub mod build_info;
 pub mod cik;
+pub mod company_data;
 pub mod content_type;
 pub mod document_storage;
 pub mod edgar_exchange_code;
@@ -44,6 +49,7 @@ pub mod filing_documents;
 pub mod filing_documents_ref;
 pub mod filing_ref;
 pub mod financial;
+pub mod form;
 pub mod form_index_row;
 pub mod headers;
 pub mod http_client;

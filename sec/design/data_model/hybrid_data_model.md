@@ -28,8 +28,9 @@ requirements drive the design:
 The design below is a **redesign**, not a preservation of what exists. Today the workspace
 has two parallel, non-integrated models and one raw-document store:
 
-- `sec` crate (live): `CompanyData → HashMap<&ConceptDefinition, CompanyFact> → Vec<Observation>`,
-  identity is **`Cik`-centric** (SEC-specific), concept resolution is string-alias matching.
+- `sec` crate (live): `ParseCompanyFacts` calls `xbrl::adapter::edgar::company_facts::parse` and
+  emits `CompanyData { Cik, EntityName, Vec<AsIsFact>, Vec<Filing> }`. Identity is
+  **`Cik`-centric** (SEC-specific). No concept is resolved yet.
 - `xbrl` crate (dormant, not referenced by the pipeline): `CanonicalElementKind` (36
   standard concepts, nested by statement), `StandardizedFact` (with a `Confidence` ladder, a `rule`, and `inputs`), `FactSet`,
   `Invariant` validation, and a graph-engine **TODO stub**.
@@ -45,7 +46,7 @@ What to carry forward vs. change (detail in §10):
 | `xbrl::Invariant` (accounting identities) | **Keep** — universal validation |
 | `us_gaap::mappings` (tag → CanonicalElementKind) | **Reframe** — this is *one adapter* (SEC/US-GAAP), not the core |
 | `sec::Cik`-centric identity, `FilingSource` (accession/form) | **Scope to the SEC adapter** — `Cik` stays first-class: it is the adapter's primary key and the natural entry point of SEC pipelines (§11); *core* identity keys on **`CompanyId`** (internal key, §4), resolved at load time |
-| `sec::CompanyData/CompanyFact/Observation` | **Replace** — superseded by the canonical model |
+| `sec::CompanyData` (the `xbrl` as-is facts and filings) | **Replace** — `FactSet` supersedes it (§10, step 5) |
 
 ## 2. Architectural Spine — Metadata Store Over Source Stores
 
@@ -597,13 +598,11 @@ flowchart LR
 ```
 
 - **Resolution moves earlier and becomes the adapter boundary:** `ParseCompanyFacts` emits
-  `AsIsFact`s (already implemented in `xbrl::adapter::edgar::company_facts::parse`); a new
+  `AsIsFact`s and `Filing`s in `CompanyData`, from `xbrl::adapter::edgar::company_facts::parse`. A new
   resolve step turns them into `StandardizedFact`s. `CreateFinancialStatements` stops emitting a
   placeholder and emits `FactSet`s (the intermediate representation — no extra DTO needed).
 - **Load/`StoreData`** is the dual-writer: raw store (adapter) → graph → canonical facts.
-- `sec::CompanyData/Observation/ConceptDefinition` are **retired** in favor of
-  `xbrl::FactSet/StandardizedFact/CanonicalElementKind`; this SPIKE is the trigger for that
-  sec→xbrl migration flagged in the ticket's Additional Notes.
+- `sec::CompanyData` is **retired** in favor of `xbrl::FactSet`.
 
 ## 10. Migration From the Current (Immature) Skeleton
 

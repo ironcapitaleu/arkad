@@ -5,8 +5,11 @@
 //!
 //! ## Modules
 //!
+//! - [`debt_maturities`]: The maturity ladder of long-term debt and its total.
 //! - [`per_share`]: The per-share amounts.
 
+pub mod debt_maturities;
 pub mod per_share;
 
+pub use debt_maturities::DebtMaturityConcept;
 pub use per_share::PerShareConcept;

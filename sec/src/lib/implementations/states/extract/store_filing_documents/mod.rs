@@ -275,13 +275,13 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::content_type::ContentType;
     use crate::shared::document_storage::DocumentStorageErrorReason;
     use crate::shared::filing_documents::FilingDocumentResponses;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::headers::Headers;
     use crate::shared::response::implementations::sec_response::{SecResponse, XmlBody};
     use crate::shared::status_code::StatusCode;

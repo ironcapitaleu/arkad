@@ -9,14 +9,14 @@
 //! ## See Also
 //!
 //! - [`input`](super::input): The raw JSON this output is parsed from.
-//! - [`crate::shared::financial::company_data::CompanyData`]: The resolved company data type carried here.
+//! - [`crate::shared::company_data::CompanyData`]: The resolved company data type carried here.
 
 use std::fmt;
 
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
-use crate::shared::financial::company_data::CompanyData;
+use crate::shared::company_data::CompanyData;
 use crate::traits::state_machine::state::StateData;
 
 /// Output data of the [`ParseCompanyFacts`](super::super::ParseCompanyFacts) state.
@@ -173,21 +173,21 @@ impl Default for ParseCompanyFactsOutputUpdaterBuilder {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::{assert_eq, assert_ne};
     use state_maschine::prelude::StateData as SMStateData;
+    use xbrl::core::entity_name::EntityName;
 
     use super::{ParseCompanyFactsOutput, ParseCompanyFactsOutputUpdaterBuilder};
     use crate::shared::cik::Cik;
-    use crate::shared::financial::company_data::CompanyData;
-    use crate::shared::financial::entity_name::EntityName;
+    use crate::shared::company_data::CompanyData;
     use crate::traits::state_machine::state::StateData;
 
     fn create_test_output(entity_name: &str) -> ParseCompanyFactsOutput {
         let cik = Cik::new("0000320193").expect("Hardcoded CIK should always be valid");
-        let company_data = CompanyData::new(cik, EntityName::new(entity_name), HashMap::new());
+        let company_data =
+            CompanyData::new(cik, EntityName::new(entity_name), Vec::new(), Vec::new());
         ParseCompanyFactsOutput::new(company_data)
     }
 
@@ -219,7 +219,7 @@ mod tests {
 
         let expected_result = "Apple Inc.";
 
-        let result = output_data.company_data().entity_name().value();
+        let result = output_data.company_data().entity_name().as_str();
 
         assert_eq!(result, expected_result);
     }
@@ -230,7 +230,8 @@ mod tests {
         let new_company_data = CompanyData::new(
             Cik::new("0000789019").expect("Hardcoded CIK should always be valid"),
             EntityName::new("Microsoft Corp."),
-            HashMap::new(),
+            Vec::new(),
+            Vec::new(),
         );
         let update = ParseCompanyFactsOutputUpdaterBuilder::default()
             .company_data(new_company_data)
@@ -240,7 +241,7 @@ mod tests {
 
         StateData::update_state(&mut output_data, update)
             .expect("Update with valid company data should succeed");
-        let result = output_data.company_data().entity_name().value();
+        let result = output_data.company_data().entity_name().as_str();
 
         assert_eq!(result, expected_result);
     }

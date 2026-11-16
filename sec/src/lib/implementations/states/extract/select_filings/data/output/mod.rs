@@ -139,9 +139,9 @@ mod tests {
     use state_maschine::prelude::StateData as SMStateData;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
 
     fn filing_ref() -> FilingRef {
         FilingRef::new(

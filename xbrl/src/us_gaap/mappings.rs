@@ -13,8 +13,8 @@
 //! - **Optional**: Enriching detail extracted when available, skipped when absent.
 
 use crate::core::elements::{
-    BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, IncomeStatementConcept,
-    PerShareConcept,
+    BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, DebtMaturityConcept,
+    IncomeStatementConcept, PerShareConcept,
 };
 
 /// A mapping from one or more XBRL concept names to a standard concept.
@@ -308,6 +308,21 @@ pub const NET_INCOME_ATTRIBUTABLE_TO_NONCONTROLLING_INTEREST_RULE: &str =
 pub const EARNINGS_PER_SHARE_BASIC_RULE: &str = "us-gaap/alias/earnings-per-share-basic@1";
 /// The ID of the alias rule of [`PerShareConcept::EarningsPerShareDiluted`].
 pub const EARNINGS_PER_SHARE_DILUTED_RULE: &str = "us-gaap/alias/earnings-per-share-diluted@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities`].
+pub const LONG_TERM_DEBT_INCLUDING_CURRENT_MATURITIES_RULE: &str =
+    "us-gaap/alias/long-term-debt-including-current-maturities@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::DebtDueInYearOne`].
+pub const DEBT_DUE_IN_YEAR_ONE_RULE: &str = "us-gaap/alias/debt-due-in-year-one@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::DebtDueInYearTwo`].
+pub const DEBT_DUE_IN_YEAR_TWO_RULE: &str = "us-gaap/alias/debt-due-in-year-two@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::DebtDueInYearThree`].
+pub const DEBT_DUE_IN_YEAR_THREE_RULE: &str = "us-gaap/alias/debt-due-in-year-three@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::DebtDueInYearFour`].
+pub const DEBT_DUE_IN_YEAR_FOUR_RULE: &str = "us-gaap/alias/debt-due-in-year-four@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::DebtDueInYearFive`].
+pub const DEBT_DUE_IN_YEAR_FIVE_RULE: &str = "us-gaap/alias/debt-due-in-year-five@1";
+/// The ID of the alias rule of [`DebtMaturityConcept::DebtDueAfterYearFive`].
+pub const DEBT_DUE_AFTER_YEAR_FIVE_RULE: &str = "us-gaap/alias/debt-due-after-year-five@1";
 /// The ID of the alias rule of [`CashFlowConcept::DepreciationAmortization`].
 pub const DEPRECIATION_AMORTIZATION_RULE: &str = "us-gaap/alias/depreciation-amortization@1";
 /// The ID of the alias rule of [`CashFlowConcept::CapitalExpenditures`].
@@ -581,6 +596,73 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         // The 2026 schema no longer holds it, but older filings report it.
         &["EarningsPerShareDiluted", "EarningsPerShareBasicAndDiluted"],
         EARNINGS_PER_SHARE_DILUTED_RULE,
+        false,
+    ),
+    // Debt maturities. The ladder of `LongTermDebtAndCapitalLeaseObligations` holds finance
+    // leases, and a concept that covers two buckets, such as
+    // `LongTermDebtMaturingInYearsTwoAndThree`, equals no bucket. Both stay as-is facts.
+    ConceptDefinition::new(
+        DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+        // The total of the ladder, current maturities included. `BalanceSheetConcept::LongTermDebt`
+        // takes `LongTermDebtNoncurrent`, which leaves them out.
+        &["LongTermDebt"],
+        LONG_TERM_DEBT_INCLUDING_CURRENT_MATURITIES_RULE,
+        false,
+    ),
+    // A bucket lists the concept in fiscal years first and the rolling concept second. At a fiscal
+    // year end, the two hold the same amount.
+    ConceptDefinition::new(
+        DebtMaturityConcept::DebtDueInYearOne.element(),
+        &[
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths",
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextRollingTwelveMonths",
+        ],
+        DEBT_DUE_IN_YEAR_ONE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        DebtMaturityConcept::DebtDueInYearTwo.element(),
+        &[
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearTwo",
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearTwo",
+        ],
+        DEBT_DUE_IN_YEAR_TWO_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        DebtMaturityConcept::DebtDueInYearThree.element(),
+        &[
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearThree",
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearThree",
+        ],
+        DEBT_DUE_IN_YEAR_THREE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        DebtMaturityConcept::DebtDueInYearFour.element(),
+        &[
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFour",
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFour",
+        ],
+        DEBT_DUE_IN_YEAR_FOUR_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        DebtMaturityConcept::DebtDueInYearFive.element(),
+        &[
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInYearFive",
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingYearFive",
+        ],
+        DEBT_DUE_IN_YEAR_FIVE_RULE,
+        false,
+    ),
+    ConceptDefinition::new(
+        DebtMaturityConcept::DebtDueAfterYearFive.element(),
+        &[
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalAfterYearFive",
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInRollingAfterYearFive",
+        ],
+        DEBT_DUE_AFTER_YEAR_FIVE_RULE,
         false,
     ),
     // Cash Flow detail
