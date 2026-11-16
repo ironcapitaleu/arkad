@@ -29,6 +29,8 @@ impl FakeTokenVerifier {
     }
 
     /// Creates a [`FakeTokenVerifier`] that returns `error` for every token.
+    ///
+    /// It ignores the tokens that [`accepting`](Self::accepting) adds later.
     #[must_use]
     pub fn failing(error: TokenError) -> Self {
         Self {

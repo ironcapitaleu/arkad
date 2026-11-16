@@ -3,6 +3,7 @@
 //! Provides the [`TokenError`] for a login token that fails its check.
 
 use chrono::{DateTime, Utc};
+use storage::InvalidAccountId;
 use thiserror::Error;
 
 /// Separates the reasons why a login token fails its check.
@@ -43,6 +44,14 @@ pub enum TokenError {
         claim: String,
         /// Why the claim fails its check.
         reason: String,
+    },
+
+    /// The `sub` claim of the token is not an account ID.
+    #[error("[InvalidSubject] Login token carries no valid account, Caused by: {source}")]
+    InvalidSubject {
+        /// Why the `sub` claim is not an account ID.
+        #[source]
+        source: InvalidAccountId,
     },
 
     /// The verifier cannot fetch the signing keys, so it cannot check any token.
@@ -129,6 +138,31 @@ mod tests {
         };
 
         let expected_result = "[FailedKeyFetch] Fetching the signing keys failed, Reason: 'the JWKS endpoint answered 503'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_no_key_when_displaying_invalid_signature() {
+        let error = TokenError::InvalidSignature;
+
+        let expected_result =
+            "[InvalidSignature] Login token signature does not match any known key";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_chain_the_account_id_error_when_displaying_invalid_subject() {
+        let error = TokenError::InvalidSubject {
+            source: InvalidAccountId::new("service-role"),
+        };
+
+        let expected_result = "[InvalidSubject] Login token carries no valid account, Caused by: [InvalidAccountId] Account ID 'service-role' is not a UUID";
 
         let result = error.to_string();
 

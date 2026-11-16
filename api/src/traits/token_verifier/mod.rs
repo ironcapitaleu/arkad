@@ -18,7 +18,8 @@ pub use token_error::TokenError;
 /// Checks a Supabase login token and returns the account it belongs to.
 ///
 /// A login token is a JWT that Supabase Auth signs. An implementor checks its signature and its
-/// claims. The token arrives as `Authorization: Bearer <token>`, without the `Bearer ` prefix.
+/// claims. `token` is the value of the `Authorization: Bearer <token>` header, without the
+/// `Bearer ` prefix.
 #[async_trait]
 pub trait TokenVerifier: Send + Sync {
     /// Verifies the signature and the claims of a login token.
@@ -36,7 +37,7 @@ pub trait TokenVerifier: Send + Sync {
 pub struct VerifiedToken {
     /// The account of the token, from its `sub` claim.
     pub account_id: AccountId,
-    /// The Supabase session of the token, from its `session_id` claim. Only logs use it.
+    /// The Supabase session of the token, from its `session_id` claim.
     pub session_id: String,
     /// The time the token expires, from its `exp` claim.
     pub expires_at: DateTime<Utc>,

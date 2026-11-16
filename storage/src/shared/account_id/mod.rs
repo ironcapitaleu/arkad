@@ -16,13 +16,14 @@ pub use invalid_account_id::InvalidAccountId;
 
 /// The key of an account: the user ID of Supabase Auth (`auth.users.id`), a UUID.
 ///
-/// One account is one Supabase user. A login token carries the ID in its `sub` claim. The API keys,
-/// the plan, and the call counts of an account key on it.
+/// One account is one Supabase user. A login token carries the ID in its `sub` claim.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AccountId(Uuid);
 
 impl AccountId {
     /// Creates an [`AccountId`] from the text of a UUID, such as the `sub` claim of a login token.
+    ///
+    /// It accepts every text form of a UUID: hyphenated, simple, braced, and URN.
     ///
     /// # Errors
     ///
@@ -159,6 +160,19 @@ mod tests {
         let expected_result = "00000000-0000-0000-0000-000000000001";
 
         let result = account_id.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_create_the_account_id_when_the_string_is_a_braced_uuid() {
+        let value = "{0193b2c1-7d4e-7a2b-9c3d-4e5f6a7b8c9d}";
+
+        let expected_result = Ok(AccountId::from_uuid(Uuid::from_u128(
+            0x0193_b2c1_7d4e_7a2b_9c3d_4e5f_6a7b_8c9d,
+        )));
+
+        let result = AccountId::parse(value);
 
         assert_eq!(result, expected_result);
     }
