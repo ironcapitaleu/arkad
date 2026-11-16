@@ -4,7 +4,7 @@
 //! filings to fetch: one [`FilingRef`] per accession number, in index order.
 //!
 //! The state keeps the rows that [`FilingRef::try_from`] accepts: the forms in
-//! [`SELECTED_FORMS`](crate::shared::financial::form::SELECTED_FORMS) and their amendments. A
+//! [`SELECTED_FORMS`](crate::shared::form::SELECTED_FORMS) and their amendments. A
 //! filing with several filers has one row per filer, and the state keeps the first one.
 //!
 //! ## Modules
@@ -216,9 +216,9 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::form_index_row::InvalidFormIndexLineReason;
     use crate::shared::stored_form_index::StoredFormIndex;
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;

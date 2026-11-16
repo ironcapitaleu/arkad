@@ -8,10 +8,10 @@ use serde::Serialize;
 
 use chrono::NaiveDate;
 
-use crate::shared::financial::accession_number::AccessionNumber;
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::financial::fiscal_period::FiscalPeriod;
 use crate::shared::financial::fiscal_year::FiscalYear;
-use crate::shared::financial::form::Form;
+use crate::shared::form::Form;
 
 /// Provenance metadata identifying the SEC filing a data point came from.
 ///
@@ -34,11 +34,11 @@ impl FilingSource {
     ///
     /// ```
     /// use chrono::NaiveDate;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::financial::filing_source::FilingSource;
     /// use sec::shared::financial::fiscal_period::FiscalPeriod;
     /// use sec::shared::financial::fiscal_year::FiscalYear;
-    /// use sec::shared::financial::form::Form;
+    /// use sec::shared::form::Form;
     ///
     /// let date = |y, m, d| NaiveDate::from_ymd_opt(y, m, d).expect("A hardcoded date is valid");
     /// let source = FilingSource::new(

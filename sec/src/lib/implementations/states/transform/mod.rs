@@ -63,7 +63,7 @@ use crate::implementations::states::transform::parse_company_facts::{
 };
 use crate::prelude::*;
 use crate::shared::cik::Cik;
-use crate::shared::financial::company_data::CompanyData;
+use crate::shared::company_data::CompanyData;
 use crate::shared::response::implementations::sec_response::SecResponse;
 use crate::shared::response::traits::sec::SecResponse as SecResponseTrait;
 
@@ -303,14 +303,14 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use pretty_assertions::assert_eq;
+    use xbrl::core::entity_name::EntityName;
 
     use super::*;
     use crate::error::Transition as TransitionError;
     use crate::error::state_machine::transition::MissingOutput;
     use crate::shared::cik::Cik;
+    use crate::shared::company_data::CompanyData;
     use crate::shared::content_type::ContentType;
-    use crate::shared::financial::company_data::CompanyData;
-    use crate::shared::financial::entity_name::EntityName;
     use crate::shared::headers::Headers;
     use crate::shared::response::implementations::sec_response::SecResponse;
     use crate::shared::status_code::StatusCode;
@@ -321,7 +321,12 @@ mod tests {
     }
 
     fn test_company_data() -> CompanyData {
-        CompanyData::new(test_cik(), EntityName::new("Apple Inc."), HashMap::new())
+        CompanyData::new(
+            test_cik(),
+            EntityName::new("Apple Inc."),
+            Vec::new(),
+            Vec::new(),
+        )
     }
 
     fn test_sec_response(body: &serde_json::Value) -> SecResponse {

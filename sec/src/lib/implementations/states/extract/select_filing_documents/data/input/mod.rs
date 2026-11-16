@@ -10,8 +10,8 @@ use serde::Serialize;
 use state_maschine::prelude::StateData as SMStateData;
 
 use crate::error::State as StateError;
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::filing_documents::FolderIndex;
-use crate::shared::financial::accession_number::AccessionNumber;
 use crate::traits::state_machine::state::StateData;
 
 /// Input data for the [`SelectFilingDocuments`](super::super::SelectFilingDocuments) state.

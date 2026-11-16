@@ -11,6 +11,7 @@
 //! - [`family`]: How a plug-in declares a namespace family.
 //! - [`reference`](mod@reference): The alias lists, the calculation tree, and the element reference data.
 //! - [`registry`]: Routes a fact to the plug-in that resolves its family, and splits namespaces.
+//! - [`segment`]: The [`segment::SegmentAxes`] trait that names the axes whose members split a company.
 
 use self::family::FamilyDeclaration;
 use self::reference::{CalculationTree, ConceptAliases, ElementReference};
@@ -20,6 +21,7 @@ use super::release::TaxonomyRelease;
 pub mod family;
 pub mod reference;
 pub mod registry;
+pub mod segment;
 
 /// The knowledge of one taxonomy, for example US GAAP.
 ///

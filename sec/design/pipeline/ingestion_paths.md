@@ -1119,8 +1119,8 @@ pub struct FilingRef {
 }
 ```
 
-`AccessionNumber` and `Form` exist in `sec/src/lib/shared/financial/`. `Form` has only `TenK` and
-`TenQ` today. It gets the variants `TwentyF` and `FortyF`. `is_amendment` marks the `/A` forms, so
+`AccessionNumber` and `Form` exist in `sec/src/lib/shared/accession_number/` and
+`sec/src/lib/shared/form/`. `Form` has only `TenK` and `TenQ` today. It gets the variants `TwentyF` and `FortyF`. `is_amendment` marks the `/A` forms, so
 amendments need no extra variants.
 
 `parse_form_index` (`shared/form_index_row`) reads the index into one `FormIndexRow` per row:

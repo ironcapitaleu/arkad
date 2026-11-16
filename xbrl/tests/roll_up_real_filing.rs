@@ -23,7 +23,7 @@ use xbrl::core::fact::AsIsFact;
 use xbrl::core::finding::Finding;
 use xbrl::core::period_identity::derive_q4;
 use xbrl::core::roll_up_check::check_roll_ups;
-use xbrl::core::taxonomy::registry::Registry;
+use xbrl::core::taxonomy::registry::{Plugin, Registry};
 use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::us_gaap::UsGaap;
@@ -35,7 +35,7 @@ type Summary = (CanonicalElementKind, String, BigDecimal, String);
 /// derivation from a closed group on `facts`, and returns the derived facts of the last step.
 fn roll_ups(facts: &[AsIsFact]) -> Vec<Summary> {
     let plugin = UsGaap::new();
-    let registry = Registry::new(vec![&plugin])
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
     let series = newest_filing(&resolve_aliases(&more_precise(facts), &registry).candidates);
     let fourth_quarters = derive_q4(&series, &[]);
@@ -108,7 +108,7 @@ fn should_derive_liabilities_and_non_current_assets_when_the_rules_run_on_the_in
 /// Runs the rules of [`roll_ups`], then the checks of the roll-up tree, and returns the findings.
 fn findings(facts: &[AsIsFact]) -> Vec<Finding> {
     let plugin = UsGaap::new();
-    let registry = Registry::new(vec![&plugin])
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
     let series = newest_filing(&resolve_aliases(&more_precise(facts), &registry).candidates);
     let mut added = derive_q4(&series, &[]);

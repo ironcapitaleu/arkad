@@ -427,10 +427,10 @@ mod tests {
     use super::*;
     use crate::implementations::states::extract::notes::ExtractNotesSuperState;
     use crate::implementations::states::extract::validate_notes_period::ValidateNotesPeriod;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::http_client::implementations::sec_client::SecClient;
     use crate::shared::raw_document::RawDocument;
     use crate::shared::raw_source::RawNotesArchive;

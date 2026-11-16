@@ -24,7 +24,7 @@ use xbrl::core::elements::{
 };
 use xbrl::core::standardized::StandardizedFact;
 use xbrl::core::statement::{InvalidStatementFacts, Line, Statement, StatementKind};
-use xbrl::core::taxonomy::registry::Registry;
+use xbrl::core::taxonomy::registry::{Plugin, Registry};
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::tests::fixtures::sample_fact::date;
 use xbrl::us_gaap::UsGaap;
@@ -32,14 +32,14 @@ use xbrl::us_gaap::UsGaap;
 /// Runs the dedup rules and tiers 1 and 2 on the Notes facts of the fixture filing.
 fn standardized_facts() -> Vec<StandardizedFact> {
     let plugin = UsGaap::new();
-    let registry = Registry::new(vec![&plugin])
+    let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
     let facts = parse_notes_fixture().facts;
     newest_filing(&resolve_aliases(&more_precise(&facts), &registry).candidates).facts
 }
 
-/// Returns the facts that end on `end`, last `quarters` quarters, and have a concept that `keep`
-/// accepts.
+/// Returns the facts without dimensions that end on `end`, last `quarters` quarters, and have a
+/// concept that `keep` accepts.
 fn facts_of(
     facts: &[StandardizedFact],
     end: NaiveDate,
@@ -49,7 +49,10 @@ fn facts_of(
     facts
         .iter()
         .filter(|fact| {
-            fact.period.end() == end && fact.period.quarters() == quarters && keep(fact.concept)
+            fact.dimensions.is_empty()
+                && fact.period.end() == end
+                && fact.period.quarters() == quarters
+                && keep(fact.concept)
         })
         .collect()
 }

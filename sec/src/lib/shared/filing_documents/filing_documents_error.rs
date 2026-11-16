@@ -9,7 +9,7 @@ use std::fmt::{self, Display, Formatter};
 
 use thiserror::Error;
 
-use crate::shared::financial::accession_number::AccessionNumber;
+use crate::shared::accession_number::AccessionNumber;
 
 /// Error indicating that the `index.json` of a filing folder does not parse.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

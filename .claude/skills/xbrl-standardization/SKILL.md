@@ -21,8 +21,10 @@ accounting background, such as the accounting identities and the fiscal periods,
 ## Identity Checks
 
 The standard concepts rest on the elements of FASB Concepts Statement 8, Chapter 4.
-Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", and the checks in
-"Roll-Up Tree", "Checks the Tree Gives". The weakest confidence of the inputs of a failed check
+Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", the checks in
+"Roll-Up Tree", "Checks the Tree Gives", and the sum check in "Debt Maturities", "Sum Check".
+`core::roll_up_check::check_roll_ups` and `core::sum_check::check_all_sums` run them on one series.
+The weakest confidence of the inputs of a failed check
 tells what the failure means:
 
 - All inputs `Exact`: the filing is inconsistent.
@@ -93,8 +95,12 @@ compute it.
 - `core/dedup/newest-filing@1` picks one value per standard concept and period across filings.
   The newest filing wins, amendments included. A restatement replaces the older value and sets
   `restated`.
+- `core::cadence_filter::keep_by_cadence` runs after tiers 1 and 2. A concept with the cadence
+  `FiscalYearEnd`, such as a debt maturity bucket, keeps a candidate only at the period of report
+  of a filing with the fiscal period `FY`.
 - `core::chronology::check_chronology` checks each series over time. It reports `Gap`, `Overlap`,
-  and `Restatement` findings and never fails.
+  and `Restatement` findings and never fails. A timeline with the cadence `FiscalYearEnd` expects
+  only the fiscal year ends.
 - The rules are in `xbrl/DESIGN.md`, "4) Dedup and Chronology". The fiscal periods and forms they
   read are in the `accounting` skill.
 
