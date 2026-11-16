@@ -12,6 +12,7 @@ use super::candidate::{Candidate, CandidateValue};
 use super::concept::ConceptName;
 use super::confidence::Confidence;
 use super::dedup::{Copies, facts_agree};
+use super::elements::CanonicalElementKind;
 use super::fact::{AsIsFact, Dimensions, FactValue};
 use super::filing::EntityId;
 use super::finding::Finding;
@@ -23,7 +24,7 @@ use super::unit::Unit;
 /// The candidates and findings of one filing after tiers 1 and 2.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilingCandidates {
-    /// At most one candidate per standard concept and period.
+    /// At most one candidate per standard concept, period, and set of dimensions.
     pub candidates: Vec<Candidate>,
     /// One [`Finding::Conflict`] per value key whose copy ranks disagree.
     pub findings: Vec<Finding>,
@@ -31,8 +32,14 @@ pub struct FilingCandidates {
 
 /// Applies tiers 1 and 2 to the as-is facts of one filing after `core/dedup/more-precise@1`.
 ///
-/// Only facts without dimensions give candidates. A fact with dimensions gives no candidate, but it
-/// still counts in the part rule and still gives its [`Finding::Conflict`].
+/// A fact without dimensions and a segment fact give candidates. A fact is a segment fact if the
+/// [`SegmentAxes`](super::taxonomy::segment::SegmentAxes) that
+/// [`Registry::segment_axes`] returns for the family of its concept name each axis of the fact. A
+/// segment fact gives a candidate under its own dimensions, with the alias lists of the value
+/// without dimensions. It gives no candidate of a [`CanonicalElementKind::Disclosure`] concept,
+/// because a per-share value counts the shares of the whole company. Any other fact with dimensions
+/// gives no candidate, but it still counts in the part rule and still gives its
+/// [`Finding::Conflict`].
 ///
 /// For each period and each alias list, the first concept of the list that the filing reports
 /// wins. The first concept gives confidence [`Confidence::Exact`], a later one
@@ -47,10 +54,11 @@ pub struct FilingCandidates {
 /// period, so an other part with a member, such as the noncontrolling interest on the equity
 /// components axis, also stops the part.
 ///
-/// If the winning concept has a conflict, the filing gives a blocked candidate. A conflict on a
-/// lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict gives a
-/// [`Finding::Conflict`], with the standard concept if an alias list of its plug-in names the
-/// concept. If two plug-ins map one standard concept, the plug-in of the first family in name
+/// If the winning concept has a conflict, the filing gives a blocked candidate under the dimensions
+/// of the conflict. A conflict on a segment fact leaves the candidate without dimensions as it is.
+/// A conflict on a lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict
+/// gives a [`Finding::Conflict`], with the standard concept if an alias list of its plug-in names
+/// the concept. If two plug-ins map one standard concept, the plug-in of the first family in name
 /// order wins.
 #[must_use]
 pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCandidates {
@@ -72,17 +80,21 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
     let mut taken = BTreeSet::new();
     for plugin in plugins(copies, registry) {
         for aliases in plugin.aliases() {
-            for (period, concepts) in periods
-                .iter()
-                .filter(|(period, _)| period.dimensions.is_empty())
-            {
+            for (period, concepts) in periods.iter().filter(|(period, _)| {
+                period.dimensions.is_empty()
+                    || !matches!(aliases.element, CanonicalElementKind::Disclosure(_))
+            }) {
                 if taken.contains(&(aliases.element, period)) {
                     continue;
                 }
                 let other_part_reported =
                     |other: &ConceptName| present.contains(&(period.span(), other));
+                let resolves = |concept: &ConceptName| {
+                    routes_to(concept, plugin, registry)
+                        && names_each_axis(concept, &period.dimensions, registry)
+                };
                 if let Some(candidate) =
-                    pick(plugin, aliases, concepts, &other_part_reported, registry)
+                    pick(plugin, aliases, concepts, &resolves, &other_part_reported)
                 {
                     taken.insert((aliases.element, period));
                     candidates.push(candidate);
@@ -196,39 +208,40 @@ fn present_in_any_dimension<'a>(
         .collect()
 }
 
+/// Picks the candidate of one alias list in one period. `resolves` accepts a concept that routes to
+/// `plugin` and whose plug-in names each axis of the period.
 fn pick(
     plugin: &dyn Taxonomy,
     aliases: &ConceptAliases,
     concepts: &BTreeMap<&ConceptName, Reported<'_>>,
+    resolves: &dyn Fn(&ConceptName) -> bool,
     other_part_reported: &dyn Fn(&ConceptName) -> bool,
-    registry: &Registry<'_>,
 ) -> Option<Candidate> {
-    let (confidence, reported, rule) =
-        first_reported(&aliases.concepts, plugin, concepts, registry)
-            .map(|(position, reported)| {
-                let confidence = if position == 0 {
-                    Confidence::Exact
-                } else {
-                    Confidence::Synonym
-                };
-                (confidence, reported, &aliases.rule)
-            })
-            .or_else(|| {
-                let parts = aliases.parts.as_ref()?;
-                parts
-                    .parts
-                    .iter()
-                    .filter(|part| routes_to(part, plugin, registry))
-                    .filter_map(|part| Some((part, *concepts.get(part)?)))
-                    .find(|(part, _)| {
-                        !parts
-                            .other_parts
-                            .iter()
-                            .filter(|other| other != part)
-                            .any(other_part_reported)
-                    })
-                    .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
-            })?;
+    let (confidence, reported, rule) = first_reported(&aliases.concepts, concepts, resolves)
+        .map(|(position, reported)| {
+            let confidence = if position == 0 {
+                Confidence::Exact
+            } else {
+                Confidence::Synonym
+            };
+            (confidence, reported, &aliases.rule)
+        })
+        .or_else(|| {
+            let parts = aliases.parts.as_ref()?;
+            parts
+                .parts
+                .iter()
+                .filter(|part| resolves(part))
+                .filter_map(|part| Some((part, *concepts.get(part)?)))
+                .find(|(part, _)| {
+                    !parts
+                        .other_parts
+                        .iter()
+                        .filter(|other| other != part)
+                        .any(other_part_reported)
+                })
+                .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
+        })?;
     let fact = reported.first();
     let (value, inputs) = match reported {
         Reported::Single(fact) => {
@@ -264,13 +277,12 @@ fn pick(
 /// Returns the position and the facts of the first concept of `list` that the filing reports.
 fn first_reported<'a>(
     list: &[ConceptName],
-    plugin: &dyn Taxonomy,
     concepts: &BTreeMap<&ConceptName, Reported<'a>>,
-    registry: &Registry<'_>,
+    resolves: &dyn Fn(&ConceptName) -> bool,
 ) -> Option<(usize, Reported<'a>)> {
     list.iter()
         .enumerate()
-        .filter(|(_, concept)| routes_to(concept, plugin, registry))
+        .filter(|(_, concept)| resolves(concept))
         .find_map(|(position, concept)| Some((position, *concepts.get(concept)?)))
 }
 
@@ -278,6 +290,28 @@ fn routes_to(concept: &ConceptName, plugin: &dyn Taxonomy, registry: &Registry<'
     registry
         .resolver(concept.family())
         .is_some_and(|resolver| std::ptr::addr_eq(resolver, plugin))
+}
+
+/// Returns `true` if `dimensions` is empty, or if the plug-in that resolves `concept` names each
+/// axis of `dimensions` as a segment axis.
+fn names_each_axis(
+    concept: &ConceptName,
+    dimensions: &Dimensions,
+    registry: &Registry<'_>,
+) -> bool {
+    if dimensions.is_empty() {
+        return true;
+    }
+    registry
+        .segment_axes(concept.family())
+        .is_some_and(|plugin| {
+            dimensions.iter().all(|(axis, _)| {
+                plugin
+                    .segment_axes()
+                    .iter()
+                    .any(|segment_axis| segment_axis.name() == axis)
+            })
+        })
 }
 
 fn conflict(ranks: &[&AsIsFact], registry: &Registry<'_>) -> Finding {
@@ -1089,7 +1123,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_only_the_candidate_without_dimensions_when_the_filing_reports_both() {
+    fn should_give_only_the_candidate_without_dimensions_when_the_plugin_has_no_segment_axes() {
         let plugin = us_gaap_plugin();
         let registry = Registry::new(vec![&plugin]).expect(
             "Given one plug-in with one family, the registry creation should always succeed",
@@ -1119,7 +1153,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_no_blocked_candidate_when_the_conflict_is_on_a_fact_with_dimensions() {
+    fn should_give_no_blocked_candidate_when_the_plugin_of_the_conflict_has_no_segment_axes() {
         let plugin = us_gaap_plugin();
         let registry = Registry::new(vec![&plugin]).expect(
             "Given one plug-in with one family, the registry creation should always succeed",
