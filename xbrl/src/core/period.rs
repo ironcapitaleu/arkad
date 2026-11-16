@@ -44,6 +44,15 @@ impl Period {
         }
     }
 
+    /// Returns the exact start, or `None` for an instant or a duration whose source gives no start.
+    #[must_use]
+    pub const fn start(&self) -> Option<NaiveDate> {
+        match self {
+            Self::Instant { .. } => None,
+            Self::Duration(duration) => duration.start,
+        }
+    }
+
     /// Returns the period type: [`PeriodType::Instant`] or [`PeriodType::Duration`].
     #[must_use]
     pub const fn period_type(&self) -> PeriodType {
@@ -334,6 +343,33 @@ mod tests {
         ));
 
         let result = Duration::from_dates(start, end);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_exact_start_when_the_period_is_a_duration_with_a_start() {
+        let period = Period::Duration(
+            Duration::from_dates(date(2026, 6, 1), date(2026, 9, 30))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
+
+        let expected_result = Some(date(2026, 6, 1));
+
+        let result = period.start();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_exact_start_when_the_period_is_an_instant() {
+        let period = Period::Instant {
+            end: date(2026, 9, 30),
+        };
+
+        let expected_result = None;
+
+        let result = period.start();
 
         assert_eq!(result, expected_result);
     }

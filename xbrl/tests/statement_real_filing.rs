@@ -1,10 +1,10 @@
 //! # Statement Real Filing Integration Tests
 //!
 //! Builds the three statements of one real filing, the 10-Q `0001628280-26-068246`, from the
-//! standardized facts that the dedup rules give for its Notes facts.
+//! standardized facts that the dedup rules give for its Notes facts and its instance facts.
 //!
 //! Each test writes out every line of one statement. The other lines close each open group, so
-//! each statement adds up.
+//! each statement adds up. A group whose facts have two exact starts gets no other line.
 //!
 //! ## External Dependencies
 //!
@@ -22,20 +22,26 @@ use xbrl::core::elements::{
     BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, GroupName, IncomeStatementConcept,
     PerShareConcept, StatementConcept,
 };
+use xbrl::core::fact::AsIsFact;
 use xbrl::core::standardized::StandardizedFact;
 use xbrl::core::statement::{InvalidStatementFacts, Line, Statement, StatementKind};
 use xbrl::core::taxonomy::registry::{Plugin, Registry};
+use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::tests::fixtures::sample_fact::date;
 use xbrl::us_gaap::UsGaap;
 
 /// Runs the dedup rules and tiers 1 and 2 on the Notes facts of the fixture filing.
 fn standardized_facts() -> Vec<StandardizedFact> {
+    standardized(&parse_notes_fixture().facts)
+}
+
+/// Runs the dedup rules and tiers 1 and 2 on `facts`.
+fn standardized(facts: &[AsIsFact]) -> Vec<StandardizedFact> {
     let plugin = UsGaap::new();
     let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
-    let facts = parse_notes_fixture().facts;
-    newest_filing(&resolve_aliases(&more_precise(&facts), &registry).candidates).facts
+    newest_filing(&resolve_aliases(&more_precise(facts), &registry).candidates).facts
 }
 
 /// Returns the facts without dimensions that end on `end`, last `quarters` quarters, and have a
@@ -277,6 +283,74 @@ fn should_add_up_the_cash_flow_statement_of_the_quarter_to_2026_09_30_for_the_fi
         (
             other(CashFlowGroup::OperatingCashFlow.name()),
             Some(millions(374)),
+        ),
+        (
+            standard(CashFlowConcept::OperatingCashFlow),
+            Some(millions(390)),
+        ),
+        (
+            standard(CashFlowConcept::InvestingCashFlow),
+            Some(millions(-138)),
+        ),
+        (
+            standard(CashFlowConcept::CapitalExpenditures),
+            Some(millions(151)),
+        ),
+        (
+            other(CashFlowGroup::InvestingCashFlow.name()),
+            Some(millions(13)),
+        ),
+        (
+            standard(CashFlowConcept::FinancingCashFlow),
+            Some(millions(-114)),
+        ),
+        (standard(CashFlowConcept::DividendsPaid), None),
+        (standard(CashFlowConcept::ShareRepurchases), None),
+        (
+            other(CashFlowGroup::FinancingCashFlow.name()),
+            Some(millions(-114)),
+        ),
+        (
+            standard(CashFlowConcept::ExchangeRateEffect),
+            Some(millions(-1)),
+        ),
+    ]);
+
+    let result = Statement::build(StatementKind::CashFlow, cash_flow_facts)
+        .map(|statement| lines(&statement));
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_build_the_cash_flow_statement_of_the_quarter_to_2026_09_30_from_the_instance_facts() {
+    let facts = standardized(&parse_instance_fixture().facts);
+    let cash_flow_facts = facts_of(&facts, date(2026, 9, 30), 1, |concept| {
+        matches!(
+            concept,
+            CanonicalElementKind::Statement(StatementConcept::CashFlow(_))
+        ) || concept == IncomeStatementConcept::NetIncome.element()
+    });
+
+    // Net income and D&A cover the quarter from 1 July. The other lines cover four months from
+    // 1 June. So `operating-cash-flow` mixes two starts and gets no other line. The other groups
+    // hold four-month values only and keep their other lines.
+    let expected_result = Ok(vec![
+        (
+            standard(CashFlowConcept::NetChangeInCash),
+            Some(millions(137)),
+        ),
+        (
+            standard(IncomeStatementConcept::NetIncome),
+            Some(millions(147)),
+        ),
+        (
+            standard(CashFlowConcept::DepreciationAmortization),
+            Some(millions(114)),
+        ),
+        (
+            standard(CashFlowConcept::ShareBasedCompensation),
+            Some(millions(16)),
         ),
         (
             standard(CashFlowConcept::OperatingCashFlow),

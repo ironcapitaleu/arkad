@@ -172,6 +172,15 @@ impl StatementKind {
             Self::IncomeStatement | Self::CashFlow => PeriodType::Duration,
         }
     }
+
+    /// Returns the kind of the statement whose tree holds the group `name`.
+    const fn of_group(name: GroupName) -> Self {
+        match name {
+            GroupName::BalanceSheet(_) => Self::BalanceSheet,
+            GroupName::IncomeStatement(_) => Self::IncomeStatement,
+            GroupName::CashFlow(_) => Self::CashFlow,
+        }
+    }
 }
 
 impl fmt::Display for StatementKind {
@@ -258,7 +267,8 @@ impl Statement {
     ///
     /// An open group whose parent has a value ends with an other line: the parent less the start
     /// and the weighted children. A member with no value counts as zero. A closed group gets no
-    /// other line, unless a transparent member opens it.
+    /// other line, unless a transparent member opens it. A group whose facts have two different
+    /// exact starts, such as a quarter and a 4-month stub, gets no other line.
     ///
     /// A parent with no value is transparent: it has no line, its children keep their depth, and
     /// its members count in the group above it. If the start of a step has no value, the step uses
@@ -268,8 +278,9 @@ impl Statement {
     /// # Errors
     ///
     /// Returns an [`InvalidStatementFacts`] if `facts` is empty, if a fact has no line in the
-    /// statement, if a fact has the wrong period type, if two facts differ in entity, period,
-    /// unit, or dimensions, or if two facts have the same concept. It returns the first error in
+    /// statement, if a fact has the wrong period type, if two facts differ in entity, period end,
+    /// length in quarters, unit, or dimensions, or if two facts have the same concept. Facts whose
+    /// periods differ only in the exact start build one statement. It returns the first error in
     /// the order of `facts`.
     ///
     /// # Examples
@@ -403,8 +414,9 @@ pub enum InvalidStatementFacts {
         /// The period of the fact.
         period: Period,
     },
-    /// A fact differs from the first fact in entity, period, unit, or dimensions.
-    #[error("[MismatchedFact] Fact of '{}' differs from the fact of '{}' in entity, period, unit, or dimensions", .concept.name(), .first.name())]
+    /// A fact differs from the first fact in entity, period end, length in quarters, unit, or
+    /// dimensions.
+    #[error("[MismatchedFact] Fact of '{}' differs from the fact of '{}' in entity, period end, length in quarters, unit, or dimensions", .concept.name(), .first.name())]
     MismatchedFact {
         /// The concept of the fact that differs.
         concept: CanonicalElementKind,
@@ -494,8 +506,8 @@ impl Tree {
                 });
             }
             let first = *first.get_or_insert(fact);
-            if (&fact.entity, fact.period, &fact.unit, &fact.dimensions)
-                != (&first.entity, first.period, &first.unit, &first.dimensions)
+            if (&fact.entity, span(fact), &fact.unit, &fact.dimensions)
+                != (&first.entity, span(first), &first.unit, &first.dimensions)
             {
                 let first = first.concept;
                 return Err(InvalidStatementFacts::MismatchedFact { concept, first });
@@ -548,6 +560,63 @@ impl Tree {
         };
         start.into_iter().chain(self.children(group.name)).collect()
     }
+
+    /// Returns the facts that the statement counts in `group`: the parent, then each member in
+    /// the order of [`Tree::members`]. A member with no value counts as the members of the group
+    /// that makes it, as in [`Layout::add`].
+    fn counted<'a>(
+        &self,
+        group: Group,
+        value_of: &impl Fn(CanonicalElementKind) -> Option<&'a StandardizedFact>,
+    ) -> Vec<&'a StandardizedFact> {
+        let mut counted: Vec<&StandardizedFact> = value_of(group.parent).into_iter().collect();
+        self.count_members(group, value_of, &mut counted);
+        counted
+    }
+
+    /// Pushes the facts of the members of `group` to `counted`, and the members of the group that
+    /// makes a member with no value.
+    fn count_members<'a>(
+        &self,
+        group: Group,
+        value_of: &impl Fn(CanonicalElementKind) -> Option<&'a StandardizedFact>,
+        counted: &mut Vec<&'a StandardizedFact>,
+    ) {
+        for (member, _) in self.members(group) {
+            match (value_of(member), self.source_of(member)) {
+                (Some(fact), _) => counted.push(fact),
+                (None, Some(source)) => self.count_members(source, value_of, counted),
+                (None, None) => {}
+            }
+        }
+    }
+}
+
+/// Returns the concepts of the facts that the statement of `group` counts in it, if two of the
+/// facts have different exact starts. Returns `None` if the facts have at most one exact start.
+///
+/// `value_of` gives the fact of a concept in one period. The facts are the parent, then each
+/// member in the order of the table. A member with no value counts as the members of the group
+/// that makes it, as in [`Statement::build`]. A fact without an exact start mixes with no other.
+pub(crate) fn mixed_starts<'a>(
+    group: Group,
+    value_of: impl Fn(CanonicalElementKind) -> Option<&'a StandardizedFact>,
+) -> Option<Vec<CanonicalElementKind>> {
+    let counted = Tree::of(StatementKind::of_group(group.name)).counted(group, &value_of);
+    has_two_starts(&counted).then(|| counted.iter().map(|fact| fact.concept).collect())
+}
+
+/// Returns `true` if two of `facts` have different exact starts.
+fn has_two_starts(facts: &[&StandardizedFact]) -> bool {
+    let mut starts = facts.iter().filter_map(|fact| fact.period.start());
+    starts
+        .next()
+        .is_some_and(|first| starts.any(|start| start != first))
+}
+
+/// Returns the period end and the length in quarters of `fact`.
+const fn span(fact: &StandardizedFact) -> (NaiveDate, u16) {
+    (fact.period.end(), fact.period.quarters())
 }
 
 /// The lines of a statement while [`Statement::build`] lays them out.
@@ -608,6 +677,10 @@ impl Layout<'_> {
     /// Returns the value of the other line of `group`, or `None` if the group has none.
     fn other(&self, group: Group) -> Option<BigDecimal> {
         let parent = &self.facts.get(&group.parent)?.value;
+        let value_of = |concept| self.facts.get(&concept).copied();
+        if has_two_starts(&self.tree.counted(group, &value_of)) {
+            return None;
+        }
         let mut sum = BigDecimal::zero();
         let mut opened = false;
         for (member, weight) in self.tree.members(group) {
@@ -1099,6 +1172,104 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    /// Returns `fact` with the duration from `start` to 2026-09-30.
+    fn since(mut fact: StandardizedFact, start: NaiveDate) -> StandardizedFact {
+        fact.period = Period::Duration(
+            Duration::from_dates(start, date(2026, 9, 30))
+                .expect("Given a start before the end, the creation should always succeed"),
+        );
+        fact
+    }
+
+    /// Returns `concept` = `value` for the 4-month stub that ends on 2026-09-30.
+    fn four_months(concept: impl Into<StatementConcept>, value: &str) -> StandardizedFact {
+        since(fact(concept, value), date(2026, 6, 1))
+    }
+
+    /// Returns `concept` = `value` for the quarter from 2026-07-01 to 2026-09-30.
+    fn three_months(concept: impl Into<StatementConcept>, value: &str) -> StandardizedFact {
+        since(fact(concept, value), date(2026, 7, 1))
+    }
+
+    #[test]
+    fn should_build_one_statement_when_the_periods_differ_only_in_the_exact_start() {
+        let facts = [
+            four_months(CashFlowConcept::OperatingCashFlow, "390"),
+            three_months(IncomeStatementConcept::NetIncome, "147"),
+        ];
+
+        let expected_result = Ok((date(2026, 9, 30), 1));
+
+        let result = Statement::build(StatementKind::CashFlow, &facts)
+            .map(|statement| (statement.period_end(), statement.quarters()));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_other_line_to_a_step_when_its_start_and_its_parent_have_two_exact_starts() {
+        let facts = [
+            four_months(CashFlowConcept::OperatingCashFlow, "390"),
+            three_months(IncomeStatementConcept::NetIncome, "147"),
+            four_months(CashFlowConcept::ShareBasedCompensation, "16"),
+        ];
+
+        let expected_result: Result<Vec<(GroupName, Option<BigDecimal>)>, InvalidStatementFacts> =
+            Ok(Vec::new());
+
+        let result =
+            Statement::build(StatementKind::CashFlow, &facts).map(|statement| others(&statement));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_other_line_to_net_change_in_cash_when_a_transparent_operating_cash_flow_mixes_starts()
+     {
+        let facts = [
+            four_months(CashFlowConcept::NetChangeInCash, "137"),
+            three_months(IncomeStatementConcept::NetIncome, "147"),
+            four_months(CashFlowConcept::ShareBasedCompensation, "16"),
+            four_months(CashFlowConcept::InvestingCashFlow, "-138"),
+            four_months(CashFlowConcept::FinancingCashFlow, "-114"),
+        ];
+
+        let expected_result = Ok(vec![
+            (
+                CashFlowGroup::InvestingCashFlow.name(),
+                Some(number("-138")),
+            ),
+            (
+                CashFlowGroup::FinancingCashFlow.name(),
+                Some(number("-114")),
+            ),
+        ]);
+
+        let result =
+            Statement::build(StatementKind::CashFlow, &facts).map(|statement| others(&statement));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_an_other_line_when_a_member_without_an_exact_start_joins_a_group_of_one_start() {
+        let facts = [
+            four_months(CashFlowConcept::OperatingCashFlow, "390"),
+            fact(IncomeStatementConcept::NetIncome, "147"),
+            four_months(CashFlowConcept::ShareBasedCompensation, "16"),
+        ];
+
+        let expected_result = Ok(vec![(
+            CashFlowGroup::OperatingCashFlow.name(),
+            Some(number("227")),
+        )]);
+
+        let result =
+            Statement::build(StatementKind::CashFlow, &facts).map(|statement| others(&statement));
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_reject_the_facts_when_there_is_none() {
         let facts: [StandardizedFact; 0] = [];
@@ -1276,7 +1447,7 @@ mod tests {
             first: BalanceSheetConcept::Assets.element(),
         };
 
-        let expected_result = "[MismatchedFact] Fact of 'Goodwill' differs from the fact of 'Assets' in entity, period, unit, or dimensions";
+        let expected_result = "[MismatchedFact] Fact of 'Goodwill' differs from the fact of 'Assets' in entity, period end, length in quarters, unit, or dimensions";
 
         let result = error.to_string();
 

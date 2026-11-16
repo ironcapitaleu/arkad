@@ -8,7 +8,11 @@
 //! and a period of four months from 1 June. Both round to 1 quarter, so they share a value key. The
 //! quarter is rank 0 in both sources, as the revenue tests show. The instance parser ranks the
 //! length nearer to a full quarter first, and the Notes parser follows the order of `iprx`. The
-//! four months hold June plus the quarter, so no pair agrees, and all 99 keys are conflicts.
+//! four months hold June plus the quarter, so no pair agrees.
+//!
+//! The instance gives each duration its exact start, so the two ranks are two facts, and no key is
+//! a conflict. The Notes parser gives no exact start, so the two ranks compare as copies, and all
+//! 99 keys are conflicts.
 //!
 //! The tests that resolve use [`UsGaap`] and its alias lists. They check revenue, and the count of
 //! standardized facts per standard concept.
@@ -94,7 +98,7 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
     counts
 }
 
-/// The count of standardized facts per standard concept in the fixture filing, for both sources.
+/// The count of standardized facts per standard concept in the Notes facts of the fixture filing.
 ///
 /// Equity and equity attributable to parent have 3 facts each, because the filing reports
 /// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
@@ -126,6 +130,60 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
         (
             IncomeStatementConcept::NetIncomeAttributableToParent.element(),
             2,
+        ),
+        (CashFlowConcept::NetChangeInCash.element(), 2),
+        (CashFlowConcept::ExchangeRateEffect.element(), 2),
+        (BalanceSheetConcept::LiabilitiesAndEquity.element(), 2),
+        (BalanceSheetConcept::AccountsPayable.element(), 2),
+        (
+            DebtMaturityConcept::LongTermDebtIncludingCurrentMaturities.element(),
+            2,
+        ),
+        (BalanceSheetConcept::ShortTermDebt.element(), 2),
+        (BalanceSheetConcept::EquityAttributableToParent.element(), 3),
+        (BalanceSheetConcept::AdditionalPaidInCapital.element(), 2),
+        (
+            BalanceSheetConcept::AccumulatedOtherComprehensiveIncome.element(),
+            2,
+        ),
+    ])
+}
+
+/// The count of standardized facts per standard concept in the instance facts of the fixture filing.
+///
+/// Equity and equity attributable to parent have 3 facts each, because the filing reports
+/// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
+/// The instance gives each duration its exact start, so no conflict blocks a quarter. The concepts
+/// of the income statement, the earnings per share, and D&A get both quarters next to both months
+/// of June, so each has 4. Interest expense gets both quarters and no June, so it has 2. Every
+/// other concept has 2.
+fn expected_instance_counts() -> BTreeMap<CanonicalElementKind, usize> {
+    BTreeMap::from([
+        (BalanceSheetConcept::Assets.element(), 2),
+        (BalanceSheetConcept::Equity.element(), 3),
+        (IncomeStatementConcept::Revenue.element(), 4),
+        (IncomeStatementConcept::NetIncome.element(), 4),
+        (CashFlowConcept::OperatingCashFlow.element(), 2),
+        (CashFlowConcept::InvestingCashFlow.element(), 2),
+        (CashFlowConcept::FinancingCashFlow.element(), 2),
+        (BalanceSheetConcept::CurrentAssets.element(), 2),
+        (BalanceSheetConcept::CashAndEquivalents.element(), 2),
+        (BalanceSheetConcept::Goodwill.element(), 2),
+        (BalanceSheetConcept::CurrentLiabilities.element(), 2),
+        (BalanceSheetConcept::NonCurrentLiabilities.element(), 2),
+        (BalanceSheetConcept::RetainedEarnings.element(), 2),
+        (IncomeStatementConcept::OperatingIncome.element(), 4),
+        (IncomeStatementConcept::InterestExpense.element(), 2),
+        (PerShareConcept::EarningsPerShareBasic.element(), 4),
+        (PerShareConcept::EarningsPerShareDiluted.element(), 4),
+        (CashFlowConcept::DepreciationAmortization.element(), 4),
+        (CashFlowConcept::CapitalExpenditures.element(), 2),
+        (CashFlowConcept::ShareBasedCompensation.element(), 2),
+        (IncomeStatementConcept::PretaxIncome.element(), 4),
+        (IncomeStatementConcept::IncomeTaxExpense.element(), 4),
+        (
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            4,
         ),
         (CashFlowConcept::NetChangeInCash.element(), 2),
         (CashFlowConcept::ExchangeRateEffect.element(), 2),
@@ -200,12 +258,12 @@ fn should_find_99_conflicts_when_more_precise_runs_on_the_notes_facts() {
 }
 
 #[test]
-fn should_find_99_conflicts_when_more_precise_runs_on_the_instance_facts() {
+fn should_find_no_conflict_when_more_precise_runs_on_the_instance_facts() {
     let facts = parse_instance_fixture().facts;
 
-    // 613 facts: 415 keys with one rank, and 99 keys with two ranks that disagree. 415 + 2 x 99 =
-    // 613, so no rank agrees with rank 0 and drops out.
-    let expected_result = (415, 99);
+    // 613 facts in 514 keys. The two ranks of each of the 99 keys with two ranks have different
+    // exact starts, and the quarter is rank 0, so each key keeps rank 0.
+    let expected_result = (514, 0);
 
     let copies = more_precise(&facts);
     let result = (copies.facts().len(), copies.conflicts().len());
@@ -214,24 +272,25 @@ fn should_find_99_conflicts_when_more_precise_runs_on_the_instance_facts() {
 }
 
 #[test]
-fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_value_key_in_the_instance()
- {
+fn should_give_the_3_month_revenue_of_each_quarter_when_the_dedup_rules_run_on_the_instance_facts()
+{
     let facts = parse_instance_fixture().facts;
 
     let expected_result = vec![
-        (
-            0,
-            "2026-07-01 to 2026-09-30".to_string(),
-            FactValue::Numeric(number("2442000000")),
-        ),
-        (
-            1,
-            "2026-06-01 to 2026-09-30".to_string(),
-            FactValue::Numeric(number("3281000000")),
-        ),
+        ("2025-07-01 to 2025-09-30".to_string(), number("2259000000")),
+        ("2026-07-01 to 2026-09-30".to_string(), number("2442000000")),
     ];
 
-    let result = revenue_ranks(&facts, &Dimensions::default());
+    let result: Vec<(String, BigDecimal)> = newest_filing(&candidates_of(&facts).candidates)
+        .facts
+        .into_iter()
+        .filter(|fact| {
+            fact.concept == IncomeStatementConcept::Revenue.element()
+                && fact.dimensions.is_empty()
+                && fact.period.quarters() == 1
+        })
+        .map(|fact| (fact.period.to_string(), fact.value))
+        .collect();
 
     assert_eq!(result, expected_result);
 }
@@ -261,9 +320,9 @@ fn should_rank_the_quarter_before_the_four_months_when_revenue_of_both_shares_a_
 }
 
 #[test]
-fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_quarter_has_a_conflict()
+fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_quarter_has_a_conflict_in_notes()
  {
-    let facts = parse_instance_fixture().facts;
+    let facts = parse_notes_fixture().facts;
     let filing = FilingId::new("sec", "0001628280-26-068246")
         .expect("Given the hardcoded ID of the fixture filing, the creation should always succeed");
     let family = NamespaceFamily::new("us-gaap")
@@ -304,9 +363,9 @@ fn should_report_rank_0_as_key_and_rank_1_as_disagreeing_when_revenue_of_the_qua
 }
 
 #[test]
-fn should_give_a_conflict_finding_for_each_conflict_with_dimensions_when_tiers_1_and_2_run_on_the_instance_facts()
+fn should_give_a_conflict_finding_for_each_conflict_with_dimensions_when_tiers_1_and_2_run_on_the_notes_facts()
  {
-    let facts = parse_instance_fixture().facts;
+    let facts = parse_notes_fixture().facts;
 
     // 52 of the 99 conflicts are on facts with dimensions. Each still gives a finding.
     let expected_result = 52;
@@ -456,11 +515,11 @@ fn should_give_65_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_65_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_84_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
-    let expected_result = expected_standardized_counts();
+    let expected_result = expected_instance_counts();
 
     let result = standardized_counts(&facts);
 

@@ -41,14 +41,15 @@ pub enum Finding {
         /// The rule the row breaks.
         reason: InvalidValue,
     },
-    /// At least one copy rank of a value key disagrees with rank 0, so the copies are separate
-    /// facts. `core/dedup/more-precise@1` keeps every rank and reports the conflict.
+    /// At least one copy rank of a value key conflicts with rank 0: a copy disagrees with it, or a
+    /// rank with another exact start lies nearer to a whole number of quarters.
+    /// `core/dedup/more-precise@1` keeps every rank and reports the conflict.
     Conflict {
         /// The entity the facts are about.
         entity: EntityId,
         /// The value key of rank 0. It names the filing, the as-is concept, and the period.
         key: FactKey,
-        /// The ranks that disagree with rank 0, in ascending order.
+        /// The ranks that conflict with rank 0, in ascending order.
         ranks: Vec<u16>,
         /// The standard concept of the as-is concept, if a plug-in maps it. If two alias lists of
         /// the plug-in name the concept, this holds the first one, in the order of `aliases()`.
@@ -142,6 +143,26 @@ pub enum Finding {
         reason: GroupName,
         /// The weakest confidence of the values.
         confidence: Confidence,
+    },
+    /// Two facts that the statement counts in one group of the roll-up tree have different exact
+    /// starts, such as a quarter and a 4-month stub. The group gets no check, no derived value,
+    /// and no other line.
+    MixedStarts {
+        /// The entity the values are about.
+        entity: EntityId,
+        /// The period of the first value of the slot. The values share the end, the length in
+        /// quarters, and the period type.
+        period: Period,
+        /// The unit of the values.
+        unit: Unit,
+        /// The axis and member pairs of the values.
+        dimensions: Dimensions,
+        /// The concepts with a value: the parent, then the start of a step, then the children in
+        /// the order of their enum. A member with no value gives way to the members of the group
+        /// that makes it, in the order of their own table.
+        concepts: Vec<CanonicalElementKind>,
+        /// The group that mixes the starts.
+        reason: GroupName,
     },
     /// The parts of a sum of a disclosure do not add up to its total. The difference exceeds the
     /// tolerance of the sum. The tolerance is in basis points of the largest absolute value of the

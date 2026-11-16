@@ -6,7 +6,7 @@ description: >
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.5
+version: 0.3.6
 ---
 
 # XBRL Standardization
@@ -24,7 +24,8 @@ The standard concepts rest on the elements of FASB Concepts Statement 8, Chapter
 Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", the checks in
 "Roll-Up Tree", "Checks the Tree Gives", and the sum check in "Debt Maturities", "Sum Check".
 `core::roll_up_check::check_roll_ups` and `core::sum_check::check_all_sums` run them on one series.
-The weakest confidence of the inputs of a failed check
+A group whose members have two exact starts gets no check and no derived value. `check_roll_ups`
+reports it as `MixedStarts`. The weakest confidence of the inputs of a failed check
 tells what the failure means:
 
 - All inputs `Exact`: the filing is inconsistent.
@@ -88,8 +89,10 @@ compute it.
 
 ## Dedup and Gap Check
 
-- `core/dedup/more-precise@1` picks one copy of a fact inside one filing. If the copies disagree,
-  it reports a `Conflict`. The conflict blocks the candidate of that filing only if tiers 1 and 2
+- `core/dedup/more-precise@1` picks one copy of a fact inside one filing. A rank with another
+  exact start than rank 0, such as a 4-month stub next to a quarter, is another fact and gets no
+  candidate. If the copies disagree, or a rank with another start lies nearer to a full quarter
+  than rank 0, it reports a `Conflict`. The conflict blocks the candidate of that filing only if tiers 1 and 2
   would pick the conflicting concept. If the blocked candidate is the newest, the standard concept
   has no value for that period.
 - `core/dedup/newest-filing@1` picks one value per standard concept and period across filings.
