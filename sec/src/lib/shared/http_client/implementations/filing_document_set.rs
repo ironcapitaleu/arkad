@@ -80,11 +80,11 @@ mod tests {
 
     use crate::implementations::states::extract::execute_sec_request::ExecuteSecRequest;
     use crate::implementations::states::extract::prepare_sec_request::PrepareSecRequest;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
     use crate::shared::filing_documents::FilingDocuments;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::http_client::Executes;
     use crate::shared::http_client::RetryPolicy;
     use crate::shared::http_client::implementations::sec_client::SecClient;

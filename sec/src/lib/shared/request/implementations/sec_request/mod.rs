@@ -331,10 +331,10 @@ mod tests {
     use reqwest::{Method, Url};
 
     use super::{CompanyFacts, FilingDocumentSet, FilingIndex, NotesFile, RequestKind, SecRequest};
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::filing_documents::FilingDocuments;
     use crate::shared::filing_ref::FilingRef;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::notes_period::NotesPeriod;
     use crate::shared::{cik::Cik, request::SecRequest as SecRequestTrait};
 

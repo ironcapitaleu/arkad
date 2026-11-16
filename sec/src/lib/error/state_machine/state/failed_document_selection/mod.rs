@@ -7,8 +7,8 @@
 //!
 //! ```rust
 //! use sec::error::state_machine::state::failed_document_selection::FailedDocumentSelection;
+//! use sec::shared::accession_number::AccessionNumber;
 //! use sec::shared::filing_documents::FilingDocumentsError;
-//! use sec::shared::financial::accession_number::AccessionNumber;
 //!
 //! let filing_documents_error = FilingDocumentsError::MissingXbrlInstance {
 //!     accession_number: AccessionNumber::new("0000003545-26-000047")
@@ -77,7 +77,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::shared::financial::accession_number::AccessionNumber;
+    use crate::shared::accession_number::AccessionNumber;
 
     fn missing_xbrl_instance() -> FilingDocumentsError {
         FilingDocumentsError::MissingXbrlInstance {

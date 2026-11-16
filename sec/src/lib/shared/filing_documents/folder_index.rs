@@ -5,10 +5,10 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::shared::accession_number::AccessionNumber;
 use crate::shared::filing_documents::{
     FilingDocumentRole, FilingDocuments, FilingDocumentsError, InvalidFolderIndex,
 };
-use crate::shared::financial::accession_number::AccessionNumber;
 use crate::shared::response::SecResponse as SecResponseTrait;
 use crate::shared::response::implementations::sec_response::SecResponse;
 
@@ -62,8 +62,8 @@ impl FolderIndex {
     /// # Examples
     ///
     /// ```
+    /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::filing_documents::FolderIndex;
-    /// use sec::shared::financial::accession_number::AccessionNumber;
     ///
     /// let folder_index = FolderIndex::new(vec![
     ///     "alco-20260908_htm.xml".to_string(),

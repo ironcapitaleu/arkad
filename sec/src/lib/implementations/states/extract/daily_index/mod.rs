@@ -557,9 +557,9 @@ mod tests {
     use crate::implementations::states::extract::select_filings::constants::STATE_NAME as SELECT_FILINGS;
     use crate::implementations::states::extract::store_daily_index::constants::STATE_NAME as STORE_DAILY_INDEX;
     use crate::implementations::states::extract::validate_index_date::constants::STATE_NAME as VALIDATE_INDEX_DATE;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::cik::Cik;
-    use crate::shared::financial::accession_number::AccessionNumber;
-    use crate::shared::financial::form::{Form, ParsedForm};
+    use crate::shared::form::{Form, ParsedForm};
     use crate::shared::raw_document::RawDocument;
     use crate::tests::fixtures::data::daily_index::SAMPLE_DAILY_INDEX;
     use crate::tests::fixtures::sample_http_client::sample_sec_client::routing::RoutingSecClient;

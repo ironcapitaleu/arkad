@@ -18,8 +18,8 @@
 //! ```rust
 //! use sec::implementations::states::extract::select_filing_documents::*;
 //! use sec::prelude::*;
+//! use sec::shared::accession_number::AccessionNumber;
 //! use sec::shared::filing_documents::FolderIndex;
-//! use sec::shared::financial::accession_number::AccessionNumber;
 //! use uuid::Uuid;
 //!
 //! # #[tokio::main]
@@ -192,8 +192,8 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::shared::accession_number::AccessionNumber;
     use crate::shared::filing_documents::{FilingDocuments, FilingDocumentsError, FolderIndex};
-    use crate::shared::financial::accession_number::AccessionNumber;
     use crate::tests::fixtures::data::filing_index::{
         INLINE_XBRL_FOLDER_INDEX, INLINE_XBRL_FOLDER_INDEX_URL, folder_index_response,
     };

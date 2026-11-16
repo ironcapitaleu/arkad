@@ -2867,8 +2867,8 @@ The table in "Order of the Pull Requests" names the ticket of each step.
 
 | `sec` type | Plan | Type that replaces it |
 | ---------- | ---- | --------------------- |
-| `AccessionNumber` | Keep. Move to `sec::shared::accession_number` | None |
-| `Form` | Keep. Move to `sec::shared::form` | None |
+| `AccessionNumber` | Keep. In `sec::shared::accession_number` | None |
+| `Form` | Keep. In `sec::shared::form` | None |
 | `CompanyData` | Keep. Change its fields | None |
 | `CompanyFact` | Delete | The `AsIsFact` values of one concept |
 | `ConceptDefinition` and its constants | Delete | `xbrl::us_gaap::mappings::ConceptDefinition`, `REQUIRED_CONCEPTS`, `OPTIONAL_CONCEPTS` |
@@ -2947,11 +2947,11 @@ the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec
   type of its input changes.
 - The transition from `ParseCompanyFacts` to `CreateFinancialStatements`, and the `Transform`
   super state.
-- The 37 files that name the paths `financial::accession_number` or `financial::form` change
-  83 lines. This set holds `sec/tests/extract_filing.rs`, and files that name only `Form`.
 - PR 2 updates the docs that describe the parse: `sec/README.md`, "ParseCompanyFacts", and
   `sec/design/data_model/hybrid_data_model.md`. PR 3 updates the docs that name
   `sec::shared::financial`, such as `sec/design/pipeline/ingestion_paths.md`.
+
+PR 3 does not change the callers of `AccessionNumber` and `Form`. Both are in `sec::shared`.
 
 No binary and no integration test names a fact-model type. The pipeline coverage test ends before
 `Transform`.
@@ -2962,7 +2962,7 @@ Each PR keeps `main` compiling.
 
 | # | Ticket | PR | Reviewable lines |
 | - | ------ | -- | ---------------- |
-| 1 | [STA-527](https://linear.app/state-machine/issue/STA-527) | Move `AccessionNumber` and `Form` to `sec::shared` | About 0. A move, with 83 changed lines in 37 files |
+| 1 | [STA-527](https://linear.app/state-machine/issue/STA-527) | Move `AccessionNumber` and `Form` to `sec::shared` | About 0. A move of 2 modules, and the new paths on 83 lines in 37 files |
 | 2 | [STA-472](https://linear.app/state-machine/issue/STA-472) | `ParseCompanyFacts` delegates to `parse`, and `CompanyData` holds the `xbrl` types | About 250, an estimate |
 | 3 | [STA-528](https://linear.app/state-machine/issue/STA-528) | Delete `sec::shared::financial` | About 0. A deletion of 12 modules |
 | 4 | [STA-529](https://linear.app/state-machine/issue/STA-529) | Delete the `company_concept` and `frames` placeholders of `xbrl` | About 10 |
