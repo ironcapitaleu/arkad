@@ -2867,8 +2867,8 @@ The table in "Order of the Pull Requests" names the ticket of each step.
 
 | `sec` type | Plan | Type that replaces it |
 | ---------- | ---- | --------------------- |
-| `AccessionNumber` | Keep. Move to `sec::shared::accession_number` | None |
-| `Form` | Keep. Move to `sec::shared::form` | None |
+| `AccessionNumber` | Keep. In `sec::shared::accession_number` | None |
+| `Form` | Keep. In `sec::shared::form` | None |
 | `CompanyData` | Keep. Change its fields | None |
 | `CompanyFact` | Delete | The `AsIsFact` values of one concept |
 | `ConceptDefinition` and its constants | Delete | `xbrl::us_gaap::mappings::ConceptDefinition`, `REQUIRED_CONCEPTS`, `OPTIONAL_CONCEPTS` |
@@ -2947,11 +2947,11 @@ the extraction to a fact adds `impl From<&AccessionNumber> for FilingId` in `sec
   type of its input changes.
 - The transition from `ParseCompanyFacts` to `CreateFinancialStatements`, and the `Transform`
   super state.
-- `AccessionNumber` and `Form` are in `sec::shared::accession_number` and `sec::shared::form`.
-  They are outside `sec::shared::financial`, so PR 3 does not change their callers.
 - PR 2 updates the docs that describe the parse: `sec/README.md`, "ParseCompanyFacts", and
   `sec/design/data_model/hybrid_data_model.md`. PR 3 updates the docs that name
   `sec::shared::financial`, such as `sec/design/pipeline/ingestion_paths.md`.
+
+PR 3 does not change the callers of `AccessionNumber` and `Form`. Both are in `sec::shared`.
 
 No binary and no integration test names a fact-model type. The pipeline coverage test ends before
 `Transform`.
