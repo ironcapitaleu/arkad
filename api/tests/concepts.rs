@@ -1,3 +1,7 @@
+// `json!` recurses once per element, and the list of every mapped concept passes the default
+// limit of 128.
+#![recursion_limit = "256"]
+
 use api::config::InternalDocs;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
