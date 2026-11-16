@@ -48,8 +48,9 @@ impl Summed for DebtMaturityConcept {
 }
 
 impl Timed for DebtMaturityConcept {
-    /// Gives [`Cadence::FiscalYearEnd`] for a bucket, because only an annual report holds the
-    /// ladder. Gives [`Cadence::EveryPeriod`] for the total, a balance sheet value.
+    /// Gives [`Cadence::FiscalYearEnd`] for a bucket, because the standardized layer keeps only
+    /// the ladder of an annual report. Gives [`Cadence::EveryPeriod`] for the total, a balance
+    /// sheet value.
     fn cadence(self) -> Cadence {
         match self {
             Self::LongTermDebtIncludingCurrentMaturities => Cadence::EveryPeriod,
@@ -68,7 +69,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::DebtMaturityConcept;
-    use crate::core::elements::{Cadence, Concept, SumRole, Summed, Timed};
+    use crate::core::elements::{Cadence, Concept, SumRole, Summed};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
@@ -81,10 +82,16 @@ mod tests {
     fn should_give_the_cadence_of_the_concept_when_asking_its_element_for_every_concept() {
         let concepts = DebtMaturityConcept::ALL;
 
-        // The expected result is the cadence of `Timed`, the reference path. The test fails if the
-        // middle macro misses `Timed` in the entry of the disclosure.
-        let expected_result: Vec<Cadence> =
-            concepts.iter().map(|concept| concept.cadence()).collect();
+        // The test fails if the middle macro misses `Timed` in the entry of the disclosure.
+        let expected_result = vec![
+            Cadence::EveryPeriod,
+            Cadence::FiscalYearEnd,
+            Cadence::FiscalYearEnd,
+            Cadence::FiscalYearEnd,
+            Cadence::FiscalYearEnd,
+            Cadence::FiscalYearEnd,
+            Cadence::FiscalYearEnd,
+        ];
 
         let result: Vec<Cadence> = concepts
             .iter()

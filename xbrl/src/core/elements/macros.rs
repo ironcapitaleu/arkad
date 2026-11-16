@@ -237,7 +237,7 @@ macro_rules! middle_concepts {
 
 /// Gives the cadence of a concept from the trait list of its entry in `middle_concepts!`.
 ///
-/// The input is the innermost concept and the traits, separated by commas. If the list holds `Timed`, the macro
+/// The input is the innermost concept, a semicolon, and the traits separated by commas. If the list holds `Timed`, the macro
 /// calls `Timed::cadence`. Otherwise it gives `Cadence::EveryPeriod`.
 macro_rules! cadence_of {
     ($concept:ident;) => {{

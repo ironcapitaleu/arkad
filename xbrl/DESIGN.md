@@ -1096,7 +1096,7 @@ pub trait Timed: Concept {
   series step calls `check_all_sums`. A second disclosure with a sum, such as lease maturities,
   adds its enum, its impls, and its macro entry. None of the three callers changes.
 - A test in each module with `impl Timed` walks `ALL` and compares
-  `CanonicalElementKind::from(c).cadence()` with `c.cadence()`. A test in each module with
+  `c.element().cadence()` with `c.cadence()`. A test in each module with
   `impl Summed` shows that `check_all_sums` gives a `SumMismatch` for a sum that does not add up.
   So a missing macro entry fails a test.
 - `SumMismatch` is the finding of every sum. Its `reason` holds the `SUM_NAME`, so a reader
