@@ -123,8 +123,9 @@ decision.>
 
 ## Sources
 
-<Each source of a fact above: a code or data file at a fixed commit, a URL, a ticket comment, or a
-command, with its date. Never a design document, a guideline, a skill, or another ADR.>
+<Each source of a fact above, with its date: a code or data file at a fixed commit, a URL to a page
+that does not change, a ticket comment, or a command. Never a design document, a guideline, or a
+skill, even at a fixed commit. Never a link to a file on a branch.>
 ```
 
 Keep the order of the six sections. Leave out a section only if it has no content. A long ADR can
@@ -136,8 +137,9 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
   `## Amendment N: <Title>` after "Decision", with its own date, reason, decision, and
   consequences. Add the amendment and its status to the `Status` row. Leave the original text as
   it is.
-- **Supersede** when the decision changes as a whole. Write a new ADR. Set the `Status` row of the
-  old ADR to "Superseded by ADR NNNN", and change nothing else in it.
+- **Supersede** when the decision changes as a whole. Write a new ADR, and name the old ADR in its
+  "Context". Set the `Status` row of the old ADR to "Superseded by ADR NNNN", and change nothing
+  else in it.
 
 ## Critical Invariants
 
@@ -151,10 +153,10 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
   the text still names the item.
 - A link never replaces a fact. Copy each fact the decision rests on into the ADR, because a person
   can delete a ticket or a document.
-- An ADR links no document that can change or go away: no design document, guideline, skill, or
-  other ADR. Copy the fact instead. An ADR stays as written, so a link to a changing document makes
-  it say something else later. Only a superseded ADR and the ADR that supersedes it name each
-  other.
+- An ADR links no design document, guideline, or skill, and no ADR with the status "Proposed".
+  These can change or be deleted. An ADR stays as written, so such a link makes it say something
+  else later. Copy the fact instead. An ADR can link an accepted or a superseded ADR, because
+  neither changes its decision.
 - State what the decision does not cover. A reader must not take a gap for a covered case.
 - The reasons and the options live in the ADR only. `AGENTS.md` can state the rule that the
   decision adds, with a link to the ADR. A design doc links to the ADR and does not repeat the
