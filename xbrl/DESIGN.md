@@ -1908,9 +1908,9 @@ The SEC has three relevant JSON APIs:
 
 All three serve data points with the same 9 keys: `accn`, `end`, `filed`, `form`, `fp`, `frame`, `fy`, `start`, `val`. The JSON envelope differs but the data points are identical.
 
-`xbrl` parses only the Company Facts API
-([ADR 0036](../docs/adr/0036-xbrl-parses-only-company-facts.md)).
-`xbrl::adapter::edgar::company_facts` parses it into `Vec<AsIsFact>` and `Vec<Filing>`.
+Of the three, `xbrl` parses only Company Facts. `xbrl::adapter::edgar::company_facts` parses it into
+`Vec<AsIsFact>` and `Vec<Filing>`. `xbrl` has no parser for Company Concept or Frames
+([ADR 0036](../docs/adr/0036-no-company-concept-or-frames-parser.md)).
 
 The resolution engine does not know which source an as-is fact came from.
 
