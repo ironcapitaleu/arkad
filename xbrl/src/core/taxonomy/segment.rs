@@ -15,7 +15,7 @@ use super::Taxonomy;
 ///
 /// # Required Traits
 ///
-/// [`Taxonomy`]: the registry reads the axes of the plug-in that resolves the concept of a fact.
+/// - [`Taxonomy`]: the registry reads the axes of the plug-in that resolves the concept of a fact.
 pub trait SegmentAxes: Taxonomy {
     /// Returns each segment axis, as written in `dimensions`, with its kind.
     fn segment_axes(&self) -> &[SegmentAxis];

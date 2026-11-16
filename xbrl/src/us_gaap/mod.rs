@@ -607,27 +607,25 @@ mod tests {
     }
 
     #[test]
-    fn should_return_segment_axes_of_us_gaap_when_us_gaap_is_the_second_plugin() {
-        let ifrs = plugin(
+    fn should_return_segment_axes_of_us_gaap_when_another_plugin_declares_the_family_first() {
+        let declarer = plugin(
             "ifrs-full/2025",
-            vec![declaration(
-                "ifrs-full",
-                "https://xbrl.ifrs.org/taxonomy/{release}/ifrs-full",
-                true,
-            )],
+            vec![declaration("srt", "http://fasb.org/srt/{release}", false)],
         );
         let us_gaap = UsGaap::new();
         let registry = Registry::with_plugins(vec![
-            Plugin::Taxonomy(&ifrs),
+            Plugin::Taxonomy(&declarer),
             Plugin::WithSegmentAxes(&us_gaap),
         ])
-        .expect("Given two plug-ins with distinct families, the registry should always start");
-        let us_gaap_family = family("us-gaap");
+        .expect(
+            "Given a declaration of srt that agrees with us_gaap and does not resolve, the registry should always start",
+        );
+        let srt_family = family("srt");
 
         let expected_result = Some(SEGMENT_AXES);
 
         let result = registry
-            .segment_axes(&us_gaap_family)
+            .segment_axes(&srt_family)
             .map(SegmentAxes::segment_axes);
 
         assert_eq!(result, expected_result);
