@@ -1,4 +1,4 @@
-# ADR 0026: `AccountId` Lives in `storage`, and `api` Imports It
+# ADR 0031: `AccountId` Lives in `storage`, and `api` Imports It
 
 | Field | Value |
 | ----- | ----- |
