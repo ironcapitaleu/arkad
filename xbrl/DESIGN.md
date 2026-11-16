@@ -1301,7 +1301,7 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
   values as reported.
 - An unreconciled line other than zero gives no finding. The line itself shows the difference.
 - **Silver stores no line of the reconciliation**, as for the other lines. `reconcile` in
-  `core/segment.rs` computes the lines from the candidates of one filing. For each candidate, it
+  `core/segment.rs` builds the reconciliations of each filing from its candidates. For each candidate, it
   takes the axes and the roles from the plug-in that resolves the family of the first input.
 
 Measured on `2026_10_notes.zip` on 2026-11-15. A group is one filing, concept, period, and unit

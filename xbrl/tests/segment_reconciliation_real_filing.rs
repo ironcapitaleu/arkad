@@ -36,6 +36,7 @@ fn line_states(reconciliation: &Reconciliation) -> Vec<&'static str> {
         .collect()
 }
 
+/// Returns `true` if the value of `candidate` is blocked.
 fn is_blocked(candidate: &Candidate) -> bool {
     candidate.value == CandidateValue::Blocked
 }

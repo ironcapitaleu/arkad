@@ -1,7 +1,7 @@
 //! # Segment
 //!
-//! Provides [`reconcile`], which builds the segment reconciliation from the candidates of one
-//! filing, and its read types [`Reconciliation`] and [`ReconciliationLine`].
+//! Provides [`reconcile`], which builds the segment reconciliation of each filing from its
+//! candidates, and its read types [`Reconciliation`] and [`ReconciliationLine`].
 //!
 //! The reconciliation shows how the business segments add up to the consolidated value. It runs
 //! only on the axes of kind [`SegmentAxisKind::BusinessSegment`]. The roles come from
@@ -21,7 +21,7 @@ use chrono::NaiveDate;
 use super::candidate::{Candidate, CandidateValue};
 use super::elements::CanonicalElementKind;
 use super::fact::Dimensions;
-use super::filing::FilingId;
+use super::filing::{EntityId, FilingId};
 use super::rule::RuleId;
 use super::taxonomy::registry::Registry;
 use super::taxonomy::segment::{
@@ -29,7 +29,7 @@ use super::taxonomy::segment::{
 };
 use super::unit::Unit;
 
-/// The segment reconciliation of one filing, standard concept, period, and unit.
+/// The segment reconciliation of one filing, entity, standard concept, period, and unit.
 ///
 /// unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate. Each value keeps the sign
 /// of the filing.
@@ -37,6 +37,8 @@ use super::unit::Unit;
 pub struct Reconciliation {
     /// The filing.
     pub filing: FilingId,
+    /// The entity the values are about.
+    pub entity: EntityId,
     /// The standard concept.
     pub concept: CanonicalElementKind,
     /// The exact end of the period.
@@ -86,7 +88,8 @@ impl ReconciliationLine {
     }
 }
 
-/// Builds one [`Reconciliation`] per filing, standard concept, period, and unit from `candidates`.
+/// Builds one [`Reconciliation`] per filing, entity, standard concept, period, and unit from
+/// `candidates`.
 ///
 /// A period is its exact end and its length in quarters, as in the value key.
 ///
@@ -104,6 +107,7 @@ pub fn reconcile(candidates: &[Candidate], registry: &Registry<'_>) -> Vec<Recon
     for candidate in candidates {
         let key = GroupKey {
             filing: candidate.source.filing.clone(),
+            entity: candidate.entity.clone(),
             concept: candidate.concept,
             period_end: candidate.period.end(),
             quarters: candidate.period.quarters(),
@@ -122,10 +126,11 @@ pub fn reconcile(candidates: &[Candidate], registry: &Registry<'_>) -> Vec<Recon
         .collect()
 }
 
-/// The filing, standard concept, period, and unit of one [`Reconciliation`].
+/// The filing, entity, standard concept, period, and unit of one [`Reconciliation`].
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 struct GroupKey {
     filing: FilingId,
+    entity: EntityId,
     concept: CanonicalElementKind,
     period_end: NaiveDate,
     quarters: u16,
@@ -191,7 +196,7 @@ fn role_of_member(
         .map(MemberRole::role)
 }
 
-/// The candidates of one standard concept, period, and unit, sorted by role.
+/// The candidates of one filing, entity, standard concept, period, and unit, sorted by role.
 #[derive(Default)]
 struct Group {
     consolidated: Option<Candidate>,
@@ -241,6 +246,7 @@ impl Group {
         }
         Reconciliation {
             filing: key.filing,
+            entity: key.entity,
             concept: key.concept,
             period_end: key.period_end,
             quarters: key.quarters,
@@ -289,6 +295,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::period::{Duration, Period};
     use crate::core::taxonomy::registry::Plugin;
     use crate::tests::fixtures::sample_fact::{candidate, date, source};
     use crate::us_gaap::UsGaap;
@@ -307,6 +314,16 @@ mod tests {
         revenue.dimensions = Dimensions::new(pairs.iter().copied())
             .expect("Given hardcoded axis and member pairs, the creation should always succeed");
         revenue
+    }
+
+    /// Returns `candidate` for the year that starts on `start` and ends on 2024-09-28.
+    fn with_start(candidate: Candidate, start: NaiveDate) -> Candidate {
+        let year = Duration::from_dates(start, date(2024, 9, 28))
+            .expect("Given a start before the end, the creation should always succeed");
+        Candidate {
+            period: Period::Duration(year),
+            ..candidate
+        }
     }
 
     /// Returns `candidate` with its value blocked.
@@ -446,6 +463,37 @@ mod tests {
         let expected_result = Some(unreconciled_line(0));
 
         let result = last_line(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_put_the_segment_with_the_consolidated_value_when_only_the_start_differs() {
+        let consolidated = with_start(revenue("100", &[]), date(2023, 9, 30));
+        let cloud = with_start(
+            revenue("100", &[("BusinessSegments", "Cloud")]),
+            date(2023, 10, 1),
+        );
+        let candidates = vec![consolidated, cloud];
+
+        let expected_result = Some(unreconciled_line(0));
+
+        let result = last_line(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_one_reconciliation_per_entity_when_two_entities_report_the_period() {
+        let parent = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let mut subsidiary = revenue("50", &[("BusinessSegments", "Cloud")]);
+        subsidiary.entity = EntityId::new("cik", "0000000002")
+            .expect("Given a hardcoded scheme and ID, the creation should always succeed");
+        let candidates = vec![parent, subsidiary];
+
+        let expected_result = 2;
+
+        let result = reconcile_with_us_gaap(&candidates).len();
 
         assert_eq!(result, expected_result);
     }
