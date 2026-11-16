@@ -4,6 +4,8 @@
 //!
 //! ## Modules
 //!
+//! - [`account_id`]: The [`AccountId`], the key of an account, and the [`InvalidAccountId`] for a
+//!   string that is not a UUID.
 //! - [`company_id`]: The [`CompanyId`], the internal key of a company.
 //! - [`company_identifier`]: The [`CompanyIdentifier`], a `(scheme, value)` pair that names a
 //!   company, and its [`CompanyScheme`].
@@ -15,6 +17,7 @@
 //! - [`sha256`]: The [`Sha256Digest`] of a byte slice, and the [`InvalidSha256Digest`] for a
 //!   string that is not a digest.
 
+pub mod account_id;
 pub mod company_id;
 pub mod company_identifier;
 pub mod listing_id;
@@ -22,6 +25,7 @@ pub mod listing_identifier;
 pub mod mic;
 pub mod sha256;
 
+pub use account_id::{AccountId, InvalidAccountId};
 pub use company_id::CompanyId;
 pub use company_identifier::{CompanyIdentifier, CompanyScheme};
 pub use listing_id::ListingId;
