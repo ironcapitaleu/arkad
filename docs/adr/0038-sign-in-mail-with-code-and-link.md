@@ -10,8 +10,8 @@
 ## Context
 
 The lead decided on 2026-10-31 that one page serves sign-in and sign-up, without a password. A
-user enters an email, and Supabase Auth sends a mail. The content of that mail binds two places:
-the mail template in `supabase/` (STA-312), and the sign-in page of the frontend (STA-316).
+user enters an email, and Supabase Auth sends a mail. Two places depend on the content of that
+mail: the mail template in `supabase/` (STA-312), and the sign-in page of the frontend (STA-316).
 
 Supabase Auth sends one of two templates:
 
@@ -47,8 +47,7 @@ Checked on 2026-11-18 on the local stack, Supabase CLI 3.2.0, on top of `main` a
 
 - STA-316 builds `/auth/confirm`. It calls `verifyOtp` with `type` `email` and the `token_hash`.
 - `verifyOtp` with `type` `email` accepts both the code and the token hash, and from both
-  templates. The local run below checked the code from "Confirm signup" and the hash from "Magic
-  link".
+  templates. The local run below checked all four combinations.
 - The code and the link expire after 1 hour (`otp_expiry = 3600`). A user can request a new mail
   once a minute (`max_frequency = "1m"`).
 - The link uses the site URL of the environment, from `SUPABASE_AUTH_SITE_URL`.
@@ -61,10 +60,11 @@ Checked on 2026-11-18 on the local stack, Supabase CLI 3.2.0, on top of `main` a
   A new email got the subject of "Confirm signup", and a known email got the subject of "Magic
   link":
   - `POST /auth/v1/otp` for a new email logged `user_confirmation_requested`, the "Confirm signup"
-    template. `POST /auth/v1/verify` with `type` `email` and the code returned a session.
+    template. `POST /auth/v1/verify` with `type` `email` returned a session for the code, and for
+    the token hash of a second new email.
   - The same request for that email after the sign-in logged `user_recovery_requested`, the
-    "Magic link" template. `POST /auth/v1/verify` with `type` `email` and the token hash returned
-    a session.
+    "Magic link" template. `POST /auth/v1/verify` with `type` `email` returned a session for the
+    token hash, and for the code of a later mail.
   - A second request within a minute answered `429` with `over_email_send_rate_limit`.
 - Supabase, [Email templates](https://supabase.com/docs/guides/auth/auth-email-templates), checked
   on 2026-11-02 for STA-309: the mitigation for mail scanners links to a page of the site that

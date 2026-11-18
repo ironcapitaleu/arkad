@@ -10,7 +10,7 @@
 ## Context
 
 Supabase Auth signs every login token. The `api` crate checks the signature before it trusts the
-`sub` claim (STA-315). The key type binds three places: `supabase/config.toml` (STA-312), the
+`sub` claim (STA-315). Three places depend on the key type: `supabase/config.toml` (STA-312), the
 token check in `api` (STA-315), and the dev and prod Supabase projects. A later change of the key
 type changes the token check and needs a key rotation in each project.
 
@@ -50,8 +50,9 @@ Measured on 2026-11-18 on the local stack, Supabase CLI 3.2.0, on top of `main` 
 - With the ES256 key in place, the local stack signs tokens with `alg` `ES256` and the `kid` of
   the key. The JWKS lists the public key with `key_ops` `verify` and without the private part `d`.
 - The `anon` and `service_role` keys that `supabase start` prints are ES256 tokens too.
-- A developer without the key file gets HS256 tokens, and the token check of `api` rejects them.
-  The README gives the commands that generate the file.
+- Without the key file, `supabase start` stops with a read error. With an empty list `[]` in the
+  file, the stack signs with HS256 and the JWKS lists no key, so the token check of `api` rejects
+  every token. The README gives the commands that generate the file.
 - The decision does not cover the dev and prod projects. A project that runs on the shared secret
   needs a migration to signing keys before launch.
 
@@ -64,7 +65,9 @@ Measured on 2026-11-18 on the local stack, Supabase CLI 3.2.0, on top of `main` 
 
 - Local run on 2026-11-18: `supabase start`, then
   `curl http://127.0.0.1:54321/auth/v1/.well-known/jwks.json`, and the header and claims of a
-  token from `POST /auth/v1/verify`.
+  token from `POST /auth/v1/verify`. Two more starts on the same day: one without
+  `signing_keys.json`, and one with `[]` in it. The second printed an `anon` key with `alg`
+  `HS256`.
 - `supabase gen signing-key --help`, CLI 3.2.0, read on 2026-11-18: "ES256 - ECDSA with P-256
   curve and SHA-256 (recommended)".
 - Supabase, [JWT signing keys](https://supabase.com/docs/guides/auth/signing-keys), checked on
