@@ -11,3 +11,5 @@ docs
 rust-toolchain.toml
 # The build reads none of the vendored taxonomy files.
 xbrl/taxonomy
+# The build reads none of the Supabase files. The folder holds the local signing key.
+supabase
