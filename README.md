@@ -610,9 +610,9 @@ cargo run --features tracing-logging --bin stream_etl
 
 ### Local Supabase Stack
 
-`supabase/config.toml` holds the Auth settings: sign-in with an email code, Google, and GitHub. The
-Supabase CLI runs the whole stack in Docker, with a mail viewer that catches every mail. It needs
-no Supabase account.
+`supabase/config.toml` holds the Auth settings: sign-in with an email code. Google and GitHub stay
+off until their OAuth apps exist. The Supabase CLI runs the whole stack in Docker, with a mail
+viewer that catches every mail. It needs no Supabase account.
 
 Install the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
 and Docker, and start the Docker daemon. Then create the environment file and the signing key once:
