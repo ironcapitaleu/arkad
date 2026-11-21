@@ -44,12 +44,12 @@ impl Period {
         }
     }
 
-    /// Returns the exact start, or `None` for an instant or a duration with no start.
+    /// Returns the exact start, or `None` for an instant.
     #[must_use]
     pub const fn start(&self) -> Option<NaiveDate> {
         match self {
             Self::Instant { .. } => None,
-            Self::Duration(duration) => duration.start,
+            Self::Duration(duration) => Some(duration.start),
         }
     }
 
@@ -92,17 +92,16 @@ pub(crate) fn days_of_quarters(quarters: u16) -> i64 {
     i64::from(quarters) * QUARTER_NUMERATOR / QUARTER_DENOMINATOR
 }
 
-/// A span of time: an exact end, a length in quarters, and an exact start.
+/// A span of time: an exact start, an exact end, and a length in quarters.
 ///
-/// Every parser builds a duration with [`Duration::from_dates`], which computes the length from the
-/// start and the end, so the two cannot disagree. [`Duration::from_end_and_quarters`] builds a
-/// duration with no start. No parser calls it.
+/// [`Duration::from_dates`] computes the length from the start and the end, so the two cannot
+/// disagree.
 ///
 /// The length needs 16 bits: Notes `qtrs` reaches 4,007.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct Duration {
-    /// The exact start, or `None` for a duration from [`Duration::from_end_and_quarters`].
-    start: Option<NaiveDate>,
+    /// The exact start.
+    start: NaiveDate,
     /// The exact end.
     end: NaiveDate,
     /// The length in quarters. It is a field, because the value key and the series key use it.
@@ -159,36 +158,26 @@ impl Duration {
             )
         })?;
         Ok(Self {
-            start: Some(start),
+            start,
             end,
             quarters,
         })
     }
 
-    /// Creates a [`Duration`] from an exact end and a length in quarters, with no exact start.
-    #[must_use]
-    pub const fn from_end_and_quarters(end: NaiveDate, quarters: u16) -> Self {
-        Self {
-            start: None,
-            end,
-            quarters,
-        }
-    }
-
     /// Returns how far the length lies from its whole number of quarters, in sixteenths of a day:
-    /// `|16 * days - 1461 * quarters|`. Returns `None` if the duration has no exact start.
+    /// `|16 * days - 1461 * quarters|`.
     ///
     /// The SEC orders the copies of one key by this distance, so a 91-day quarter comes before a
     /// 121-day period that also rounds to 1 quarter.
     #[must_use]
-    pub fn distance_to_full_quarters(&self) -> Option<i64> {
-        let days = (self.end - self.start?).num_days();
-        Some((QUARTER_DENOMINATOR * days - QUARTER_NUMERATOR * i64::from(self.quarters)).abs())
+    pub fn distance_to_full_quarters(&self) -> i64 {
+        let days = (self.end - self.start).num_days();
+        (QUARTER_DENOMINATOR * days - QUARTER_NUMERATOR * i64::from(self.quarters)).abs()
     }
 
-    /// Returns the exact start, or `None` if the duration has none.
+    /// Returns the exact start.
     #[must_use]
-    pub const fn start(&self) -> Option<NaiveDate> {
+    pub const fn start(&self) -> NaiveDate {
         self.start
     }
 
@@ -207,10 +196,7 @@ impl Duration {
 
 impl fmt::Display for Duration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.start {
-            Some(start) => write!(f, "{start} to {}", self.end),
-            None => write!(f, "{} quarters to {}", self.quarters, self.end),
-        }
+        write!(f, "{} to {}", self.start, self.end)
     }
 }
 
@@ -233,7 +219,10 @@ mod tests {
             Period::Instant {
                 end: date(2026, 9, 30),
             },
-            Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1)),
+            Period::Duration(
+                Duration::from_dates(date(2026, 7, 1), date(2026, 9, 30))
+                    .expect("Given an end after the start, the creation should always succeed"),
+            ),
         ];
 
         let expected_result = vec![PeriodType::Instant, PeriodType::Duration];
@@ -253,22 +242,11 @@ mod tests {
     }
 
     #[test]
-    fn should_give_the_distance_to_a_full_quarter_when_the_duration_has_a_start() {
+    fn should_give_the_distance_to_a_full_quarter_for_a_four_month_stub() {
         let duration = Duration::from_dates(date(2026, 6, 1), date(2026, 9, 30))
             .expect("Given an end after the start, the creation should always succeed");
 
-        let expected_result = Some(475);
-
-        let result = duration.distance_to_full_quarters();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_give_no_distance_to_a_full_quarter_when_the_duration_has_no_start() {
-        let duration = Duration::from_end_and_quarters(date(2026, 9, 30), 1);
-
-        let expected_result = None;
+        let expected_result = 475;
 
         let result = duration.distance_to_full_quarters();
 
@@ -350,7 +328,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_the_exact_start_when_the_period_is_a_duration_with_a_start() {
+    fn should_give_the_exact_start_when_the_period_is_a_duration() {
         let period = Period::Duration(
             Duration::from_dates(date(2026, 6, 1), date(2026, 9, 30))
                 .expect("Given an end after the start, the creation should always succeed"),
@@ -377,24 +355,15 @@ mod tests {
     }
 
     #[test]
-    fn should_keep_no_start_when_duration_comes_from_end_and_quarters() {
-        let end = date(2024, 9, 28);
-
-        let expected_result = None;
-
-        let result = Duration::from_end_and_quarters(end, 4).start();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_hold_four_thousand_quarters_when_notes_reports_them() {
+        let start = date(1022, 6, 30);
         let end = date(2024, 3, 31);
-        let quarters = 4007;
 
         let expected_result = 4007;
 
-        let result = Period::Duration(Duration::from_end_and_quarters(end, quarters)).quarters();
+        let result = Duration::from_dates(start, end)
+            .expect("Given an end after the start, the creation should always succeed")
+            .quarters();
 
         assert_eq!(result, expected_result);
     }
@@ -414,7 +383,10 @@ mod tests {
 
     #[test]
     fn should_return_end_when_period_is_a_duration() {
-        let period = Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4));
+        let period = Period::Duration(
+            Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
 
         let expected_result = date(2024, 9, 28);
 
@@ -424,7 +396,7 @@ mod tests {
     }
 
     #[test]
-    fn should_print_start_and_end_when_duration_has_a_start() {
+    fn should_print_start_and_end_when_period_is_a_duration() {
         let duration = Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
             .expect("Given an end after the start, the creation should always succeed");
 

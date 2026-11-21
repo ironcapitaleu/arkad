@@ -597,7 +597,7 @@ impl Tree {
 ///
 /// `value_of` gives the fact of a concept in one period. The facts are the parent, then each
 /// member in the order of the table. A member with no value counts as the members of the group
-/// that makes it, as in [`Statement::build`]. A fact without an exact start mixes with no other.
+/// that makes it, as in [`Statement::build`].
 pub(crate) fn mixed_starts<'a>(
     group: Group,
     value_of: impl Fn(CanonicalElementKind) -> Option<&'a StandardizedFact>,
@@ -606,7 +606,7 @@ pub(crate) fn mixed_starts<'a>(
     has_two_starts(&counted).then(|| counted.iter().map(|fact| fact.concept).collect())
 }
 
-/// Returns `true` if two of `facts` have different exact starts.
+/// Returns `true` if two of `facts` have different exact starts. An instant has no start.
 fn has_two_starts(facts: &[&StandardizedFact]) -> bool {
     let mut starts = facts.iter().filter_map(|fact| fact.period.start());
     starts
@@ -775,7 +775,10 @@ mod tests {
             CanonicalElementKind::Statement(StatementConcept::BalanceSheet(_)) => {
                 Period::Instant { end }
             }
-            _ => Period::Duration(Duration::from_end_and_quarters(end, 1)),
+            _ => Period::Duration(
+                Duration::from_dates(date(2026, 7, 1), end)
+                    .expect("Given an end after the start, the creation should always succeed"),
+            ),
         }
     }
 
@@ -1252,25 +1255,6 @@ mod tests {
     }
 
     #[test]
-    fn should_give_an_other_line_when_a_member_without_an_exact_start_joins_a_group_of_one_start() {
-        let facts = [
-            four_months(CashFlowConcept::OperatingCashFlow, "390"),
-            fact(IncomeStatementConcept::NetIncome, "147"),
-            four_months(CashFlowConcept::ShareBasedCompensation, "16"),
-        ];
-
-        let expected_result = Ok(vec![(
-            CashFlowGroup::OperatingCashFlow.name(),
-            Some(number("227")),
-        )]);
-
-        let result =
-            Statement::build(StatementKind::CashFlow, &facts).map(|statement| others(&statement));
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_reject_the_facts_when_there_is_none() {
         let facts: [StandardizedFact; 0] = [];
 
@@ -1301,7 +1285,10 @@ mod tests {
     #[test]
     fn should_reject_a_duration_when_building_a_balance_sheet() {
         let mut assets = fact(BalanceSheetConcept::Assets, "100");
-        let quarter = Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1));
+        let quarter = Period::Duration(
+            Duration::from_dates(date(2026, 7, 1), date(2026, 9, 30))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
         assets.period = quarter;
         let facts = [assets];
 

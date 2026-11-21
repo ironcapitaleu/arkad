@@ -68,8 +68,7 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 ///
 /// Before these checks, each group of the slot, open or closed, gets a [`Finding::MixedStarts`] if
 /// two of the facts that [`Statement`] counts in it have different exact starts. Such a group gets
-/// no other check and no other line. The other groups of the slot keep their checks. A value
-/// without an exact start mixes with no other.
+/// no other check and no other line. The other groups of the slot keep their checks.
 #[must_use]
 pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -339,7 +338,10 @@ mod tests {
     }
 
     fn quarter() -> Period {
-        Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1))
+        Period::Duration(
+            Duration::from_dates(date(2026, 7, 1), date(2026, 9, 30))
+                .expect("Given an end after the start, the creation should always succeed"),
+        )
     }
 
     fn value(
@@ -365,7 +367,7 @@ mod tests {
         since(date(2026, 6, 1))
     }
 
-    /// Returns the 3-month quarter that ends on 2026-09-30, with its exact start.
+    /// Returns the 3-month quarter that ends on 2026-09-30.
     fn three_months() -> Period {
         since(date(2026, 7, 1))
     }
@@ -725,35 +727,11 @@ mod tests {
     }
 
     #[test]
-    fn should_report_no_mixed_starts_when_the_other_member_has_no_exact_start() {
-        let facts = series(vec![
-            value(
-                CashFlowConcept::OperatingCashFlow.element(),
-                four_months(),
-                "390",
-            ),
-            value(
-                IncomeStatementConcept::NetIncome.element(),
-                quarter(),
-                "147",
-            ),
-            value(
-                CashFlowConcept::ShareBasedCompensation.element(),
-                four_months(),
-                "16",
-            ),
-        ]);
-
-        let expected_result: Vec<Finding> = Vec::new();
-
-        let result = check_roll_ups(&facts, &[]);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_report_a_negative_other_when_a_zero_quarter_duration_ends_on_a_balance_sheet_date() {
-        let stub = Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 0));
+        let stub = Period::Duration(
+            Duration::from_dates(date(2026, 9, 1), date(2026, 9, 30))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
         let facts = series(vec![
             balance_sheet(BalanceSheetConcept::Assets, "100000"),
             value(

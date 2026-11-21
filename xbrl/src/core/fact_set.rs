@@ -65,8 +65,8 @@ impl FactSet {
     ///
     /// - [`FactSetError::UnexpectedEntity`] if the entity of the fact is not the one of the set.
     /// - [`FactSetError::UnexpectedPeriod`] if the period of the fact is not the one of the set. Two
-    ///   periods are the same if they are of one kind and have the same end and length, and the
-    ///   same exact start if both give one. So an instant fact never belongs to a set of a duration.
+    ///   periods are the same if they are of one kind and have the same start and end. So an
+    ///   instant fact never belongs to a set of a duration.
     /// - [`FactSetError::UnexpectedDimensions`] if the fact has dimensions.
     pub fn insert(&mut self, fact: StandardizedFact) -> Result<(), FactSetError> {
         if fact.entity != self.entity {
@@ -76,7 +76,7 @@ impl FactSet {
                 found: fact.entity,
             });
         }
-        if !is_same_period(self.period, fact.period) {
+        if fact.period != self.period {
             return Err(FactSetError::UnexpectedPeriod {
                 concept: fact.concept,
                 expected: self.period,
@@ -146,25 +146,6 @@ pub enum FactSetError {
     },
 }
 
-/// Returns `true` if `set` and `fact` are of one kind and have the same end and length, and the same
-/// exact start if both give one.
-fn is_same_period(set: Period, fact: Period) -> bool {
-    match (set, fact) {
-        (Period::Instant { end: set_end }, Period::Instant { end: fact_end }) => {
-            set_end == fact_end
-        }
-        (Period::Duration(set), Period::Duration(fact)) => {
-            set.end() == fact.end()
-                && set.quarters() == fact.quarters()
-                && set
-                    .start()
-                    .zip(fact.start())
-                    .is_none_or(|(set_start, fact_start)| set_start == fact_start)
-        }
-        _ => false,
-    }
-}
-
 /// Writes the pairs of `dimensions` as `axis=member`, sorted by axis and separated by `, `.
 fn axis_member_pairs(dimensions: &Dimensions) -> String {
     dimensions
@@ -196,15 +177,18 @@ mod tests {
     }
 
     fn fiscal_year_2024() -> Period {
-        let end = NaiveDate::from_ymd_opt(2024, 9, 28)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
-        Period::Duration(Duration::from_end_and_quarters(end, 4))
+        fiscal_year_2024_with_start(1)
     }
 
     fn fiscal_year_2023() -> Period {
+        let start = NaiveDate::from_ymd_opt(2022, 9, 25)
+            .expect("Given a hardcoded valid date, the creation should always succeed");
         let end = NaiveDate::from_ymd_opt(2023, 9, 30)
             .expect("Given a hardcoded valid date, the creation should always succeed");
-        Period::Duration(Duration::from_end_and_quarters(end, 4))
+        Period::Duration(
+            Duration::from_dates(start, end)
+                .expect("Given an end after the start, the creation should always succeed"),
+        )
     }
 
     fn fiscal_year_2024_with_start(start_day: u32) -> Period {
@@ -394,33 +378,6 @@ mod tests {
     }
 
     #[test]
-    fn should_insert_the_fact_when_only_the_fact_gives_the_exact_start_of_the_period() {
-        let mut fact_set = FactSet::new(apple(), fiscal_year_2024());
-        let fact = StandardizedFact {
-            period: fiscal_year_2024_with_start(1),
-            ..revenue("391035000000")
-        };
-
-        let expected_result = Ok(());
-
-        let result = fact_set.insert(fact);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_insert_the_fact_when_only_the_set_gives_the_exact_start_of_the_period() {
-        let mut fact_set = FactSet::new(apple(), fiscal_year_2024_with_start(1));
-        let fact = revenue("391035000000");
-
-        let expected_result = Ok(());
-
-        let result = fact_set.insert(fact);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_reject_the_fact_when_the_set_and_the_fact_give_different_exact_starts() {
         let mut fact_set = FactSet::new(apple(), fiscal_year_2024_with_start(1));
         let fact = StandardizedFact {
@@ -521,7 +478,7 @@ mod tests {
             found: fiscal_year_2023(),
         };
 
-        let expected_result = "[UnexpectedPeriod] Fact of 'Revenue' has period '4 quarters to 2023-09-30', the set holds period '4 quarters to 2024-09-28'";
+        let expected_result = "[UnexpectedPeriod] Fact of 'Revenue' has period '2022-09-25 to 2023-09-30', the set holds period '2023-10-01 to 2024-09-28'";
 
         let result = error.to_string();
 

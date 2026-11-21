@@ -163,7 +163,7 @@ fields of the as-is fact model.
 | `concept_family`, `concept_name` | `utf8`, `utf8` | `AsIsFact::concept` |
 | `taxonomy_version` | `utf8`, nullable | `us-gaap/2026`, or the filing for an extension |
 | `period_end` | `date32` | Exact end |
-| `period_start` | `date32`, nullable | Exact start, if the source has it. Not a key field |
+| `period_start` | `date32`, nullable | Exact start of a duration, null for an instant. Not a key field |
 | `quarters` | `uint16` | 0 for an instant or a duration under about 45 days. Notes `qtrs` reaches 4,007 in `2024q1` (measured), so `uint8` is too small |
 | `unit` | `utf8`, nullable | Canonical text, for example `USD/shares`. Null for text |
 | `dimensions` | `list<struct<axis: utf8, member: utf8>>` | Sorted pairs, legal entity axis included |

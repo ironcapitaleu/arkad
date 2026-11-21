@@ -409,20 +409,23 @@ mod tests {
     }
 
     #[test]
-    fn should_give_one_key_when_two_sources_differ_only_in_the_start() {
-        let instance_fact = revenue_fact();
-        let instance_context = revenue_fact().context;
-        let notes_fact = AsIsFact {
+    fn should_give_one_key_when_two_facts_differ_only_in_the_start() {
+        let first_fact = revenue_fact();
+        let first_context = revenue_fact().context;
+        let second_fact = AsIsFact {
             context: Context {
-                period: Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
-                ..instance_context
+                period: Period::Duration(
+                    Duration::from_dates(date(2023, 10, 2), date(2024, 9, 28))
+                        .expect("Given an end after the start, the creation should always succeed"),
+                ),
+                ..first_context
             },
             ..revenue_fact()
         };
 
-        let expected_result = instance_fact.key();
+        let expected_result = first_fact.key();
 
-        let result = notes_fact.key();
+        let result = second_fact.key();
 
         assert_eq!(result, expected_result);
     }

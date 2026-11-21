@@ -24,9 +24,9 @@ pub use unsupported_period::UnsupportedPeriod;
 pub enum Period {
     /// A range of days, for example a fiscal year of an income statement.
     Duration {
-        /// The first day, or `null` if the source gives only the number of quarters.
-        #[schema(value_type = Option<String>, format = Date, example = "2023-10-01")]
-        start: Option<NaiveDate>,
+        /// The first day.
+        #[schema(value_type = String, format = Date, example = "2023-10-01")]
+        start: NaiveDate,
         /// The last day.
         #[schema(value_type = String, format = Date, example = "2024-09-28")]
         end: NaiveDate,
@@ -89,7 +89,7 @@ mod tests {
         let domain = DomainPeriod::Duration(duration);
 
         let expected_result = Ok(Period::Duration {
-            start: Some(date(2023, 10, 1)),
+            start: date(2023, 10, 1),
             end: date(2024, 9, 28),
         });
 
@@ -119,20 +119,6 @@ mod tests {
         };
 
         let expected_result = Ok(Period::Instant {
-            end: date(2024, 9, 28),
-        });
-
-        let result = Period::try_from(domain);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_have_no_start_when_the_domain_duration_holds_only_quarters() {
-        let domain = DomainPeriod::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4));
-
-        let expected_result = Ok(Period::Duration {
-            start: None,
             end: date(2024, 9, 28),
         });
 

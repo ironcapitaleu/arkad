@@ -122,7 +122,7 @@ fn same_value(notes: &FactValue, instance: &FactValue) -> bool {
 fn same_period(notes: &Period, instance: &Period) -> bool {
     match (notes, instance) {
         (Period::Instant { end }, Period::Duration(duration)) => {
-            duration.start() == Some(*end) && duration.end() == *end
+            duration.start() == *end && duration.end() == *end
         }
         (notes, instance) => notes == instance,
     }
