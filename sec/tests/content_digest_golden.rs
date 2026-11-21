@@ -15,8 +15,8 @@ use sec::shared::row_digest::{ByteForm, DigestRow, content_digest, group_hashes}
 use sec::shared::transform_version::TRANSFORM_VERSION;
 
 /// The expected `content_digest` of the fixture unit, by `transform_version`.
-const GOLDEN_DIGESTS: [(&str, &str); 1] = [(
-    "1",
+const GOLDEN_DIGESTS: [(u32, &str); 1] = [(
+    1,
     "512cb2e35253c41117e31412379e1b7013e0933b15d7c0fb5810e11f03d548b2",
 )];
 
