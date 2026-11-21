@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-21 ([STA-503 comment `ab43ef3c`](https://linear.app/state-machine/issue/STA-503#comment-ab43ef3c)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-503](https://linear.app/state-machine/issue/STA-503) |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The owner of the ticket confirms |
+| Status | Accepted by the owner of the ticket on 2026-11-21 ([STA-495 comment `3e6a8556`](https://linear.app/state-machine/issue/STA-495#comment-3e6a8556)) |
 | Date | 2026-11-15 |
 | Deciders | The owner of the ticket |
 | Ticket | [STA-495](https://linear.app/state-machine/issue/STA-495) |

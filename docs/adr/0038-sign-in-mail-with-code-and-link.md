@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms |
+| Status | Accepted by the project lead on 2026-11-21 ([STA-312 comment `cfd106ee`](https://linear.app/state-machine/issue/STA-312#comment-cfd106ee)) |
 | Date | 2026-11-18 |
 | Deciders | The project lead |
 | Ticket | [STA-312](https://linear.app/state-machine/issue/STA-312) |
