@@ -89,7 +89,7 @@ flowchart TB
 | Silver backend | `storage` | `SilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects. Filesystem by default |
 | Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
 | GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
-| Content digest | `sec`, module `shared::content_digest` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use |
+| Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
 | Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `UnitSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
@@ -212,7 +212,7 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 ## Byte Form of `content_digest`
 
 [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. The code lives in
-`sec::shared::content_digest`:
+`sec::shared::row_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.

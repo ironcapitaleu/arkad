@@ -1,4 +1,4 @@
-//! # Content Digest
+//! # Row Digest
 //!
 //! Provides [`content_digest()`], the SHA-256 of the rows of a silver unit, and the byte form of
 //! the rows that it hashes.
@@ -78,7 +78,7 @@ type KeyedRow = (Vec<u8>, Vec<u8>);
 /// # Examples
 ///
 /// ```rust
-/// use sec::shared::content_digest::{ByteForm, DigestRow, group_hashes};
+/// use sec::shared::row_digest::{ByteForm, DigestRow, group_hashes};
 ///
 /// struct Fact {
 ///     filing_id: &'static str,
@@ -154,7 +154,7 @@ pub fn group_hashes<R: DigestRow>(rows: &[R]) -> Vec<GroupHash> {
 /// # Examples
 ///
 /// ```rust
-/// use sec::shared::content_digest::content_digest;
+/// use sec::shared::row_digest::content_digest;
 ///
 /// let groups = Vec::new();
 ///

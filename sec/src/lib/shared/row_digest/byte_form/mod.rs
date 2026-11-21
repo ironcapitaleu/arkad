@@ -28,7 +28,7 @@ const VALUE_MARKER: u8 = 0x01;
 /// # Examples
 ///
 /// ```rust
-/// use sec::shared::content_digest::ByteForm;
+/// use sec::shared::row_digest::ByteForm;
 ///
 /// let concept = "Assets";
 ///

@@ -8,7 +8,6 @@
 //! - [`build_info`]: Provides the version and the git commit of the build, and the [`Producer`](storage::implementations::repository::filesystem::Producer) of a stored document.
 //! - [`cik`]: Provides parsing, validation, and formatting utilities for SEC Central Index Keys (CIKs).
 //! - [`company_data`]: Provides [`CompanyData`](company_data::CompanyData), the as-is facts and the filings of one company.
-//! - [`content_digest`](mod@content_digest): Provides [`content_digest`](content_digest::content_digest), the SHA-256 of the rows of a silver unit, and [`ByteForm`](content_digest::ByteForm), the byte form of the values it hashes.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`edgar_exchange_code`]: Provides [`mic_of`](edgar_exchange_code::mic_of), the map from an EDGAR exchange code to the MIC of the exchange it names.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
@@ -27,6 +26,7 @@
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
+//! - [`row_digest`]: Provides [`content_digest`](row_digest::content_digest), the SHA-256 of the rows of a silver unit, and [`ByteForm`](row_digest::ByteForm), the byte form of the values it hashes.
 //! - [`run_fields`]: Provides [`RunFields`](run_fields::RunFields), the metadata fields that name the run that produced a stored document.
 //! - [`stored_form_index`]: Provides [`StoredFormIndex`](stored_form_index::StoredFormIndex), the key, the SHA-256, and the text of one stored daily index or full index.
 //! - [`transform_version`]: Provides [`TRANSFORM_VERSION`](transform_version::TRANSFORM_VERSION), the version of the silver output that this build writes.
@@ -44,7 +44,6 @@ pub mod accession_number;
 pub mod build_info;
 pub mod cik;
 pub mod company_data;
-pub mod content_digest;
 pub mod content_type;
 pub mod document_storage;
 pub mod edgar_exchange_code;
@@ -65,6 +64,7 @@ pub mod raw_repository;
 pub mod raw_source;
 pub mod request;
 pub mod response;
+pub mod row_digest;
 pub mod run_fields;
 pub mod status_code;
 pub mod stored_form_index;

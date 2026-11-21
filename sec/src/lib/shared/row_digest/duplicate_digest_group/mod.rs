@@ -9,7 +9,7 @@ use thiserror::Error;
 /// Error indicating that two group hashes of one silver unit have the same group ID.
 ///
 /// The rows of the group came in two calls of
-/// [`group_hashes`](crate::shared::content_digest::group_hashes), so the digest would depend on the
+/// [`group_hashes`](crate::shared::row_digest::group_hashes), so the digest would depend on the
 /// split of the unit.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error("[DuplicateDigestGroup] Two group hashes have the group ID '{group_id}'")]
