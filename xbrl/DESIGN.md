@@ -132,7 +132,9 @@ Rules of the layout:
   `dim.tsv` whole, streams `num.tsv` and `txt.tsv`, and splits them by `adsh`. It picks the main
   instance of a filing and skips the filing-fee exhibit. It reads the raw store, adds the ingestion
   provenance, and writes silver.
-- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. It
+- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. The
+  TSV quotes a field that holds a quote or a tab, as in CSV, and the transform removes the quoting
+  ([`ingestion_paths.md`](../sec/design/pipeline/ingestion_paths.md), "Quoting"). It
   hands `adapter::edgar::notes` the rows of one filing: its `sub` row, its `num` and `txt` rows,
   the `dim` rows that its `num` and `txt` rows name through `dimh`, and the `tag` rows that its
   `num` rows name through `tag` and `version`. The parser reads only `tag.datatype`, to restore

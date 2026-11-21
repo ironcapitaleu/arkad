@@ -19,7 +19,7 @@ The set holds 102 filings: two 10-Ks per company, three 10-Qs for 10 companies, 
 `num`, `txt`, `dim`, and `tag`. The rows stay as the SEC wrote them.
 
 STA-539 sets a limit: if the set adds more than 50 MB, the owner decides before the rest is cut.
-The set as plain text passes the limit. The acceptance tests of STA-543 and every later test of the
+The set as plain text is larger than the limit. The acceptance tests of STA-543 and every later test of the
 set read the files in the format this ADR sets.
 
 Terms: a *fixture file* is one file in the repository. Its *content* is the bytes the SEC wrote,
@@ -41,19 +41,19 @@ after decompression for a gzip file.
 
 ## Options Considered
 
-Measured on 2026-11-21 on the 102 filings, cut from 18 Notes files of the SEC.
+Measured on 2026-11-21 on the 102 filings, cut from 19 Notes files of the SEC.
 
 | Option | Size in the working tree | Content as the SEC wrote it | New dependency |
 | ------ | ------------------------ | --------------------------- | -------------- |
-| **A: gzip per file (chosen)** | 14.5 MB | Yes, after decompression | `flate2`, optional |
+| **A: gzip per file (chosen)** | 13.5 MB (Notes 13.1 MB, instances 0.4 MB) | Yes, after decompression | `flate2`, optional |
 | B: plain text, full set | 92.5 MB (Notes 83.9 MB, instances 8.6 MB) | Yes | None |
 | C: plain text, no `txt` rows | about 70 MB, estimated from the share of `txt` in `num` and `txt` | No `txt` rows | None |
 | D: plain text, fewer filings | under 50 MB | Yes | None |
 
 - A stays under the limit with the full set. `flate2` uses the Rust backend `miniz_oxide`, links no
   C library, and is already in `Cargo.lock` through the `sec` crate.
-- B passes the limit by 42.5 MB. A git pack compresses the text, but every checkout holds 92.5 MB.
-- C still passes the limit, and the parser sees no text facts.
+- B is 42.5 MB larger than the limit. A git pack compresses the text, but every checkout holds 92.5 MB.
+- C is still larger than the limit, and the parser sees no text facts.
 - D drops filings that the owner accepted for the acceptance tests.
 
 Run-time reads won over `include_bytes!`: one loader takes an accession, the test binary stays
@@ -61,7 +61,7 @@ small, and 102 filings need no constant each.
 
 ## Consequences
 
-- A reviewer can not read a fixture file in the diff. `zcat` shows its content, and the manifest
+- A reviewer cannot read a fixture file in the diff. `zcat` shows its content, and the manifest
   names its source.
 - A changed byte in a file or in its content fails the manifest test.
 - A gzip file is a binary file to git. A change to one row replaces the whole file in the history.
@@ -73,12 +73,12 @@ small, and 102 filings need no constant each.
 
 - If the acceptance tests need `pre` or `cal` rows, the set grows. The same format holds, and the
   manifest gets one row per new file.
-- If a later set passes 50 MB in gzip, the owner decides again, for example on Git LFS.
+- If a later set is larger than 50 MB in gzip, the owner decides again, for example on Git LFS.
 
 ## Sources
 
 - Sizes: `du -sb` on the cut files and the gzip files, 2026-11-21. The cut covered the Notes files
-  `2013q3`, `2013q4`, `2014q1`, `2014q2`, `2015q1`, `2024q2`, `2024_08`, `2024_10`, `2024_12`,
+  `2013q2`, `2013q3`, `2013q4`, `2014q1`, `2014q2`, `2015q1`, `2024q2`, `2024_08`, `2024_10`, `2024_12`,
   `2025q1`, `2025q2`, `2025q3`, `2025_10`, `2025_11`, `2026_02`, `2026_03`, `2026_07`, and
   `2026_08`, at `https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/`.
 - The owner's choice of option A: the answer to the size question in the session of STA-539,

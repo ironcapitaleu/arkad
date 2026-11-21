@@ -6,8 +6,9 @@
 //! compiled in. Every other filing keeps `.tsv.gz` files, which [`parse_notes_fixture_filing`]
 //! reads at run time. [`manifest`](super::manifest) lists the filings and their source.
 //!
-//! No field holds a tab or a line break, so each line splits on tabs. A field with a quote is
-//! quoted, and a quote inside it is doubled, as in CSV. [`table`] removes the quoting.
+//! A field with a quote is quoted, and a quote inside it is doubled, as in CSV. [`table`] removes
+//! the quoting. It splits each line on tabs, and panics if a row has more or fewer fields than the
+//! header, for example after a quoted field that holds a tab.
 
 use std::collections::HashMap;
 
@@ -168,6 +169,10 @@ fn notes_filing(tables: &NotesTables) -> NotesFiling {
 }
 
 /// Returns each row of a table as a map from column to unquoted field.
+///
+/// # Panics
+///
+/// Panics if a row has more or fewer fields than the header.
 fn table(text: &str) -> Vec<HashMap<String, String>> {
     let mut lines = text.lines();
     let header: Vec<&str> = lines
@@ -177,9 +182,15 @@ fn table(text: &str) -> Vec<HashMap<String, String>> {
         .collect();
     lines
         .map(|line| {
+            let fields: Vec<&str> = line.split(FIELD_SEPARATOR).collect();
+            assert_eq!(
+                fields.len(),
+                header.len(),
+                "Given a fixture row with no tab inside a field, the row should have one field per column: '{line}'"
+            );
             header
                 .iter()
-                .zip(line.split(FIELD_SEPARATOR))
+                .zip(fields)
                 .map(|(column, field)| ((*column).to_owned(), unquote(field)))
                 .collect()
         })

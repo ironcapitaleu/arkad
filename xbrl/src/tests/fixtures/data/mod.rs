@@ -27,8 +27,14 @@ pub mod notes;
 /// The directory that holds the fixture files, at the paths the manifest names.
 const DATA_DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/tests/fixtures/data");
 
+/// The extension of a Rust source file, which is no fixture file.
+const RUST_EXTENSION: &str = "rs";
+
+/// The file name of the manifest, which lists the fixture files and is none itself.
+const MANIFEST_FILE_NAME: &str = "manifest.tsv";
+
 /// The extension of a gzip file.
-const GZIP_EXTENSION: &str = ".gz";
+pub const GZIP_EXTENSION: &str = ".gz";
 
 /// Returns the bytes of the fixture file `file`, a path the manifest names, as stored.
 ///
@@ -54,7 +60,17 @@ pub fn fixture_file(file: &str) -> Vec<u8> {
 /// Panics if the file does not exist, or if a `.gz` file is no valid gzip.
 #[must_use]
 pub fn fixture_content(file: &str) -> Vec<u8> {
-    let stored = fixture_file(file);
+    content_of(file, fixture_file(file))
+}
+
+/// Returns the content of the fixture file `file` from its bytes as stored, `stored`: the bytes
+/// themselves for a plain file, and the decompressed bytes for a `.gz` file.
+///
+/// # Panics
+///
+/// Panics if a `.gz` file is no valid gzip.
+#[must_use]
+pub fn content_of(file: &str, stored: Vec<u8>) -> Vec<u8> {
     if !file.ends_with(GZIP_EXTENSION) {
         return stored;
     }
@@ -63,6 +79,44 @@ pub fn fixture_content(file: &str) -> Vec<u8> {
         .read_to_end(&mut content)
         .expect("Given a fixture file written by gzip, the decompression should always succeed");
     content
+}
+
+/// Returns the path of every fixture file below the fixture data directory, relative to it, except
+/// the Rust sources and `manifest.tsv`, in sorted order.
+///
+/// # Panics
+///
+/// Panics if a directory below the fixture data directory cannot be read.
+#[must_use]
+pub fn fixture_files_on_disk() -> Vec<String> {
+    let mut files = Vec::new();
+    collect_files(Path::new(DATA_DIRECTORY), &mut files);
+    files.sort();
+    files
+}
+
+/// Adds the path of each fixture file below `directory` to `files`, relative to the fixture data
+/// directory.
+fn collect_files(directory: &Path, files: &mut Vec<String>) {
+    let entries = fs::read_dir(directory)
+        .expect("Given a directory below the fixture data directory, it should be readable");
+    for entry in entries {
+        let path = entry
+            .expect("Given a readable directory, each entry should be readable")
+            .path();
+        if path.is_dir() {
+            collect_files(&path, files);
+        } else if path
+            .extension()
+            .is_none_or(|extension| extension != RUST_EXTENSION)
+            && !path.ends_with(MANIFEST_FILE_NAME)
+        {
+            let relative = path
+                .strip_prefix(DATA_DIRECTORY)
+                .expect("Given a path below the fixture data directory, it should start with it");
+            files.push(relative.to_string_lossy().replace('\\', "/"));
+        }
+    }
 }
 
 /// Returns a plug-in that declares `us-gaap`, `dei`, `srt`, and `ecd`, the families of the fixture

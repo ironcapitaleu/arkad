@@ -1,10 +1,10 @@
 //! # Fixture Set Integration Tests
 //!
 //! Runs [`xbrl::adapter::edgar::notes::parse`] on each compressed fixture filing of the manifest:
-//! 102 filings of 33 companies, 10-Ks of fiscal years 2013, 2014, and 2025, 10-Qs, and one 10-QT.
+//! 102 filings of 33 companies. `manifest.tsv` names the form and the fiscal year of each.
 //! Each smoke test checks that the parser maps every row of one filing, so it gives no
-//! [`Finding::UnmappedRow`]. Two more tests check the manifest: each fixture file matches its
-//! SHA-256, and each Notes filing of the manifest has a smoke test.
+//! [`Finding::UnmappedRow`]. Three more tests check the manifest: each fixture file matches its
+//! SHA-256, each file on disk has a row, and each Notes filing has a smoke test.
 //!
 //! ## External Dependencies
 //!
@@ -18,13 +18,12 @@ use sha2::{Digest, Sha256};
 use xbrl::core::finding::Finding;
 use xbrl::tests::fixtures::data::manifest::manifest;
 use xbrl::tests::fixtures::data::notes::parse_notes_fixture_filing;
-use xbrl::tests::fixtures::data::{fixture_content, fixture_file};
+use xbrl::tests::fixtures::data::{
+    GZIP_EXTENSION, content_of, fixture_file, fixture_files_on_disk,
+};
 
 /// The prefix of the path of a Notes fixture file in the manifest.
 const NOTES_PREFIX: &str = "notes/";
-
-/// The extension of a compressed fixture file.
-const GZIP_EXTENSION: &str = ".gz";
 
 /// Returns the [`Finding::UnmappedRow`] findings of the fixture filing `accession`.
 fn unmapped_rows(accession: &str) -> Vec<Finding> {
@@ -144,7 +143,7 @@ smoke_tests! {
     should_map_every_row_for_jpmorgan_chase_10_q_2025_q3: "0001628280-25-048859",
     should_map_every_row_for_kkr_10_k_2013_fy: "0001047469-14-001189",
     should_map_every_row_for_kkr_10_k_2025_fy: "0001404912-26-000007",
-    should_map_every_row_for_medtronic_10_k_2014_fy: "0000064670-14-000010",
+    should_map_every_row_for_medtronic_10_k_2013_fy: "0000064670-13-000006",
     should_map_every_row_for_medtronic_10_k_2025_fy: "0001613103-25-000091",
     should_map_every_row_for_procter_and_gamble_10_k_2013_fy: "0000080424-13-000063",
     should_map_every_row_for_procter_and_gamble_10_k_2025_fy: "0000080424-25-000076",
@@ -179,8 +178,9 @@ fn should_match_the_sha256_of_the_manifest_for_every_fixture_file() {
     let result: Vec<String> = entries
         .iter()
         .filter(|entry| {
-            hex_digest(&fixture_file(&entry.file)) != entry.sha256
-                || hex_digest(&fixture_content(&entry.file)) != entry.sha256_uncompressed
+            let stored = fixture_file(&entry.file);
+            hex_digest(&stored) != entry.sha256
+                || hex_digest(&content_of(&entry.file, stored)) != entry.sha256_uncompressed
         })
         .map(|entry| entry.file.clone())
         .collect();
@@ -201,6 +201,18 @@ fn should_have_a_smoke_test_for_every_compressed_notes_filing_of_the_manifest() 
         })
         .map(|entry| entry.accession.as_str())
         .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_list_every_fixture_file_on_disk_in_the_manifest() {
+    let entries = manifest();
+
+    let expected_result: BTreeSet<String> =
+        entries.iter().map(|entry| entry.file.clone()).collect();
+
+    let result: BTreeSet<String> = fixture_files_on_disk().into_iter().collect();
 
     assert_eq!(result, expected_result);
 }
