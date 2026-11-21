@@ -1,0 +1,11 @@
+<h2>Your sign-in code</h2>
+
+<p>Enter this code on the sign-in page:</p>
+
+<p style="font-size: 24px; font-weight: bold; letter-spacing: 4px;">{{ .Token }}</p>
+
+<p>Or open this link to sign in on this device:</p>
+
+<p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&amp;type=email">Sign in</a></p>
+
+<p>The code and the link expire in 1 hour. If you did not ask to sign in, ignore this mail.</p>

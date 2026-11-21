@@ -608,6 +608,49 @@ Run the extract pipeline with structured JSON logging. Each run writes the SEC r
 cargo run --features tracing-logging --bin stream_etl
 ```
 
+### Local Supabase Stack
+
+`supabase/config.toml` holds the Auth settings: sign-in with an email code. Google and GitHub stay
+off until their OAuth apps exist. The Supabase CLI runs the whole stack in Docker, with a mail
+viewer that catches every mail. It needs no Supabase account.
+
+Install the [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started)
+and Docker, and start the Docker daemon. Then create the environment file and the signing key once:
+
+```bash
+cp supabase/.env.example supabase/.env
+echo '[]' > supabase/signing_keys.json
+supabase gen signing-key --algorithm ES256 --append
+chmod 600 supabase/signing_keys.json
+```
+
+Supabase Auth signs every login token with the ES256 key in `supabase/signing_keys.json`. Git
+ignores the file, because anyone with the key can sign tokens.
+[ADR 0037](docs/adr/0037-es256-signing-keys.md) records why the key is ES256.
+
+Start the stack. The first start downloads the images:
+
+```bash
+supabase start
+```
+
+`supabase start` prints the URLs and the publishable key. Request a sign-in code with the
+publishable key:
+
+```bash
+curl -X POST http://127.0.0.1:54321/auth/v1/otp \
+  -H "apikey: <publishable key>" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "you@example.com"}'
+```
+
+Open the mail viewer at <http://127.0.0.1:54324>. The mail holds a 6-digit code and a link to
+`/auth/confirm` on the site URL. Supabase allows a new code for the same email once a minute.
+[ADR 0038](docs/adr/0038-sign-in-mail-with-code-and-link.md) records why the mail holds both.
+
+The public keys for the token check are at <http://127.0.0.1:54321/auth/v1/.well-known/jwks.json>.
+Stop the stack with `supabase stop`.
+
 ## Contributing
 
 See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for guidelines. All contributions are welcome.

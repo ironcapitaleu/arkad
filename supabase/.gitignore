@@ -1,0 +1,12 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# Local secrets: the environment file and the private signing key
+.env
+signing_keys.json
