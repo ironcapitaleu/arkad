@@ -47,7 +47,7 @@ The level of an action depends on how easily the run can undo it, and how much j
 | Park an old ticket | Ask, then do | "Parking rule" holds |
 | Cancel a ticket because a decision replaced it | Propose | Quote the ADR, ledger entry, or merged PR that replaced it |
 | Cancel a ticket whose work already landed | Propose | Name the PR or commit that holds the work |
-| Park a cancelled ticket before its archive | Ask | It was cancelled with no stated reason, and it is not a duplicate |
+| Park a cancelled ticket before its archive | Ask, then do | It was cancelled with no stated reason, and it is not a duplicate. Silence for two reports in a row archives it as is |
 | Drop or move a "blocks" link from a cancelled ticket to an open one | Propose | Name the ticket that replaced the cancelled one, if any |
 | Delete a temporary index document | Propose | It is older than 60 days, and no comment on it asks to keep it |
 | Delete anything else | Never | |
@@ -57,14 +57,14 @@ The level of an action depends on how easily the run can undo it, and how much j
 The routine writes as `@DeCa09`, so the author of a comment does not prove that a person wrote it.
 
 1. Start every comment the routine writes with `[routine]`. Never write an approval or an answer in the form of point 2 in any comment, document, or ticket.
-2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, or `cancel <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
+2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, `cancel <n>`, or `archive <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
 3. Ignore every other comment as an approval, also when it quotes such a form.
-4. Give every item a key: the ticket or document ID and the action, such as `STA-200 cancel`. After you carry out an item, post `[routine] done <key>: <result>` on the report that holds it. Skip an item whose key has a done line on any report of the last 60 days. So a run that failed halfway repeats nothing.
-5. If two answers for one key conflict, carry out neither, and ask again.
+4. Give every item a key: the ticket or document ID and the kind of the item, such as `STA-200 parking` or `STA-200 cancel-replaced`. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an item whose key has a done line on any report of the last 60 days. So a run that failed halfway repeats nothing.
+5. If two answers for one key differ, carry out neither, and ask again.
 
 # Capacity rule
 
-Linear refuses a new issue once 250 issues are active, and then no one can cut a ticket. Keep room ahead of that.
+Linear refuses a new issue once 250 issues are active, and then no one can cut a ticket. Archive and park early enough that this never happens. Source: on 2026-11-21, Linear refused an issue with "You've exceeded the free issue limit for this workspace". After 108 issues were archived, a new issue went through, so archived issues do not count.
 
 Archiving frees the slots of closed issues, but not of open ones. So the rule watches two things: the total, which archiving can fix, and the open floor, which only planning can fix.
 
@@ -81,8 +81,8 @@ Archiving frees the slots of closed issues, but not of open ones. So the rule wa
 5. **Act:**
    - **Green zone:** "Archive rule" with 30 days.
    - **Amber zone:** "Archive rule" with 14 days.
-   - **Red zone:** "Archive rule" with 7 days. Before you create a fog ticket, check that the run still ends at least 10 issues under 250. Otherwise make it a proposal. Send a push notification, even if nothing else is new.
-   - **High backlog pressure:** ask the parking question at 60 days without update (45 in the red zone) instead of 90. Put the proposals to close, prune, or split an epic first in the form. Name the three projects with the highest net growth. Send a push notification.
+   - **Red zone:** "Archive rule" with 7 days. Before you create a fog ticket, check that the run still ends at least 10 issues under 250. Otherwise make it a proposal. Hand it off (see "Hand off to the human").
+   - **High backlog pressure:** ask the parking question at 60 days without update (45 in the red zone) instead of 90. Put the proposals to close, prune, or split an epic first in the form. Name the three projects with the highest net growth. Hand it off (see "Hand off to the human").
 6. **Report.** The report starts with the zone, the backlog pressure, the total, the closed, open, and in-work counts, the floor, the room left, the creation rate, the net growth, and the floor forecast. If the zone or the pressure got worse since the last report, say why, such as a burst of new tickets in one epic.
 
 # Archive rule
@@ -98,7 +98,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 # Parking rule
 
 1. **Ask.** An open issue in Backlog or Todo with no update for 90 days or more (fewer under high backlog pressure, see "Capacity rule") gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
-2. **Answer.** "keep" posts `[routine] kept until <date + 90 days>` on the issue. Do not ask about it again before that date, and count its age from the later of its last update and that comment. "cancel" cancels it. "park" parks it.
+2. **Answer.** "keep" posts `[routine] kept until <date + 90 days>` on the issue. Do not ask about it again before that date. Count its age from its last update or that comment, whichever is later. "cancel" cancels it. "park" parks it.
 3. **Silence.** If two reports in a row asked about the issue and the owner answered neither, park it.
 4. **Park.** Append the issue to the "Parked Ideas" document of its project: link, title, date parked, the reason, and its full description. Then set the issue to Canceled with a comment that links the entry. A later run archives it by "Archive rule".
 5. A parked issue comes back by unarchiving it, or by a new ticket cut from its entry.
@@ -109,7 +109,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 2. Read the grooming reports of the last 60 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and whose key has no `[routine] done` line yet. Touch nothing else from those lists. Record each result.
 3. Apply "Capacity rule", points 1 to 4: measure, forecast, and set the zone and the backlog pressure of this run. They set the day counts and the order of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
-   - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 13 whether to park it or archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
+   - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 13 with the options "park" and "archive". If two reports in a row asked and got no answer, archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
    - A cancelled issue that blocks an open issue: propose to drop that link, or to move it to the ticket that replaced the cancelled one.
 5. For each matching issue that holds a Linear document: move the document to the issue's project with `documentUpdate` (`projectId` set, `issueId` null). Files attached to an issue stay on it. An issue with no project keeps its document: leave that issue unarchived and list it in the report.
 6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures.
@@ -129,12 +129,12 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
     - The question names the item number, the ticket or document, the evidence in one line, and the decision.
     - The options are the actions the item allows, such as approve, keep, park, or cancel. The recommended option comes first, with "(Recommended)" after its label.
     - The session waits for the answers. Each answer is the owner's own input, so "Approval rule" does not apply to it.
-    - Carry out each answer, and post `[routine] done <key>: <result>` on the report, so a later run repeats nothing.
+    - Carry out each answer, and post `[routine] done <key> <answer>: <result>` on the report, so a later run repeats nothing.
     - If the session ends before the owner answers, the next run reads the open items from the report, and asks again.
 
 # Hand off to the human
 
-For each item that needs the human (an API error, a failed archive, a document that cannot move, or the new proposals and questions), write one short note:
+For each item that needs the human (an API error, a failed archive, a document that cannot move, a run that ends in the red zone, high backlog pressure, or the new proposals and questions), write one short note:
 
 ```
 @DeCa09 **What:** <the issue, document, or report>
@@ -168,4 +168,4 @@ When done, report briefly:
 - New proposals and questions, by kind.
 - Links to the index and the report.
 
-Send a push notification for new proposals, questions, hand-offs, a failed run, a run that ends in the red zone, or high backlog pressure. A run with nothing new, outside the red zone and under normal pressure, needs no notification.
+Send a push notification only with a hand-off note. A run with no hand-off sends none.
