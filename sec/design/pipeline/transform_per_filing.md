@@ -76,9 +76,9 @@ A transform task runs one unit. The work has three parts:
 | Silver writer | Once per unit, on one thread | The parts, the digest, the counts, the `silver_files` row | The unit |
 
 The unit reader and the writer belong to the task runner of `silver_writer_and_jobs.md`, "Threads
-Inside a Transform Task". For a Notes file, the reader is one thread per table stream of `num.tsv`
-and `txt.tsv`, and the join by `adsh`, as that section draws it. For a filing day, it is one thread. The filing machine is the filing step that the runner takes as a
-function.
+Inside a Transform Task". For a Notes file, the reader has one thread per table stream of `num.tsv`
+and `txt.tsv`, and a join by `adsh`. For a filing day, it is one thread. The filing machine is the
+filing step that the runner takes as a function.
 
 ### One Value per Filing
 
@@ -138,12 +138,13 @@ bucket split as the fallback.
 
 - **Stream.** A merge of two sorted lists. The reader holds the rows of the current `adsh` of each
   table. When both tables move past an `adsh`, it hands that filing on.
-- **Switch.** On the first row out of order, the reader stops the stream and sends a restart
-  message to the writer. The writer drops what it holds and writes the bucket parts under
+- **Switch.** The reader thread that reads the first row out of order tells the join. The join
+  stops the stream and sends a restart message to the writer. The writer drops what it holds and writes the bucket parts under
   `<execution_id>-<attempt>-b`. The parts of the stream stay unread, as the contract says.
   Rejected filings and dropped rows count again from zero.
-- **The split of each filing.** Each `NotesFilingInput` carries its split, `stream` or `buckets`,
-  and each outcome copies it. Up to 2 × N stream filings can still sit in the channels and the
+- **The split of each filing.** Each message of the channel carries the split of its filing,
+  `stream` or `buckets`. The worker pairs each outcome with the split of its input, as
+  `WorkerOutcome`. Up to 2 × N stream filings can still sit in the channels and the
   workers at the restart. The writer drops each outcome of `stream` that arrives after the restart
   message, so no filing enters the bucket parts twice.
 - **Buckets.** K is the text size of `num.tsv` and `txt.tsv` from the ZIP index, divided by 256 MB
@@ -166,7 +167,6 @@ bucket split as the fallback.
 pub struct NotesFilingInput {
     pub rows: NotesFiling,
     pub source: SourceDocument,
-    pub split: Split,               // Stream or Buckets
 }
 
 /// The raw document of a row, for the ingestion provenance of the silver contract.
@@ -219,9 +219,10 @@ pub struct StoredIndustry {
 - If the store holds no `submissions` file for the CIK, `industry` is `None`, and the `sic_*`
   columns of `filings` stay null. Extract stores the `submissions` file in the same run as the
   instance, so this case needs a failed fetch.
-- A `submissions` file that arrives later changes the inputs of the day. So a run inside the window
-  of `daily_filings`, the last four days, writes the day again with the SIC. A day outside the
-  window keeps the null until a replay.
+- A `submissions` file that arrives later changes the inputs of the day. The raw store listing
+  backend hands out every filing of the window of `daily_filings`, so a run of that backend writes
+  the day again with the SIC. The write log and the queue hand out no reference for a
+  `submissions` file, so with them the day keeps the null until a replay.
 - The label file stays unread. The company labels stay out of the MVP.
 - The reader reads one instance at a time. The largest unit of the prototype held 394.7 MB of XML
   for 167 filings, with a peak of 78 MB (measured).
@@ -307,6 +308,17 @@ pub struct RejectedFiling {
     pub filing: String,                 // the adsh, or the accession number
     pub error: TransformFilingError,
     pub counts: SourceCounts,           // every source row of the filing, dropped as rejected_filing
+}
+```
+
+The split is a concern of the runner, not of the machine. So the worker wraps the outcome for the
+writer:
+
+```rust
+/// The outcome of one filing, as the writer receives it.
+pub struct WorkerOutcome {
+    pub split: Split,                   // Stream or Buckets, copied from the channel message
+    pub outcome: FilingOutcome,
 }
 ```
 

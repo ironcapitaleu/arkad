@@ -62,8 +62,8 @@ This choice binds the filing step, the silver writer, and the run summary of the
 | C. No threshold | The day is written without it | Every unit is written without most filings. Only the run summary shows it |
 | D. Any rejected filing fails the unit | The day fails in each run | The unit fails |
 
-- A fails the unit if a change breaks a whole form, or every filing of a small unit. It writes a
-  unit with a single bad filing.
+- A fails the unit if a change breaks a whole form, or every filing of a small unit. If a unit has
+  one bad filing, A writes its other filings.
 - B and D let one filing block every other filing of its unit until a fix.
 - C writes the damage of a broken parser to silver as a valid unit.
 
