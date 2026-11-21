@@ -230,8 +230,9 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 
 One row per standard concept, set of dimensions, and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
-`standardized_facts` without `restated`, plus `filing_id`, `filed`, `accepted`, `decimals`, `blocked`,
-and `entity_bucket`. Step 3 needs `decimals` to tell a restatement from a repeated comparative. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
+`standardized_facts` without `restated`, `change`, and `computed_at`, plus `filing_id`, `filed`,
+`accepted`, `decimals`, `blocked`, and `entity_bucket`. Only a series run sets `restated`, `change`,
+and `computed_at`, and the filing step writes `candidates` before any series run. Step 3 needs `decimals` to tell a restatement from a repeated comparative. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
 the rule that picked the conflicting concept. The segment view of a report and its reconciliation
 read the rows of one filing, see [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values).
 
