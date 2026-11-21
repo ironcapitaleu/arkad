@@ -8,6 +8,7 @@
 //! - [`traits`]: Core state machine, state, context, and data traits for extensibility and integration.
 //! - [`implementations`]: Concrete state machine and state implementations for SEC data extraction, transformation, and loading.
 //! - [`shared`]: Shared utilities and domain types (e.g., CIK parsing) used across the library.
+//! - [`silver`]: The byte form of a silver row and the `content_digest` of a silver unit.
 //! - [`error`]: Strongly-typed error handling for state machines, states, and transitions, with comprehensive error kinds and conversions.
 //!
 //! ## Usage
@@ -23,6 +24,8 @@ pub mod traits;
 pub mod implementations;
 
 pub mod shared;
+
+pub mod silver;
 
 pub mod error;
 

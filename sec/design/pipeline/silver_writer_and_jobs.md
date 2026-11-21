@@ -210,18 +210,20 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 
 ## Byte Form of `content_digest`
 
-[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. In the code:
+[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. The code lives in
+`sec::silver`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
 - Each `DigestRow` writes its columns in schema order and skips `execution_id`, `loaded_at`, and
   `computed_at`.
 - The writer hashes one digest group when the group is whole. The filing step hands over one whole
-  filing, and the series step one whole entity. So the writer sorts the rows of one group, hashes
-  them, and keeps the group ID and the hash. At the end of the unit, it sorts the pairs and computes
-  `content_digest`.
+  filing, and the series step one whole entity. So the writer calls `group_hashes` on the rows of
+  one group, and keeps the `GroupHash`: the group ID and the hash. At the end of the unit,
+  `content_digest` sorts the pairs and computes the digest. If two pairs have one group ID, it
+  returns `DuplicateDigestGroup`, because the digest would then depend on the split.
 - The golden test holds one fixture unit per dataset and a table of `transform_version` to
-  expected digest.
+  expected digest. `TRANSFORM_VERSION` holds the version of the build.
 
 ## The Series Step
 

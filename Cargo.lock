@@ -1870,6 +1870,7 @@ version = "0.1.0"
 dependencies = [
  "async-stream",
  "async-trait",
+ "bigdecimal",
  "bytes",
  "chrono",
  "chrono-tz",
@@ -1886,6 +1887,7 @@ dependencies = [
  "sec",
  "serde",
  "serde_json",
+ "sha2",
  "state_maschine",
  "storage",
  "tempfile",
