@@ -113,7 +113,9 @@ Use these sections, in this order. Leave out a section only if it has nothing to
   `STA-200 parking`, not by the answer, and give the prompt a fixed list of kinds. After an
   approved item, post `[routine] done <key> <answer>`. Skip an answer if a done line for its key
   is newer than the answer, so a failed run repeats nothing and a re-asked question still gets a
-  new answer. Give every item a "reject" answer, so a declined item does not come back each run.
+  new answer. Apply a conflict rule only among the answers it does not skip. Give every item a
+  "reject" answer, so a declined item does not come back each run. Write the date until which a
+  reject holds on the object itself, so it does not depend on how far back a run reads.
 - **Silence is consent only where the owner said so.** A run treats an unanswered question as a yes
   only if the owner set that rule for that action, and the action can be undone. The guardrails
   name that rule as an exception.

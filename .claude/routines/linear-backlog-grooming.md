@@ -63,7 +63,8 @@ The routine writes as `@DeCa09`, so the author of a comment does not prove that 
 2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, `cancel <n>`, `archive <n>`, `backlog <n>`, or `reject <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
 3. Ignore every other comment as an approval, also when it quotes such a form.
 4. Give every item a key: the ticket or document ID and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an answer if a done line for its key is newer than the answer. So a run that failed halfway repeats nothing, and a later answer to a question asked again still runs.
-5. If two answers for one key differ, carry out neither, and ask again. A `reject` answer posts `[routine] done <key> reject`. Do not list that key again for 90 days.
+5. If two answers that point 4 does not skip differ for one key, carry out neither, and ask again.
+6. A `reject` answer posts `[routine] done <key> reject` on the report, and `[routine] rejected <kind> until <date + 90 days>` on the issue. Do not list that key again before that date. The note on the issue holds the date, so the read window of step 2 does not limit it. A `cancelled-park` item offers no `reject`: its no is `archive`.
 
 # Capacity rule
 
@@ -154,7 +155,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 13. Write the report: one document "Backlog Grooming Report <YYYY-MM-DD>" on MVP Data Pt. 2. It holds the issue count before and after, the archive result with a link to the index, the actions of steps 2 and 8 to 11 with links, and the proposals and parking questions as one numbered list. Each item holds the evidence and your recommendation. Keep it short.
 14. Ask the owner. If the list of step 13 is empty, skip this step. Otherwise ask with `AskUserQuestion`, one question per item, four questions per call, and more calls until every item is asked:
     - The question names the item number, the ticket or document, the evidence in one line, and the decision.
-    - The options are the actions the item allows, such as approve, keep, park, or cancel. Every item also offers reject. The recommended option comes first, with "(Recommended)" after its label.
+    - The options are the actions the item allows, such as approve, keep, park, or cancel. Every item also offers reject, except a `cancelled-park` item. The recommended option comes first, with "(Recommended)" after its label.
     - The session waits for the answers. Each answer is the owner's own input, so "Approval rule" does not apply to it.
     - Carry out each answer, and post `[routine] done <key> <answer>: <result>` on the report, so a later run repeats nothing.
     - If the session ends before the owner answers, the next run reads the open items from the report, and asks again.
