@@ -398,10 +398,11 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
   get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
   feature of the plans checks the assumption.
 - The workflow passes `ARKAD_PLAN`, the plan ID, to the worker step.
-- Each binary reads the environment variables it uses: `CLOUD_RUN_TASK_INDEX`,
-  `CLOUD_RUN_TASK_COUNT`, `ARKAD_JOB_STEP`, and `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`,
-  and `series` also reads `ARKAD_SERIES_MODE`. The binary passes their values to the runner and to
-  the source as arguments. The runner, the source, and the states read no environment variable.
+- `transform` and `series` read `CLOUD_RUN_TASK_INDEX`, `CLOUD_RUN_TASK_COUNT`, `ARKAD_JOB_STEP`,
+  and `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`, and `series` also reads
+  `ARKAD_SERIES_MODE`. The design of the checks names the variables of `checks`. Each binary passes
+  the values to the runner and to the source as arguments. The runner, the source, and the states
+  read no environment variable.
 - The task runner sits outside the state machine, as the facade of extract does. It starts one
   machine per filing and runs them on its threads. No machine forks or joins.
 
