@@ -75,15 +75,15 @@ Archiving frees the slots of closed issues, but not of open ones. So the rule wa
    - **Floor:** open plus in work. Archiving cannot lower it.
 
    Over the last 28 days, count the issues created and the issues closed (completed or canceled). **Net growth** is created minus closed.
-2. **Forecasts.** The total forecast is the number of weeks until the total reaches 250 at the creation rate. The floor forecast is the number of weeks until the floor reaches 250 at the net growth rate. A net growth of zero or less gives no floor forecast.
-3. **Zone** (sets the archive age). Green: a total under 200 and a total forecast over 8 weeks. Amber: a total of 200 to 229, or a total forecast of 4 to 8 weeks. Red: a total of 230 or more, or a total forecast under 4 weeks. The worse of the two decides.
+2. **Forecast.** The floor forecast is the number of weeks until the floor reaches 250 at the net growth rate. A net growth of zero or less gives no forecast. The run makes no forecast of the total from the creation rate: most new issues close and get archived, so that forecast overstates the risk. On 2026-11-21, 242 issues were created and 190 closed in 28 days.
+3. **Zone** (sets the archive age). Green: a total under 200. Amber: a total of 200 to 229. Red: a total of 230 or more.
 4. **Backlog pressure** (sets the planning actions). High when any holds: the floor is 150 or more, the floor forecast is under 26 weeks, or the net growth was above zero in this report and the last one. Otherwise normal.
 5. **Act:**
    - **Green zone:** "Archive rule" with 30 days.
    - **Amber zone:** "Archive rule" with 14 days.
    - **Red zone:** "Archive rule" with 7 days. Before you create a fog ticket, check that the run still ends at least 10 issues under 250. Otherwise make it a proposal. Send a push notification, even if nothing else is new.
    - **High backlog pressure:** ask the parking question at 60 days without update (45 in the red zone) instead of 90. Put the proposals to close, prune, or split an epic first in the form. Name the three projects with the highest net growth. Send a push notification.
-6. **Report.** The report starts with the zone, the backlog pressure, the total, the closed, open, and in-work counts, the floor, the room left, the creation rate, the net growth, and both forecasts. If the zone or the pressure got worse since the last report, say why, such as a burst of new tickets in one epic.
+6. **Report.** The report starts with the zone, the backlog pressure, the total, the closed, open, and in-work counts, the floor, the room left, the creation rate, the net growth, and the floor forecast. If the zone or the pressure got worse since the last report, say why, such as a burst of new tickets in one epic.
 
 # Archive rule
 
@@ -161,7 +161,7 @@ For each item that needs the human (an API error, a failed archive, a document t
 # Reporting
 
 When done, report briefly:
-- The zone and the backlog pressure, the total before and after, the closed, open, and in-work counts, the floor, the room left under 250, the creation rate, the net growth, and both forecasts.
+- The zone and the backlog pressure, the total before and after, the closed, open, and in-work counts, the floor, the room left under 250, the creation rate, the net growth, and the floor forecast.
 - Issues archived, documents moved, failures.
 - Tickets created, duplicates marked, issues parked.
 - Approved items carried out.
