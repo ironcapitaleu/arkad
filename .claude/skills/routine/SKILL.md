@@ -110,8 +110,8 @@ Use these sections, in this order. Leave out a section only if it has nothing to
   can be the run's own. Start every comment the run writes with `[routine]`, never treat such a
   comment as an approval, and never write the approval form anywhere. Accept a comment approval
   only from the owner, and only in that form. Key each item by its object and its kind, such as
-  `STA-200 parking`, not by the answer, and give the prompt a fixed list of kinds. After an
-  approved item, post `[routine] done <key> <answer>`. Skip an answer if a done line for its key
+  `STA-200 parking`, not by the answer. If one object holds several items of one kind, the key
+  names the item too. Give the prompt a fixed list of kinds. After an approved item, post `[routine] done <key> <answer>`. Skip an answer if a done line for its key
   is newer than the answer, so a failed run repeats nothing and a re-asked question still gets a
   new answer. Apply a conflict rule only to the answers that a done line does not
   skip. A conflict posts a done line too, so only a later answer counts. Give every item a
