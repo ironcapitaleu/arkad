@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)) |
+| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)). Amendment 1: Accepted by the project owner on 2026-11-21 ([STA-463 comment `84a54644`](https://linear.app/state-machine/issue/STA-463#comment-84a54644)) |
 | Date | 2026-11-16 |
 | Deciders | The project owner |
 | Ticket | [STA-463](https://linear.app/state-machine/issue/STA-463/design-silver-writer-and-transform-job-plan) |
@@ -39,6 +39,32 @@ The choice binds the transform job, the silver writer, and the `silver_files` ro
    unit key and the time so far. The task continues.
 3. **A `unit_slow` event of a `notes_file` unit reopens this decision.** So does a Notes file
    larger than 1.2 GB zipped, twice the size of `2024q1`.
+
+## Amendment 1: Tasks Start in No Fixed Order
+
+| Field | Value |
+| ----- | ----- |
+| Date | 2026-11-21 |
+| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `84a54644`](https://linear.app/state-machine/issue/STA-463#comment-84a54644)) |
+
+**Reason.** "Consequences" says that the job starts the largest files first. The plan gives the
+largest files the lowest task indexes, so that sentence assumes that Cloud Run starts tasks in
+index order. The Cloud Run documentation says: "If you set --parallelism to greater than 1, tasks
+might not follow the index order." The backfill transform runs 10 tasks in parallel.
+
+**Decision.** The plan keeps the largest files at the lowest task indexes, as a hint. The job does
+not rely on the order.
+
+**Consequences.**
+
+- A large file can start in the last round. The job then takes at most the time of one Notes file
+  longer: about 2.4 minutes for `2024q1` on the measured worst case, against a run of hours.
+- The lease, its expiry, and the one task per unit key do not depend on the order.
+- The decision of this ADR, one task per Notes file, stays.
+- The sentence "The job starts the largest files first" in "Consequences" holds only as a hint.
+
+**Source.** [STA-550 comment `eb197624`](https://linear.app/state-machine/issue/STA-550#comment-eb197624),
+2026-11-21: the quote of the Cloud Run documentation (run/docs/container-contract).
 
 ## Options Considered
 
