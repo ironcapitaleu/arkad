@@ -9,6 +9,9 @@
 //! store holds, and [`ReadListRepository`] names a store that reads and lists with one key type. A component depends on the trait for the
 //! access it needs, so a write from a read-only caller does not compile.
 //!
+//! [`LeaseStore`] takes and reads the lease of a [`JobKind`], so one run of the job kind writes at a
+//! time.
+//!
 //! [`EntityResolver`] returns the [`CompanyId`] of a [`CompanyIdentifier`] at a date.
 //! [`ListingResolver`] returns the [`ListingId`] of a [`ListingIdentifier`] at a date.
 //!
@@ -21,8 +24,8 @@
 //! - [`implementations`]: The concrete backends, one module per storage medium.
 //! - [`shared`]: The types that the backends and the callers of the crate both use, such as the
 //!   [`Sha256Digest`].
-//! - [`traits`]: The traits for reading and writing records, for listing documents, and for
-//!   resolving an identifier to its internal key.
+//! - [`traits`]: The traits for reading and writing records, for listing documents, for taking a
+//!   lease, and for resolving an identifier to its internal key.
 //!
 //! ## Usage
 //!
@@ -44,11 +47,13 @@ pub mod implementations;
 pub mod shared;
 pub mod traits;
 
-pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
+pub use error::{BackendCause, BackendError, ErrorKind, LeaseError, ReadError, WriteError};
 pub use shared::{
-    AccountId, CompanyId, CompanyIdentifier, CompanyScheme, InvalidAccountId, InvalidMic,
-    InvalidSha256Digest, ListingId, ListingIdentifier, ListingScheme, Mic, Sha256Digest,
+    AccountId, CompanyId, CompanyIdentifier, CompanyScheme, InvalidAccountId, InvalidJobKind,
+    InvalidMic, InvalidSha256Digest, JobKind, Lease, LeaseGeneration, ListingId, ListingIdentifier,
+    ListingScheme, Mic, Sha256Digest,
 };
+pub use traits::lease::LeaseStore;
 pub use traits::repository::{
     ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
 };

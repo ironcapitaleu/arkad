@@ -2,7 +2,7 @@
 //!
 //! Provides the error types the `storage` crate returns.
 //!
-//! Errors nest by operation: a [`ReadError`] or a [`WriteError`] wraps a backend error, and an
+//! Errors nest by operation: a [`ReadError`], a [`WriteError`], or a [`LeaseError`] wraps a backend error, and an
 //! [`ErrorKind`] wraps that. A caller can therefore propagate one type and still recover the
 //! specific cause. The [`TryFrom`] impls extract the inner error, returning
 //! [`ErrorKind::DowncastNotPossible`] when the variant does not match.
@@ -13,6 +13,7 @@
 //! ## Modules
 //!
 //! - [`backend_error`]: Errors raised by the storage backend.
+//! - [`lease_error`]: Errors raised while taking or reading a lease.
 //! - [`read_error`]: Errors raised while reading from the store.
 //! - [`write_error`]: Errors raised while writing to the store.
 //!
@@ -29,10 +30,12 @@
 use thiserror::Error;
 
 pub mod backend_error;
+pub mod lease_error;
 pub mod read_error;
 pub mod write_error;
 
 pub use backend_error::{BackendCause, BackendError};
+pub use lease_error::LeaseError;
 pub use read_error::ReadError;
 pub use write_error::WriteError;
 
@@ -56,6 +59,12 @@ pub enum ErrorKind {
     #[error(transparent)]
     Write(WriteError),
 
+    /// An error originating from a lease operation.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    Lease(LeaseError),
+
     /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
     #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
     DowncastNotPossible,
@@ -72,6 +81,29 @@ impl From<WriteError> for ErrorKind {
     /// Converts a [`WriteError`] into the [`ErrorKind::Write`] variant.
     fn from(error: WriteError) -> Self {
         Self::Write(error)
+    }
+}
+
+impl From<LeaseError> for ErrorKind {
+    /// Converts a [`LeaseError`] into the [`ErrorKind::Lease`] variant.
+    fn from(error: LeaseError) -> Self {
+        Self::Lease(error)
+    }
+}
+
+impl TryFrom<ErrorKind> for LeaseError {
+    type Error = ErrorKind;
+
+    /// Extracts the [`LeaseError`] from an [`ErrorKind::Lease`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Lease`].
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::Lease(lease) => Ok(lease),
+            _ => Err(ErrorKind::DowncastNotPossible),
+        }
     }
 }
 
@@ -110,17 +142,17 @@ impl TryFrom<ErrorKind> for WriteError {
 impl TryFrom<ErrorKind> for BackendError {
     type Error = ErrorKind;
 
-    /// Extracts the [`BackendError`] from an [`ErrorKind`] holding a read or a write that failed at
-    /// the backend.
+    /// Extracts the [`BackendError`] from an [`ErrorKind`] holding a read, a write, or a lease
+    /// operation that failed at the backend.
     ///
     /// # Errors
     ///
-    /// Returns [`ErrorKind::DowncastNotPossible`] if neither the read nor the write branch holds a
-    /// [`BackendError`].
+    /// Returns [`ErrorKind::DowncastNotPossible`] if no branch holds a [`BackendError`].
     fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
         match value {
             ErrorKind::Read(ReadError::Backend(backend))
-            | ErrorKind::Write(WriteError::Backend(backend)) => Ok(backend),
+            | ErrorKind::Write(WriteError::Backend(backend))
+            | ErrorKind::Lease(LeaseError::Backend(backend)) => Ok(backend),
             _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
@@ -307,6 +339,29 @@ mod tests {
         );
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_roundtrip_lease_error_when_upcast_then_downcast() {
+        let lease_error = LeaseError::Backend(BackendError::unreachable_storage("timeout"));
+
+        let upcast: ErrorKind = lease_error.clone().into();
+        let result = LeaseError::try_from(upcast)
+            .expect("A `LeaseError` upcast into `ErrorKind` should downcast back unchanged");
+
+        assert_eq!(result, lease_error);
+    }
+
+    #[test]
+    fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_lease() {
+        let backend_error = BackendError::unreachable_storage("timeout");
+        let error_kind = ErrorKind::Lease(LeaseError::Backend(backend_error.clone()));
+
+        let result = BackendError::try_from(error_kind).expect(
+            "Given an `ErrorKind` wrapping a `LeaseError::Backend`, the skip-level downcast should succeed",
+        );
+
+        assert_eq!(result, backend_error);
     }
 
     #[test]
