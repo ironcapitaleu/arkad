@@ -398,9 +398,10 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
   get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
   feature of the plans checks the assumption.
 - The workflow passes `ARKAD_PLAN`, the plan ID, to the worker step.
-- The binary reads every environment variable: `CLOUD_RUN_TASK_INDEX`, `CLOUD_RUN_TASK_COUNT`,
-  `ARKAD_JOB_STEP`, `ARKAD_PLAN`, and `ARKAD_UNITS`. It passes their values to the runner and to
-  the source as arguments. The runner, the sources, and the states read no environment variable.
+- Each binary reads the environment variables it uses: `CLOUD_RUN_TASK_INDEX`,
+  `CLOUD_RUN_TASK_COUNT`, `ARKAD_JOB_STEP`, and `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`,
+  and `series` also reads `ARKAD_SERIES_MODE`. The binary passes their values to the runner and to
+  the source as arguments. The runner, the source, and the states read no environment variable.
 - The task runner sits outside the state machine, as the facade of extract does. It starts one
   machine per filing and runs them on its threads. No machine forks or joins.
 
@@ -421,8 +422,8 @@ The write log keeps every write, so a replay reads it. The queue keeps a message
 consumer acknowledges it, so it hands out new work and holds no history. This design sets the
 port, not the format of the log. The log then becomes one more backend.
 
-A replay always builds its units from the raw store as it is now. To read the past, read silver "as
-it held it at T", as the contract defines.
+A replay always builds its units from the raw store as it is now. To read the past, use the read that
+the contract defines: silver as it held the data at time T.
 
 The checkpoint of the write log is a control object `checkpoints/<job kind>` in the control
 bucket. Only a normal run moves it, under the lease of its job kind. A full replay does not move
