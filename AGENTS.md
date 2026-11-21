@@ -678,6 +678,7 @@ A skill is a domain-specific knowledge bundle that loads into the agent's contex
 | Large reference data (lookup tables) | .claude/skills/{name}/references/*.md | On demand |
 | Live external data queries | MCP tools / WebFetch | Runtime |
 | Project decisions, status, strategy | .claude/memory/ | Session |
+| Prompts of scheduled, unattended sessions | .claude/routines/*.md | At run time |
 
 ### When to Create a Skill
 
@@ -743,6 +744,29 @@ version: 0.1.0
 - Include staleness instructions so the agent knows when to prompt for updates
 - **Keep authoritative data as-is in terms of content.** When including external reference data (e.g., taxonomy files, standards documents), store it in its original form or a lossless format conversion. Do not rewrite, summarize, or reinterpret authoritative content — this avoids translation drift and ensures the skill always reflects the source of truth exactly
 - **Self-improvement sections** — for skills that encode conventions, templates, or workflows that evolve through team usage, add a "Self-Improvement" section at the end. This instructs the agent to ask the user whether corrections or refinements should be captured back into the skill. Good candidates: naming patterns, few-shot examples, new variants, checklist items discovered during use. Not every skill needs this — static reference data or fixed procedures do not benefit from it.
+
+---
+
+## Routines
+
+A routine is a scheduled task that starts a fresh cloud session on a fixed schedule, such as the
+Linear backlog grooming. Each routine of this repository has one file in `.claude/routines/`.
+
+- **The file holds the routine.** A YAML header holds the name, the schedule, the environment, the
+  notifications, and the model. The body below it is the prompt.
+- **The scheduler holds a pointer to the prompt.** The prompt of the scheduled task says: run the
+  routine in `.claude/routines/<file>` on `main`. The session reads the file at run time, so a
+  merged PR changes the prompt. The header fields still live in the scheduler too.
+- **Change a routine through a PR.** If the PR changes a header field, also change the scheduled
+  task to match after the merge. The header is the record of what the scheduler holds.
+- **One repository, its own routines.** A routine that works on another repository, such as
+  `ironcapitaleu/frontend`, lives in that repository. A routine that spans repositories lives in
+  `arkad`.
+- **Recreate a lost routine from its file.** Create a scheduled task with the fields of the header
+  and the pointer prompt.
+
+The **[`routine` skill](.claude/skills/routine/SKILL.md)** holds the file format, the sections of a
+prompt, and the rules of an unattended run. Read it before you write or change a routine.
 
 ---
 

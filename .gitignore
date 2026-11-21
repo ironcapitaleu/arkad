@@ -24,6 +24,7 @@ rust_out
 # Claude Code local tooling state
 .claude/*
 !.claude/skills/
+!.claude/routines/
 
 # Python bytecode of skill scripts
 __pycache__/
