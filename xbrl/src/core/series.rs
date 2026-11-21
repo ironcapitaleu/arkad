@@ -39,9 +39,10 @@ pub struct SeriesOutcome {
 /// 2. [`derive_q4`] on the series, which gives the fourth quarters.
 /// 3. [`derive_from_closed_groups`] on the series and the fourth quarters, which gives the roll-up
 ///    values.
-/// 4. [`check_roll_ups`] and [`check_all_sums`], each with the fourth quarters, then the roll-up
-///    values.
-/// 5. [`check_chronology`] on the series with those values merged in, with `filings` and with
+/// 4. `added` is the fourth quarters, then the roll-up values.
+/// 5. [`check_roll_ups`] with `added`.
+/// 6. [`check_all_sums`] with the same `added`.
+/// 7. [`check_chronology`] on the series with `added` merged in, with `filings` and with
 ///    `conflicts` as the findings of dedup.
 ///
 /// `candidates` holds the candidates of every filing of the entity. `filings` holds the filings of
@@ -84,6 +85,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::candidate::CandidateValue;
     use crate::core::elements::{
         BalanceSheetConcept, CanonicalElementKind, Concept, DebtMaturityConcept,
         IncomeStatementConcept,
@@ -186,6 +188,33 @@ mod tests {
             .collect()
     }
 
+    /// Returns the fourth quarter from 2024-06-30 to 2024-09-28.
+    fn fourth_quarter() -> Period {
+        Period::Duration(
+            Duration::from_dates(date(2024, 6, 30), date(2024, 9, 28))
+                .expect("Given an end after the start, the creation should always succeed"),
+        )
+    }
+
+    /// Returns the revenue of the fiscal year, 400, and of the nine months, 300, so the fourth
+    /// quarter is 100.
+    fn revenue_of_the_year_and_nine_months() -> Vec<Candidate> {
+        vec![
+            value(
+                &annual_report(),
+                IncomeStatementConcept::Revenue.element(),
+                fiscal_year(),
+                "400",
+            ),
+            value(
+                &annual_report(),
+                IncomeStatementConcept::Revenue.element(),
+                nine_months(),
+                "300",
+            ),
+        ]
+    }
+
     /// Returns the [`Summary`] of each fact of `outcome` whose rule starts with `core/`.
     fn derived_summaries(outcome: &SeriesOutcome) -> Vec<Summary> {
         outcome
@@ -249,6 +278,8 @@ mod tests {
             ),
         ];
         candidates.extend(balance_sheet_without_liabilities());
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
 
         let expected_result = vec![
             (
@@ -263,7 +294,7 @@ mod tests {
             ),
         ];
 
-        let result = derived_summaries(&standardize_series(&candidates, &[], Vec::new()));
+        let result = derived_summaries(&standardize_series(&candidates, &filings, conflicts));
 
         assert_eq!(result, expected_result);
     }
@@ -277,10 +308,12 @@ mod tests {
         )];
         candidates.extend(balance_sheet_without_liabilities());
         candidates.extend(ladder_that_does_not_add_up());
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
 
         let expected_result = vec!["RollUpMismatch", "SumMismatch"];
 
-        let result = kinds(&standardize_series(&candidates, &[], Vec::new()).findings);
+        let result = kinds(&standardize_series(&candidates, &filings, conflicts).findings);
 
         assert_eq!(result, expected_result);
     }
@@ -303,10 +336,12 @@ mod tests {
         .iter()
         .filter_map(ReconciliationLine::role_rule)
         .collect();
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
 
         let expected_result: Vec<String> = Vec::new();
 
-        let result: Vec<String> = standardize_series(&candidates, &[], Vec::new())
+        let result: Vec<String> = standardize_series(&candidates, &filings, conflicts)
             .series
             .facts
             .iter()
@@ -326,11 +361,12 @@ mod tests {
             ),
             candidate(&annual_report(), "391000000"),
         ];
+        let filings: Vec<Filing> = Vec::new();
         let conflicts = vec![revenue_conflict()];
 
         let expected_result = vec!["Restatement", "Conflict"];
 
-        let result = kinds(&standardize_series(&candidates, &[], conflicts).findings);
+        let result = kinds(&standardize_series(&candidates, &filings, conflicts).findings);
 
         assert_eq!(result, expected_result);
     }
@@ -339,15 +375,93 @@ mod tests {
     fn should_keep_the_dimensions_of_a_segment_value_when_the_series_holds_it() {
         let segment = revenue_in(&[("BusinessSegments", "Cloud")], "100");
         let candidates = vec![segment.clone()];
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
 
         let expected_result = vec![segment.dimensions];
 
-        let result: Vec<Dimensions> = standardize_series(&candidates, &[], Vec::new())
+        let result: Vec<Dimensions> = standardize_series(&candidates, &filings, conflicts)
             .series
             .facts
             .into_iter()
             .map(|fact| fact.dimensions)
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_a_roll_up_value_from_a_fourth_quarter_when_the_group_needs_it() {
+        let mut candidates = revenue_of_the_year_and_nine_months();
+        candidates.push(value(
+            &annual_report(),
+            IncomeStatementConcept::GrossProfit.element(),
+            fourth_quarter(),
+            "40",
+        ));
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
+
+        let expected_result = vec![
+            (
+                IncomeStatementConcept::Revenue.element(),
+                "2024-06-30 to 2024-09-28".to_string(),
+                "core/period/q4-from-fy@1".to_string(),
+            ),
+            (
+                IncomeStatementConcept::CostOfRevenue.element(),
+                "2024-06-30 to 2024-09-28".to_string(),
+                "core/roll-up/gross-profit@1".to_string(),
+            ),
+        ];
+
+        let result = derived_summaries(&standardize_series(&candidates, &filings, conflicts));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_roll_up_mismatch_when_a_fourth_quarter_breaks_a_group() {
+        let mut candidates = revenue_of_the_year_and_nine_months();
+        candidates.extend([
+            value(
+                &annual_report(),
+                IncomeStatementConcept::GrossProfit.element(),
+                fourth_quarter(),
+                "40",
+            ),
+            value(
+                &annual_report(),
+                IncomeStatementConcept::CostOfRevenue.element(),
+                fourth_quarter(),
+                "20",
+            ),
+        ]);
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
+
+        let expected_result = vec!["RollUpMismatch"];
+
+        let result = kinds(&standardize_series(&candidates, &filings, conflicts).findings);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_blocked_series_key_when_the_newest_candidate_is_blocked() {
+        let blocked = Candidate {
+            value: CandidateValue::Blocked,
+            ..candidate(&annual_report(), "391")
+        };
+        let candidates = vec![blocked.clone()];
+        let filings: Vec<Filing> = Vec::new();
+        let conflicts = Vec::new();
+
+        let expected_result = vec![blocked.series_key()];
+
+        let result = standardize_series(&candidates, &filings, conflicts)
+            .series
+            .blocked;
 
         assert_eq!(result, expected_result);
     }
