@@ -110,8 +110,9 @@ Use these sections, in this order. Leave out a section only if it has nothing to
   can be the run's own. Start every comment the run writes with `[routine]`, never treat such a
   comment as an approval, and never write the approval form anywhere. Accept a comment approval
   only from the owner, and only in that form. Key each item by its object and its kind, such as
-  `STA-200 parking`, not by the answer. After an approved item, post `[routine] done <key>`, and skip a key that has
-  one, so a failed run repeats nothing.
+  `STA-200 parking`, not by the answer, and give the prompt a fixed list of kinds. After an
+  approved item, post `[routine] done <key> <answer>`, and skip a key that has one, so a failed
+  run repeats nothing.
 - **Silence is consent only where the owner said so.** A run treats an unanswered question as a yes
   only if the owner set that rule for that action, and the action can be undone. The guardrails
   name that rule as an exception.
