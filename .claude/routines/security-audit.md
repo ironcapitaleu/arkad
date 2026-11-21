@@ -16,7 +16,7 @@ Make `ironcapitaleu/arkad` as secure as possible. Find RUSTSEC vulnerability adv
 
 **Done means all of these hold:**
 1. Every vulnerability advisory on `main` from step 2 is fixed in a merged PR, is in an open `chore/security-*` PR that waits for its checks, or has a hand-off note.
-2. No open `chore/security-*` PR covers only advisories that are gone from `main`.
+2. No open `chore/security-*` PR lists advisory IDs as step 10 writes them while none of those IDs appears on `main`.
 3. After a merge, CI on `main` is checked, and a new red check or a new advisory is handed off.
 4. The report lists the advisories, the PRs, and the final `cargo audit` state.
 
@@ -67,12 +67,12 @@ Any other failing step or required check, any new advisory, or any pending requi
 3. If no vulnerability advisory is reported: report "nothing to do" and stop. Send no notification. Warnings alone are information only.
 4. Sort the vulnerabilities into fixable (a patched version reachable within the current semver-compatible range) and unfixable. A vulnerability is unfixable when it has no patched version, the fix needs a semver-major bump (for 0.x crates, a bump of the first non-zero number counts as major), the fix needs source changes, or the bump breaks a check that passes on `main`. If nothing is fixable, hand off the unfixable ones and stop.
 5. Look for an open PR into `main` whose head branch starts with `chore/security-`. If one exists, update that branch (merge `origin/main` into it, never rebase or force-push) instead of opening a new one. Never open a second PR for the same advisory. If the Description of an open `chore/security-*` PR lists advisory IDs as step 10 writes them, and none of them appears on `main` any longer, close it with a short comment saying why.
-6. Otherwise create branch `chore/security-rustsec-<id>-<crate>-bump` from `origin/main` (for several advisories, use `chore/security-<short-crate-list>-bump`). Never push to `main` or a `claude/*` branch.
+6. If no open `chore/security-*` PR is left after step 5, create branch `chore/security-rustsec-<id>-<crate>-bump` from `origin/main` (for several advisories, use `chore/security-<short-crate-list>-bump`). Never push to `main` or a `claude/*` branch.
 7. For each fixable vulnerability: `cargo update -p <crate> --precise <patched-version>`, or the smallest bump that clears it. Edit a `Cargo.toml` version constraint only when a lockfile-only update cannot reach a patched version, and only within the current semver-compatible range.
 8. Verify:
    - `git diff --name-only` lists only `Cargo.lock`, plus `Cargo.toml` files if step 7 needed a constraint change. Nothing else.
    - Re-run `cargo audit --json` and compare with step 2. The fixed advisories are gone, and no new advisory appears.
-   - Run every step of the `ci` job of `.github/workflows/ci.yaml` except "Rust Version Check" and "Security Check". Use the commands, flags, and `env` of the workflow file. Read them from the file, not from this prompt. Compare failures with the `main` baseline. Only network-dependent `sec` failures that also fail on `main` are allowed.
+   - Run every `run` command of the `ci` job of `.github/workflows/ci.yaml` that comes after "Security Check", with its flags and `env`. Read them from the file, not from this prompt. Compare failures with the `main` baseline. Only network-dependent `sec` failures that also fail on `main` are allowed.
    - If a check fails that passes on `main`, drop the bump that caused it and treat that advisory as unfixable.
 9. Commit: `chore(deps): bump <crate> to <version> for <RUSTSEC-id>` (list several in the body if the PR covers several). End the commit with:
    Co-Authored-By: Claude <noreply@anthropic.com>
