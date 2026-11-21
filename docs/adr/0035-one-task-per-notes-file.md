@@ -45,7 +45,7 @@ The choice binds the transform job, the silver writer, and the `silver_files` ro
 | Field | Value |
 | ----- | ----- |
 | Date | 2026-11-21 |
-| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `84a54644`](https://linear.app/state-machine/issue/STA-463#comment-84a54644)). Corrected numbers confirmed on 2026-11-21 ([STA-463 comment `db1bbc43`](https://linear.app/state-machine/issue/STA-463#comment-db1bbc43)) |
+| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `84a54644`](https://linear.app/state-machine/issue/STA-463#comment-84a54644)). Wording of the cost confirmed on 2026-11-21 ([STA-463 comment `5ae4928f`](https://linear.app/state-machine/issue/STA-463#comment-5ae4928f)) |
 
 **Reason.** "Consequences" says that the job starts the largest files first. The plan gives the
 largest files the lowest task indexes, so that sentence assumes that Cloud Run starts tasks in
@@ -59,9 +59,9 @@ not rely on the order.
 **Consequences.**
 
 - A large file can start in the last round. The job then runs at most the time of one Notes file
-  longer: about 2.4 minutes for `2024q1`, measured on 2026-11-08 before GCS reads and the
-  standardize filing step. About 80 tasks in 10 parallel tasks run in 8 rounds, so about 30
-  minutes in all (estimate). The cost is then about a tenth of the run.
+  longer: about 2.4 minutes for `2024q1`, measured on 2026-11-08, plus about one minute of GCS
+  reads (estimate, see "Context"). The first run of the backfill transform measures the share of
+  the run that this adds.
 - The lease, its expiry, and the one task per unit key do not depend on the order.
 - The decision of this ADR, one task per Notes file, stays.
 - The sentence "The job starts the largest files first" in "Consequences" holds only as a hint.

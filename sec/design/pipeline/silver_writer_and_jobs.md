@@ -397,11 +397,10 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 - The plan of `transform-notes` sorts the Notes files by size, largest first, so the largest files
   get the lowest task indexes. With more than one parallel task, Cloud Run does not keep the index
   order ([ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md), Amendment 1). So the order
-  is a hint, and a large file can start in the last round. That adds at most the time of one Notes
-  file to the job.
+  is a hint, and the job does not rely on it.
 - The workflow passes `ARKAD_PLAN`, the plan ID, to the worker step.
 - `transform` and `series` read `CLOUD_RUN_TASK_INDEX`, `CLOUD_RUN_TASK_COUNT`, and
-  `ARKAD_JOB_STEP`. The worker step also reads `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`,
+  `ARKAD_JOB_STEP`. In the worker step, the binary also reads `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`,
   and `series` also reads `ARKAD_SERIES_MODE`. The design of the checks names the variables of
   `checks`. Each binary passes the values to the runner and to the source as arguments. The runner,
   the source, and the states read no environment variable.
