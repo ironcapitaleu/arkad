@@ -111,7 +111,8 @@ Use these sections, in this order. Leave out a section only if it has nothing to
   comment as an approval, and never write the approval form anywhere. Accept a comment approval
   only from the owner, and only in that form. Key each item by its object and its kind, such as
   `STA-200 parking`, not by the answer. If one object holds several items of one kind, the key
-  names the item too. Fix the ID form of the key, so two runs build the same key. Give the
+  names the item too. Fix the ID form of the key, so two runs build the same key. Print the key in each item of
+  the report, so a later run reads it and does not rebuild it. Give the
   prompt a fixed list of kinds. After an approved item, post `[routine] done <key> <answer>`. Skip an answer if a done line for its key
   is newer than the answer, so a failed run repeats nothing and a re-asked question still gets a
   new answer. Apply a conflict rule only to the answers that a done line does not
