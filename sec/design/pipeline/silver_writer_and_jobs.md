@@ -77,8 +77,8 @@ flowchart TB
 - The workflow deletes each lease after the worker step of its job kind ends. The diagram leaves
   these edges out.
 - `silver-daily` runs after the extract job `daily_filings`, with the kind `transform-daily`.
-  `silver-backfill` runs by hand, with the kind `transform-notes`. The queue holds the work of
-  both, see [Units From the Queue](#units-from-the-queue).
+  `silver-backfill` runs by hand, with the kind `transform-notes`. A unit source holds the work of
+  both, see [Where Units Come From](#where-units-come-from).
 - The checks and load have their own designs. This document fixes only their place in the chain.
 
 ## The Silver Writer
@@ -389,7 +389,7 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 
 | Binary | Step | Plan | Tasks of the worker step |
 | ------ | ---- | ---- | ------------------------ |
-| `transform` | `ARKAD_JOB_STEP=plan` | Lists the units, see [Units From the Queue](#units-from-the-queue) | One per unit |
+| `transform` | `ARKAD_JOB_STEP=plan` | Lists the units, see [Where Units Come From](#where-units-come-from) | One per unit |
 | `transform` | `ARKAD_JOB_STEP=work` | | Task `i` takes unit `i` of the plan |
 | `series` | `ARKAD_JOB_STEP=plan` | See [The Series Plan](#the-series-plan) | `run_tasks` |
 | `series` | `ARKAD_JOB_STEP=work` | | Task `t` takes its buckets |
@@ -399,41 +399,54 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
   get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
   feature of the plans checks the assumption.
 - The worker step reads `ARKAD_PLAN`, the plan ID that the workflow passes.
+- The task runner sits outside the state machine, as the facade of extract does. It starts one
+  machine per filing and runs them on its threads. No machine forks or joins.
 
-### Units From the Queue
+### Where Units Come From
 
-Extract publishes the reference of each stored document on the queue port: a `NotesArchiveRef`
-for each Notes file, and a `FilingDocumentsRef` for each filing. The queue holds the work. The
-workflow only starts a run ([ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md)).
+The transform plan step takes its units through one port, `UnitSource`, in `sec::silver`. A
+source hands out references to stored raw documents: a `NotesArchiveRef` for each Notes file, and
+a `FilingDocumentsRef` for each filing. The workflow only starts a run
+([ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md)).
 
-1. **Pull.** The transform plan step pulls every pending message of its path.
-2. **Group.** Each message names its unit key. A `NotesArchiveRef` gives its `NotesPeriod`, for
+| Backend | Hands out | Used for |
+| ------- | --------- | -------- |
+| Raw store listing | Each stored Notes file, or each filing of the filed dates of the window of `daily_filings`, the last four days. With `ARKAD_UNITS=all`, every stored document | Runs until the queue exists, and a full replay |
+| Raw write log | The entries of the write log of the raw store: from a checkpoint, from the start, or up to a time T | Normal runs, a full replay, and a replay "as of T" |
+| Queue | The messages that extract publishes for each stored document | Normal runs |
+
+The write log keeps every write, so a replay reads it. The queue keeps a message only until a
+consumer acknowledges it, so it hands out new work and holds no history. This design fixes the
+port and not the format of the log, so the log plugs in as one more backend.
+
+A plan step runs these steps on what its source hands out:
+
+1. **Take.** The plan step takes every pending reference of its path from its source.
+2. **Group.** Each reference names its unit key. A `NotesArchiveRef` gives its `NotesPeriod`, for
    example `2024q1`. A `FilingDocumentsRef` gives the filed date of its `FilingRef`, from the
    daily index. Each distinct key becomes one unit and one task.
 3. **Carry over.** The plan step adds each unit of the latest plan of its job kind whose task did
    not succeed. A task succeeds if it wrote the unit, or skipped it by rule 2 of a write. Each
    task records its result as a write-once object `plans/<job kind>/<plan id>/done/<unit key>`
    in the control bucket, after rule 4 of a write or after a skip by rule 2. If the object exists,
-   the task counts its result as recorded. The carried units go through the same grouping, so a key is in a plan
-   once. So a unit that failed runs again, and a skipped unit does not.
+   the task counts its result as recorded. The carried units go through the same grouping, so a
+   key is in a plan once. So a unit that failed runs again, and a skipped unit does not.
 4. **Write the plan, then acknowledge.** The plan step writes the plan, then acknowledges the
-   messages. From then on, the plan holds the work. A run can last hours, longer than a queue
-   keeps a pulled message without an acknowledgement.
+   references: it acknowledges the messages of the queue, or it moves the checkpoint of the write
+   log. From then on, the plan holds the work. A run can last hours, longer than a queue keeps a
+   pulled message without an acknowledgement.
 
-A message only names a key. The worker task builds the unit from every document of that key in
-the raw store: every filing of the stored daily index `sec/daily-index/form.<YYYYMMDD>.idx` of that day whose
-instance the store holds, not only the filings of the messages. So the
-unit does not depend on which messages arrived in which batch.
+A reference only names a key. The worker task builds the unit from every document of that key in
+the raw store: every filing of the stored daily index `sec/daily-index/form.<YYYYMMDD>.idx` of
+that day whose instance the store holds, not only the filings of the references. So the unit does
+not depend on which references arrived in which batch.
 
-The transform never waits for a day to be complete. A filing that arrives later publishes a
-message, and the next run writes its day again, with every filing of the day. The contract covers
-this case in "Replays": a late filing of a past day gives a new unit of the same key. A message
+The transform never waits for a day to be complete. A filing that arrives later gives a new
+reference, and the next run writes its day again, with every filing of the day. The contract covers
+this case in "Replays": a late filing of a past day gives a new unit of the same key. A reference
 that arrives twice changes nothing, because rule 2 of a write skips a unit whose inputs did not
 change. A day unit holds about 10 MB of Parquet (measured: 10.2 MB for 167 filings), so a rewrite
 costs little.
-
-Until the queue port exists, the plan step takes its units from the raw store: each Notes period
-with a stored file, or each filed date of the window of `daily_filings`, the last four days.
 
 ### Threads Inside a Transform Task
 
@@ -507,7 +520,7 @@ prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thre
 | Bug, with a panic | `panic = "abort"` of the release profile ends the process | As a timeout | As a timeout. A series run with a panic never counts | As a timeout. Each later run fails the same way until a fix |
 | Bug, wrong output | A rule gives a wrong value and no error | Written | Not detected by the run | A fix gets a new `transform_version`. A replay of the as-is layer writes new units, and the next series run writes a base |
 | Bad silver unit in the series | A `candidates` unit cannot be read or has an unknown `schema_version` | The series unit of the task is not written | The task fails. The run never counts, and each later run fails the same way | An unknown `schema_version`: deploy a `series` binary that reads it. A unit that cannot be read: a replay with a new `transform_version`, because rule 2 skips a replay with the same digest and version |
-| Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops. The messages stay in the queue | The next run of the workflow |
+| Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops. The references stay with their source | The next run of the workflow |
 | Lease lost | A worker task finds another plan in the lease, or less than one task timeout plus 1 minute before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
 
 - The per-filing transform design decides which filing the parser rejects, and the share of
@@ -515,7 +528,7 @@ prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thre
 - A series task that fails leaves its run without a count. The next series run compares against the
   run before it, so it recomputes every entity of the failed run.
 - A unit that fails stays in the next plan through the carry-over of
-  [Units From the Queue](#units-from-the-queue). The design of failure modes and dead letters
+  [Where Units Come From](#where-units-come-from). The design of failure modes and dead letters
   decides after how many runs a unit leaves the plan as a dead letter, and which signal raises an
   alert.
 
@@ -552,7 +565,7 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 6. FEATURE: `SilverRecord` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
-8. FEATURE: the transform plan step and task runner: units from the queue or the raw store, the
+8. FEATURE: the transform plan step and task runner: `UnitSource` with the raw store listing, the
    carry-over with tests that a skipped unit leaves the plan and that a unit whose task failed
    before rule 4 stays in it, one unit per task, threads, and
    the lease check.

@@ -32,7 +32,7 @@ Facts that bound the choice:
   90 filings on a business day.
 
 The choice binds the transform, series, and checks binaries, the deployment of MVP Operations, and
-the queue port, which holds the work of the transform.
+the unit source of the transform: the raw store, its write log, or the queue port.
 
 Terms in this ADR:
 
@@ -50,10 +50,10 @@ Terms in this ADR:
 2. **A Cloud Workflows workflow chains the steps.** It starts each execution after the execution
    before it ended. It reads the plan object and starts the worker step with the task count and the
    plan ID of the plan.
-3. **The queue holds the work, and the workflow starts the run.** The transform plan step pulls
-   the pending messages of its path and groups them by unit key: the Notes period, or the filed
-   date of the filing. It writes the plan, then acknowledges the messages. Until the queue port
-   exists, the plan step takes the units from the raw store.
+3. **A unit source holds the work, and the workflow starts the run.** The transform plan step
+   takes the pending references of its path from one port, backed by a listing of the raw store,
+   the write log of the raw store, or the queue. It groups them by unit key: the Notes period, or
+   the filed date of the filing. It writes the plan, then acknowledges the references.
 4. **Two workflows exist.** `silver-daily` runs after `daily_filings`: transform of the days, the
    series step, the checks, and load. `silver-backfill` runs by hand: transform of the Notes files,
    the series step, the checks, and load.
@@ -61,8 +61,8 @@ Terms in this ADR:
    with a `silver_files` row, and the next series run covers each unit written later. The workflow
    ends as failed.
 6. **Load starts only after the checks step succeeded.**
-7. **A busy lease stops the workflow** at the plan step, before any write. The messages stay in
-   the queue for the next run.
+7. **A busy lease stops the workflow** at the plan step, before any write. The references stay with
+   their source for the next run.
 
 ## Options Considered
 
@@ -99,7 +99,7 @@ Compared on 2026-11-16, on the facts in "Context".
 ## Open Questions
 
 - If the daily runs must start sooner than after `daily_filings`, a schedule of several runs a day
-  can start `silver-daily`. The plan step takes whatever the queue holds, so the steps stay.
+  can start `silver-daily`. The plan step takes whatever its source holds, so the steps stay.
 - The startup time of one execution is not measured. If it is long, a run with few units can merge
   the plan step into the worker step.
 
