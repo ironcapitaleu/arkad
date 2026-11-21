@@ -18,10 +18,11 @@ bigdecimal = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10"
 roxmltree = "0.21"
 sha2 = "0.11.1"
+flate2 = { version = "1", optional = true }
 
 [features]
 # Exposes `xbrl::tests` outside of `cfg(test)`, so the integration tests can use its fixtures.
-test-fixtures = []
+test-fixtures = ["dep:flate2"]
 # The generator of the US GAAP tables. A developer runs it once per release, and no normal build
 # needs it.
 generator = []

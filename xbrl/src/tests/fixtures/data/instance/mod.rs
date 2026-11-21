@@ -1,7 +1,10 @@
 //! # Instance Fixture
 //!
-//! The instance document `fdxf-20260930_htm.xml` of the 10-Q `0001628280-26-068246`, as EDGAR
-//! serves it, and a helper that parses it.
+//! The instance documents of the fixture filings, as EDGAR serves them, and a helper that parses
+//! the compiled-in one, `fdxf-20260930_htm.xml` of the 10-Q `0001628280-26-068246`. The
+//! directories of the five filings of the parser agreement set (AMD, Procter & Gamble, Walmart,
+//! Disney, and Apple) hold `.xml.gz` files, which [`fixture_content`](super::fixture_content)
+//! reads.
 
 use chrono::NaiveDate;
 
