@@ -373,6 +373,8 @@ records the decision, the measured options, and the fallback.
 - **`revert`**: Reverts a previous commit
 - **`chore`**: Routine maintenance not affecting app logic, CI/CD, or build output
 
+`.claude/` holds tooling for agents, such as skills, routines, and settings. It is not product code. A commit that changes only `.claude/` has the type `chore`, never `feat`, `fix`, or `doc`. A commit that also changes product code takes the type of the product change.
+
 ### Scope (Optional)
 
 - Package, service, or module name
