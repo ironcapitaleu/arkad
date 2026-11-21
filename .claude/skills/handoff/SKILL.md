@@ -6,7 +6,7 @@ description: >
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover. Also posts the stale points of that ticket in a comment, and assigns an
-  unassigned ticket to the user.
+  unassigned ticket to the user when the next session works for the user.
 version: 0.7.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
@@ -220,13 +220,15 @@ points of that comment are out of date.
   the PR. If no point is stale and the skill changed nothing on the ticket, post no comment.
 - If the destination is both, post only the state-of-play comment.
 
-**Assign an unassigned ticket to the user. This needs no question either**, if the next session
-works for the user: an agent session, or a Linear note that the user resumes. The user runs this
+**If the next session works for the user, assign an unassigned ticket to the user. This needs no
+question either.** The next session works for the user if it is an agent session, or a Linear note
+that the user resumes. The user runs this
 session, so the user owns the work that the session hands off. If the handoff ticket has no
 assignee, assign it to the user through the `linear` skill (`assignee: "me"`). Name the change in
 the list "Fixed on this ticket" of the comment, so the comment holds that list even if the user
-confirms no change. If the ticket has another assignee, or the user hands it to another person,
-leave it, and offer the change in the list below. A ticket that stays unassigned shows no owner,
+confirms no change. If the ticket has another assignee, leave it, and offer the change in the
+list below. If the user hands the ticket to another person, leave it, and name the open assignee in
+the chat reply. A ticket that stays unassigned shows no owner,
 and two sessions can take it.
 
 **Change the ticket itself only after the user agrees.** A change to the ticket is a checked box,
@@ -272,8 +274,8 @@ If Linear fails after a change, list the changes already made in the chat reply.
    nothing new in. A person then reviews and merges it. For work whose output lives outside the
    repository, such as a SPIKE that ends in a Linear document, the end is that document and a
    report, with no PR. Use this end unless the user names a different one.
-2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). If the ticket
-   has no assignee and the next session works for the user, assign it to the user now. Collect the stale points before you compile. If you offer a change, ask once at the end of step 4, or at
+2. **Update the ticket** if the handoff is for a ticket (see "Update the Ticket"). Collect the
+   stale points before you compile. If you offer a change, ask once at the end of step 4, or at
    the end of step 3 if there is no Roadmap. Post the comment in step 7.
 3. **Compile the document** from the conversation, following the template. Reference every artifact
    by path or URL. Do not paste file contents the successor can read itself. Pick the branch name
@@ -291,10 +293,13 @@ If Linear fails after a change, list the changes already made in the chat reply.
 5. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
 6. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
+   For a Linear note, ask whether the user or another person resumes it. If the ticket has no
+   assignee and the next session works for the user, assign it to the user now.
 7. **Deliver:**
    - **Comment first** — leave the comment by the rule in "Update the Ticket", through the
      `linear` skill, in status voice. For a Linear note or both, that is the state-of-play
-     comment. For an agent session alone, it is the short update comment, if a point is stale.
+     comment. For an agent session alone, it is the short update comment, if a point is stale or the
+     skill changed the ticket.
    - **Agent session** — put the URL of the comment under "Artifacts". Then print the whole
      document in the chat reply, inside one fenced code block tagged `markdown`. Put nothing else
      inside the block. Count the longest run of backticks that
