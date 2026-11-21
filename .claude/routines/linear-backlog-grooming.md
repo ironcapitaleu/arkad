@@ -44,6 +44,9 @@ The level of an action depends on how easily the run can undo it, and how much j
 | Create a fog ticket | Do | Its trigger is a fact the run can check, such as "STA-541 is Done" or "STA-290 is Done" |
 | Create a fog ticket | Propose | Its trigger needs judgement, such as "Transformation Done is close" |
 | Mark a duplicate | Do (owner exception to the `routine` skill, 2026-11-21: the condition needs judgement) | Two open issues have the same scope, checked on their descriptions, not their titles. The newer one becomes the duplicate of the older one |
+| Set the milestone of an issue | Do | "Milestone rule", point 2 holds: a fact decides the milestone |
+| Set the milestone of an issue | Propose | "Milestone rule", point 3: the milestone needs judgement |
+| Set the project of an issue that has none | Propose | "Milestone rule", point 4 |
 | Park an old ticket | Ask, then do | "Parking rule" holds |
 | Cancel a ticket because a decision replaced it | Propose | Quote the ADR, ledger entry, or merged PR that replaced it |
 | Cancel a ticket whose work already landed | Propose | Name the PR or commit that holds the work |
@@ -62,9 +65,9 @@ The routine writes as `@DeCa09`, so the author of a comment does not prove that 
 1. Start every comment the routine writes with `[routine]`. Never write an approval or an answer in the form of point 2 in any comment, document, or ticket.
 2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, `cancel <n>`, `archive <n>`, `backlog <n>`, or `reject <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
 3. Ignore every other comment as an approval, also when it quotes such a form.
-4. Give every item a key: the ID of its object and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`. Use the issue `identifier` for an issue, such as `STA-200`, and the `slugId` for a document or a project. Never use a UUID, a title, or a name as the ID, so every run writes the same key. One object can hold several items of one kind. So add the item after the kind: the entry title for a `fog` item, such as `<project slugId> fog "Parse XBRL footnotes"`, the identifier of the blocked issue for a `blocks-link` item, such as `STA-100 blocks-link STA-200`, and the source that the stale sentence names for a `stale` item: an issue identifier, a PR as `arkad#611`, a document `slugId`, or a path with its repository, such as `STA-200 stale arkad/docs/adr/0011-concept-hierarchy.md`. Drop backticks from a fog title in a key, so the printed key stays one code span. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an answer if a done line for its key is newer than the answer. So a run that failed halfway repeats nothing, and a later answer to a question asked again still runs.
+4. Give every item a key: the ID of its object and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`, `milestone`, `project`. Use the issue `identifier` for an issue, such as `STA-200`, and the `slugId` for a document or a project. Never use a UUID, a title, or a name as the ID, so every run writes the same key. One object can hold several items of one kind. So add the item after the kind: the entry title for a `fog` item, such as `<project slugId> fog "Parse XBRL footnotes"`, the identifier of the blocked issue for a `blocks-link` item, such as `STA-100 blocks-link STA-200`, and the source that the stale sentence names for a `stale` item: an issue identifier, a PR as `arkad#611`, a document `slugId`, or a path with its repository, such as `STA-200 stale arkad/docs/adr/0011-concept-hierarchy.md`. Drop backticks from a fog title in a key, so the printed key stays one code span. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an answer if a done line for its key is newer than the answer. So a run that failed halfway repeats nothing, and a later answer to a question asked again still runs.
 5. If two answers that point 4 does not skip differ for one key, carry out neither. Post `[routine] done <key> conflict: asked again` on the report, and ask again. So only a later answer counts.
-6. A `reject` answer posts `[routine] done <key> reject` on the report. It also posts `[routine] rejected <key> until <date + 90 days>` as a comment on the object of the key: the issue, the document, or the project of an `epic` or `fog` item. If the note fails to post, write a hand-off note with the key and the error. Do not list that key again before that date. Before you list an item in steps 4, 8, or 10 to 12, read the comments of its object. Skip the item if a `[routine] rejected <key> until` note for its own key still holds. A `cancelled-park` item offers no `reject`: `archive` is its answer for no.
+6. A `reject` answer posts `[routine] done <key> reject` on the report. It also posts `[routine] rejected <key> until <date + 90 days>` as a comment on the object of the key: the issue, the document, or the project of an `epic` or `fog` item. If the note fails to post, write a hand-off note with the key and the error. Do not list that key again before that date. Before you list an item in steps 4 or 8 to 12, read the comments of its object. Skip the item if a `[routine] rejected <key> until` note for its own key still holds. A `cancelled-park` item offers no `reject`: `archive` is its answer for no.
 
 # Capacity rule
 
@@ -130,6 +133,20 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 4. **Park.** Append the issue to the "Parked Ideas" document of its project: link, title, date parked, the reason, and its full description. Then set the issue to Canceled with a comment that links the entry. A later run archives it by "Archive rule".
 5. A parked issue comes back by unarchiving it, or by a new ticket cut from its entry.
 
+# Milestone rule
+
+An open issue (Backlog, Todo, In Progress, or In Review) in a project with milestones should sit in one of them. Otherwise the milestone views and the epic's progress leave it out.
+
+1. **Find.** List the open issues that have a project but no milestone, and the open issues with no project. Skip closed issues, issues in a project with no milestones, and issues whose history shows that a person removed their milestone.
+2. **Do.** Set the milestone when one of these facts holds, and take the first that fits:
+   - The project has exactly one milestone that is not complete.
+   - The issue's parent sits in a milestone of the same project.
+   - Every open issue that this issue blocks sits in one and the same milestone.
+   Comment on the issue: `[routine] milestone set to <name>: <the fact>`. List the change in the report under "Milestones set", so the owner can undo it.
+3. **Propose.** If no fact decides, but the issue's scope fits one milestone by its description or by the Definition of Done of the milestone, propose that milestone with a one-line reason. Key: `<identifier> milestone`. If two milestones fit, name both and recommend one.
+4. **No project.** Propose the project whose epic description or fog log covers the issue, and the milestone in it by point 2 or 3. Key: `<identifier> project`. Never set a project alone.
+5. **Report.** Give the count of open issues without a milestone per project, before and after this run, next to the capacity numbers.
+
 # Steps
 
 1. Load the conventions. Attach and clone the two repositories if needed.
@@ -142,7 +159,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures. Then compute the projected total again from the real total after the archive. If this projection is 230 or more, write the hand-off note of the critical zone.
 7. Write one document "Archived Issues Index (Temporary, <YYYY-MM-DD>)" on MVP Data Pt. 2. At the top: nothing was deleted, links still work, how to unarchive, and which documents moved to which project. Then a table of the issues with an open relation, files, or a moved document, and a plain list of the rest, each with link, title, and project.
 8. Fog tickets. For each entry of "Tickets to create later" whose trigger is a checkable fact that holds: check that no open or recent issue covers it already, then create the ticket with the template, label, project, milestone, and blocking links of the `linear` skill. Replace the fog entry with a link to the new ticket. An entry whose trigger needs judgement becomes a proposal.
-9. Duplicates. For each pair that meets the duplicate condition of "Autonomy", mark the newer issue as a duplicate of the older one, and comment on both with the reason.
+9. Duplicates and milestones. For each pair that meets the duplicate condition of "Autonomy", mark the newer issue as a duplicate of the older one, and comment on both with the reason. Then apply "Milestone rule" to the issues that are still open: set the milestones that a fact decides, and add its proposals to the list of step 13.
 10. Parking. Apply "Parking rule": park the issues whose two questions went unanswered, and list the new questions.
 11. Dwell. Apply "Dwell rule" to every issue in In Progress or In Review. Add its questions and proposals to the list of step 13, and its hand-offs to "Hand off to the human".
 12. Proposals. Never act on these in this run:
@@ -191,7 +208,8 @@ For each item that needs the human (an API error, a failed archive, a document t
 When done, report briefly:
 - The zone and the backlog pressure, the total before and after, the projected total at the next run, the closed, open, and in-work counts, the floor, the room left under 250, the creation rate, the net growth, and the floor forecast.
 - Issues archived, documents moved, failures.
-- Tickets created, duplicates marked, issues parked.
+- Tickets created, duplicates marked, milestones set, issues parked.
+- Open issues without a milestone per project, before and after.
 - Issues over their dwell limit, by cause, and the median days from In Progress to Done per type.
 - Approved items carried out.
 - New proposals and questions, by kind.
