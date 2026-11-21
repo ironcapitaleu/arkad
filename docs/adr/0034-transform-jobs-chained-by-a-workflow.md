@@ -51,7 +51,7 @@ Terms in this ADR:
    before it ended. It reads the plan object and starts the worker step with the task count and the
    plan ID of the plan.
 3. **A unit source holds the work, and the workflow starts the run.** The transform plan step
-   takes the pending references of its path from one port, backed by a listing of the raw store,
+   takes the references of its path from one port, backed by a listing of the raw store,
    the write log of the raw store, or the queue. It groups them by unit key: the Notes period, or
    the filed date of the filing. It writes the plan, then acknowledges the references.
 4. **Two workflows exist.** `silver-daily` runs after `daily_filings`: transform of the days, the

@@ -79,7 +79,7 @@ flowchart TB
 - `silver-daily` runs after the extract job `daily_filings`, with the kind `transform-daily`.
   `silver-backfill` runs by hand, with the kind `transform-notes`. A unit source holds the work of
   both, see [Where Units Come From](#where-units-come-from).
-- The checks and load have their own designs. This document fixes only their place in the chain.
+- The checks and load have their own designs. This document sets only their place in the chain.
 
 ## The Silver Writer
 
@@ -90,10 +90,10 @@ flowchart TB
 | Silver backend | `storage` | `SilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects. Filesystem by default |
 | Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
 | GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
-| Silver code | `sec`, module `silver` | `SilverRecord`, `DigestRow`, the row types, the writer, the reader, the plans, and the task runner |
+| Silver code | `sec`, module `silver` | `SilverRecord`, `DigestRow`, the row types, the writer, the reader, the plans, `UnitSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
-Only one trait is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
+Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
 Principle"):
 
 - **Writes go through `WriteRepository::persist`.** `SilverObjectStore` writes each object once.
@@ -412,16 +412,23 @@ a `FilingDocumentsRef` for each filing. The workflow only starts a run
 | Backend | Hands out | Used for |
 | ------- | --------- | -------- |
 | Raw store listing | Each stored Notes file, or each filing of the filed dates of the window of `daily_filings`, the last four days. With `ARKAD_UNITS=all`, every stored document | Runs until the queue exists, and a full replay |
-| Raw write log | The entries of the write log of the raw store: from a checkpoint, from the start, or up to a time T | Normal runs, a full replay, and a replay "as of T" |
+| Raw write log | The entries of the write log of the raw store: from a checkpoint, or from the start | Normal runs and a full replay |
 | Queue | The messages that extract publishes for each stored document | Normal runs |
 
 The write log keeps every write, so a replay reads it. The queue keeps a message only until a
-consumer acknowledges it, so it hands out new work and holds no history. This design fixes the
-port and not the format of the log, so the log plugs in as one more backend.
+consumer acknowledges it, so it hands out new work and holds no history. This design sets the
+port, not the format of the log. The log then becomes one more backend.
+
+A replay always builds its units from the raw store as it is now. A read "as silver held it at
+T" of the contract is the tool for the past.
+
+The checkpoint of the write log is a control object `checkpoints/<job kind>` in the control
+bucket. Only a normal run moves it, under the lease of its job kind. A full replay does not move
+it.
 
 A plan step runs these steps on what its source hands out:
 
-1. **Take.** The plan step takes every pending reference of its path from its source.
+1. **Take.** The plan step takes every reference that its source hands out for its path.
 2. **Group.** Each reference names its unit key. A `NotesArchiveRef` gives its `NotesPeriod`, for
    example `2024q1`. A `FilingDocumentsRef` gives the filed date of its `FilingRef`, from the
    daily index. Each distinct key becomes one unit and one task.
@@ -565,10 +572,10 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 6. FEATURE: `SilverRecord` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
-8. FEATURE: the transform plan step and task runner: `UnitSource` with the raw store listing, the
-   carry-over with tests that a skipped unit leaves the plan and that a unit whose task failed
-   before rule 4 stays in it, one unit per task, threads, and
-   the lease check.
+8. FEATURE: the transform plan step and task runner: `UnitSource` with the raw store listing,
+   one unit per task, threads, and the lease check. Tests: the listing hands out the four days of
+   the window, and every stored document with `ARKAD_UNITS=all`. A skipped unit leaves the next
+   plan, and a unit whose task failed before rule 4 stays in it.
 9. FEATURE: failure handling and the run summary of the transform task.
 10. FEATURE: `xbrl::core::series::standardize_series`.
 11. FEATURE: the series plan and `compare_series`, with the keys of a base after a failed base.
