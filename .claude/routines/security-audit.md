@@ -72,7 +72,7 @@ Any other failing step or required check, any new advisory, or any pending requi
 8. Verify:
    - `git diff --name-only` lists only `Cargo.lock`, plus `Cargo.toml` files if step 7 needed a constraint change. Nothing else.
    - Re-run `cargo audit --json` and compare with step 2. The fixed advisories are gone, and no new advisory appears.
-   - Run every `run` command of the `ci` job of `.github/workflows/ci.yaml` that comes after "Security Check", with its flags and `env`. Read them from the file, not from this prompt. Compare failures with the `main` baseline. Only network-dependent `sec` failures that also fail on `main` are allowed.
+   - Run every `run` command of every job of `.github/workflows/ci.yaml`, with its flags and `env`. Skip the "Read the Rust Version" steps, and the steps of the `ci` job up to and including "Security Check". Read the commands from the file, not from this prompt. Run them on `main` too, and compare the failures. Only network-dependent `sec` failures that also fail on `main` are allowed.
    - If a check fails that passes on `main`, drop the bump that caused it and treat that advisory as unfixable.
 9. Commit: `chore(deps): bump <crate> to <version> for <RUSTSEC-id>` (list several in the body if the PR covers several). End the commit with:
    Co-Authored-By: Claude <noreply@anthropic.com>
