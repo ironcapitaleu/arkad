@@ -91,7 +91,7 @@ Archiving frees the slots of closed issues, but not of open ones. So the rule wa
    - **Amber zone:** "Archive rule" with 14 days.
    - **Red zone:** "Archive rule" with 7 days. Write a hand-off note for the red zone.
    - **Critical zone:** "Archive rule" with 7 days, and create no fog ticket. Write one hand-off note with the projected total. Ask the owner to start an extra run before the next 1st or 15th, or to create no new tickets until then.
-   - **Every zone:** before you create a fog ticket, check that the projected total stays under 230 with it and with every ticket this run created. Otherwise make it a proposal.
+   - **Every zone:** before you create a fog ticket, check that the projected total stays under 230 with it and with every ticket this run created. Otherwise defer an approved ticket by step 8, and make any other ticket a proposal.
    - **High backlog pressure:** ask the parking question at 60 days without update (45 in the red or critical zone) instead of 90. Put the proposals to close, prune, or split an epic first in the form. Name the three projects with the highest net growth. Write a hand-off note for the backlog pressure.
 6. **Report.** The report starts with the zone, the backlog pressure, the total, the projected total at the next run, the closed, open, and in-work counts, the floor, the room left, the creation rate, the net growth, and the floor forecast. If the zone or the pressure got worse since the last report, say why, such as a burst of new tickets in one epic.
 
