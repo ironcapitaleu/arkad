@@ -26,14 +26,12 @@ use std::collections::BTreeSet;
 
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
-use xbrl::core::closed_group::derive_from_closed_groups;
 use xbrl::core::dedup::Series;
-use xbrl::core::period_identity::derive_q4;
 use xbrl::core::standardized::StandardizedFact;
 use xbrl::tests::fixtures::data::GZIP_EXTENSION;
 use xbrl::tests::fixtures::data::manifest::manifest;
 use xbrl::tests::fixtures::data::resolved::{
-    SPIKE_ROLL_UPS, fiscal_year_value, resolve_fixture_filings,
+    SPIKE_ROLL_UPS, derived_values, fiscal_year_value, resolve_fixture_filings,
 };
 
 /// The prefix of the path of a Notes fixture file in the manifest.
@@ -83,13 +81,12 @@ macro_rules! roll_up_tests {
                     "Given the sub row of a 10-K, the period of report should always exist",
                 );
                 let series = resolved.series();
-                let fourth_quarters = derive_q4(&series);
 
                 let expected_result = vec![$($line),+];
 
                 let result = roll_up_lines(
                     &series,
-                    &derive_from_closed_groups(&series, &fourth_quarters),
+                    &derived_values(&series),
                     year_end,
                 );
 
