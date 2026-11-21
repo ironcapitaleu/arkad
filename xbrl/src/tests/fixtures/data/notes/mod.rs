@@ -251,4 +251,12 @@ mod tests {
 
         let _rows = table(text);
     }
+
+    #[test]
+    #[should_panic(expected = "the row should have one field per column")]
+    fn should_panic_when_a_row_has_fewer_fields_than_the_header() {
+        let text = "dimhash\tsegments\tsegt\n0x1\t0\n";
+
+        let _rows = table(text);
+    }
 }

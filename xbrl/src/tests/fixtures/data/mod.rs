@@ -57,7 +57,7 @@ pub fn fixture_file(file: &str) -> Vec<u8> {
 ///
 /// # Panics
 ///
-/// Panics if the file does not exist, or if a `.gz` file is no valid gzip.
+/// Panics if the file does not exist, or if a `.gz` file is not valid gzip.
 #[must_use]
 pub fn fixture_content(file: &str) -> Vec<u8> {
     content_of(file, fixture_file(file))
@@ -68,7 +68,7 @@ pub fn fixture_content(file: &str) -> Vec<u8> {
 ///
 /// # Panics
 ///
-/// Panics if a `.gz` file is no valid gzip.
+/// Panics if a `.gz` file is not valid gzip.
 #[must_use]
 pub fn content_of(file: &str, stored: Vec<u8>) -> Vec<u8> {
     if !file.ends_with(GZIP_EXTENSION) {
@@ -82,7 +82,7 @@ pub fn content_of(file: &str, stored: Vec<u8>) -> Vec<u8> {
 }
 
 /// Returns the path of every fixture file below the fixture data directory, relative to it, except
-/// the Rust sources and `manifest.tsv`, in sorted order.
+/// the Rust sources and the manifest at the root of the directory, in sorted order.
 ///
 /// # Panics
 ///
