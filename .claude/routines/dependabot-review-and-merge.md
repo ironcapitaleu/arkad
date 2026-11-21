@@ -16,7 +16,7 @@ Review every open Dependabot PR in `ironcapitaleu/arkad`. Review, approve, and s
 
 **Done means all of these hold:**
 1. Every open Dependabot PR is merged, waits for its checks or a `@dependabot rebase`, or has a current hand-off note and the `needs-human` label.
-2. Every merged PR passed steps 4 to 10 on the head SHA that merged, and carries the labels that "Labels" sets.
+2. Every merged PR passed steps 4, 5, 8, and 9 on the head SHA that merged, and carries the labels that "Labels" sets.
 3. After the last merge, CI on `main` is checked, and a new red check or a new advisory is handed off.
 4. The report lists each PR and what the run did with it.
 
@@ -99,7 +99,7 @@ When something needs the human (a flagged PR, a refused merge, or a failure outs
 
 ```
 [routine] @DeCa09 **What:** <one line: PR #N, crate and versions>
-**Why it needs you:** <one or two lines: major bump of X / breaking change in Y that touches crates/... / raises MSRV above the version of rust-toolchain.toml / check Z fails because ...>
+**Why it needs you:** <one or two lines: major bump of X / breaking change in Y that touches crates/... / raises MSRV above the `channel` of rust-toolchain.toml / check Z fails because ...>
 **To proceed:** <concrete next step: e.g. "upgrade X by hand and fix the calls in crates/...", "bump the CI toolchain first", "close it; we stay on 0.4">
 ```
 
@@ -142,4 +142,4 @@ How to set them:
 # Reporting
 
 - On completion, report: reviewed and approved, merged into `main` (say which ones used the bypass, and why), updated, and handed off with reasons (including major bumps). Keep it short.
-- Send a push notification only with a hand-off note. A clean run sends none.
+- Send a push notification only with a hand-off note, or when the run fails, as in step 2. A clean run sends none.

@@ -43,8 +43,8 @@ The level of an action depends on how easily the run can undo it, and how much j
 | Action | Level | Condition |
 | ------ | ----- | --------- |
 | Create a `chore/security-*` branch and open its fix PR | Do | Step 4 finds a fixable vulnerability, and no open `chore/security-*` PR covers it |
-| Update the open `chore/security-*` branch | Do | Merge `origin/main` into it (step 5). Never rebase |
-| Close a `chore/security-*` PR | Do | It covers only advisories that no longer appear on `main` (step 5) |
+| Update the open `chore/security-*` branch | Do | An open `chore/security-*` PR covers a fixable advisory (step 5) |
+| Close a `chore/security-*` PR | Do | Its Description lists advisory IDs as step 10 writes them, and each of them no longer appears on `main` (step 5) |
 | Squash-merge the routine's own fix PR through the ruleset bypass | Do (owner exception to the `routine` skill, `@DeCa09`, 2026-11-21: a merge is hard to undo, and the Red `Security Check` rule needs judgement) | Every condition of step 12 holds |
 | Add or remove a label | Do | As "Labels" says |
 | Hand off an unfixable advisory, a refused merge, or a red check | Propose | Step 4, 12, or 13 finds it |
@@ -66,13 +66,13 @@ Any other failing step or required check, any new advisory, or any pending requi
 2. `git fetch origin main`. Check whether the "Security Check" step passed in the latest scheduled CI run on `main`. Then run `cargo audit --json` on a clean checkout of `origin/main` and treat that as the source of truth. Record every advisory: RUSTSEC ID, crate, installed version, vulnerability or warning (unmaintained, yanked), and patched range.
 3. If no vulnerability advisory is reported: report "nothing to do" and stop. Send no notification. Warnings alone are information only.
 4. Sort the vulnerabilities into fixable (a patched version reachable within the current semver-compatible range) and unfixable. A vulnerability is unfixable when it has no patched version, the fix needs a semver-major bump (for 0.x crates, a bump of the first non-zero number counts as major), the fix needs source changes, or the bump breaks a check that passes on `main`. If nothing is fixable, hand off the unfixable ones and stop.
-5. Look for an open PR into `main` whose head branch starts with `chore/security-`. If one exists, update that branch (merge `origin/main` into it, never rebase or force-push) instead of opening a new one. Never open a second PR for the same advisory. If an open `chore/security-*` PR covers only advisories that no longer appear on `main`, close it with a short comment saying why.
+5. Look for an open PR into `main` whose head branch starts with `chore/security-`. If one exists, update that branch (merge `origin/main` into it, never rebase or force-push) instead of opening a new one. Never open a second PR for the same advisory. If the Description of an open `chore/security-*` PR lists advisory IDs as step 10 writes them, and none of them appears on `main` any longer, close it with a short comment saying why.
 6. Otherwise create branch `chore/security-rustsec-<id>-<crate>-bump` from `origin/main` (for several advisories, use `chore/security-<short-crate-list>-bump`). Never push to `main` or a `claude/*` branch.
 7. For each fixable vulnerability: `cargo update -p <crate> --precise <patched-version>`, or the smallest bump that clears it. Edit a `Cargo.toml` version constraint only when a lockfile-only update cannot reach a patched version, and only within the current semver-compatible range.
 8. Verify:
    - `git diff --name-only` lists only `Cargo.lock`, plus `Cargo.toml` files if step 7 needed a constraint change. Nothing else.
    - Re-run `cargo audit --json` and compare with step 2. The fixed advisories are gone, and no new advisory appears.
-   - Run the `ci` steps of `.github/workflows/ci.yaml` after "Security Check", with the same flags: `cargo fmt --check`, `cargo check`, `cargo doc`, `cargo clippy`, `cargo test --lib`, `cargo test --bins --features tracing-logging`, and `cargo test --doc`. Compare failures with the `main` baseline. Only network-dependent `sec` failures that also fail on `main` are allowed.
+   - Run every step of the `ci` job of `.github/workflows/ci.yaml` except "Rust Version Check" and "Security Check". Use the commands, flags, and `env` of the workflow file. Read them from the file, not from this prompt. Compare failures with the `main` baseline. Only network-dependent `sec` failures that also fail on `main` are allowed.
    - If a check fails that passes on `main`, drop the bump that caused it and treat that advisory as unfixable.
 9. Commit: `chore(deps): bump <crate> to <version> for <RUSTSEC-id>` (list several in the body if the PR covers several). End the commit with:
    Co-Authored-By: Claude <noreply@anthropic.com>
@@ -129,4 +129,4 @@ How to set them:
 # Reporting
 
 - On completion, report: advisories found on `main` (vulnerabilities and warnings), fixed, remaining and why, PRs opened, updated, closed, or merged (full URLs, and whether the Red `Security Check` rule was used), Claude review status (ran / findings fixed / did not run), hand-offs sent, final `cargo audit` state. Keep it short.
-- Send a push notification only with a hand-off note. A clean run sends none.
+- Send a push notification only with a hand-off note, or when the run fails. A clean run sends none.
