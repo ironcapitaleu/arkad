@@ -16,7 +16,7 @@ Make `ironcapitaleu/arkad` as secure as possible. Find RUSTSEC vulnerability adv
 
 **Done means all of these hold:**
 1. Every vulnerability advisory on `main` from step 2 is fixed in a merged PR, is in an open `chore/security-*` PR that waits for its checks, or has a hand-off note.
-2. No open `chore/security-*` PR lists advisory IDs as step 10 writes them while none of those IDs appears on `main`.
+2. No open `chore/security-*` PR lists advisory IDs as step 10 writes them, with none of those IDs on `main`.
 3. After a merge, CI on `main` is checked, and a new red check or a new advisory is handed off.
 4. The report lists the advisories, the PRs, and the final `cargo audit` state.
 
@@ -42,7 +42,7 @@ The level of an action depends on how easily the run can undo it, and how much j
 
 | Action | Level | Condition |
 | ------ | ----- | --------- |
-| Create a `chore/security-*` branch and open its fix PR | Do | Step 4 finds a fixable vulnerability, and no open `chore/security-*` PR covers it |
+| Create a `chore/security-*` branch and open its fix PR | Do | Step 4 finds a fixable vulnerability, and no open `chore/security-*` PR is left after step 5 |
 | Update the open `chore/security-*` branch | Do | An open `chore/security-*` PR covers a fixable advisory (step 5) |
 | Close a `chore/security-*` PR | Do | Its Description lists advisory IDs as step 10 writes them, and each of them no longer appears on `main` (step 5) |
 | Squash-merge the routine's own fix PR through the ruleset bypass | Do (owner exception to the `routine` skill, `@DeCa09`, 2026-11-21: a merge is hard to undo, and the Red `Security Check` rule needs judgement) | Every condition of step 12 holds |
