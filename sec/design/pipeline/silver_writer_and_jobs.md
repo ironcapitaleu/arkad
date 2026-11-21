@@ -76,8 +76,8 @@ flowchart TB
 - The workflow deletes each lease after the worker step of its job kind ends. The diagram leaves
   these edges out.
 - `silver-daily` runs after the extract job `daily_filings`, with the kind `transform-daily`.
-  `silver-backfill` runs by hand, with the kind `transform-notes`. A unit source holds the work of
-  both, see [Where Units Come From](#where-units-come-from).
+  `silver-backfill` runs by hand, with the kind `transform-notes`. A `RawDocumentSource` holds the
+  work of both, see [Where Units Come From](#where-units-come-from).
 - The checks and load have their own designs. This document sets only their place in the chain.
 
 ## The Silver Writer
@@ -397,10 +397,10 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 - The plan of `transform-notes` sorts the Notes files by size, largest first, so the largest files
   get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
   feature of the plans checks the assumption.
-- The worker step reads `ARKAD_PLAN`, the plan ID that the workflow passes.
-- The binary reads the task index, the task count, and `ARKAD_PLAN` from the environment of the
-  Cloud Run task, and passes them to the runner as plain values. The runner and the states read
-  no variable of the platform.
+- The workflow passes `ARKAD_PLAN`, the plan ID, to the worker step.
+- The binary reads every environment variable: `CLOUD_RUN_TASK_INDEX`, `CLOUD_RUN_TASK_COUNT`,
+  `ARKAD_JOB_STEP`, `ARKAD_PLAN`, and `ARKAD_UNITS`. It passes their values to the runner and to
+  the source as arguments. The runner, the sources, and the states read no environment variable.
 - The task runner sits outside the state machine, as the facade of extract does. It starts one
   machine per filing and runs them on its threads. No machine forks or joins.
 
@@ -421,8 +421,8 @@ The write log keeps every write, so a replay reads it. The queue keeps a message
 consumer acknowledges it, so it hands out new work and holds no history. This design sets the
 port, not the format of the log. The log then becomes one more backend.
 
-A replay always builds its units from the raw store as it is now. To read the past, use the read
-"as silver held it at T" of the contract.
+A replay always builds its units from the raw store as it is now. To read the past, read silver "as
+it held it at T", as the contract defines.
 
 The checkpoint of the write log is a control object `checkpoints/<job kind>` in the control
 bucket. Only a normal run moves it, under the lease of its job kind. A full replay does not move
