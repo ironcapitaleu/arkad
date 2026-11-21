@@ -11,7 +11,7 @@ use chrono::{DateTime, Utc};
 
 use super::candidate::{Candidate, CandidateValue, SeriesKey};
 use super::fact::{AsIsFact, Decimals, FactValue, FilingSource};
-use super::period::Period;
+use super::period::{Duration, Period};
 use super::standardized::StandardizedFact;
 
 /// The ID of the rule that picks one copy of a value key in one filing.
@@ -53,8 +53,8 @@ impl<'a> Copies<'a> {
 /// the result does not depend on the order of the checks. If no rank conflicts with the lowest
 /// rank, the group keeps the lowest rank. Otherwise the group keeps every rank as a conflict.
 ///
-/// A rank is a copy of the lowest rank if both have the same exact start, or if either has no
-/// exact start. A copy conflicts if its value disagrees. Two numeric values agree if they are equal
+/// A rank is a copy of the lowest rank if both have the same exact start, or if either is an
+/// instant. A copy conflicts if its value disagrees. Two numeric values agree if they are equal
 /// after rounding both to the precision of the less precise one. If either has no `decimals`, they
 /// agree only if they are equal. Two values that are not both numeric agree only if they are equal.
 ///
@@ -199,9 +199,11 @@ fn is_known_at(source: &FilingSource, as_of: DateTime<Utc>) -> bool {
 /// Returns `true` if `rank` conflicts with `first`, the lowest rank of its value key, as
 /// [`more_precise`] defines it.
 pub(super) fn conflicts_with(first: &AsIsFact, rank: &AsIsFact) -> bool {
-    match (first.context.period.start(), rank.context.period.start()) {
-        (Some(first_start), Some(rank_start)) if first_start != rank_start => {
-            is_nearer_to_full_quarters(rank, first)
+    match (first.context.period, rank.context.period) {
+        (Period::Duration(first_period), Period::Duration(rank_period))
+            if first_period.start() != rank_period.start() =>
+        {
+            is_nearer_to_full_quarters(rank_period, first_period)
         }
         _ => !facts_agree(first, rank),
     }
@@ -209,20 +211,8 @@ pub(super) fn conflicts_with(first: &AsIsFact, rank: &AsIsFact) -> bool {
 
 /// Returns `true` if the length of `rank` lies nearer to its whole number of quarters than the
 /// length of `first`. On a tie, which needs a multiple of 8 quarters, `first` stays.
-fn is_nearer_to_full_quarters(rank: &AsIsFact, first: &AsIsFact) -> bool {
-    match (distance(rank), distance(first)) {
-        (Some(rank_distance), Some(first_distance)) => rank_distance < first_distance,
-        _ => false,
-    }
-}
-
-/// Returns the distance of the length of `fact` to its whole number of quarters, or `None` if the
-/// period has no exact start.
-fn distance(fact: &AsIsFact) -> Option<i64> {
-    match fact.context.period {
-        Period::Duration(duration) => duration.distance_to_full_quarters(),
-        Period::Instant { .. } => None,
-    }
+fn is_nearer_to_full_quarters(rank: Duration, first: Duration) -> bool {
+    rank.distance_to_full_quarters() < first.distance_to_full_quarters()
 }
 
 /// Returns `true` if the value of `copy` agrees with the value of `first`.
@@ -381,26 +371,6 @@ mod tests {
         let expected_result = Copies {
             facts: vec![&quarter],
             conflicts: Vec::new(),
-        };
-
-        let result = more_precise(&facts);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_report_a_conflict_when_a_rank_without_an_exact_start_disagrees_with_rank_zero() {
-        let filing = source("0001628280-26-068246", date(2026, 11, 5));
-        let quarter = from(fact(&filing, "Revenues", "500000000"), date(2026, 7, 1));
-        let mut copy = fact(&filing, "Revenues", "660000000");
-        copy.context.period =
-            Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1));
-        copy.copy_rank = 1;
-        let facts = vec![quarter.clone(), copy.clone()];
-
-        let expected_result = Copies {
-            facts: Vec::new(),
-            conflicts: vec![vec![&quarter, &copy]],
         };
 
         let result = more_precise(&facts);
@@ -626,7 +596,10 @@ mod tests {
         let filing = source("0000320193-24-000123", date(2024, 11, 1));
         let year = candidate(&filing, "400");
         let mut quarter = candidate(&filing, "100");
-        quarter.period = Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 1));
+        quarter.period = Period::Duration(
+            Duration::from_dates(date(2024, 6, 30), date(2024, 9, 28))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
         let candidates = vec![year, quarter];
 
         let expected_result = vec![1, 4];

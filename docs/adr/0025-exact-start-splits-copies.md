@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([STA-490 comment `4538cd45`](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key#comment-4538cd45)) |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-490 comment `4538cd45`](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key#comment-4538cd45)). Amendment 1: Accepted by the project lead on 2026-11-21 ([STA-546 comment `901891a8`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-901891a8)). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-490](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key) |
@@ -66,6 +66,33 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
    `concepts` holds the members of the group with a value, in the order of the roll-up tables,
    `periods` holds the period end and length of the slot, and `reason` holds the name of the
    group. A value without an exact start joins the slot of its end and length.
+
+## Amendment 1: Every Duration Has an Exact Start
+
+Date: 2026-11-21.
+
+**Reason.** Decision 3 runs on `main` since ironcapitaleu/arkad#606. So every parser gives each
+duration an exact start: the Notes parser from `durp`, the instance parser from `startDate`, and
+`adapter::edgar` from the `start` field of the JSON, which makes an instant when the field is
+missing. No code builds a duration without a start, except tests. Decisions 1 and 5 still name
+a rank or a value without an exact start. That case cannot occur, and its branches hide a source
+that drops the start.
+
+**Decision.** A duration always has an exact start. `Duration` holds the start as a date, not as
+an option, and the constructor from an end and a length in quarters is gone. In decision 1, two
+ranks compare as copies if they have the same start, or if either rank is an instant. In
+decision 5, a value without an exact start does not exist, so the sentence on it no longer
+applies. An instant has no start, as before.
+
+**Consequences.**
+
+- A source that gives no start for a duration fails to compile against `Duration`, or must
+  reject the fact. No rule silently treats it as a copy or lets it join every slot.
+- `core/period/q4-from-fy@1` decides a short year by the day count alone. Its fallback on a
+  `10-KT` and on the previous annual report is gone, so `derive_q4` takes no filings.
+- `StartBeforeEarliestYear` reads the exact start. Its estimate from the length is gone.
+- The `start` of a duration in the `/v1` API contract is a required date, not a nullable one.
+- `period_start` of `as_is_facts` stays nullable, because an instant has no start.
 
 ## Options Considered
 

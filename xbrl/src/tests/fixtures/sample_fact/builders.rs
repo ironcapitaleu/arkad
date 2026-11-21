@@ -80,8 +80,11 @@ fn usd() -> Unit {
         .expect("Given a hardcoded unit with one measure, the parse should always succeed")
 }
 
-const fn fiscal_year_2024() -> Period {
-    Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4))
+fn fiscal_year_2024() -> Period {
+    Period::Duration(
+        Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
+            .expect("Given an end after the start, the creation should always succeed"),
+    )
 }
 
 fn release() -> TaxonomyRelease {

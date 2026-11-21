@@ -6,12 +6,12 @@
 
 use std::cmp::Ordering;
 
-use chrono::{Datelike, Days, Months, NaiveDate};
+use chrono::{Datelike, Months, NaiveDate};
 
 use super::dedup::Series;
 use super::filing::{Filing, FilingId};
 use super::finding::{Finding, PeriodSignal};
-use super::period::{Period, days_of_quarters};
+use super::period::Period;
 use super::standardized::StandardizedFact;
 
 /// No period starts before 1 January of this year. In the Notes files of 2023 to 2026, every
@@ -36,8 +36,7 @@ const CONFIRMATION_YEARS: i32 = 3;
 /// The check reports and never fails. A flagged value keeps its period.
 ///
 /// - [`PeriodSignal::StartBeforeEarliestYear`]: the period starts before 1900. For an instant,
-///   the date counts. If the source gives no exact start, the start is the end less the length
-///   in quarters of 91.3125 days.
+///   the date counts.
 /// - [`PeriodSignal::EndFarFromReport`]: the end lies more than 100 years before or after the
 ///   period of report of the filing of the value. A filing missing from `filings`, or one with no
 ///   period of report, gives no such signal.
@@ -98,14 +97,10 @@ fn signals(fact: &StandardizedFact, filings: &[Filing]) -> Vec<PeriodSignal> {
 
 fn starts_before_earliest_year(period: &Period) -> bool {
     let start = match period {
-        Period::Instant { end } => Some(*end),
-        Period::Duration(duration) => duration.start().or_else(|| {
-            let days = u64::try_from(days_of_quarters(duration.quarters())).ok()?;
-            duration.end().checked_sub_days(Days::new(days))
-        }),
+        Period::Instant { end } => *end,
+        Period::Duration(duration) => duration.start(),
     };
-    // A start too far back for a date lies before the earliest year too.
-    start.is_none_or(|start| start.year() < EARLIEST_YEAR)
+    start.year() < EARLIEST_YEAR
 }
 
 fn is_far_from(end: NaiveDate, report: NaiveDate) -> bool {
@@ -173,19 +168,19 @@ mod tests {
 
     use super::*;
     use crate::core::elements::IncomeStatementConcept;
-    use crate::core::period::Duration;
+    use crate::core::period::{Duration, days_of_quarters};
     use crate::core::period_identity::derive_q4;
     use crate::tests::fixtures::sample_fact::{
         date, filing as sample_filing, in_cloud_segment, standardized,
     };
 
-    /// Returns the value `value` of the period that ends on `end` and lasts `quarters`, with no
-    /// exact start, reported in `filing`.
+    /// Returns the value `value` of the period that ends on `end` and lasts `quarters`, reported
+    /// in `filing`. The period starts `quarters` times 91.3125 days before `end`, rounded down.
     fn value_in(filing: &Filing, end: NaiveDate, quarters: u16, value: &str) -> StandardizedFact {
-        let mut fact = standardized(
-            Period::Duration(Duration::from_end_and_quarters(end, quarters)),
-            value,
-        );
+        let start = end - chrono::TimeDelta::days(days_of_quarters(quarters));
+        let period = Duration::from_dates(start, end)
+            .expect("Given a start before the end, the creation should always succeed");
+        let mut fact = standardized(Period::Duration(period), value);
         fact.inputs[0].filing = filing.id.clone();
         fact
     }
@@ -484,9 +479,7 @@ mod tests {
     }
 
     #[test]
-    fn should_flag_start_before_earliest_year_when_only_the_exact_start_lies_before_1900() {
-        // 131 days round to 1 quarter. The estimate from 1 quarter starts on 1900-01-30, so only
-        // the exact start on 1899-12-20 raises the flag.
+    fn should_flag_start_before_earliest_year_when_the_start_lies_before_1900_and_the_end_after() {
         let period = Duration::from_dates(date(1899, 12, 20), date(1900, 4, 30))
             .expect("Given an end after the start, the creation should always succeed");
         let flagged = standardized(Period::Duration(period), "50000");
@@ -514,7 +507,7 @@ mod tests {
         };
         let year = value_in_period(&report, span(date(2923, 1, 1), date(2923, 12, 31)), "100");
         let nine_months = value_in_period(&report, span(date(2923, 1, 1), date(2923, 9, 30)), "70");
-        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]), &[])
+        let fourth_quarter = derive_q4(&series(vec![year.clone(), nine_months.clone()]))
             .pop()
             .expect("Given a year and 9 months of one currency series, derive_q4 should always derive a Q4");
         let facts = series(vec![year.clone(), nine_months.clone(), fourth_quarter]);

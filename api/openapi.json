@@ -940,6 +940,7 @@
             "type": "object",
             "description": "A range of days, for example a fiscal year of an income statement.",
             "required": [
+              "start",
               "end",
               "kind"
             ],
@@ -957,12 +958,9 @@
                 ]
               },
               "start": {
-                "type": [
-                  "string",
-                  "null"
-                ],
+                "type": "string",
                 "format": "date",
-                "description": "The first day, or `null` if the source gives only the number of quarters.",
+                "description": "The first day.",
                 "example": "2023-10-01"
               }
             }

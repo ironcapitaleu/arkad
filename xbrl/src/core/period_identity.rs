@@ -3,16 +3,14 @@
 //! Provides [`derive_q4`], the period identity `core/period/q4-from-fy@1`: the fourth quarter is the
 //! fiscal year less the first nine months.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::str::FromStr;
 
 use chrono::NaiveDate;
 
 use super::candidate::SeriesKey;
-use super::chronology::{ANNUAL_FORMS, is_form};
 use super::confidence::Confidence;
 use super::dedup::Series;
-use super::filing::{EntityId, Filing};
 use super::period::{Duration, Period};
 use super::rule::RuleId;
 use super::standardized::StandardizedFact;
@@ -29,13 +27,9 @@ const NINE_MONTHS_LENGTH: u16 = 3;
 /// The length of the derived fourth quarter, in quarters.
 const QUARTER_LENGTH: u16 = 1;
 
-/// The days from start to end under which a fiscal year with an exact start is short: 51 weeks.
-/// A 52-53 week year spans 363 or 370 days, and a calendar year 364 or 365.
+/// The days from start to end under which a fiscal year is short: 51 weeks. A 52-53 week year
+/// spans 363 or 370 days, and a calendar year 364 or 365.
 const SHORT_YEAR_DAYS: i64 = 357;
-
-/// The form of a transition report. It covers the short year between the old and the new fiscal
-/// year end.
-const TRANSITION_REPORT_FORMS: [&str; 1] = ["10-KT"];
 
 /// Applies `core/period/q4-from-fy@1` to the series of one entity after
 /// `core/dedup/newest-filing@1`, and returns the derived facts.
@@ -43,31 +37,28 @@ const TRANSITION_REPORT_FORMS: [&str; 1] = ["10-KT"];
 /// For each fiscal year value, the rule looks for the nine-month value of the same concept and
 /// unit, whose end lies one quarter before the end of the year. The year must end 47 to
 /// 137 days after the nine-month end, so that the fourth quarter rounds to one quarter. If
-/// several nine-month values fit, the rule takes the latest end. If both periods have an exact
-/// start, the starts must be equal. The fourth quarter is the year less the nine months. It runs
+/// several nine-month values fit, the rule takes the latest end. The two periods must have the same
+/// exact start. The fourth quarter is the year less the nine months. It runs
 /// from the day after the nine-month end to the year end.
 ///
 /// The rule reads only fiscal year values without dimensions, in one currency, such as `USD`.
 /// Per-share values, share counts, and ratios do not add over periods. The rule derives nothing for a fourth quarter that the
 /// series already holds or that a conflict blocks.
 ///
-/// The rule derives nothing from a short year, because its fourth quarter is not the year less
-/// nine months. If the year has an exact start, it is short if it spans under 357 days. Otherwise
-/// it is short if one of `filings` of the entity is a `10-KT` whose period of report is the year
-/// end, or if the year ends under 357 days after the previous annual report of the entity. The
-/// second case catches a change of the fiscal year end, filed on a `10-K` or a `10-KT`.
+/// The rule derives nothing from a short year, a year that spans under 357 days, because its fourth
+/// quarter is not the year less nine months. A first fiscal year from inception and a transition
+/// period are such years.
 ///
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
 /// `restated` if an input has it. It carries the release of the fiscal year value.
 #[must_use]
-pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
+pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
     let known: BTreeSet<SeriesKey> = series
         .facts
         .iter()
         .map(StandardizedFact::series_key)
         .chain(series.blocked.iter().cloned())
         .collect();
-    let short_year_signals = ShortYearSignalsByEntity::of(filings);
     series
         .facts
         .iter()
@@ -76,7 +67,7 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
                 && year.unit.is_currency()
                 && year.period.quarters() == YEAR_LENGTH
         })
-        .filter(|year| !short_year_signals.is_short_year(year))
+        .filter(|year| !is_short_year(year))
         .filter_map(|year| {
             let mut key = year.series_key();
             key.quarters = QUARTER_LENGTH;
@@ -93,70 +84,12 @@ pub fn derive_q4(series: &Series, filings: &[Filing]) -> Vec<StandardizedFact> {
         .collect()
 }
 
-/// The signals of a short year in the filings of each entity.
-#[derive(Debug)]
-struct ShortYearSignalsByEntity<'a> {
-    by_entity: BTreeMap<&'a EntityId, ShortYearSignals>,
-}
-
-/// The signals of a short year in the filings of one entity.
-#[derive(Debug)]
-struct ShortYearSignals {
-    /// The periods of report of the transition reports.
-    transition_ends: BTreeSet<NaiveDate>,
-    /// The periods of report of the annual reports, transition reports included.
-    annual_ends: BTreeSet<NaiveDate>,
-}
-
-impl<'a> ShortYearSignalsByEntity<'a> {
-    fn of(filings: &'a [Filing]) -> Self {
-        let mut grouped: BTreeMap<&EntityId, Vec<&Filing>> = BTreeMap::new();
-        for filing in filings {
-            grouped.entry(&filing.entity).or_default().push(filing);
-        }
-        let by_entity = grouped
-            .into_iter()
-            .map(|(entity, filings)| {
-                let signals = ShortYearSignals {
-                    transition_ends: report_ends(&filings, &TRANSITION_REPORT_FORMS),
-                    annual_ends: report_ends(&filings, &ANNUAL_FORMS),
-                };
-                (entity, signals)
-            })
-            .collect();
-        Self { by_entity }
+/// Returns `true` if `year` spans under 357 days.
+fn is_short_year(year: &StandardizedFact) -> bool {
+    match year.period {
+        Period::Duration(period) => is_short_span(period.start(), period.end()),
+        Period::Instant { .. } => false,
     }
-
-    /// Returns `true` if `year` is a short year. The day count decides if the exact start is known.
-    /// Otherwise a year that ends under 357 days after the previous annual report is short,
-    /// because it starts after that report.
-    fn is_short_year(&self, year: &StandardizedFact) -> bool {
-        let Period::Duration(period) = year.period else {
-            return false;
-        };
-        if let Some(start) = period.start() {
-            return is_short_span(start, period.end());
-        }
-        let end = period.end();
-        self.by_entity.get(&year.entity).is_some_and(|signals| {
-            signals.transition_ends.contains(&end)
-                || signals
-                    .annual_ends
-                    .range(..end)
-                    .next_back()
-                    .is_some_and(|&previous| is_short_span(previous, end))
-        })
-    }
-}
-
-/// Returns the periods of report of the filings whose form, without the amendment suffix, is one
-/// of `forms`.
-fn report_ends(filings: &[&Filing], forms: &[&str]) -> BTreeSet<NaiveDate> {
-    filings
-        .iter()
-        .filter(|filing| is_form(&filing.form, forms))
-        .filter_map(|filing| filing.period_of_report)
-        .collect()
 }
 
 /// Returns `true` if the span from `start` to `end` lasts under 357 days.
@@ -179,10 +112,7 @@ fn fourth_quarter<'a>(
         && nine_months.concept == year.concept
         && nine_months.unit == year.unit
         && nine_months.dimensions == year.dimensions;
-    let same_start = match (year_period.start(), nine_months_period.start()) {
-        (Some(year_start), Some(nine_months_start)) => year_start == nine_months_start,
-        _ => true,
-    };
+    let same_start = year_period.start() == nine_months_period.start();
     if !same_series || !same_start || nine_months_period.quarters() != NINE_MONTHS_LENGTH {
         return None;
     }
@@ -231,7 +161,7 @@ mod tests {
     use crate::core::elements::IncomeStatementConcept;
     use crate::core::fact::Dimensions;
     use crate::core::unit::Unit;
-    use crate::tests::fixtures::sample_fact::{date, filing, in_cloud_segment, standardized};
+    use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
 
     fn span(start: NaiveDate, end: NaiveDate) -> Period {
         Period::Duration(
@@ -250,21 +180,6 @@ mod tests {
 
     fn fourth_quarter() -> Period {
         span(date(2024, 6, 30), date(2024, 9, 28))
-    }
-
-    /// The values of a short year from 1 February to 31 December 2023, without exact starts, as
-    /// the Notes data set gives them.
-    fn short_year_without_start() -> Series {
-        series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2023, 12, 31), 4)),
-                "330000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2023, 10, 31), 3)),
-                "270000000",
-            ),
-        ])
     }
 
     fn series(facts: Vec<StandardizedFact>) -> Series {
@@ -302,7 +217,7 @@ mod tests {
             "core/period/q4-from-fy@1".to_string(),
         )];
 
-        let result = summary(derive_q4(&facts, &[]));
+        let result = summary(derive_q4(&facts));
 
         assert_eq!(result, expected_result);
     }
@@ -316,170 +231,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_nothing_when_a_transition_report_ends_with_the_year() {
-        let facts = short_year_without_start();
-        let filings = vec![filing("10-KT", date(2023, 12, 31), "1231")];
-
-        let expected_result: Vec<StandardizedFact> = Vec::new();
-
-        let result = derive_q4(&facts, &filings);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_nothing_when_an_amended_transition_report_ends_with_the_year() {
-        let facts = short_year_without_start();
-        let filings = vec![filing("10-KT/A", date(2023, 12, 31), "1231")];
-
-        let expected_result: Vec<StandardizedFact> = Vec::new();
-
-        let result = derive_q4(&facts, &filings);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_nothing_when_the_previous_annual_report_ends_under_357_days_before_the_year() {
-        let facts = short_year_without_start();
-        let filings = vec![
-            filing("10-K", date(2023, 1, 31), "0131"),
-            filing("10-K", date(2023, 12, 31), "1231"),
-        ];
-
-        let expected_result: Vec<StandardizedFact> = Vec::new();
-
-        let result = derive_q4(&facts, &filings);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_the_fourth_quarter_when_no_annual_report_ends_before_the_year() {
-        let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2023, 1, 31), 4)),
-                "400000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2022, 10, 31), 3)),
-                "300000000",
-            ),
-        ]);
-        let filings = vec![
-            filing("10-K", date(2023, 1, 31), "0131"),
-            filing("10-KT", date(2023, 12, 31), "1231"),
-        ];
-
-        let expected_result = vec![BigDecimal::from(100_000_000_i64)];
-
-        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
-            .into_iter()
-            .map(|fact| fact.value)
-            .collect();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_the_fourth_quarter_when_a_full_year_ends_twelve_months_after_a_transition_report()
-     {
-        let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 30), 4)),
-                "400000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 3, 31), 3)),
-                "300000000",
-            ),
-        ]);
-        let filings = vec![
-            filing("10-K", date(2022, 12, 31), "1231"),
-            filing("10-KT", date(2023, 6, 30), "1231"),
-            filing("10-Q", date(2023, 9, 30), "0630"),
-        ];
-
-        let expected_result = vec![BigDecimal::from(100_000_000_i64)];
-
-        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
-            .into_iter()
-            .map(|fact| fact.value)
-            .collect();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_the_fourth_quarter_when_the_fiscal_year_end_changes_two_filings_after_the_transition_report()
-     {
-        let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 30), 4)),
-                "400000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 3, 31), 3)),
-                "300000000",
-            ),
-        ]);
-        let filings = vec![
-            filing("10-K", date(2022, 12, 31), "1231"),
-            filing("10-KT", date(2023, 6, 30), "1231"),
-            filing("10-Q", date(2023, 9, 30), "1231"),
-            filing("10-Q", date(2023, 12, 31), "0630"),
-        ];
-
-        let expected_result = vec![BigDecimal::from(100_000_000_i64)];
-
-        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
-            .into_iter()
-            .map(|fact| fact.value)
-            .collect();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_the_fourth_quarter_when_a_transition_report_of_another_entity_ends_with_the_year()
-     {
-        let facts = short_year_without_start();
-        let mut transition_report = filing("10-KT", date(2023, 12, 31), "1231");
-        transition_report.entity = EntityId::new("http://www.sec.gov/CIK", "0000789019")
-            .expect("Given a hardcoded scheme and ID, the creation should always succeed");
-        let filings = vec![transition_report];
-
-        let expected_result = vec![BigDecimal::from(60_000_000_i64)];
-
-        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
-            .into_iter()
-            .map(|fact| fact.value)
-            .collect();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_the_fourth_quarter_when_the_year_has_an_exact_start_and_a_transition_report_ends_with_it()
-     {
-        let facts = series(vec![
-            standardized(span(date(2023, 1, 1), date(2023, 12, 31)), "400000000"),
-            standardized(span(date(2023, 1, 1), date(2023, 9, 30)), "300000000"),
-        ]);
-        let filings = vec![filing("10-KT", date(2023, 12, 31), "1231")];
-
-        let expected_result = vec![BigDecimal::from(100_000_000_i64)];
-
-        let result: Vec<BigDecimal> = derive_q4(&facts, &filings)
-            .into_iter()
-            .map(|fact| fact.value)
-            .collect();
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -493,7 +245,7 @@ mod tests {
 
         let expected_result = vec![BigDecimal::from(89_498_000_000_i64)];
 
-        let result: Vec<BigDecimal> = derive_q4(&facts, &[])
+        let result: Vec<BigDecimal> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -510,7 +262,7 @@ mod tests {
 
         let expected_result = vec![BigDecimal::from(100_000_000_i64)];
 
-        let result: Vec<BigDecimal> = derive_q4(&facts, &[])
+        let result: Vec<BigDecimal> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -527,32 +279,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_the_fourth_quarter_when_the_periods_have_no_exact_start() {
-        let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
-                "391035000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 29), 3)),
-                "296105000000",
-            ),
-        ]);
-
-        let expected_result = vec![(
-            fourth_quarter(),
-            BigDecimal::from(94_930_000_000_i64),
-            Confidence::Derived,
-            "core/period/q4-from-fy@1".to_string(),
-        )];
-
-        let result = summary(derive_q4(&facts, &[]));
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -567,7 +294,7 @@ mod tests {
 
         let expected_result = vec![vec![year_key, nine_months_key]];
 
-        let result: Vec<_> = derive_q4(&facts, &[])
+        let result: Vec<_> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.inputs)
             .collect();
@@ -588,7 +315,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -605,7 +332,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -619,7 +346,7 @@ mod tests {
 
         let expected_result = vec![true];
 
-        let result: Vec<bool> = derive_q4(&facts, &[])
+        let result: Vec<bool> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.restated)
             .collect();
@@ -636,7 +363,7 @@ mod tests {
 
         let expected_result = vec![Confidence::Computed];
 
-        let result: Vec<Confidence> = derive_q4(&facts, &[])
+        let result: Vec<Confidence> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.confidence)
             .collect();
@@ -654,7 +381,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -672,7 +399,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -686,7 +413,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -705,7 +432,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -721,7 +448,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -738,7 +465,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -752,7 +479,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -770,7 +497,7 @@ mod tests {
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -778,19 +505,13 @@ mod tests {
     #[test]
     fn should_derive_nothing_when_the_nine_months_end_in_the_prior_year() {
         let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
-                "391035000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2023, 7, 1), 3)),
-                "281000000000",
-            ),
+            standardized(fiscal_year(), "391035000000"),
+            standardized(span(date(2022, 10, 2), date(2023, 7, 1)), "281000000000"),
         ]);
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }
@@ -798,23 +519,14 @@ mod tests {
     #[test]
     fn should_take_the_latest_nine_month_end_when_two_nine_month_values_fit() {
         let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
-                "391035000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 1), 3)),
-                "250000000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 6, 29), 3)),
-                "296105000000",
-            ),
+            standardized(fiscal_year(), "391035000000"),
+            standardized(span(date(2023, 10, 1), date(2024, 6, 1)), "250000000000"),
+            standardized(nine_months(), "296105000000"),
         ]);
 
         let expected_result = vec![BigDecimal::from(94_930_000_000_i64)];
 
-        let result: Vec<BigDecimal> = derive_q4(&facts, &[])
+        let result: Vec<BigDecimal> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -830,7 +542,7 @@ mod tests {
 
         let expected_result = vec![true];
 
-        let result: Vec<bool> = derive_q4(&facts, &[])
+        let result: Vec<bool> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.restated)
             .collect();
@@ -849,7 +561,7 @@ mod tests {
 
         let expected_result = vec![Confidence::Computed];
 
-        let result: Vec<Confidence> = derive_q4(&facts, &[])
+        let result: Vec<Confidence> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.confidence)
             .collect();
@@ -860,19 +572,13 @@ mod tests {
     #[test]
     fn should_derive_the_fourth_quarter_when_the_year_ends_137_days_after_the_nine_months() {
         let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
-                "391035000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 5, 14), 3)),
-                "296105000000",
-            ),
+            standardized(span(date(2023, 9, 25), date(2024, 9, 28)), "391035000000"),
+            standardized(span(date(2023, 9, 25), date(2024, 5, 14)), "296105000000"),
         ]);
 
         let expected_result = vec![BigDecimal::from(94_930_000_000_i64)];
 
-        let result: Vec<BigDecimal> = derive_q4(&facts, &[])
+        let result: Vec<BigDecimal> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.value)
             .collect();
@@ -883,19 +589,13 @@ mod tests {
     #[test]
     fn should_derive_nothing_when_the_year_ends_138_days_after_the_nine_months() {
         let facts = series(vec![
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 9, 28), 4)),
-                "391035000000",
-            ),
-            standardized(
-                Period::Duration(Duration::from_end_and_quarters(date(2024, 5, 13), 3)),
-                "296105000000",
-            ),
+            standardized(span(date(2023, 9, 25), date(2024, 9, 28)), "391035000000"),
+            standardized(span(date(2023, 9, 25), date(2024, 5, 13)), "296105000000"),
         ]);
 
         let expected_result: Vec<StandardizedFact> = Vec::new();
 
-        let result = derive_q4(&facts, &[]);
+        let result = derive_q4(&facts);
 
         assert_eq!(result, expected_result);
     }

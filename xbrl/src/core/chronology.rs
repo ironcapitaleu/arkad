@@ -487,11 +487,13 @@ mod tests {
         date, fact, filing, in_cloud_segment, source, standardized,
     };
 
+    /// Returns a value of `quarters` quarters to `end`. It starts `quarters` times 91.3125 days
+    /// before `end`, rounded down.
     fn value(end: NaiveDate, quarters: u16) -> StandardizedFact {
-        standardized(
-            Period::Duration(Duration::from_end_and_quarters(end, quarters)),
-            "100",
-        )
+        let start = end - chrono::TimeDelta::days(days_of_quarters(quarters));
+        let period = Duration::from_dates(start, end)
+            .expect("Given a start before the end, the creation should always succeed");
+        standardized(Period::Duration(period), "100")
     }
 
     fn gap(

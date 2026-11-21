@@ -58,7 +58,6 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 /// that [`Statement`](super::statement::Statement) counts in the group have different exact
 /// starts, such as a quarter and a 4-month stub. A member with no value counts as the members of
 /// the group that makes it, so the group derives nothing even if its own inputs share one start.
-/// A value without an exact start mixes with no other.
 /// [`check_roll_ups`](super::roll_up_check::check_roll_ups) reports such a group.
 ///
 /// The rule repeats until no group gives a new value, so a derived value can feed another group. In
@@ -312,7 +311,10 @@ mod tests {
     }
 
     fn quarter() -> Period {
-        Period::Duration(Duration::from_end_and_quarters(date(2026, 9, 30), 1))
+        Period::Duration(
+            Duration::from_dates(date(2026, 7, 1), date(2026, 9, 30))
+                .expect("Given an end after the start, the creation should always succeed"),
+        )
     }
 
     fn value(
@@ -633,43 +635,6 @@ mod tests {
             IncomeStatementConcept::NetIncomeAttributableToParent.element(),
             147,
             "core/roll-up/net-income-attribution@1",
-        )];
-
-        let result = summary(derive_from_closed_groups(&facts, &[]));
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_derive_a_member_when_a_value_without_an_exact_start_joins_values_of_one_start() {
-        let four_months = since(date(2026, 6, 1));
-        let facts = series(vec![
-            value(
-                CashFlowConcept::OperatingCashFlow.element(),
-                quarter(),
-                "390",
-            ),
-            value(
-                CashFlowConcept::InvestingCashFlow.element(),
-                four_months,
-                "-138",
-            ),
-            value(
-                CashFlowConcept::FinancingCashFlow.element(),
-                four_months,
-                "-114",
-            ),
-            value(
-                CashFlowConcept::ExchangeRateEffect.element(),
-                four_months,
-                "-1",
-            ),
-        ]);
-
-        let expected_result = vec![derived(
-            CashFlowConcept::NetChangeInCash.element(),
-            137,
-            "core/roll-up/net-change-in-cash@1",
         )];
 
         let result = summary(derive_from_closed_groups(&facts, &[]));

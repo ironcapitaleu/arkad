@@ -638,8 +638,8 @@ So the check of that group is skipped for that period.
   4-month stub, that group gets no check, gives no derived value, gets no other line in the
   statement, and reports a `MixedStarts` finding. The members of a group are the values that the
   statement counts in it: the start of a step, the members that stand for a start with no value,
-  and the children of a transparent parent that join the group. The other groups of the slot keep their checks. A value without an exact start
-  joins the slot ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
+  and the children of a transparent parent that join the group. The other groups of the slot keep
+  their checks ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - `check_roll_ups` reports the `MixedStarts` finding. `derive_from_closed_groups` skips the group
   and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
@@ -1802,7 +1802,7 @@ AsIsFact {
     }
     context: Context {                   // what the fact is about, the XBRL context
         entity:        EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
-        period:        Period            // Instant { end } | Duration { start: Option, end, quarters }
+        period:        Period            // Instant { end } | Duration { start, end, quarters }
         dimensions:    Dimensions        // sorted axis and member pairs, legal entity axis included
     }
     concept:           ConceptName       // namespace family and local name
@@ -1823,8 +1823,9 @@ AsIsFact {
 - A duration holds its length in quarters, because the value key and the series key use it. The
   instance parser computes it as `round(days(end - start) / 91.3125)`, the
   rule that matched `qtrs` on the 622 filings of the Notes against instance comparison. The Notes
-  parser computes the exact start from `durp` and uses the same rule (see "Value Key"). If `start`
-  is set, the constructor of `Period` computes `quarters` from it, so the two cannot disagree.
+  parser computes the exact start from `durp` and uses the same rule (see "Value Key"). Every
+  duration has an exact start, and `Duration::from_dates` computes `quarters` from it, so the two
+  cannot disagree.
 - The element reference data holds the period type that the taxonomy declares. If the plug-in has
   reference data for the concept, validation compares the two. A mismatch gives a finding and
   keeps the fact. A concept with no reference data, such as an extension concept, skips the check.
@@ -2030,8 +2031,8 @@ year-to-date only. The result has confidence `Derived`.
 - Both inputs come from one fiscal year, after `core/dedup/newest-filing@1`.
 - If an input has `restated`, the Q4 value has `restated` too, and chronology reports it.
 - `core::period_identity::derive_q4` runs on the output of `core::dedup::newest_filing`. A nine-month value belongs to a
-  fiscal year if its end lies one quarter before the end of the year. If both periods have an exact
-  start, the starts must be equal. The Q4 period runs from the day after the nine-month end to the
+  fiscal year if its end lies one quarter before the end of the year, and its exact start equals
+  the start of the year. The Q4 period runs from the day after the nine-month end to the
   year end.
 - A unit is a currency if it is one ISO 4217 code and divides by nothing (`Unit::is_currency`).
   The measures carry no prefix. Two tables compiled into the binary tell a currency from a custom
@@ -2044,16 +2045,8 @@ year-to-date only. The result has confidence `Derived`.
   If several nine-month values fit, the rule takes the latest end.
 - The rule derives nothing for a Q4 that the series already holds or that a conflict blocks.
 - The rule derives nothing from a short year, such as a first fiscal year from inception or a
-  transition period. Its Q4 is not FY − 9-month YTD. `derive_q4` takes the filings of the entity,
-  as `check_chronology` does, and treats a year as short in these cases:
-  - The year has an exact start and spans under 357 days, 51 weeks. A 52-53 week year spans 363 or
-    370 days from start to end. The day count decides alone when the start is known.
-  - The year has no exact start, and a `10-KT` of the entity has the year end as its period of
-    report.
-  - The year has no exact start, and it ends under 357 days after the previous annual report of
-    the entity (`10-K`, `10-KT`, `20-F`, or `40-F`). This catches a change of the fiscal year end
-    from the dates alone. The `fye` field of a filing can lag the change by several filings, so
-    the rule does not read it.
+  transition period. Its Q4 is not FY − 9-month YTD. A year is short if it spans under 357 days,
+  51 weeks, from its exact start to its end. A 52-53 week year spans 363 or 370 days.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
@@ -2134,7 +2127,7 @@ Agreement of copies:
 - A rank is a copy of rank 0 only if both have the same exact start. A rank with another exact
   start is another fact, such as a 4-month stub next to a quarter. The rule does not compare it
   with rank 0 or with another rank, and gives it no candidate. It reports a `Conflict` only by the
-  next rule. Rank 0 enters the series. If either rank has no exact start, the ranks compare as copies
+  next rule. Rank 0 enters the series. If either rank is an instant, the ranks compare as copies
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - A rank with another exact start whose length lies nearer to its whole number of quarters than
   the length of rank 0 (`Period::distance_to_full_quarters`) is a `Conflict`, as for disagreeing
@@ -2320,7 +2313,7 @@ input names the typo.
 
 | Signal | Rule |
 | ------ | ---- |
-| `StartBeforeEarliestYear` | The period starts before 1900. For an instant, the date counts. Without an exact start, the start is the end less the length of 91.3125 days per quarter |
+| `StartBeforeEarliestYear` | The period starts before 1900. For an instant, the date counts |
 | `EndFarFromReport` | The end lies more than 100 years before or after the period of report of the filing of the value |
 
 **Confirmation.** Another value confirms a flagged value if it meets each condition:
@@ -2375,8 +2368,8 @@ The measurement also counted four cases that the signals do not catch. Each has 
 
 | Case | Count | Decision |
 | ---- | ----- | -------- |
-| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule now skips a short year ("Period identities" in "Three Layers"). In Notes it catches only the years with a `10-KT` or an annual report less than 357 days earlier |
-| Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | Detection sources for the guard above |
+| Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule now skips a short year ("Period identities" in "Three Layers") |
+| Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | The guard above reads the day count of the year, so it needs none of these filings |
 | Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
 | Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | The exact start splits them into two facts ("Dedup Rules", "Agreement of copies") |
 
@@ -2465,7 +2458,7 @@ layer, so some rules change:
 | 1 | Shorten axis and member names the way the SEC does | `dimensions` holds the pairs without prefixes, as above |
 | 2 | Keep a typed member as written | `dimensions` keeps the content of the typed member |
 | 3 | Notes drops `/shares` from a per-share unit | The Notes parser restores `/shares`. `unit` holds the full unit |
-| 4 | The exact end date is `ddate` minus `datp` days | `period` holds the exact end. The start is set only if the source gives it |
+| 4 | The exact end date is `ddate` minus `datp` days | `period` holds the exact end, and the exact start of a duration |
 | 5 | A fact reported twice is two rows, keep the higher `dcml` | Both rows stay. The parser numbers them in `copy_rank`, in the `iprx` order. `decimals` holds `dcml`, and 32767 becomes `Infinite` |
 | 6 | Skip a nil fact | A nil fact stays, as `FactValue::Nil` |
 | 7 | Drop a value with a `coreg`. Keep a value only if every axis is on the list | Every value stays. `coreg` becomes the legal entity axis in `dimensions`. The list of segment axes is a read rule |
@@ -2824,7 +2817,7 @@ concept keeps the tiered resolution: exact, synonym, derived, computed.
 
 **Roll-ups** — Not a parsing concern. The parser emits flat as-is facts. The tree structure is in `xbrl::us_gaap::taxonomy` and applied during resolution.
 
-**Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start: Option, end, quarters }`.
+**Period vs point-in-time** — Solved at parse time by the `Period` type. Every as-is fact carries `Instant { end }` or `Duration { start, end, quarters }`.
 
 **Member aggregations / segments** — The SEC JSON APIs serve only consolidated, undimensioned facts of standard taxonomies. The Notes data set and the instance XML carry dimensions and extension concepts. `AsIsFact` holds both, so one fact model covers every source. The as-is layer keeps every fact with its dimensions. In tiers 1 and 2, a fact with dimensions gives a candidate only if every axis is a segment axis. "Segment Values" gives the rules.
 

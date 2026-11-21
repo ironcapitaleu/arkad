@@ -48,7 +48,7 @@ fn roll_ups(facts: &[AsIsFact]) -> Vec<Summary> {
     let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
     let series = newest_filing(&resolve_aliases(&more_precise(facts), &registry).candidates);
-    let fourth_quarters = derive_q4(&series, &[]);
+    let fourth_quarters = derive_q4(&series);
     derive_from_closed_groups(&series, &fourth_quarters)
         .into_iter()
         .map(|fact| {
@@ -131,7 +131,7 @@ fn findings(facts: &[AsIsFact]) -> Vec<Finding> {
 /// Runs `core/period/q4-from-fy@1`, the derivation from a closed group, and the checks of the
 /// roll-up tree on `series`, and returns the findings.
 fn findings_of(series: &Series) -> Vec<Finding> {
-    let mut added = derive_q4(series, &[]);
+    let mut added = derive_q4(series);
     let derived = derive_from_closed_groups(series, &added);
     added.extend(derived);
     check_roll_ups(series, &added)

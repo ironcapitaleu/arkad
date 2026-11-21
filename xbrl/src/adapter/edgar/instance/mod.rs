@@ -276,7 +276,7 @@ struct CopyOrder {
 impl CopyOrder {
     fn new(decimals: Option<Decimals>, period: &Period) -> Self {
         let distance_to_full_quarter = match period {
-            Period::Duration(duration) => duration.distance_to_full_quarters().unwrap_or(0),
+            Period::Duration(duration) => duration.distance_to_full_quarters(),
             _ => 0,
         };
         Self {
