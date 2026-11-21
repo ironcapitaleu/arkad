@@ -39,7 +39,7 @@ pub enum KeyFiles {
     /// A key comes from a file whose name ends in [`METADATA_SUFFIX`]. The walk skips a document
     /// without metadata and a hidden `.tmp` file of a write.
     MetadataFiles,
-    /// Each regular file is a key, and its document.
+    /// Each regular file is a key. The file is also the document of the key.
     EveryFile,
 }
 
