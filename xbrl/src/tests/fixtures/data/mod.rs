@@ -1,6 +1,6 @@
 //! # Fixture Data
 //!
-//! Real SEC files of 103 filings, and helpers that read and parse them. The 10-Q
+//! Real SEC files of 106 filings, and helpers that read and parse them. The 10-Q
 //! `0001628280-26-068246` of FEDEX FREIGHT HOLDING COMPANY, INC. is compiled in with
 //! `include_str!`, in both sources. The other filings are gzip files that the helpers read at run
 //! time. `docs/adr/0039-gzip-fixture-set.md` records why they are gzip files.

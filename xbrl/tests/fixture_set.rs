@@ -1,7 +1,7 @@
 //! # Fixture Set Integration Tests
 //!
 //! Runs [`xbrl::adapter::edgar::notes::parse`] on each compressed fixture filing of the manifest:
-//! 102 filings of 33 companies. `manifest.tsv` names the form and the fiscal year of each.
+//! 105 filings of 33 companies. `manifest.tsv` names the form and the fiscal year of each.
 //! Each smoke test checks that the parser maps every row of one filing, so it gives no
 //! [`Finding::UnmappedRow`]. Three more tests check the manifest: each fixture file matches its
 //! SHA-256, each file on disk has a row, and each Notes filing has a smoke test.
@@ -151,6 +151,7 @@ smoke_tests! {
     should_map_every_row_for_prudential_10_k_2013_fy: "0001193125-14-073074",
     should_map_every_row_for_prudential_10_k_2025_fy: "0001137774-26-000048",
     should_map_every_row_for_regions_financial_10_k_2013_fy: "0001281761-14-000009",
+    should_map_every_row_for_regions_financial_10_k_2021_fy: "0001281761-22-000016",
     should_map_every_row_for_regions_financial_10_k_2025_fy: "0001281761-26-000019",
     should_map_every_row_for_simon_property_10_k_2013_fy: "0001047469-14-001416",
     should_map_every_row_for_simon_property_10_k_2025_fy: "0001104659-26-019419",
@@ -158,6 +159,8 @@ smoke_tests! {
     should_map_every_row_for_simon_property_10_q_2025_q2: "0001558370-25-010639",
     should_map_every_row_for_simon_property_10_q_2025_q3: "0001104659-25-107395",
     should_map_every_row_for_supermicro_10_k_2013_fy: "0001445305-13-002262",
+    should_map_every_row_for_supermicro_10_k_2017_fy: "0001375365-19-000039",
+    should_map_every_row_for_supermicro_10_k_2019_fy: "0001375365-19-000079",
     should_map_every_row_for_supermicro_10_k_2025_fy: "0001375365-25-000027",
     should_map_every_row_for_unitedhealth_10_k_2013_fy: "0000731766-14-000008",
     should_map_every_row_for_unitedhealth_10_k_2025_fy: "0000731766-26-000062",
