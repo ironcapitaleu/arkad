@@ -18,7 +18,8 @@
 //! `sec/design/pipeline/ingestion_paths.md`.
 //!
 //! - Notes rounds a number to 4 decimals (readme and "Measured Result").
-//! - Notes drops non-ASCII characters ("Measured Result").
+//! - Notes drops non-ASCII characters, except some accented letters, which it writes without the
+//!   accent ("Measured Result").
 //! - Notes collapses whitespace and removes the markup of a text block (readme).
 //! - Notes cuts a footnote at 512 characters (readme), and drops a footnote that no statement page
 //!   shows ("Measured Result").
