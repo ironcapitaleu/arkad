@@ -63,8 +63,8 @@ The routine writes as `@DeCa09`, so the author of a comment does not prove that 
 2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, `cancel <n>`, `archive <n>`, `backlog <n>`, or `reject <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
 3. Ignore every other comment as an approval, also when it quotes such a form.
 4. Give every item a key: the ticket or document ID and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an answer if a done line for its key is newer than the answer. So a run that failed halfway repeats nothing, and a later answer to a question asked again still runs.
-5. If two answers that point 4 does not skip differ for one key, carry out neither, and ask again.
-6. A `reject` answer posts `[routine] done <key> reject` on the report, and `[routine] rejected <kind> until <date + 90 days>` on the issue. Do not list that key again before that date. The note on the issue holds the date, so the read window of step 2 does not limit it. A `cancelled-park` item offers no `reject`: its no is `archive`.
+5. If two answers that point 4 does not skip differ for one key, carry out neither. Post `[routine] done <key> conflict: asked again` on the report, and ask again. So only a later answer counts.
+6. A `reject` answer posts `[routine] done <key> reject` on the report. For an item on an issue or a document, it also posts `[routine] rejected <kind> until <date + 90 days>` as a comment on that issue or document. Do not list that key again before that date. Step 2 reads 90 days of reports, so a reject on a project item holds too. A `cancelled-park` item offers no `reject`: its no is `archive`.
 
 # Capacity rule
 
@@ -133,7 +133,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 # Steps
 
 1. Load the conventions. Attach and clone the two repositories if needed.
-2. Read the grooming reports of the last 60 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and that no newer done line for their key covers. Touch nothing else from those lists. Record each result.
+2. Read the grooming reports of the last 90 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and that no newer done line for their key covers. Touch nothing else from those lists. Record each result.
 3. Apply "Capacity rule", points 1 to 4: measure, forecast, and set the zone and the backlog pressure of this run. They set the day counts and the order of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
    - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 14 with the options "park" and "archive". If two reports in a row asked and got no answer, archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
