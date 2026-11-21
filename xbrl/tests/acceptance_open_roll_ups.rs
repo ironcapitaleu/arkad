@@ -24,7 +24,7 @@ use xbrl::core::confidence::Confidence;
 use xbrl::core::elements::BalanceSheetConcept;
 use xbrl::core::period_identity::derive_q4;
 use xbrl::tests::fixtures::data::resolved::{
-    SPIKE_ROLL_UPS, fiscal_year_value, resolve_fixture_filings,
+    SPIKE_ROLL_UPS, derived_values, fiscal_year_value, resolve_fixture_filings,
 };
 use xbrl::tests::fixtures::sample_fact::date;
 
@@ -36,7 +36,7 @@ fn open_roll_ups(accession: &str) -> Vec<&'static str> {
         .period_of_report
         .expect("Given the sub row of a 10-K, the period of report should always exist");
     let series = resolved.series();
-    let derived = derive_from_closed_groups(&series, &derive_q4(&series));
+    let derived = derived_values(&series);
     SPIKE_ROLL_UPS
         .iter()
         .filter(|concept| {
@@ -65,49 +65,49 @@ macro_rules! open_roll_up_tests {
 }
 
 open_roll_up_tests! {
-    should_leave_revenue_open_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [
+    should_list_the_open_roll_ups_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_leave_revenue_open_for_apa_10_k_2013_fy: "0001193125-14-077668" => [
+    should_list_the_open_roll_ups_for_apa_10_k_2013_fy: "0001193125-14-077668" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_leave_revenue_open_for_apa_10_k_2025_fy: "0001841666-26-000015" => [
+    should_list_the_open_roll_ups_for_apa_10_k_2025_fy: "0001841666-26-000015" => [
         "Revenue",
     ],
-    should_leave_revenue_and_the_cash_flows_open_for_kkr_10_k_2013_fy: "0001047469-14-001189" => [
+    should_list_the_open_roll_ups_for_kkr_10_k_2013_fy: "0001047469-14-001189" => [
         "Revenue",
         "OperatingCashFlow",
         "InvestingCashFlow",
         "FinancingCashFlow",
         "NetChangeInCash",
     ],
-    should_resolve_revenue_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [
+    should_list_the_open_roll_ups_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [
         "NetChangeInCash",
     ],
-    should_resolve_revenue_for_jpmorgan_chase_10_k_2025_fy: "0001628280-26-008131" => [],
-    should_resolve_revenue_for_simon_property_10_k_2013_fy: "0001047469-14-001416" => [
+    should_list_the_open_roll_ups_for_jpmorgan_chase_10_k_2025_fy: "0001628280-26-008131" => [],
+    should_list_the_open_roll_ups_for_simon_property_10_k_2013_fy: "0001047469-14-001416" => [
         "NetChangeInCash",
     ],
-    should_resolve_revenue_for_simon_property_10_k_2025_fy: "0001104659-26-019419" => [],
-    should_leave_revenue_open_for_evergy_10_k_2013_fy: "0001143068-14-000021" => [
+    should_list_the_open_roll_ups_for_simon_property_10_k_2025_fy: "0001104659-26-019419" => [],
+    should_list_the_open_roll_ups_for_evergy_10_k_2013_fy: "0001143068-14-000021" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_resolve_revenue_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [],
-    should_resolve_revenue_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [
+    should_list_the_open_roll_ups_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [],
+    should_list_the_open_roll_ups_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [
         "OperatingCashFlow",
         "InvestingCashFlow",
         "FinancingCashFlow",
         "NetChangeInCash",
     ],
-    should_resolve_revenue_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [],
-    should_leave_revenue_open_for_regions_financial_10_k_2013_fy: "0001281761-14-000009" => [
+    should_list_the_open_roll_ups_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [],
+    should_list_the_open_roll_ups_for_regions_financial_10_k_2013_fy: "0001281761-14-000009" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_leave_revenue_open_for_regions_financial_10_k_2025_fy: "0001281761-26-000019" => [
+    should_list_the_open_roll_ups_for_regions_financial_10_k_2025_fy: "0001281761-26-000019" => [
         "Revenue",
     ],
 }

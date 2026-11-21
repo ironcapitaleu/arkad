@@ -10,7 +10,7 @@
 //! - [`instance`]: The instance documents of the filings, as EDGAR serves them.
 //! - [`manifest`]: The list of the fixture files, with the source and the SHA-256 of each file.
 //! - [`notes`]: The rows of the filings in the Notes files.
-//! - [`resolved`]: The candidates of the Notes filings after the rules of one filing.
+//! - [`resolved`]: Parses Notes fixture filings and runs the rules of one filing on them.
 
 use std::fs;
 use std::io::Read;

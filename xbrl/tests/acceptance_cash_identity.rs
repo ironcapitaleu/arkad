@@ -14,26 +14,23 @@
 
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
-use xbrl::core::closed_group::derive_from_closed_groups;
-use xbrl::core::finding::Finding;
-use xbrl::core::period_identity::derive_q4;
+use xbrl::core::elements::GroupName;
+use xbrl::core::elements::statement::cash_flow::CashFlowGroup;
+use xbrl::core::finding::{Finding, RollUpCheck};
 use xbrl::core::roll_up_check::check_roll_ups;
-use xbrl::tests::fixtures::data::resolved::resolve_fixture_filings;
+use xbrl::tests::fixtures::data::resolved::{derived_values, resolve_fixture_filings};
 use xbrl::tests::fixtures::sample_fact::date;
-
-/// The name of the closed group of the change in cash in findings.
-const NET_CHANGE_IN_CASH: &str = "net-change-in-cash";
 
 /// Returns the start and the end of each failed check of `net-change-in-cash` in `findings`.
 fn cash_mismatches(findings: Vec<Finding>) -> Vec<(Option<NaiveDate>, NaiveDate)> {
     findings
         .into_iter()
         .filter_map(|finding| match finding {
-            Finding::RollUpMismatch { period, reason, .. }
-                if reason.as_str() == NET_CHANGE_IN_CASH =>
-            {
-                Some((period.start(), period.end()))
-            }
+            Finding::RollUpMismatch {
+                period,
+                reason: RollUpCheck::Group(GroupName::CashFlow(CashFlowGroup::NetChangeInCash)),
+                ..
+            } => Some((period.start(), period.end())),
             _ => None,
         })
         .collect()
@@ -42,9 +39,7 @@ fn cash_mismatches(findings: Vec<Finding>) -> Vec<(Option<NaiveDate>, NaiveDate)
 #[test]
 fn should_fail_the_cash_identity_of_2024_and_2025_for_unitedhealth_10_k_2025_fy() {
     let series = resolve_fixture_filings(&["0000731766-26-000062"]).series();
-    let mut added = derive_q4(&series);
-    let derived = derive_from_closed_groups(&series, &added);
-    added.extend(derived);
+    let added = derived_values(&series);
 
     let expected_result = vec![
         (Some(date(2024, 1, 1)), date(2024, 12, 31)),
@@ -59,9 +54,7 @@ fn should_fail_the_cash_identity_of_2024_and_2025_for_unitedhealth_10_k_2025_fy(
 #[test]
 fn should_fail_no_cash_identity_for_apple_10_k_2025_fy() {
     let series = resolve_fixture_filings(&["0000320193-25-000079"]).series();
-    let mut added = derive_q4(&series);
-    let derived = derive_from_closed_groups(&series, &added);
-    added.extend(derived);
+    let added = derived_values(&series);
 
     let expected_result: Vec<(Option<NaiveDate>, NaiveDate)> = Vec::new();
 

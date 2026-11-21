@@ -5,7 +5,9 @@
 //!
 //! - Supermicro filed no 10-K for fiscal year 2018. Its 10-K for fiscal year 2019 reports fiscal
 //!   year 2018 as a comparative, so the series holds a value for every year, and the check reports
-//!   no gap. The check reads values, not filings, so it does not see the missing 10-K.
+//!   no gap. The check reads values, not filings, so it does not see the missing 10-K. The 10-Ks of
+//!   fiscal years 2013 and 2017 alone leave fiscal year 2014 without a value, and the check reports
+//!   that gap.
 //! - Deckers moved its fiscal year end from 31 December to 31 March with its 10-QT of 2014. The
 //!   fixture set holds no filing between the 10-QT and fiscal year 2025, so the check reports a gap
 //!   for each quarter between them. The gaps in the 12 months after 31 December 2013, the last
@@ -62,6 +64,22 @@ fn should_report_no_gap_when_the_supermicro_10_k_2019_fy_reports_fiscal_year_201
         .into_iter()
         .filter(|finding| matches!(finding, Finding::Gap { .. }))
         .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_report_the_gap_of_fiscal_year_2014_when_only_the_supermicro_10_ks_2013_and_2017_fy_report_net_income()
+ {
+    let resolved = resolve_fixture_filings(&["0001445305-13-002262", "0001375365-19-000039"]);
+    let concept = IncomeStatementConcept::NetIncome.element();
+
+    let expected_result = vec![(date(2014, 6, 30), Some("FY".to_string()), 4, None)];
+
+    let result = gaps_of(
+        check_chronology(resolved.series(), &resolved.filings, Vec::new()).findings,
+        concept,
+    );
 
     assert_eq!(result, expected_result);
 }

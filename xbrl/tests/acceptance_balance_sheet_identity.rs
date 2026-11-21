@@ -17,13 +17,11 @@ use std::collections::BTreeSet;
 
 use chrono::NaiveDate;
 use pretty_assertions::assert_eq;
-use xbrl::core::closed_group::derive_from_closed_groups;
 use xbrl::core::finding::{Finding, RollUpCheck};
-use xbrl::core::period_identity::derive_q4;
 use xbrl::core::roll_up_check::check_roll_ups;
 use xbrl::tests::fixtures::data::GZIP_EXTENSION;
 use xbrl::tests::fixtures::data::manifest::manifest;
-use xbrl::tests::fixtures::data::resolved::resolve_fixture_filings;
+use xbrl::tests::fixtures::data::resolved::{derived_values, resolve_fixture_filings};
 use xbrl::tests::fixtures::sample_fact::date;
 
 /// The prefix of the path of a Notes fixture file in the manifest.
@@ -33,9 +31,7 @@ const NOTES_PREFIX: &str = "notes/";
 /// returns the accession and the period end of each failed balance sheet identity.
 fn balance_sheet_mismatches(accession: &str) -> Vec<(String, NaiveDate)> {
     let series = resolve_fixture_filings(&[accession]).series();
-    let mut added = derive_q4(&series);
-    let derived = derive_from_closed_groups(&series, &added);
-    added.extend(derived);
+    let added = derived_values(&series);
     check_roll_ups(&series, &added)
         .into_iter()
         .filter_map(|finding| match finding {
