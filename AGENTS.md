@@ -746,6 +746,29 @@ version: 0.1.0
 
 ---
 
+## Routines
+
+A routine is a scheduled task that starts a fresh cloud session on a fixed schedule, such as the
+Linear backlog grooming. Each routine of this repository has one file in `.claude/routines/`.
+
+- **The file holds the routine.** A YAML header holds the name, the schedule, the environment, the
+  notifications, and the model. The body below it is the prompt.
+- **The scheduler holds only a pointer.** The prompt of the scheduled task says: run the routine in
+  `.claude/routines/<file>` on `main`. The session reads the file at run time, so a merged PR
+  changes the routine, and the file and the scheduler cannot drift apart.
+- **Change a routine through a PR.** If the PR changes a header field, also change the scheduled
+  task to match after the merge. The header is the record of what the scheduler holds.
+- **One repository, its own routines.** A routine that works on another repository, such as
+  `ironcapitaleu/frontend`, lives in that repository. A routine that spans repositories lives in
+  `arkad`.
+- **Recreate a lost routine from its file.** Create a scheduled task with the fields of the header
+  and the pointer prompt.
+
+The **[`routine` skill](.claude/skills/routine/SKILL.md)** holds the file format, the sections of a
+prompt, and the rules of an unattended run. Read it before you write or change a routine.
+
+---
+
 ## Deviations
 
 If you must deviate from any guideline, **include a code comment** explaining why. Consistency, safety, and clarity are the priorities in this project.
