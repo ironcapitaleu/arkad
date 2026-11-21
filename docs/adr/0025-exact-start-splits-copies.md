@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([STA-490 comment `4538cd45`](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key#comment-4538cd45)). Amendment 1: Accepted by the project lead on 2026-11-21 ([STA-546 comment `901891a8`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-901891a8)). |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-490 comment `4538cd45`](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key#comment-4538cd45)). Amendment 1: Accepted by the project lead on 2026-11-21 ([STA-546 comment `901891a8`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-901891a8)), and in its final wording ([STA-546 comment `9a7200b6`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-9a7200b6)). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-490](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key) |
