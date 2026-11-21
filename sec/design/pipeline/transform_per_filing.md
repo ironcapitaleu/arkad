@@ -391,7 +391,7 @@ The filing step runs no data check. A failed data check stops a load, never a si
   ([ADR 0001, Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver)).
   The load design sets the tables and the write rule.
 - A replay of a rule of standardize filing runs the whole filing step again from the raw store.
-  Parse costs little: the largest Notes file takes 45.6 s for every step of the unit, and an
+  Parse costs little: the largest Notes file takes 45.6 s to split, parse, map, and write, and an
   instance takes at most 101 ms to parse (measured). So the MVP has no state that loads as-is
   facts from silver. A later design adds it if a replay of standardize filing alone becomes
   frequent.
