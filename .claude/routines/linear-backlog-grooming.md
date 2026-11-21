@@ -5,7 +5,7 @@ schedule: "CRON_TZ=Europe/Zurich 38 10 1,15 * *"
 environment: arkad
 session: new session on each run
 notifications: push
-model: default
+model: claude-opus-5-5
 repositories:
   - ironcapitaleu/arkad
   - ironcapitaleu/frontend
