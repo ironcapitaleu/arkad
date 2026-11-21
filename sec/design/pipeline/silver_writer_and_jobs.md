@@ -12,8 +12,8 @@
 This document sets how the code meets the silver contract of [`silver_layer.md`](silver_layer.md).
 It covers how a unit reaches silver, how the series step runs, and how the jobs run and fail. It does not
 change the contract. The per-filing work of the transform, its states, parsers, standardize filing,
-and checks, belongs to the per-filing transform design. This document calls that work "the filing
-step".
+and checks, belongs to the per-filing transform design, [`transform_per_filing.md`](transform_per_filing.md).
+This document calls that work "the filing step".
 
 ## Reading Guide
 
@@ -529,8 +529,8 @@ prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thre
 | Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops. The references stay with their source | The next run of the workflow |
 | Lease lost | A worker task finds another plan in the lease, or less than one task timeout plus 1 minute before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
 
-- The per-filing transform design decides which filing the parser rejects, and the share of
-  rejected filings that fails a unit.
+- [`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings", sets which filing the
+  parser rejects, and the share of rejected filings that fails a unit.
 - A series task that fails leaves its run without a count. The next series run compares against the
   run before it, so it recomputes every entity of the failed run.
 - A unit that fails stays in the next plan through the carry-over of

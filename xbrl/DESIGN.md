@@ -2385,6 +2385,7 @@ SEC gives the opposite sign.
 
 The `xbrl` crate holds the types and the rules. The transform runs them as states of the state
 machine. This section gives the proposed shape and lists what the transform design must decide.
+[`transform_per_filing.md`](../sec/design/pipeline/transform_per_filing.md) holds that design.
 
 ### Proposed Shape
 
