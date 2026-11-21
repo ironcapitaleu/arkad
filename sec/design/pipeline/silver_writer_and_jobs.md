@@ -89,7 +89,8 @@ flowchart TB
 | Silver backend | `storage` | `SilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects. Filesystem by default |
 | Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
 | GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
-| Silver code | `sec`, module `silver` | `SilverRecord`, `DigestRow`, the row types, the writer, the reader, the plans, `UnitSource` and its listing backend, and the task runner |
+| Content digest | `sec`, module `shared::content_digest` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use |
+| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `UnitSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
 Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
@@ -211,7 +212,7 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 ## Byte Form of `content_digest`
 
 [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. The code lives in
-`sec::silver`:
+`sec::shared::content_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
@@ -501,9 +502,10 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 
 [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
-prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print and
-the hash of `content_digest` add about 11 seconds: 9,101,360 rows of `num.tsv` of `2024q1`, a median
-of 10.9 s over 3 runs, on one thread of an Intel Xeon at 2.10 GHz, measured on 2026-11-21.
+prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print,
+sort, and hash of `content_digest` add about 11 seconds. The measurement used the 9,101,360 rows of
+`num.tsv` of `2024q1`, on one thread of an Intel Xeon at 2.10 GHz. The median of 3 runs was 10.9 s,
+measured on 2026-11-21.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.

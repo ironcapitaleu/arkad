@@ -23,12 +23,12 @@ const VALUE_MARKER: u8 = 0x01;
 ///
 /// [ADR 0033](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0033-byte-form-of-content-digest.md)
 /// fixes the form. A change of a print rule changes every digest, and needs a new
-/// [`TRANSFORM_VERSION`](crate::silver::TRANSFORM_VERSION).
+/// [`TRANSFORM_VERSION`](crate::shared::transform_version::TRANSFORM_VERSION).
 ///
 /// # Examples
 ///
 /// ```rust
-/// use sec::silver::ByteForm;
+/// use sec::shared::content_digest::ByteForm;
 ///
 /// let concept = "Assets";
 ///

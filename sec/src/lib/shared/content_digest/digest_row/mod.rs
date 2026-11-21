@@ -13,8 +13,8 @@ use super::byte_form::ByteForm;
 /// The digest group and the row key of each dataset are in `sec/design/pipeline/silver_layer.md`,
 /// `silver_files`, column `content_digest`.
 ///
-/// [`content_digest`]: super::content_digest::content_digest
-/// [`group_hashes`]: super::content_digest::group_hashes
+/// [`content_digest`]: super::content_digest()
+/// [`group_hashes`]: super::group_hashes
 pub trait DigestRow {
     /// Appends the key columns of the digest group of the row.
     ///

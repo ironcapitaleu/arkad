@@ -1,32 +1,38 @@
 //! # Content Digest
 //!
-//! Provides [`content_digest`], the SHA-256 of the rows of a silver unit, and [`group_hashes`],
-//! the hash of each digest group that it combines.
+//! Provides [`content_digest()`], the SHA-256 of the rows of a silver unit, and the byte form of
+//! the rows that it hashes.
 //!
-//! The digest depends only on the rows of the unit, so a rebuild with the same `transform_version`
-//! gives the same digest, whatever the split, the parts, or the Arrow release. The writer hashes one
-//! digest group when the group is whole, keeps only its [`GroupHash`], and computes the digest from
-//! the group hashes at the end of the unit.
+//! Integrity check 4 runs the transform again on the same input and compares the digests of the
+//! two units. So the digest depends only on the rows of a unit, not on the split, the parts, or the
+//! Arrow release. Each row type implements [`DigestRow`] and prints its values into a
+//! [`ByteForm`]. The writer calls [`group_hashes`] on one whole digest group, keeps only its
+//! [`GroupHash`], and calls [`content_digest()`] on the group hashes at the end of the unit.
 //!
 //! ## Modules
 //!
+//! - [`byte_form`]: The [`ByteForm`] of the values of a row.
+//! - [`digest_row`]: The [`DigestRow`] trait of a row that enters the digest.
 //! - [`duplicate_digest_group`]: The [`DuplicateDigestGroup`] for two group hashes with one ID.
 //!
 //! ## See Also
 //!
 //! - [ADR 0033](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0033-byte-form-of-content-digest.md):
 //!   the byte form and the sort order.
+//! - `sec/design/pipeline/silver_writer_and_jobs.md`, "Byte Form of `content_digest`": how the
+//!   writer uses the digest.
 
 use std::collections::BTreeMap;
 
 use sha2::{Digest, Sha256};
 use storage::shared::Sha256Digest;
 
-use super::byte_form::ByteForm;
-use super::digest_row::DigestRow;
-
+pub mod byte_form;
+pub mod digest_row;
 pub mod duplicate_digest_group;
 
+pub use byte_form::ByteForm;
+pub use digest_row::DigestRow;
 pub use duplicate_digest_group::DuplicateDigestGroup;
 
 /// The ID and the hash of one digest group of a silver unit.
@@ -72,7 +78,7 @@ type KeyedRow = (Vec<u8>, Vec<u8>);
 /// # Examples
 ///
 /// ```rust
-/// use sec::silver::{ByteForm, DigestRow, group_hashes};
+/// use sec::shared::content_digest::{ByteForm, DigestRow, group_hashes};
 ///
 /// struct Fact {
 ///     filing_id: &'static str,
@@ -148,7 +154,7 @@ pub fn group_hashes<R: DigestRow>(rows: &[R]) -> Vec<GroupHash> {
 /// # Examples
 ///
 /// ```rust
-/// use sec::silver::content_digest;
+/// use sec::shared::content_digest::content_digest;
 ///
 /// let groups = Vec::new();
 ///

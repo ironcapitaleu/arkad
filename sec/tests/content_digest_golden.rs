@@ -11,7 +11,8 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use pretty_assertions::assert_eq;
 
-use sec::silver::{ByteForm, DigestRow, TRANSFORM_VERSION, content_digest, group_hashes};
+use sec::shared::content_digest::{ByteForm, DigestRow, content_digest, group_hashes};
+use sec::shared::transform_version::TRANSFORM_VERSION;
 
 /// The expected `content_digest` of the fixture unit, by `transform_version`.
 const GOLDEN_DIGESTS: [(&str, &str); 1] = [(
