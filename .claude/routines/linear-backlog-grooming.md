@@ -129,7 +129,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 
 # Parking rule
 
-1. **Ask.** An open issue in Backlog or Todo with no update for 90 days or more (fewer under high backlog pressure, see "Capacity rule") gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
+1. **Ask.** An open issue in "Scope" in Backlog or Todo with no update for 90 days or more (fewer under high backlog pressure, see "Capacity rule") gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
 2. **Answer.** "keep" posts `[routine] kept until <date + 90 days>` on the issue. Do not ask about it again before that date. Count its age from its last update or that comment, whichever is later. "cancel" cancels it. "park" parks it.
 3. **Silence.** If two reports in a row asked about the issue and the owner answered neither, park it.
 4. **Park.** Append the issue to the "Parked Ideas" document of its project: link, title, date parked, the reason, and its full description. Then set the issue to Canceled with a comment that links the entry. A later run archives it by "Archive rule".
@@ -152,7 +152,7 @@ An open issue (Backlog, Todo, In Progress, or In Review) in a project with miles
 # Steps
 
 1. Load the conventions. Attach and clone `ironcapitaleu/arkad` if needed.
-2. Read the grooming reports of the last 90 days on MVP Data Pt. 2 and their comments. Take the key of each answered item from the report, and never rebuild it. Carry out the answers that "Approval rule" accepts and that no newer done line for their key covers. Touch nothing else from those lists. Record each result.
+2. Read the grooming reports of the last 90 days on MVP Data Pt. 2 and their comments. Take the key of each answered item from the report, and never rebuild it. Carry out the answers that "Approval rule" accepts and that no newer done line for their key covers, except approved `fog` items: step 8 creates those. Touch nothing else from those lists. Record each result.
 3. Apply "Capacity rule", points 1 to 4: measure, forecast, and set the zone and the backlog pressure of this run. They set the day counts and the order of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
    - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 14 with the options "park" and "archive". If two reports in a row asked and got no answer, archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
@@ -160,16 +160,16 @@ An open issue (Backlog, Todo, In Progress, or In Review) in a project with miles
 5. For each matching issue that holds a Linear document: move the document to the issue's project with `documentUpdate` (`projectId` set, `issueId` null). Files attached to an issue stay on it. An issue with no project keeps its document: leave that issue unarchived and list it in the report.
 6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures. Then compute the projected total again from the real total after the archive. If this projection is 230 or more, write the hand-off note of the critical zone.
 7. Write one document "Archived Issues Index (Temporary, <YYYY-MM-DD>)" on MVP Data Pt. 2. At the top: nothing was deleted, links still work, how to unarchive, and which documents moved to which project. Then a table of the issues with an open relation, files, or a moved document, and a plain list of the rest, each with link, title, and project.
-8. Fog tickets. For each entry of "Tickets to create later" whose trigger is a checkable fact that holds: check that no open or recent issue covers it already, then create the ticket with the template, label, project, milestone, and blocking links of the `linear` skill. Replace the fog entry with a link to the new ticket. An entry whose trigger needs judgement becomes a proposal.
+8. Fog tickets. For each entry of "Tickets to create later" whose trigger is a checkable fact that holds, and for each approved `fog` item of step 2: check that no open or recent issue covers it already, then create the ticket with the template, label, project, milestone, and blocking links of the `linear` skill. Replace the fog entry with a link to the new ticket. An entry whose trigger needs judgement becomes a proposal. If "Capacity rule" holds back an approved `fog` ticket, post `[routine] done <key> approve: deferred, projected total <n>` and list the item again in the report.
 9. Duplicates and milestones. For each pair that meets the duplicate condition of "Autonomy", mark the newer issue as a duplicate of the older one, and comment on both with the reason. Then apply "Milestone rule" to the issues that are still open, and skip each issue that this step marked as a duplicate: set the milestones that a fact decides, and add its proposals to the list of step 13.
 10. Parking. Apply "Parking rule": park the issues whose two questions went unanswered, and list the new questions.
-11. Dwell. Apply "Dwell rule" to every issue in In Progress or In Review. Add its questions and proposals to the list of step 13, and its hand-offs to "Hand off to the human".
-12. Proposals. Never act on these in this run:
+11. Dwell. Apply "Dwell rule" to every issue in "Scope" in In Progress or In Review. Add its questions and proposals to the list of step 13, and its hand-offs to "Hand off to the human".
+12. Proposals, for issues, projects, and documents in "Scope" only. Never act on these in this run:
     - **Replaced by a decision:** an open ticket that an ADR, a ledger entry, or a merged PR made unnecessary, or that conflicts with the current design. Quote the source.
     - **Already landed:** an open ticket whose work is on `main`. Check the code and merged PRs of `arkad`, not the title alone. Name the PR or commit.
     - **Fog tickets with a judgement trigger:** the title and a one-line scope.
     - **Epics to close or split:** an open project other than Frontend Maintenance and MVP Integration, whose milestones are all at 100%, or with a finished milestone that holds more than 30 Done issues. Propose a close, or a split as MVP Data was split from MVP Data Pt. 2.
-    - **Stale points:** an open ticket whose description names a ticket, file, or decision that changed since. Quote the stale sentence and name the source.
+    - **Stale points:** an open ticket whose description names a ticket, file, or decision that changed since. Quote the stale sentence, name the source, and give the new sentence. `approve` replaces the quoted sentence with it, if the description still holds the quoted sentence word for word. Otherwise post `[routine] done <key> approve: sentence changed, not replaced`.
     - **Old index documents:** a temporary index document on MVP Data Pt. 2 older than 60 days, with no comment that asks to keep it. Propose to delete it.
 13. Write the report: one document "Backlog Grooming Report <YYYY-MM-DD>" on MVP Data Pt. 2. It holds the issue count before and after, the open issues without a milestone per project before and after, the archive result with a link to the index, the actions of steps 2 and 8 to 11 with links, and the proposals and parking questions as one numbered list. Each item starts with its key in backticks, then the evidence and your recommendation. Keep it short.
 14. Ask the owner. If the list of step 13 is empty, skip this step. Otherwise ask with `AskUserQuestion`, one question per item, four questions per call, and more calls until every item is asked:
@@ -199,7 +199,7 @@ For each item that needs the human (an API error, a failed archive, a document t
 - Never archive an open issue, or a closed issue that is the parent or ancestor of an open issue.
 - Never archive an issue before its documents moved to its project.
 - Never create a ticket outside step 8, or one that an open or recent issue already covers.
-- Never change team, workflow, label, or project settings. Never change a project's status.
+- Never change team, workflow, label, or project settings. Never change a project's status, except to close a project for an approved `epic` item. Carry out an approved split as a proposal for the owner: name the follow-up project and the issues to move.
 - Never push, open a branch, or open a PR in the repository.
 - Never change, archive, or propose anything for a frontend issue, for Frontend Maintenance or MVP Integration, or for their documents (see "Scope").
 - Never put a model name in Linear.
