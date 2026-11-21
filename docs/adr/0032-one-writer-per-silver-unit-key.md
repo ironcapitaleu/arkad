@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)) |
+| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)). The project owner accepted [Amendment 1](#amendment-1-the-cloud-run-assumptions-hold) of 2026-11-21 on 2026-11-21 ([STA-550 comment `2421befd`](https://linear.app/state-machine/issue/STA-550#comment-2421befd)) |
 | Date | 2026-11-16 |
 | Deciders | The project owner |
 | Ticket | [STA-463](https://linear.app/state-machine/issue/STA-463/design-silver-writer-and-transform-job-plan) |
@@ -61,6 +61,45 @@ Terms in this ADR:
    that unit plus 1 ms. So clock skew between two machines cannot give a tie.
 
 The rule "the current unit is the unit with the latest `written_at`" stays as it is.
+
+## Amendment 1: The Cloud Run Assumptions Hold
+
+Date: 2026-11-21. Accepted by the project owner on 2026-11-21.
+
+**Reason.** "Context" names two assumptions that the session of 2026-11-16 could not check:
+Cloud Run starts a new attempt of a task only after the previous attempt ended, and it stops an
+attempt at its task timeout. Decisions 3 and 5 rest on both. The Cloud Run documentation, read on
+2026-11-21, says:
+
+- On the timeout: "If your job has retries enabled, the timeout setting applies to each attempt
+  of a task. If the task attempt does not complete within this time, it will be stopped."
+  ([Set task timeout](https://docs.cloud.google.com/run/docs/configuring/task-timeout))
+- On the stop: "If a task exceeds the task timeout, Cloud Run sends a SIGTERM signal indicating
+  the start of a 10 second period before the actual shutdown occurs, at which point Cloud Run
+  sends a SIGKILL signal, shutting down the container instance."
+  ([Container runtime contract](https://docs.cloud.google.com/run/docs/container-contract))
+- On a task: "Task represents a single run of a container to completion." "Tasks are retried when
+  they fail up to the maxRetries limit."
+  ([REST v2, `jobs.executions.tasks`](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions.tasks))
+- On a retry: "The maximum retries setting specifies the number of times a task is allowed to
+  restart in case of failure before being failed permanently."
+  ([Set maximum retries](https://docs.cloud.google.com/run/docs/configuring/max-retries))
+
+No sentence says in words that two attempts of one task never run at the same time. It follows
+from the quotes: Cloud Run marks an attempt as failed only when its container exits, or when Cloud
+Run stops it at the timeout. A retry follows a failure. So a retry starts only after the failed
+attempt ended.
+
+**Decision.** Both assumptions hold. Decisions 3 and 5 stand as written.
+
+**Consequences.**
+
+- The open question about two attempts at the same time and an attempt past its timeout is
+  answered. It opens again if the Cloud Run documentation changes what a failed attempt is, or
+  what the timeout does.
+- The documentation also says: "If you set --parallelism to greater than 1, tasks might not follow
+  the index order." This ADR does not rest on the order of tasks, so the sentence changes none of
+  its decisions.
 
 ## Options Considered
 
