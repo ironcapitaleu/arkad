@@ -36,8 +36,8 @@ pub trait LeaseStore: Send + Sync {
     ///
     /// Writes the lease if the job kind has none, or if its lease expired at or before the time of
     /// the call. Returns the generation of the written lease. If `expires_at` is after the time of
-    /// the calls, two calls at the same time never both succeed. A lease that expires during the
-    /// calls lets the next call replace it.
+    /// the calls, two calls at the same time never both succeed. If the lease expires before a call
+    /// reads it, that call replaces it.
     ///
     /// # Errors
     ///

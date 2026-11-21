@@ -164,6 +164,8 @@ impl LeaseStore for FilesystemLeaseStore {
     /// - [`LeaseError::Backend`] that holds a [`FailedFilesystemOperation`] if the root does not
     ///   exist or is not a directory, the current lease file holds no valid lease, or the
     ///   filesystem cannot read, create, write, sync, or link a file.
+    /// - [`LeaseError::Backend`] that holds a [`BackendError::FailedOperation`] with a reason if the
+    ///   current generation is `u64::MAX`.
     async fn acquire(
         &self,
         kind: &JobKind,
@@ -435,6 +437,30 @@ mod tests {
         let expected_result = Ok(Some(LeaseGeneration(2)));
 
         let result = latest_generation(&directory).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_a_backend_error_when_the_latest_generation_is_the_maximum() {
+        let root = temporary_root();
+        let directory = root.path().join("leases/transform-notes");
+        std::fs::create_dir_all(&directory)
+            .expect("Given a writable temp directory, creating subdirectories should succeed");
+        std::fs::write(
+            directory.join(u64::MAX.to_string()),
+            br#"{"plan_id":"plan-a","expires_at":"1970-01-01T00:00:00Z"}"#,
+        )
+        .expect("Given an existing directory, writing a file should always succeed");
+        let store = FilesystemLeaseStore::new(root.path());
+
+        let expected_result = Err(LeaseError::Backend(BackendError::failed_operation(
+            "Lease generation 18446744073709551615 of job kind 'transform-notes' has no next generation",
+        )));
+
+        let result = store
+            .acquire(&transform_notes(), "plan-b", in_hours(16))
+            .await;
 
         assert_eq!(result, expected_result);
     }
