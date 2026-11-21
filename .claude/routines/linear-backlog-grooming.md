@@ -66,13 +66,24 @@ The routine writes as `@DeCa09`, so the author of a comment does not prove that 
 
 Linear refuses a new issue once 250 issues are active, and then no one can cut a ticket. Keep room ahead of that.
 
-1. **Measure.** Count the active issues (not archived). Count the issues created in the last 28 days. The forecast is the number of weeks until 250 at that rate.
-2. **Zone.** Green: under 200 active issues and a forecast over 8 weeks. Amber: 200 to 229, or a forecast of 4 to 8 weeks. Red: 230 or more, or a forecast under 4 weeks. The worse of the two decides.
-3. **Act by zone:**
-   - **Green:** "Archive rule" with 30 days.
-   - **Amber:** "Archive rule" with 14 days. Ask the parking question at 60 days without update instead of 90. Put the epic close and split proposals first in the form.
-   - **Red:** "Archive rule" with 7 days. Ask the parking question at 45 days. Before you create a fog ticket, check that the run still ends at least 10 issues under 250. Otherwise make it a proposal. Send a push notification, even if nothing else is new.
-4. **Report.** The report starts with the zone, the active count, the room left, the creation rate, and the forecast. If the run ends in a worse zone than the last report, say why, such as a burst of new tickets in one epic.
+Archiving frees the slots of closed issues, but not of open ones. So the rule watches two things: the total, which archiving can fix, and the open floor, which only planning can fix.
+
+1. **Measure.** Count the active issues (not archived) by status type:
+   - **Closed:** completed or canceled, not archived yet. Archiving frees these.
+   - **Open:** Backlog and Todo.
+   - **In work:** In Progress and In Review.
+   - **Floor:** open plus in work. Archiving cannot lower it.
+
+   Over the last 28 days, count the issues created and the issues closed (completed or canceled). **Net growth** is created minus closed.
+2. **Forecasts.** The total forecast is the number of weeks until the total reaches 250 at the creation rate. The floor forecast is the number of weeks until the floor reaches 250 at the net growth rate. A net growth of zero or less gives no floor forecast.
+3. **Zone** (sets the archive age). Green: a total under 200 and a total forecast over 8 weeks. Amber: a total of 200 to 229, or a total forecast of 4 to 8 weeks. Red: a total of 230 or more, or a total forecast under 4 weeks. The worse of the two decides.
+4. **Backlog pressure** (sets the planning actions). High when any holds: the floor is 150 or more, the floor forecast is under 26 weeks, or the net growth was above zero in this report and the last one. Otherwise normal.
+5. **Act:**
+   - **Green zone:** "Archive rule" with 30 days.
+   - **Amber zone:** "Archive rule" with 14 days.
+   - **Red zone:** "Archive rule" with 7 days. Before you create a fog ticket, check that the run still ends at least 10 issues under 250. Otherwise make it a proposal. Send a push notification, even if nothing else is new.
+   - **High backlog pressure:** ask the parking question at 60 days without update (45 in the red zone) instead of 90. Put the proposals to close, prune, or split an epic first in the form. Name the three projects with the highest net growth. Send a push notification.
+6. **Report.** The report starts with the zone, the backlog pressure, the total, the closed, open, and in-work counts, the floor, the room left, the creation rate, the net growth, and both forecasts. If the zone or the pressure got worse since the last report, say why, such as a burst of new tickets in one epic.
 
 # Archive rule
 
@@ -86,7 +97,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 
 # Parking rule
 
-1. **Ask.** An open issue in Backlog or Todo with no update for 90 days or more (60 in the amber zone, 45 in the red zone) gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
+1. **Ask.** An open issue in Backlog or Todo with no update for 90 days or more (fewer under high backlog pressure, see "Capacity rule") gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
 2. **Answer.** "keep" posts `[routine] kept until <date + 90 days>` on the issue. Do not ask about it again before that date, and count its age from the later of its last update and that comment. "cancel" cancels it. "park" parks it.
 3. **Silence.** If two reports in a row asked about the issue and the owner answered neither, park it.
 4. **Park.** Append the issue to the "Parked Ideas" document of its project: link, title, date parked, the reason, and its full description. Then set the issue to Canceled with a comment that links the entry. A later run archives it by "Archive rule".
@@ -96,7 +107,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 
 1. Load the conventions. Attach and clone the two repositories if needed.
 2. Read the grooming reports of the last 60 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and whose key has no `[routine] done` line yet. Touch nothing else from those lists. Record each result.
-3. Apply "Capacity rule", points 1 and 2: measure, and set the zone of this run. The zone sets the day counts of the steps below.
+3. Apply "Capacity rule", points 1 to 4: measure, forecast, and set the zone and the backlog pressure of this run. They set the day counts and the order of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
    - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 13 whether to park it or archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
    - A cancelled issue that blocks an open issue: propose to drop that link, or to move it to the ticket that replaced the cancelled one.
@@ -150,11 +161,11 @@ For each item that needs the human (an API error, a failed archive, a document t
 # Reporting
 
 When done, report briefly:
-- The zone, active issues before and after, the room left under 250, the creation rate, and the forecast.
+- The zone and the backlog pressure, the total before and after, the closed, open, and in-work counts, the floor, the room left under 250, the creation rate, the net growth, and both forecasts.
 - Issues archived, documents moved, failures.
 - Tickets created, duplicates marked, issues parked.
 - Approved items carried out.
 - New proposals and questions, by kind.
 - Links to the index and the report.
 
-Send a push notification for new proposals, questions, hand-offs, a failed run, or a run that ends in the red zone. A run with nothing new in the green or amber zone needs no notification.
+Send a push notification for new proposals, questions, hand-offs, a failed run, a run that ends in the red zone, or high backlog pressure. A run with nothing new, outside the red zone and under normal pressure, needs no notification.
