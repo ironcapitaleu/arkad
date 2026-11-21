@@ -12,11 +12,9 @@ version: 0.1.0
 
 ## Purpose
 
-A routine runs unattended. No one answers a question, approves a step, or reads the session while
-it runs. The prompt is the only thing the session knows. This skill gives the file format, the
-shape of the prompt, and the rules that keep an unattended run safe. The routines in
-`.claude/routines/` and the frontend routines (`[FRONTEND] Upstream sync with arkad & release`,
-`[FRONTEND] Security audit: fix & merge vulnerable deps`) follow it.
+A routine runs unattended. No one reads the session while it runs, and the owner answers a question
+late or never. The prompt is the only thing the session knows. This skill gives the file format,
+the shape of the prompt, and the rules that keep an unattended run safe.
 
 ## The File
 
@@ -92,16 +90,23 @@ Use these sections, in this order. Leave out a section only if it has nothing to
 
 ## Critical Invariants
 
-- **Never ask.** The run is unattended. Where a step needs a decision, the run hands it off and goes
-  on with the rest. A held item never holds back a clear one.
+- **Work first, ask last.** A question never holds back a clear step. The run does all it may do
+  alone, then asks the owner once, at the end, with `AskUserQuestion`: one question per decision,
+  with the evidence in one line and the recommended option first. The session waits for the
+  answers and carries them out. If the session ends first, the next run asks again. A routine
+  whose decisions cannot wait, such as a release, hands off instead.
 - **Autonomy follows reversibility and judgement.** A run acts alone only where the action is easy
   to undo and the condition is a fact it can check, such as "the ticket is Done". Where the
   condition needs judgement, the run proposes. Where the action is hard to undo, the run asks. The
   prompt holds this as an "Autonomy" table with one row per action and a level: Do, Ask then do,
   Propose, or Never.
 - **Approval comes from the owner only.** An approval or an answer comes only from the human
-  owner, in a place the prompt names, such as a comment on the run's report. A run never deletes,
-  and never merges a PR it did not open.
+  owner: an answer in the form, or a fixed form of comment that the prompt names. A run deletes,
+  cancels, or merges a PR it did not open only as an approved item.
+- **The author proves nothing.** A routine acts as the owner's account, so a comment by the owner
+  can be the run's own. Start every comment the run writes with `[routine]`, never treat such a
+  comment as an approval, and never write the approval form anywhere. After an approved item,
+  post `[routine] done <n>`, and skip an item that has one, so a failed run repeats nothing.
 - **Silence is consent only where the owner said so.** A run may treat an unanswered question as a
   yes only if the owner set that rule for that action, and only for an action that can be undone.
   Write the rule into the prompt with the number of runs the run waits.
@@ -116,6 +121,12 @@ Use these sections, in this order. Leave out a section only if it has nothing to
 - **Secrets stay in the environment.** A key is a network secret of the environment. The prompt
   never holds a key, and never asks for one.
 - **Plain English.** The prompt and everything the run writes follow the `plain-english` skill.
+
+## Authoritative Sources
+
+- Scheduled tasks and routines of Claude Code: https://code.claude.com/docs/en/claude-code-on-the-web
+- `AGENTS.md`, "Routines"
+- The routine files in `.claude/routines/`
 
 ## Self-Improvement
 

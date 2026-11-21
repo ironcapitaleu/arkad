@@ -678,6 +678,7 @@ A skill is a domain-specific knowledge bundle that loads into the agent's contex
 | Large reference data (lookup tables) | .claude/skills/{name}/references/*.md | On demand |
 | Live external data queries | MCP tools / WebFetch | Runtime |
 | Project decisions, status, strategy | .claude/memory/ | Session |
+| Prompts of scheduled, unattended sessions | .claude/routines/*.md | At run time |
 
 ### When to Create a Skill
 
@@ -753,9 +754,9 @@ Linear backlog grooming. Each routine of this repository has one file in `.claud
 
 - **The file holds the routine.** A YAML header holds the name, the schedule, the environment, the
   notifications, and the model. The body below it is the prompt.
-- **The scheduler holds only a pointer.** The prompt of the scheduled task says: run the routine in
-  `.claude/routines/<file>` on `main`. The session reads the file at run time, so a merged PR
-  changes the routine, and the file and the scheduler cannot drift apart.
+- **The scheduler holds a pointer to the prompt.** The prompt of the scheduled task says: run the
+  routine in `.claude/routines/<file>` on `main`. The session reads the file at run time, so a
+  merged PR changes the prompt. The header fields still live in the scheduler too.
 - **Change a routine through a PR.** If the PR changes a header field, also change the scheduled
   task to match after the merge. The header is the record of what the scheduler holds.
 - **One repository, its own routines.** A routine that works on another repository, such as
