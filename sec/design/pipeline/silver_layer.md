@@ -119,7 +119,7 @@ store holds today.
 | `filings` | `Filing`, with the company attributes as filed | Notes `sub.tsv` and `txt.tsv`, or the instance and `submissions` | Parse filing |
 | `candidates` | Standardized candidate of one filing, blocked ones included | `as_is_facts` | Standardize filing |
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
-| `findings` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` finding | Both standardize steps | Standardize filing, standardize series |
+| `findings` | `UndeclaredFamily`, `UnmappedRow`, `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` finding | The parser and both standardize steps | Parse filing, standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
 | `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
 
@@ -209,7 +209,7 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 | `filing_id`, `entity_scheme`, `entity_id` | `utf8` | `Filing` |
 | `form`, `is_amendment` | `utf8`, `bool` | `10-K/A`, true |
 | `filed`, `accepted` | `date32`, `timestamp[ms, UTC]` nullable | |
-| `period_of_report` | `date32` | |
+| `period_of_report` | `date32`, nullable | `Filing::period_of_report`: `sub.tsv` `period`, or `dei:DocumentPeriodEndDate`. Null if the source gives no value |
 | `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. Filled for 10-K, 10-Q, 20-F, and 40-F, mostly empty for other forms, see [Company Attributes Over Time](#company-attributes-over-time) |
 | `company_name` | `utf8`, nullable | `Filing::company.name`: `sub.tsv` `name`, or `dei:EntityRegistrantName` |
 | `industry_scheme`, `industry_code` | `utf8`, `utf8`, both nullable | `Filing::company.industry`: scheme `sic` with `sub.tsv` `sic`, or `submissions` `sic`. Another source writes its own scheme, for example `nace` |
@@ -283,12 +283,13 @@ reconciliation.
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
-| `kind` | `utf8` | `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` |
+| `kind` | `utf8` | `UndeclaredFamily`, `UnmappedRow`, `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, or `SumMismatch` |
 | `entity_scheme`, `entity_id` | `utf8` | |
-| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table. For `SumMismatch`, the total of the sum, then its parts, for example `LongTermDebtIncludingCurrentMaturities` and the six buckets of the ladder in the order of `xbrl/DESIGN.md`, "Debt Maturities" |
-| `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters` |
-| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity. For `SumMismatch`, the name of the sum, for example `debt-maturities` |
-| `filing_id` | `utf8`, nullable | Set for `Conflict` and `SuspiciousPeriod` |
+| `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table. For `SumMismatch`, the total of the sum, then its parts, for example `LongTermDebtIncludingCurrentMaturities` and the six buckets of the ladder in the order of `xbrl/DESIGN.md`, "Debt Maturities". Empty for `UndeclaredFamily` and `UnmappedRow` |
+| `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters`. Empty for `UndeclaredFamily` and `UnmappedRow` |
+| `subject` | `utf8`, nullable | For `UndeclaredFamily`, the family, for example `xyz/2027`. For `UnmappedRow`, the table and the primary key of the row, as the parser prints them. Null for the other kinds |
+| `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity. For `SumMismatch`, the name of the sum, for example `debt-maturities`. For `UnmappedRow`, the name of the `InvalidValueReason` variant of the rule the row breaks, for example `NotANumber` |
+| `filing_id` | `utf8`, nullable | Set for `UndeclaredFamily`, `UnmappedRow`, `Conflict`, and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
 | `confidence` | `utf8`, nullable | For `RollUpMismatch`, `NegativeOther`, and `SumMismatch`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
 | `step` | `utf8` | `filing` or `series` |
@@ -296,9 +297,9 @@ reconciliation.
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
-The key of a finding is `kind`, the entity, `concepts`, `periods`, and `filing_id`, for a filing
-row and for a series row. The series rows of `findings` are append-only like `standardized_facts`. A null `filing_id` matches a
-null `filing_id` (`IS NOT DISTINCT FROM`). A finding is open from its
+The key of a finding is `kind`, the entity, `concepts`, `periods`, `filing_id`, and `subject`, for a
+filing row and for a series row. The series rows of `findings` are append-only like `standardized_facts`. A null `filing_id` matches a
+null `filing_id` (`IS NOT DISTINCT FROM`), and a null `subject` matches a null `subject`. A finding is open from its
 `new` row until a later `resolved` row of the same key. A `changed` row records a new `reason`, a new
 `confirmed_by`, or a new `confidence` of an open finding.
 
@@ -308,6 +309,8 @@ A dataset, not a report, for three reasons:
 - A report is a query over the dataset. A dataset is not a query over a report.
 - Silver keeps every finding of every run, with the time it opened and resolved.
 
+The parse filing step writes `UndeclaredFamily` and `UnmappedRow`, as `Finding` values of the parser
+([ADR 0041](../../../docs/adr/0041-parser-findings-in-silver.md)). They have only filing rows.
 The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`,
 `Restatement`, and `SuspiciousPeriod`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
 read of the report takes the rows with `step = series`.
@@ -336,7 +339,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, in a pass separate from the parser. For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
-| `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates |
+| `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates. The reason `UnmappedRow` counts the rows that gave an `UnmappedRow` finding |
 | `content_digest` | `utf8` | SHA-256 over the list of digest group IDs and digest group hashes, sorted by digest group ID. A digest group is one filing, or the key that the list below names for rows without `filing_id`. A digest group hash is the SHA-256 over the rows of the digest group, sorted by the row key below. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the split, the bucket count, and the parts do not change the digest. The transform code prints the values, not the Arrow crate. An Arrow upgrade then leaves the digest as it is. The silver writer feature fixes the exact form, and a test pins it to `transform_version` |
 | `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run, for a series unit. Null otherwise |
 | `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
@@ -847,6 +850,14 @@ step:
 - A snapshot of each Arrow schema, checked in. A change to the snapshot needs a new
   `schema_version`.
 - A reader rejects a file whose `schema_version` it does not know.
+
+Two notes for the writer:
+
+- **Time zone.** The Arrow time zone `UTC` of the timestamp columns needs the `chrono-tz` feature
+  of `arrow`. Without it, `arrow` reads only offsets such as `+00:00`, and fails on `UTC`. The
+  writer turns on the feature. `sec` already compiles `chrono-tz`.
+- **`serde_json` precision.** The writer builds the Arrow arrays directly, see
+  [`silver_writer_and_jobs.md`](silver_writer_and_jobs.md#silverrecord-and-digestrow).
 
 ### Cloud Run Sizing
 
