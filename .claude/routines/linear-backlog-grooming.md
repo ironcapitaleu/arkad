@@ -64,7 +64,7 @@ The routine writes as `@DeCa09`, so the author of a comment does not prove that 
 3. Ignore every other comment as an approval, also when it quotes such a form.
 4. Give every item a key: the ticket or document ID and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an answer if a done line for its key is newer than the answer. So a run that failed halfway repeats nothing, and a later answer to a question asked again still runs.
 5. If two answers that point 4 does not skip differ for one key, carry out neither. Post `[routine] done <key> conflict: asked again` on the report, and ask again. So only a later answer counts.
-6. A `reject` answer posts `[routine] done <key> reject` on the report. For an item on an issue or a document, it also posts `[routine] rejected <kind> until <date + 90 days>` as a comment on that issue or document. Do not list that key again before that date. Step 2 reads 90 days of reports, so a reject on a project item holds too. A `cancelled-park` item offers no `reject`: its no is `archive`.
+6. A `reject` answer posts `[routine] done <key> reject` on the report. It also posts `[routine] rejected <kind> until <date + 90 days>` as a comment on the object of the key: the issue, the document, or the project of an `epic` item. Do not list that key again before that date. A `cancelled-park` item offers no `reject`: its no is `archive`.
 
 # Capacity rule
 
