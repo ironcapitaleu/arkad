@@ -221,10 +221,10 @@ points of that comment are out of date.
 - If the destination is both, post only the state-of-play comment.
 
 **If the next session works for the user, assign an unassigned ticket to the user. This needs no
-question either.** The next session works for the user if it is an agent session, or a Linear note
-that the user resumes. The user runs this
-session, so the user owns the work that the session hands off. If the handoff ticket has no
-assignee, assign it to the user through the `linear` skill (`assignee: "me"`). Name the change in
+question either.** The next session works for the user if the user resumes it: an agent session
+alone, or a Linear note or both that the user resumes. The user runs this session, so the user owns
+the work that the session hands off. Assign the ticket through the `linear` skill
+(`assignee: "me"`). Name the change in
 the list "Fixed on this ticket" of the comment, so the comment holds that list even if the user
 confirms no change. If the ticket has another assignee, leave it, and offer the change in the
 list below. If the user hands the ticket to another person, leave it, and name the open assignee in
@@ -293,8 +293,8 @@ If Linear fails after a change, list the changes already made in the chat reply.
 5. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
 6. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
-   For a Linear note, ask whether the user or another person resumes it. If the ticket has no
-   assignee and the next session works for the user, assign it to the user now.
+   For a Linear note or both, ask whether the user or another person resumes it. If the ticket
+   has no assignee and the user resumes the work, assign it to the user now.
 7. **Deliver:**
    - **Comment first** — leave the comment by the rule in "Update the Ticket", through the
      `linear` skill, in status voice. For a Linear note or both, that is the state-of-play
