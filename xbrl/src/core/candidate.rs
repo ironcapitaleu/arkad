@@ -78,8 +78,8 @@ pub enum CandidateValue {
 
 /// The key on which `core/dedup/newest-filing@1` matches candidates of different filings.
 ///
-/// The key holds the exact end and the length in quarters, as the value key does, because the
-/// Notes data set often gives no exact start.
+/// The key holds the exact end and the length in quarters, not the exact start, as the value key
+/// does.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct SeriesKey {
     /// The entity.

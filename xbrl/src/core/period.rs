@@ -44,7 +44,7 @@ impl Period {
         }
     }
 
-    /// Returns the exact start, or `None` for an instant or a duration whose source gives no start.
+    /// Returns the exact start, or `None` for an instant or a duration with no start.
     #[must_use]
     pub const fn start(&self) -> Option<NaiveDate> {
         match self {
@@ -92,17 +92,20 @@ pub(crate) fn days_of_quarters(quarters: u16) -> i64 {
     i64::from(quarters) * QUARTER_NUMERATOR / QUARTER_DENOMINATOR
 }
 
-/// A span of time: an exact end, a length in quarters, and the exact start if the source gives it.
+/// A span of time: an exact end, a length in quarters, and an exact start.
 ///
-/// The Notes data set gives the length but often no exact start. So the length is a field, and the
-/// start is optional. If the start is known, [`Duration::from_dates`] computes the length, so the
-/// two cannot disagree.
+/// Every parser builds a duration with [`Duration::from_dates`], which computes the length from the
+/// start and the end, so the two cannot disagree. [`Duration::from_end_and_quarters`] builds a
+/// duration with no start. No parser calls it.
 ///
 /// The length needs 16 bits: Notes `qtrs` reaches 4,007.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct Duration {
+    /// The exact start, or `None` for a duration from [`Duration::from_end_and_quarters`].
     start: Option<NaiveDate>,
+    /// The exact end.
     end: NaiveDate,
+    /// The length in quarters. It is a field, because the value key and the series key use it.
     quarters: u16,
 }
 
@@ -162,8 +165,7 @@ impl Duration {
         })
     }
 
-    /// Creates a [`Duration`] from an exact end and a length in quarters, for a source with no
-    /// exact start, such as the Notes data set.
+    /// Creates a [`Duration`] from an exact end and a length in quarters, with no exact start.
     #[must_use]
     pub const fn from_end_and_quarters(end: NaiveDate, quarters: u16) -> Self {
         Self {
@@ -174,7 +176,7 @@ impl Duration {
     }
 
     /// Returns how far the length lies from its whole number of quarters, in sixteenths of a day:
-    /// `|16 * days - 1461 * quarters|`. Returns `None` if the source gives no exact start.
+    /// `|16 * days - 1461 * quarters|`. Returns `None` if the duration has no exact start.
     ///
     /// The SEC orders the copies of one key by this distance, so a 91-day quarter comes before a
     /// 121-day period that also rounds to 1 quarter.
@@ -184,7 +186,7 @@ impl Duration {
         Some((QUARTER_DENOMINATOR * days - QUARTER_NUMERATOR * i64::from(self.quarters)).abs())
     }
 
-    /// Returns the exact start, if the source gives it.
+    /// Returns the exact start, or `None` if the duration has none.
     #[must_use]
     pub const fn start(&self) -> Option<NaiveDate> {
         self.start

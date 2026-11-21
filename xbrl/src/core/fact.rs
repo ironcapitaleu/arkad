@@ -267,9 +267,9 @@ impl AsIsFact {
 /// The value key of an [`AsIsFact`]: unique within one filing, and the same for a Notes row and an
 /// instance fact of one filing.
 ///
-/// The key holds the exact end and the length in quarters, not the exact start, because the Notes
-/// data set often gives no exact start. So two durations with one end and one rounded length, such
-/// as a 61-day stub and a 91-day quarter, differ only in `copy_rank`.
+/// The key holds the exact end and the length in quarters, not the exact start. So two durations
+/// with one end and one rounded length, such as a 61-day stub and a 91-day quarter, differ only in
+/// `copy_rank`. `docs/adr/0025-exact-start-splits-copies.md` records why.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct FactKey {
     /// The filing.

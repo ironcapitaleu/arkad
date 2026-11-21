@@ -9,7 +9,7 @@
 //! count as zero. Each checked group and the balance sheet identity hold, so the checks report no
 //! mismatch.
 //!
-//! The instance gives each duration its exact start. The filing reports its cash flow lines only
+//! Both parsers give each duration its exact start. The filing reports its cash flow lines only
 //! for four months from 1 June, and net income and D&A for the quarter from 1 July as well. So
 //! `operating-cash-flow` starts from the quarter and holds four-month lines, and it reports
 //! `MixedStarts` in each quarter. `net-change-in-cash` holds only four-month values, and the income
@@ -137,17 +137,6 @@ fn findings_of(series: &Series) -> Vec<Finding> {
     check_roll_ups(series, &added)
 }
 
-#[test]
-fn should_report_no_finding_when_the_checks_run_on_the_notes_facts() {
-    let facts = parse_notes_fixture().facts;
-
-    let expected_result: Vec<Finding> = Vec::new();
-
-    let result = findings(&facts);
-
-    assert_eq!(result, expected_result);
-}
-
 /// The kind of a finding, the name of its group, and the end of its period.
 type FindingSummary = (&'static str, String, NaiveDate);
 
@@ -165,6 +154,29 @@ fn summaries(findings: Vec<Finding>) -> Vec<FindingSummary> {
             _ => None,
         })
         .collect()
+}
+
+#[test]
+fn should_report_mixed_starts_of_operating_cash_flow_in_each_quarter_when_the_checks_run_on_the_notes_facts()
+ {
+    let facts = parse_notes_fixture().facts;
+
+    let expected_result = vec![
+        (
+            "MixedStarts",
+            "operating-cash-flow".to_string(),
+            date(2025, 9, 30),
+        ),
+        (
+            "MixedStarts",
+            "operating-cash-flow".to_string(),
+            date(2026, 9, 30),
+        ),
+    ];
+
+    let result = summaries(findings(&facts));
+
+    assert_eq!(result, expected_result);
 }
 
 #[test]
