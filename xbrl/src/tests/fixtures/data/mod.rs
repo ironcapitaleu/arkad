@@ -10,6 +10,7 @@
 //! - [`instance`]: The instance documents of the filings, as EDGAR serves them.
 //! - [`manifest`]: The list of the fixture files, with the source and the SHA-256 of each file.
 //! - [`notes`]: The rows of the filings in the Notes files.
+//! - [`resolved`]: The candidates of the Notes filings after the rules of one filing.
 
 use std::fs;
 use std::io::Read;
@@ -23,6 +24,7 @@ use crate::core::taxonomy::reference::ConceptAliases;
 pub mod instance;
 pub mod manifest;
 pub mod notes;
+pub mod resolved;
 
 /// The directory that holds the fixture files, at the paths the manifest names.
 const DATA_DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/tests/fixtures/data");
