@@ -5,8 +5,9 @@ description: >
   "spin up a driver session", "compact this session for another agent", "leave a state-of-play
   note", or invokes `/handoff`. Compacts the current conversation into a self-contained handoff:
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
-  a human takeover. Also posts the stale points of that ticket in a comment.
-version: 0.6.0
+  a human takeover. Also posts the stale points of that ticket in a comment, and assigns an
+  unassigned ticket to the user when the next session works for the user.
+version: 0.7.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -216,11 +217,22 @@ points of that comment are out of date.
 - For the Linear destination, the state-of-play comment holds one more list: "Stale on this
   ticket".
 - For the agent-session destination, post a short update comment with that list, the branch, and
-  the PR. If no point is stale, post no comment.
+  the PR. If no point is stale and the skill changed nothing on the ticket, post no comment.
 - If the destination is both, post only the state-of-play comment.
 
+**If the next session works for the user, assign an unassigned ticket to the user. This needs no
+question either.** The next session works for the user if the user resumes it: an agent session
+alone, or a Linear note or both that the user resumes. The user runs this session, so the user owns
+the work that the session hands off. Assign the ticket through the `linear` skill
+(`assignee: "me"`). Name the change in
+the list "Fixed on this ticket" of the comment, so the comment holds that list even if the user
+confirms no change. If the ticket has another assignee, leave it, and offer the change in the
+list below. If the user hands the ticket to another person, leave it, and name the open assignee in
+the chat reply. A ticket that stays unassigned shows no owner,
+and two sessions can take it.
+
 **Change the ticket itself only after the user agrees.** A change to the ticket is a checked box,
-a new status, an assignee, a relation, a link, or an edit of the description. If the comment
+a new status, a new assignee in place of another, a relation, a link, or an edit of the description. If the comment
 names an open box or a wrong status, offer the change. Ask the user once, with every change in
 one list.
 For each change, name the proof from the table. Make only the changes that the user confirms, and
@@ -231,7 +243,7 @@ undecided" to "Done" in the handoff document.
 | ------ | --------------------------- |
 | Check the box of a Definition of Done item | A merged PR or a commit on the default branch that does this item |
 | Set the status | Work started, a PR is open, or a PR merged. Never set Done unless the user asks |
-| Assign the user | The user owns this session, and work started |
+| Assign the user in place of another assignee | The user owns this session, and work started |
 | Add a blocker relation | The ticket text, a design doc, or the user names the dependency |
 | Link a PR or a branch | The PR or the branch exists |
 
@@ -281,10 +293,13 @@ If Linear fails after a change, list the changes already made in the chat reply.
 5. **Redact secrets.** Remove API keys, tokens, passwords, and personal data. Reference the
    secret's location instead, never its value.
 6. **Choose the destination** — a fresh agent session, a Linear note, or both (see Destinations).
+   For a Linear note or both, ask whether the user or another person resumes it. If the ticket
+   has no assignee and the user resumes the work, assign it to the user now.
 7. **Deliver:**
    - **Comment first** — leave the comment by the rule in "Update the Ticket", through the
      `linear` skill, in status voice. For a Linear note or both, that is the state-of-play
-     comment. For an agent session alone, it is the short update comment, if a point is stale.
+     comment. For an agent session alone, it is the short update comment, if a point is stale or the
+     skill changed the ticket.
    - **Agent session** — put the URL of the comment under "Artifacts". Then print the whole
      document in the chat reply, inside one fenced code block tagged `markdown`. Put nothing else
      inside the block. Count the longest run of backticks that
@@ -300,7 +315,8 @@ If Linear fails after a change, list the changes already made in the chat reply.
 ## Critical Invariants
 
 - **The ticket matches the handoff.** After a handoff, no point of the ticket contradicts the
-  handoff without a comment that says so. A comment needs no question. A change to the ticket
+  handoff without a comment that says so. A comment needs no question, and neither does assigning
+  an unassigned ticket to the user when the next session works for the user. A change to the ticket
   itself needs the user's agreement and a proof. Never rewrite the words of the author.
 - **Self-contained.** The successor sees only this prompt. If a fact is not in it, the successor
   does not have it.
