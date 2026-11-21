@@ -27,10 +27,10 @@ pub mod notes;
 /// The directory that holds the fixture files, at the paths the manifest names.
 const DATA_DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/tests/fixtures/data");
 
-/// The extension of a Rust source file, which is no fixture file.
+/// The extension of a Rust source file. A Rust source file is not a fixture file.
 const RUST_EXTENSION: &str = "rs";
 
-/// The file name of the manifest, which lists the fixture files and is none itself.
+/// The file name of the manifest. The manifest lists the fixture files and is not one of them.
 const MANIFEST_FILE_NAME: &str = "manifest.tsv";
 
 /// The extension of a gzip file.
@@ -106,15 +106,16 @@ fn collect_files(directory: &Path, files: &mut Vec<String>) {
             .path();
         if path.is_dir() {
             collect_files(&path, files);
-        } else if path
-            .extension()
-            .is_none_or(|extension| extension != RUST_EXTENSION)
-            && !path.ends_with(MANIFEST_FILE_NAME)
-        {
+        } else {
             let relative = path
                 .strip_prefix(DATA_DIRECTORY)
                 .expect("Given a path below the fixture data directory, it should start with it");
-            files.push(relative.to_string_lossy().replace('\\', "/"));
+            let is_rust_source = path
+                .extension()
+                .is_some_and(|extension| extension == RUST_EXTENSION);
+            if !is_rust_source && relative != Path::new(MANIFEST_FILE_NAME) {
+                files.push(relative.to_string_lossy().replace('\\', "/"));
+            }
         }
     }
 }

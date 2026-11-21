@@ -209,7 +209,7 @@ fn unquote(field: &str) -> String {
 mod tests {
     use pretty_assertions::assert_eq;
 
-    use super::unquote;
+    use super::{table, unquote};
 
     #[test]
     fn should_keep_the_field_when_the_field_has_no_quotes() {
@@ -242,5 +242,13 @@ mod tests {
         let result = unquote(field);
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    #[should_panic(expected = "the row should have one field per column")]
+    fn should_panic_when_a_row_has_more_fields_than_the_header() {
+        let text = "dimhash\tsegments\tsegt\n0x1\t\"a\tb\"\t0\n";
+
+        let _rows = table(text);
     }
 }
