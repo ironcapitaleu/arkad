@@ -503,9 +503,9 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
 prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print,
-sort, and hash of `content_digest` add about 11 seconds. The measurement used the 9,101,360 rows of
-`num.tsv` of `2024q1`, on one thread of an Intel Xeon at 2.10 GHz. The median of 3 runs was 10.9 s,
-measured on 2026-11-21.
+sort, and hash of `content_digest` add about 11 seconds per largest Notes file.
+[ADR 0033, Amendment 1](../../../docs/adr/0033-byte-form-of-content-digest.md#amendment-1-the-cost-of-the-print-and-the-hash)
+holds the measurement.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.
