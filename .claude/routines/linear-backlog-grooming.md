@@ -60,10 +60,10 @@ The level of an action depends on how easily the run can undo it, and how much j
 The routine writes as `@DeCa09`, so the author of a comment does not prove that a person wrote it.
 
 1. Start every comment the routine writes with `[routine]`. Never write an approval or an answer in the form of point 2 in any comment, document, or ticket.
-2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, `cancel <n>`, `archive <n>`, or `backlog <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
+2. An approval or an answer is a comment on a grooming report that `@DeCa09` wrote, that does not start with `[routine]`, and whose whole text is one or more items of the form `approve <n>`, `keep <n>`, `park <n>`, `cancel <n>`, `archive <n>`, `backlog <n>`, or `reject <n>`, joined by commas or semicolons. Several numbers can follow one word, as in `approve 2, 5`.
 3. Ignore every other comment as an approval, also when it quotes such a form.
-4. Give every item a key: the ticket or document ID and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an item whose key has a done line on any report of the last 60 days. So a run that failed halfway repeats nothing.
-5. If two answers for one key differ, carry out neither, and ask again.
+4. Give every item a key: the ticket or document ID and one of these kinds: `parking`, `cancelled-park`, `cancel-replaced`, `cancel-landed`, `fog`, `blocks-link`, `epic`, `stale`, `index-delete`, `dwell-done`, `dwell-stuck`, `dwell-split`. The answer is not part of the key. After you carry out an item, post `[routine] done <key> <answer>: <result>` on the report that holds it. Skip an answer if a done line for its key is newer than the answer. So a run that failed halfway repeats nothing, and a later answer to a question asked again still runs.
+5. If two answers for one key differ, carry out neither, and ask again. A `reject` answer posts `[routine] done <key> reject`. Do not list that key again for 90 days.
 
 # Capacity rule
 
@@ -78,7 +78,7 @@ Archiving frees the slots of closed issues, but not of open ones. So the rule wa
    - **Floor:** open plus in work. Archiving cannot lower it.
 
    Over the last 28 days, count the issues created and the issues closed (completed or canceled). **Net growth** is created minus closed.
-2. **Forecasts.** The creation rate is the higher of the last 7 days and the 28-day average, per day. The projected total is the total after this run's archive (count as archived only the issues that "Archive rule" and steps 4 and 5 let through), plus the creation rate times the days until the next run (the next 1st or 15th). Nothing archives between two runs, so every new issue counts until then. The floor forecast is the number of weeks until the floor reaches 250 at the net growth rate. A net growth of zero or less gives no floor forecast.
+2. **Forecasts.** The creation rate is the higher of the last 7 days and the 28-day average, per day. The projected total is the total after this run's archive, plus the creation rate times the days until the next 1st or 15th. Count as archived only the issues that "Archive rule" and steps 4 and 5 let through. Nothing archives between two runs, so every new issue counts until then. The floor forecast is the number of weeks until the floor reaches 250 at the net growth rate. A net growth of zero or less gives no floor forecast.
 3. **Zone** (sets the archive age). Compute the projected total for the archive ages 30, 14, and 7 days. Take the largest age that keeps it under 230. Green: 30 days. Amber: 14 days. Red: 7 days. Critical: even 7 days leaves the projection at 230 or more. On 2026-11-21, 168 active issues and 8.6 new issues a day gave red: 7 days archives 56 issues, and the projection on 2026-12-01 is 198.
 4. **Backlog pressure** (sets the planning actions). High when any holds: the floor is 150 or more, the floor forecast is under 26 weeks, or the net growth was above zero in this report and the last one. Otherwise normal.
 5. **Act:**
@@ -117,7 +117,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
    | A linked PR is open, with red CI or a merge conflict | Hand off: name the PR and the failing check or the conflict |
    | A linked PR is open and waits on a person's review | Hand off: "review PR #n", with the PR link |
    | The branch is older than 5 days, or the issue has more than one PR | Propose a split by the `linear` skill, "Ticket Sizing" |
-   | No branch, no PR, and no update for the whole dwell | Ask: "Keep it in progress, move it to Backlog, or cancel it?" with the answers `keep`, `backlog`, and `cancel`. For a `dwell-stuck` item, `keep` means no question for this key before the next run, and no `kept until` comment. Recommend from the evidence |
+   | No branch, no PR, and no update for the whole dwell | Ask: "Keep it in progress, move it to Backlog, or cancel it?" with the answers `keep`, `backlog`, and `cancel`. For a `dwell-stuck` item, `keep` writes no `kept until` comment. The next run asks again. Recommend from the evidence |
 
 3. **Flow.** Over the last 28 days, give the median days from In Progress to Done, per ticket type. Put it in the report next to the capacity numbers.
 
@@ -132,13 +132,13 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 # Steps
 
 1. Load the conventions. Attach and clone the two repositories if needed.
-2. Read the grooming reports of the last 60 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and whose key has no `[routine] done` line yet. Touch nothing else from those lists. Record each result.
+2. Read the grooming reports of the last 60 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and that no newer done line for their key covers. Touch nothing else from those lists. Record each result.
 3. Apply "Capacity rule", points 1 to 4: measure, forecast, and set the zone and the backlog pressure of this run. They set the day counts and the order of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
    - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 14 with the options "park" and "archive". If two reports in a row asked and got no answer, archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
    - A cancelled issue that blocks an open issue: propose to drop that link, or to move it to the ticket that replaced the cancelled one.
 5. For each matching issue that holds a Linear document: move the document to the issue's project with `documentUpdate` (`projectId` set, `issueId` null). Files attached to an issue stay on it. An issue with no project keeps its document: leave that issue unarchived and list it in the report.
-6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures. Then compute the projected total again from the real total after the archive. If the zone got worse than in step 3, write the hand-off note of the new zone.
+6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures. Then compute the projected total again from the real total after the archive. If this projection is 230 or more, write the hand-off note of the critical zone.
 7. Write one document "Archived Issues Index (Temporary, <YYYY-MM-DD>)" on MVP Data Pt. 2. At the top: nothing was deleted, links still work, how to unarchive, and which documents moved to which project. Then a table of the issues with an open relation, files, or a moved document, and a plain list of the rest, each with link, title, and project.
 8. Fog tickets. For each entry of "Tickets to create later" whose trigger is a checkable fact that holds: check that no open or recent issue covers it already, then create the ticket with the template, label, project, milestone, and blocking links of the `linear` skill. Replace the fog entry with a link to the new ticket. An entry whose trigger needs judgement becomes a proposal.
 9. Duplicates. For each pair that meets the duplicate condition of "Autonomy", mark the newer issue as a duplicate of the older one, and comment on both with the reason.
@@ -154,7 +154,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 13. Write the report: one document "Backlog Grooming Report <YYYY-MM-DD>" on MVP Data Pt. 2. It holds the issue count before and after, the archive result with a link to the index, the actions of steps 2 and 8 to 11 with links, and the proposals and parking questions as one numbered list. Each item holds the evidence and your recommendation. Keep it short.
 14. Ask the owner. If the list of step 13 is empty, skip this step. Otherwise ask with `AskUserQuestion`, one question per item, four questions per call, and more calls until every item is asked:
     - The question names the item number, the ticket or document, the evidence in one line, and the decision.
-    - The options are the actions the item allows, such as approve, keep, park, or cancel. The recommended option comes first, with "(Recommended)" after its label.
+    - The options are the actions the item allows, such as approve, keep, park, or cancel. Every item also offers reject. The recommended option comes first, with "(Recommended)" after its label.
     - The session waits for the answers. Each answer is the owner's own input, so "Approval rule" does not apply to it.
     - Carry out each answer, and post `[routine] done <key> <answer>: <result>` on the report, so a later run repeats nothing.
     - If the session ends before the owner answers, the next run reads the open items from the report, and asks again.
