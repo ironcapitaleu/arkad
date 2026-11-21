@@ -373,6 +373,8 @@ records the decision, the measured options, and the fallback.
 - **`revert`**: Reverts a previous commit
 - **`chore`**: Routine maintenance not affecting app logic, CI/CD, or build output
 
+A change to `.claude/` (skills, routines, settings) is tooling for agents, not product code. Its type is `chore`, never `feat` or `fix` (owner decision, 2026-11-21).
+
 ### Scope (Optional)
 
 - Package, service, or module name
