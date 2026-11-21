@@ -16,7 +16,7 @@ repositories:
 Keep the Linear workspace of the `STA` team under the 250-issue limit of the free plan. Keep its backlog true. Archive the closed issues that nobody works on, without losing a reference. Cut the fog tickets that are due, mark duplicates, and park old ideas nobody pursues. Do what "Autonomy" allows yourself, without waiting. Everything else goes to the human as a numbered proposal or question.
 
 **Done means all of these hold:**
-1. Every issue that matches "Archive rule" is archived, and an index document lists it.
+1. The run knows its capacity zone, and every issue that matches "Archive rule" for that zone is archived and listed in an index document.
 2. Every action of "Autonomy" that the run took is in the report, with a link.
 3. A grooming report on the project MVP Data Pt. 2 holds the counts, the actions, and every proposal and question as one numbered list.
 4. Every item the human approved in an earlier report is carried out, or the report says why not.
@@ -61,11 +61,23 @@ The routine writes as `@DeCa09`, so the author of a comment does not prove that 
 3. Ignore every other comment as an approval, also when it quotes such a form.
 4. After you carry out an item, post `[routine] done <n>: <result>` on the report that holds it. Before you carry out an item, look for that line, and skip the item if it is there. So a run that failed halfway repeats nothing.
 
+# Capacity rule
+
+Linear refuses a new issue once 250 issues are active, and then no one can cut a ticket. Keep room ahead of that.
+
+1. **Measure.** Count the active issues (not archived). Count the issues created in the last 28 days. The forecast is the number of weeks until 250 at that rate.
+2. **Zone.** Green: under 200 active issues and a forecast over 8 weeks. Amber: 200 to 229, or a forecast of 4 to 8 weeks. Red: 230 or more, or a forecast under 4 weeks. The worse of the two decides.
+3. **Act by zone:**
+   - **Green:** "Archive rule" with 30 days.
+   - **Amber:** "Archive rule" with 14 days. Ask the parking question at 60 days without update instead of 90. Put the epic close and split proposals first in the form.
+   - **Red:** "Archive rule" with 7 days. Ask the parking question at 45 days. Before you create a fog ticket, check that the run still ends at least 10 issues under 250. Otherwise make it a proposal. Send a push notification, even if nothing else is new.
+4. **Report.** The report starts with the zone, the active count, the room left, the creation rate, and the forecast. If the run ends in a worse zone than the last report, say why, such as a burst of new tickets in one epic.
+
 # Archive rule
 
 Archive an issue when all hold:
 1. Its status type is completed or canceled.
-2. It was completed or canceled more than 30 days ago.
+2. It was completed or canceled more days ago than "Capacity rule" sets for the zone: 30, 14, or 7.
 3. It is not the parent or ancestor of an open issue.
 4. It is not archived yet.
 
@@ -73,7 +85,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 
 # Parking rule
 
-1. **Ask.** An open issue in Backlog or Todo with no update for 90 days or more gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
+1. **Ask.** An open issue in Backlog or Todo with no update for 90 days or more (60 in the amber zone, 45 in the red zone) gets a question in the report: "keep, park, or cancel?". The report gives its age, its epic, and one line on what it would build.
 2. **Answer.** "keep" ends the question until the issue is 90 days without update again. "cancel" cancels it. "park" parks it.
 3. **Silence.** If two reports in a row asked about the issue and the owner answered neither, park it.
 4. **Park.** Append the issue to the "Parked Ideas" document of its project: link, title, date parked, the reason, and its full description. Then set the issue to Canceled with a comment that links the entry. A later run archives it by "Archive rule".
@@ -83,7 +95,7 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 
 1. Load the conventions. Attach and clone the two repositories if needed.
 2. Read the grooming reports of the last 60 days on MVP Data Pt. 2 and their comments. Carry out the answers that "Approval rule" accepts and that have no `[routine] done` line yet. Touch nothing else from those lists. Record each result.
-3. Count the active issues of the workspace (not archived). Record the count and the room left under 250.
+3. Apply "Capacity rule", points 1 and 2: measure, and set the zone of this run. The zone sets the day counts of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
    - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 13 whether to park it or archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
    - A cancelled issue that blocks an open issue: propose to drop that link, or to move it to the ticket that replaced the cancelled one.
@@ -137,11 +149,11 @@ For each item that needs the human (an API error, a failed archive, a document t
 # Reporting
 
 When done, report briefly:
-- Active issues before and after, and the room left under 250.
+- The zone, active issues before and after, the room left under 250, the creation rate, and the forecast.
 - Issues archived, documents moved, failures.
 - Tickets created, duplicates marked, issues parked.
 - Approved items carried out.
 - New proposals and questions, by kind.
 - Links to the index and the report.
 
-Send a push notification only for new proposals, questions, hand-offs, or a failed run. A run with nothing new needs no notification.
+Send a push notification for new proposals, questions, hand-offs, a failed run, or a run that ends in the red zone. A run with nothing new in the green or amber zone needs no notification.
