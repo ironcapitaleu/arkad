@@ -146,7 +146,7 @@ An open issue (Backlog, Todo, In Progress, or In Review) in a project with miles
    - The issue blocks at least one open issue, and every open issue it blocks sits in one and the same milestone of the issue's project.
    Comment on the issue: `[routine] milestone set to <name>: <the fact>`. List the change in the report under "Milestones set", so the owner can undo it.
 3. **Propose.** If no fact decides, but the issue's scope fits one milestone by its description or by the Definition of Done of the milestone, propose that milestone with a one-line reason. Key: `<identifier> milestone`. If two milestones fit, name both and recommend one. The form of step 14 offers both, and a comment answer `approve <n>` takes the recommended one.
-4. **No project.** Propose the project whose epic description or fog log covers the issue, and the milestone in it by point 2 or 3. Key: `<identifier> project`. Never set a project alone. If no project fits, list the issue in the report with no proposal.
+4. **No project.** Propose the project other than Frontend Maintenance and MVP Integration whose epic description or fog log covers the issue, and the milestone in it by point 2 or 3. Key: `<identifier> project`. Never set a project alone. If no project fits, list the issue in the report with no proposal.
 5. **Report.** Give the count of open issues without a milestone per project, before and after this run, next to the capacity numbers.
 
 # Steps
@@ -156,7 +156,7 @@ An open issue (Backlog, Todo, In Progress, or In Review) in a project with miles
 3. Apply "Capacity rule", points 1 to 4: measure, forecast, and set the zone and the backlog pressure of this run. They set the day counts and the order of the steps below.
 4. Find the issues that match "Archive rule". For each, read its documents, files, parent, children, relations, and comments.
    - A cancelled issue with no comment that states why, and no duplicate mark, waits: leave it unarchived, and ask in step 14 with the options "park" and "archive". If two reports in a row asked and got no answer, archive it as is. Recommend "park" if its description holds scope that no other ticket covers.
-   - A cancelled issue that blocks an open issue: propose to drop that link, or to move it to the ticket that replaced the cancelled one.
+   - A cancelled issue that blocks an open issue in "Scope": propose to drop that link, or to move it to the ticket that replaced the cancelled one. If the blocked issue is a frontend issue, list the link in the index and propose nothing.
 5. For each matching issue that holds a Linear document: move the document to the issue's project with `documentUpdate` (`projectId` set, `issueId` null). Files attached to an issue stay on it. An issue with no project keeps its document: leave that issue unarchived and list it in the report.
 6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures. Then compute the projected total again from the real total after the archive. If this projection is 230 or more, write the hand-off note of the critical zone.
 7. Write one document "Archived Issues Index (Temporary, <YYYY-MM-DD>)" on MVP Data Pt. 2. At the top: nothing was deleted, links still work, how to unarchive, and which documents moved to which project. Then a table of the issues with an open relation, files, or a moved document, and a plain list of the rest, each with link, title, and project.
