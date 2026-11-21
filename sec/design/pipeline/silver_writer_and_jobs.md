@@ -471,7 +471,7 @@ flowchart LR
   whole filing to the channel. A `filing_day` unit has one reader, which reads the instances of the
   day one after the other.
 - **N filing workers.** Each worker runs the filing step on one filing: parse, standardize filing,
-  and the per-filing checks. N is the number of cores of the task, at least 1. Measured on one
+  and the rows of the filing. N is the number of cores of the task, at least 1. Measured on one
   thread, `2024q1` took 45.6 s, so N bounds cost, not the target.
 - **One writer.** It receives the rows of whole filings and writes the parts of every dataset of
   the unit. It hashes each filing when it arrives.
@@ -552,7 +552,8 @@ Each task logs one JSON event `task_summary` at its end, with these keys in `con
 | `slowest_unit`, `slowest_unit_seconds` | The unit with the longest time |
 | `series` | For a series task: `mode`, `entities`, rows `new`, `changed`, `removed`, findings `new`, `changed`, `resolved` |
 
-The task also logs `unit_written`, `unit_skipped`, `unit_failed`, and `unit_slow` for each unit.
+The task also logs `unit_written`, `unit_skipped`, `unit_failed`, and `unit_slow` for each unit,
+and `filing_rejected` for each rejected filing.
 The summary of a run is the set of `task_summary` events with its `plan_id`. A task exits with an
 error if a unit failed. The workflow ends as failed if a step failed.
 

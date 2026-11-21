@@ -962,7 +962,7 @@ quarantines the row or the filing, and the file goes on.
 3. **Table format**, in each read state: UTF-8, a quote-aware tab-separated reader, a header equal
    to the columns in the metadata member, the same field count in every row, and the CRC-32 of
    the member.
-4. **Row content**, in the map state: types and references between tables.
+4. **Row content**, in the parse states and the Notes reader: types and references between tables.
    [`transform_per_filing.md`](transform_per_filing.md), "Validation Layers", places this layer.
 
 ### Tests

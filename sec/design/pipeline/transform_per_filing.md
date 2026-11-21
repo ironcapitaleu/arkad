@@ -6,16 +6,18 @@
 > [ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md) hold the decisions of
 > this document.
 >
-> **Marks:** "Measured" means checked on 2026-11-08 or 2026-11-09 against a downloaded SEC file, as
-> the Linear documents "STA-424 Findings: Silver Parquet Layer and Polars for the Transform Step"
-> and "Silver Prototype Findings" record it. "Estimate" means not measured. Every other statement
+> **Marks:** "Measured" means checked on 2026-11-07, 2026-11-08, or 2026-11-09 against a downloaded
+> SEC file, as the Linear documents "STA-425 Findings: Data Model and Processing of the Silver
+> Layer", "STA-424 Findings: Silver Parquet Layer and Polars for the Transform Step", and "Silver
+> Prototype Findings" record it. "Estimate" means not measured. Every other statement
 > is a proposal.
 
-This document sets the filing step of the transform: how a transform task turns one raw document
-into whole filings, and how each filing becomes the rows of four silver datasets. The task runner,
-the silver writer, the job plan, and the series step are set in
-[`silver_writer_and_jobs.md`](silver_writer_and_jobs.md). This document does not change them. The
-silver contract is [`silver_layer.md`](silver_layer.md).
+This document sets the filing step of the transform. A transform task turns one raw document into
+whole filings. Each filing becomes the rows of four silver datasets. The task runner, the silver
+writer, the job plan, and the series step are set in
+[`silver_writer_and_jobs.md`](silver_writer_and_jobs.md). This document fills in the reader threads
+of that runner, and does not change its shape. The silver contract is
+[`silver_layer.md`](silver_layer.md).
 
 ## Reading Guide
 
@@ -40,7 +42,7 @@ flowchart LR
     classDef state fill:#dae8fc,stroke:#6c8ebf
     classDef writer fill:#e6e6e6,stroke:#666666
 
-    subgraph R["Unit reader, one thread"]
+    subgraph R["Unit reader, reader threads"]
         NR["Notes reader<br/>open, check, split by adsh"]:::reader
         DR["Filing day reader<br/>instances of one day"]:::reader
     end
@@ -62,18 +64,20 @@ flowchart LR
     BR -- "FilingRows" --> WR
     PN -. "rejected" .-> WR
     PI -. "rejected" .-> WR
+    BR -. "rejected" .-> WR
 ```
 
 A transform task runs one unit. The work has three parts:
 
 | Part | Runs | Holds | Fails |
 | ---- | ---- | ----- | ----- |
-| Unit reader | Once per unit, on one thread, outside the state machine | Every I/O of the step: the raw store reads, the ZIP, the tables, the daily index | The unit |
+| Unit reader | Once per unit, on the reader threads of the task runner, outside the state machine | Every I/O of the step: the raw store reads, the ZIP, the tables, the daily index | The unit |
 | Filing machine | Once per filing, on the worker threads of the task runner | No I/O. Parse, standardize filing, and the provenance of the rows | The filing only. A failed filing is a rejected filing |
 | Silver writer | Once per unit, on one thread | The parts, the digest, the counts, the `silver_files` row | The unit |
 
 The unit reader and the writer belong to the task runner of `silver_writer_and_jobs.md`, "Threads
-Inside a Transform Task". The filing machine is the filing step that the runner takes as a
+Inside a Transform Task". For a Notes file, the reader is one thread per table stream of `num.tsv`
+and `txt.tsv`, and the join by `adsh`, as that section draws it. For a filing day, it is one thread. The filing machine is the filing step that the runner takes as a
 function.
 
 ### One Value per Filing
@@ -138,10 +142,17 @@ bucket split as the fallback.
   message to the writer. The writer drops what it holds and writes the bucket parts under
   `<execution_id>-<attempt>-b`. The parts of the stream stay unread, as the contract says.
   Rejected filings and dropped rows count again from zero.
+- **The split of each filing.** Each `NotesFilingInput` carries its split, `stream` or `buckets`,
+  and each outcome copies it. Up to 2 × N stream filings can still sit in the channels and the
+  workers at the restart. The writer drops each outcome of `stream` that arrives after the restart
+  message, so no filing enters the bucket parts twice.
 - **Buckets.** K is the text size of `num.tsv` and `txt.tsv` from the ZIP index, divided by 256 MB
   and rounded up. Each pass keeps the rows where `xxh3_64(adsh)` with seed 0, modulo K, equals the
   pass number. It groups them by `adsh` and hands one filing at a time to the channel. It ends each
   pass with the count of filings of the pass, as "Threads Inside a Transform Task" says.
+- **The filings of a pass.** A pass walks the selected `sub` rows of its bucket, so a filing with
+  no `num` or `txt` row appears in exactly one pass. The count of a pass includes the filings that
+  the machines reject, because each one still sends an outcome to the writer.
 - **Filings with no `sub` row.** A `num` or `txt` row whose `adsh` has no `sub` row counts in
   `dropped_rows` with the reason `no_sub_row`. Measured files hold no such row, so the reason
   stays for a damaged file.
@@ -155,6 +166,7 @@ bucket split as the fallback.
 pub struct NotesFilingInput {
     pub rows: NotesFiling,
     pub source: SourceDocument,
+    pub split: Split,               // Stream or Buckets
 }
 
 /// The raw document of a row, for the ingestion provenance of the silver contract.
@@ -181,6 +193,9 @@ unit key is the filed date, as "Where Units Come From" of the job design gives i
    arrives.
 4. It reads the stored `submissions` file of each CIK of the day once, and takes `sic` from it.
 5. It hands one `InstanceFilingInput` per filing to the channel.
+6. It hands the writer the inputs of the unit: the key and the SHA-256 of each instance and of each
+   `submissions` file it read. These enter `input_digest` by rule 1 of a write, as the `filing_day`
+   row of "The Write Unit" of the contract lists them.
 
 ```rust
 /// The main instance of one filing, its company data, and the raw documents they came from.
@@ -202,8 +217,11 @@ pub struct StoredIndustry {
 - Extract picks the main instance and skips the filing-fee exhibit, in `SelectFilingDocuments`.
   The store holds only the main instance under `instance_key`. So the transform picks nothing.
 - If the store holds no `submissions` file for the CIK, `industry` is `None`, and the `sic_*`
-  columns of `filings` stay null. The task counts these filings in the run summary as
-  `missing_submissions`.
+  columns of `filings` stay null. Extract stores the `submissions` file in the same run as the
+  instance, so this case needs a failed fetch.
+- A `submissions` file that arrives later changes the inputs of the day. So a run inside the window
+  of `daily_filings`, the last four days, writes the day again with the SIC. A day outside the
+  window keeps the null until a replay.
 - The label file stays unread. The company labels stay out of the MVP.
 - The reader reads one instance at a time. The largest unit of the prototype held 394.7 MB of XML
   for 167 filings, with a peak of 78 MB (measured).
@@ -263,9 +281,9 @@ pub struct FilingRows {
   `entity_bucket` as "Entity Buckets" of the job design gives it. The provenance joins each row
   here, not in the parser, because `xbrl` knows no raw document.
 - The `Conflict` findings go to `findings` with `step = filing`. `UnmappedRow` and
-  `UndeclaredFamily` have no kind in `findings` today. The task counts them per unit in the run
-  summary, and `dropped_rows` counts the rows of `UnmappedRow` with the reason `unmapped_row`. The
-  open design of the silver columns decides whether they get a kind.
+  `UndeclaredFamily` have no kind in `findings` today. `dropped_rows` counts the rows of
+  `UnmappedRow` with the reason `unmapped_row`. The open design of the silver columns decides
+  whether they get a kind.
 
 ### The Filing Step
 
@@ -355,9 +373,10 @@ A filing is rejected when its filing machine returns an error
   3 of the contract, "Row counts", still holds.
 - The task logs one `filing_rejected` event per filing, as `warn`, with the unit key, the filing,
   and the error text. `rejected_filings` of `task_summary` counts them.
-- **The unit fails if more than 5% of its selected filings are rejected, and at least 3 are.**
-  The writer checks this after the last filing, before rule 4 of a write. The floor of 3 keeps one
-  bad filing from failing a day of 10 filings.
+- **The unit fails if more than 5% of its selected filings are rejected and at least 3 are, or
+  if every selected filing is rejected.** The writer checks this after the last filing, before
+  rule 4 of a write. The floor of 3 keeps one bad filing from failing a day of 10 filings. The
+  second clause fails a day of 2 filings that a broken parser rejects in full.
 - A failure of this kind is a bad unit in the failure table of the job design.
 
 | Failure | Example | Result |
@@ -395,8 +414,8 @@ The filing step runs no data check. A failed data check stops a load, never a si
   instance takes at most 101 ms to parse (measured). So the MVP has no state that loads as-is
   facts from silver. A later design adds it if a replay of standardize filing alone becomes
   frequent.
-- A Notes file that the SEC corrects has a new SHA-256. The unit source hands it out again, rule 2
-  of a write finds a new `input_digest`, and the task writes a new unit.
+- A Notes file that the SEC corrects has a new SHA-256. So rule 2 of a write finds a new
+  `input_digest`, and the task writes a new unit.
 
 ## Company Facts and the Old Transform
 
@@ -449,9 +468,10 @@ Proposed for the project, in this order:
 ## Open Points
 
 - **Parser findings in silver.** `UnmappedRow` and `UndeclaredFamily` have no home in `findings`.
-  The open design of the silver columns decides it. Until then, the run summary counts them.
+  The open design of the silver columns decides it. Until then, `dropped_rows` counts the rows of
+  `UnmappedRow`, and `UndeclaredFamily` keeps its fact with no other record.
 - **IFRS.** A filer in IFRS gets as-is facts but no candidates until an IFRS plug-in exists.
-- **The threshold of 5% and the floor of 3** rest on no measurement of rejected filings. The
+- **The share of 5% and the floor of 3** rest on no measurement of rejected filings. The
   prototype findings report no rejected filing for 167 instances and the Notes files `2024q1`,
   `2012q4`, and `2026_10`.
   The first full backfill measures the share, and ADR 0042 names the event that reopens it.

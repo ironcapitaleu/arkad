@@ -48,7 +48,8 @@ This choice binds the filing step, the silver writer, and the run summary of the
 2. **A rejected filing leaves the unit, and the unit goes on.** The filing writes no row.
    `dropped_rows` counts every source row of the filing with the reason `rejected_filing`, so the
    row count check of silver still holds. The task logs one `filing_rejected` event as `warn`.
-3. **The unit fails if more than 5% of its selected filings are rejected, and at least 3 are.**
+3. **The unit fails if more than 5% of its selected filings are rejected and at least 3 are, or if
+   every selected filing is rejected.**
    The writer checks this after the last filing of the unit, before it writes the `silver_files`
    row. A unit that fails this way is a bad unit in the failure table of the job design.
 
@@ -57,12 +58,12 @@ This choice binds the filing step, the silver writer, and the run summary of the
 | Option | One bad filing in a day of 10 | A parser change that rejects most 10-Q filings |
 | ------ | ----------------------------- | ---------------------------------------------- |
 | **A. 5% and a floor of 3 (chosen)** | The day is written without it | The unit fails |
-| B. 5% alone | The day fails in each run, and 19 filings stay out of silver | The unit fails |
+| B. 5% alone | The day fails in each run, and its 9 other filings stay out of silver | The unit fails |
 | C. No threshold | The day is written without it | Every unit is written without most filings. Only the run summary shows it |
 | D. Any rejected filing fails the unit | The day fails in each run | The unit fails |
 
-- A protects silver from a change that breaks a whole form, and keeps a single bad filing from
-  blocking its neighbors.
+- A fails the unit if a change breaks a whole form, or every filing of a small unit. It writes a
+  unit with a single bad filing.
 - B and D let one filing block every other filing of its unit until a fix.
 - C writes the damage of a broken parser to silver as a valid unit.
 

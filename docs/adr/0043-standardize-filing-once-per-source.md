@@ -10,8 +10,8 @@
 ## Context
 
 The standardize filing step runs steps 1 and 2 of the dedup order of `xbrl` on one filing:
-`core/dedup/more-precise@1`, then tiers 1 and 2 of resolution. It writes the `candidates` rows and
-the `Conflict` findings of the filing.
+`core/dedup/more-precise@1`, then tiers 1 and 2 of resolution, then the cadence filter. It writes
+the `candidates` rows and the `Conflict` findings of the filing.
 
 One filing can reach silver from two sources: as rows of a Notes file, and as its instance
 document. Silver keeps both sets of as-is facts, one per `source_kind`. A read of `as_is_facts`,
