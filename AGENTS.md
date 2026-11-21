@@ -752,8 +752,9 @@ version: 0.1.0
 A routine is a scheduled task that starts a fresh cloud session on a fixed schedule, such as the
 Linear backlog grooming. Each routine of this repository has one file in `.claude/routines/`.
 
-- **The file holds the routine.** A YAML header holds the name, the schedule, the environment, the
-  notifications, and the model. The body below it is the prompt.
+- **The file holds the routine.** A YAML header holds the name, the scheduled task ID, the
+  schedule, the environment, the session, the notifications, the model, and the repositories. The
+  body below it is the prompt.
 - **The scheduler holds a pointer to the prompt.** The prompt of the scheduled task says: run the
   routine in `.claude/routines/<file>` on `main`. The session reads the file at run time, so a
   merged PR changes the prompt. The header fields still live in the scheduler too.
