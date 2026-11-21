@@ -65,8 +65,8 @@ impl FactSet {
     ///
     /// - [`FactSetError::UnexpectedEntity`] if the entity of the fact is not the one of the set.
     /// - [`FactSetError::UnexpectedPeriod`] if the period of the fact is not the one of the set. Two
-    ///   periods are the same if they are of one kind and have the same start, end, and length. So
-    ///   an instant fact never belongs to a set of a duration.
+    ///   periods are the same if they are of one kind and have the same start and end. So an
+    ///   instant fact never belongs to a set of a duration.
     /// - [`FactSetError::UnexpectedDimensions`] if the fact has dimensions.
     pub fn insert(&mut self, fact: StandardizedFact) -> Result<(), FactSetError> {
         if fact.entity != self.entity {

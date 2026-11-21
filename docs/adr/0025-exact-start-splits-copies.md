@@ -71,10 +71,10 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
 
 Date: 2026-11-21.
 
-**Reason.** Decision 3 runs on `main` since ironcapitaleu/arkad#606. So every parser gives each
+**Reason.** Decision 3 is on `main` since ironcapitaleu/arkad#606. So every parser gives each
 duration an exact start: the Notes parser from `durp`, the instance parser from `startDate`, and
-`adapter::edgar` from the `start` field of the JSON, which makes an instant when the field is
-missing. No code builds a duration without a start, except tests. Decisions 1 and 5 still name
+`adapter::edgar` from the `start` field of the JSON. If the field is missing, `adapter::edgar`
+builds an instant. No code builds a duration without a start, except tests. Decisions 1 and 5 still name
 a rank or a value without an exact start. That case cannot occur, and its branches hide a source
 that drops the start.
 
@@ -86,7 +86,7 @@ applies. An instant has no start, as before.
 
 **Consequences.**
 
-- A source that gives no start for a duration fails to compile against `Duration`, or must
+- A parser cannot build a duration without a start. If a source gives none, the parser must
   reject the fact. No rule silently treats it as a copy or lets it join every slot.
 - `core/period/q4-from-fy@1` decides a short year by the day count alone. Its fallback on a
   `10-KT` and on the previous annual report is gone, so `derive_q4` takes no filings.

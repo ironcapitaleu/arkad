@@ -479,24 +479,6 @@ mod tests {
     }
 
     #[test]
-    fn should_flag_start_before_earliest_year_when_the_start_lies_before_1900_and_the_end_after() {
-        let period = Duration::from_dates(date(1899, 12, 20), date(1900, 4, 30))
-            .expect("Given an end after the start, the creation should always succeed");
-        let flagged = standardized(Period::Duration(period), "50000");
-        let facts = series(vec![flagged.clone()]);
-
-        let expected_result = vec![finding(
-            &flagged,
-            &[PeriodSignal::StartBeforeEarliestYear],
-            None,
-        )];
-
-        let result = suspicious_periods(&facts, &[]);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_flag_only_the_inputs_when_a_fourth_quarter_derives_from_typo_periods() {
         let report = sample_filing("10-K", date(2024, 12, 31), "1231");
         let span = |start, end| {

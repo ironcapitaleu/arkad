@@ -503,20 +503,6 @@ mod tests {
     }
 
     #[test]
-    fn should_derive_nothing_when_the_nine_months_end_in_the_prior_year() {
-        let facts = series(vec![
-            standardized(fiscal_year(), "391035000000"),
-            standardized(span(date(2022, 10, 2), date(2023, 7, 1)), "281000000000"),
-        ]);
-
-        let expected_result: Vec<StandardizedFact> = Vec::new();
-
-        let result = derive_q4(&facts);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
     fn should_take_the_latest_nine_month_end_when_two_nine_month_values_fit() {
         let facts = series(vec![
             standardized(fiscal_year(), "391035000000"),

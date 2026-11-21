@@ -361,6 +361,28 @@ mod tests {
     }
 
     #[test]
+    fn should_report_a_conflict_when_an_instant_disagrees_with_a_zero_quarter_duration_of_one_end()
+    {
+        let filing = source("0001628280-26-068246", date(2026, 11, 5));
+        let stub = from(fact(&filing, "Revenues", "500000000"), date(2026, 9, 1));
+        let mut instant = fact(&filing, "Revenues", "660000000");
+        instant.context.period = Period::Instant {
+            end: date(2026, 9, 30),
+        };
+        instant.copy_rank = 1;
+        let facts = vec![stub.clone(), instant.clone()];
+
+        let expected_result = Copies {
+            facts: Vec::new(),
+            conflicts: vec![vec![&stub, &instant]],
+        };
+
+        let result = more_precise(&facts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_keep_rank_zero_when_a_rank_with_another_exact_start_disagrees() {
         let filing = source("0001628280-26-068246", date(2026, 11, 5));
         let quarter = from(fact(&filing, "Revenues", "500000000"), date(2026, 7, 1));
