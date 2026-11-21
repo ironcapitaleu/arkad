@@ -76,7 +76,7 @@ fn lines_of(reconciliation: &Reconciliation) -> Vec<(&'static str, String, Optio
         .collect()
 }
 
-/// Returns the line of `kind` with `members` and `value` in millions of USD.
+/// Returns the line of `kind` with `members` and a value of `millions` million USD.
 fn line(
     kind: &'static str,
     members: &str,

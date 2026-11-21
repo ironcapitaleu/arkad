@@ -46,8 +46,8 @@ const INSTANCE_PREFIX: &str = "instance/";
 ///
 /// # Panics
 ///
-/// Panics if the manifest names no instance document for `accession`, or if the document is not a
-/// valid instance with a document type.
+/// Panics if the manifest names no instance document for `accession`, if the document is not UTF-8,
+/// or if it is not a valid instance with a document type.
 #[must_use]
 pub fn parse_instance_fixture_filing(accession: &str, filed: NaiveDate) -> InstanceFacts {
     let file = manifest()

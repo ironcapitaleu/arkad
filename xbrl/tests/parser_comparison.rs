@@ -6,8 +6,9 @@
 //! Walmart, Disney, and Apple) compare their numeric facts. Their text differs in two ways the
 //! losses below do not cover:
 //!
-//! - Notes writes an accented letter as its letter without the accent, as in `Comision` for
-//!   `Comisión` in a Walmart text block.
+//! - Notes writes some accented letters as the letter without the accent, as in `Comision` for
+//!   `Comisión` in a Walmart text block. The comparison drops non-ASCII characters on the instance
+//!   side, so it gives `Comisin`, and the text differs.
 //! - The Procter & Gamble 10-K reports cybersecurity facts of the `cyd` family, which the fake
 //!   registry does not declare. Each parser keeps another family and version for them, so their
 //!   value keys differ.
@@ -155,6 +156,15 @@ fn same_footnotes(notes: &[String], instance: &[String]) -> bool {
         })
 }
 
+/// Returns `true` if the instance fact differs from the Notes fact after the Notes losses.
+fn differs(notes: &AsIsFact, instance: &AsIsFact) -> bool {
+    !same_value(&notes.value, &instance.value)
+        || notes.decimals != instance.decimals
+        || !same_period(&notes.context.period, &instance.context.period)
+        || notes.context.entity != instance.context.entity
+        || !same_footnotes(&notes.footnotes, &instance.footnotes)
+}
+
 #[test]
 fn should_give_the_same_value_keys_from_both_parsers_for_a_real_filing() {
     let notes = parse_notes_fixture().facts;
@@ -182,13 +192,7 @@ fn should_give_the_same_content_per_value_key_from_both_parsers_for_a_real_filin
     let result: Vec<String> = notes
         .iter()
         .filter_map(|notes| instance.get(&notes.key()).map(|instance| (notes, instance)))
-        .filter(|(notes, instance)| {
-            !same_value(&notes.value, &instance.value)
-                || notes.decimals != instance.decimals
-                || !same_period(&notes.context.period, &instance.context.period)
-                || notes.context.entity != instance.context.entity
-                || !same_footnotes(&notes.footnotes, &instance.footnotes)
-        })
+        .filter(|(notes, instance)| differs(notes, instance))
         .map(|(notes, _)| format!("{:?}", notes.key()))
         .collect();
 
@@ -263,13 +267,7 @@ fn numeric_agreement(
     let differences = notes
         .iter()
         .filter_map(|notes| instance.get(&notes.key()).map(|instance| (notes, instance)))
-        .filter(|(notes, instance)| {
-            !same_value(&notes.value, &instance.value)
-                || notes.decimals != instance.decimals
-                || !same_period(&notes.context.period, &instance.context.period)
-                || notes.context.entity != instance.context.entity
-                || !same_footnotes(&notes.footnotes, &instance.footnotes)
-        })
+        .filter(|(notes, instance)| differs(notes, instance))
         .map(|(notes, _)| format!("{:?}", notes.key()))
         .collect();
     (notes.len(), only_one_parser, differences)
