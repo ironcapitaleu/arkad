@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project lead confirms. Amendment 1: Accepted by the project lead on 2026-11-16 ([STA-472 comment `7596ff6d`](https://linear.app/state-machine/issue/STA-472#comment-7596ff6d)) |
+| Status | Accepted by the project lead on 2026-11-21 ([STA-471 comment `938043f8`](https://linear.app/state-machine/issue/STA-471#comment-938043f8)). Amendment 1: Accepted by the project lead on 2026-11-16 ([STA-472 comment `7596ff6d`](https://linear.app/state-machine/issue/STA-472#comment-7596ff6d)) |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-471](https://linear.app/state-machine/issue/STA-471/spike-plan-the-move-of-sec-financial-types-onto-xbrl) |
