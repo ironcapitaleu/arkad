@@ -287,7 +287,7 @@ reconciliation.
 | `entity_scheme`, `entity_id` | `utf8` | |
 | `concepts` | `list<utf8>` | The as-is concept, and the standard concept if a plug-in maps it. For `RollUpMismatch` and `NegativeOther`, the standard concepts of the group: the parent first, then the start of a step, then the other members in the order of the tables of `xbrl/DESIGN.md`, "Roll-Up Tree". For the balance sheet identity: `Assets`, then `LiabilitiesAndEquity`. For `MixedStarts`, the members of the group with a value, in the same order. The members that stand for a start with no value take the place of the start, in the order of their own table. For `SumMismatch`, the total of the sum, then its parts, for example `LongTermDebtIncludingCurrentMaturities` and the six buckets of the ladder in the order of `xbrl/DESIGN.md`, "Debt Maturities". Empty for `UndeclaredFamily` and `UnmappedRow` |
 | `periods` | `list<struct<period_end: date32, quarters: uint16>>` | Sorted by `period_end`, then `quarters`. Empty for `UndeclaredFamily` and `UnmappedRow` |
-| `subject` | `utf8`, nullable | For `UndeclaredFamily`, the family, for example `xyz/2027`. For `UnmappedRow`, the table and the primary key of the row, as the parser prints them. Null for the other kinds |
+| `subject` | `utf8`, nullable | For `UndeclaredFamily`, the family, for example `xyz/2027`. For `UnmappedRow`, the row as the parser prints it: the table and the primary key of a Notes row, for example `num|Revenues|…`, or the element and the context ID of an instance fact, for example `us-gaap:Revenues c-1`. Null for the other kinds |
 | `reason` | `utf8`, nullable | For example `FiscalYearChange` or `Conflict`. For `SuspiciousPeriod`, the signals in the order of `PeriodSignal`, separated by `,`, for example `StartBeforeEarliestYear,EndFarFromReport`. For `RollUpMismatch`, `NegativeOther`, and `MixedStarts`, the name of the group of the roll-up tree, for example `liabilities`, or `balance-sheet` for the balance sheet identity. For `SumMismatch`, the name of the sum, for example `debt-maturities`. For `UnmappedRow`, the name of the `InvalidValueReason` variant of the rule the row breaks, for example `NotANumber` |
 | `filing_id` | `utf8`, nullable | Set for `UndeclaredFamily`, `UnmappedRow`, `Conflict`, and `SuspiciousPeriod` |
 | `confirmed_by` | `utf8`, nullable | For `SuspiciousPeriod`: the newest other filing that reports the same value for a plausible period |
@@ -310,10 +310,12 @@ A dataset, not a report, for three reasons:
 - Silver keeps every finding of every run, with the time it opened and resolved.
 
 The parse filing step writes `UndeclaredFamily` and `UnmappedRow`, as `Finding` values of the parser
-([ADR 0041](../../../docs/adr/0041-parser-findings-in-silver.md)). They have only filing rows.
+([ADR 0041](../../../docs/adr/0041-parser-findings-in-silver.md)). They have only filing rows. Their
+entity is the entity of the filing.
 The standardize filing step writes `Conflict`. The series step writes `Gap`, `Overlap`,
 `Restatement`, and `SuspiciousPeriod`, and copies each `Conflict` of the entity, as `xbrl/DESIGN.md`, "Gap Check", asks. A
-read of the report takes the rows with `step = series`.
+read of the report takes the rows with `step = series`, and the rows of `UndeclaredFamily` and
+`UnmappedRow`, which have only `step = filing`.
 
 ### `taxonomy_elements`
 
@@ -856,7 +858,8 @@ Two notes for the writer:
 - **Time zone.** The Arrow time zone `UTC` of the timestamp columns needs the `chrono-tz` feature
   of `arrow`. Without it, `arrow` reads only offsets such as `+00:00`, and fails on `UTC`. The
   writer turns on the feature. `sec` already compiles `chrono-tz`.
-- **`serde_json` precision.** The writer builds the Arrow arrays directly, see
+- **`serde_json` precision.** The `arbitrary_precision` feature of `serde_json` breaks the Arrow
+  JSON decoder, so the writer builds the Arrow arrays directly, see
   [`silver_writer_and_jobs.md`](silver_writer_and_jobs.md#silverrecord-and-digestrow).
 
 ### Cloud Run Sizing

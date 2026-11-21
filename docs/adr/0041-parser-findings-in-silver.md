@@ -13,15 +13,15 @@ The parsers of `xbrl` return `Finding` values next to their facts. Two variants 
 parser alone:
 
 - `UnmappedRow { filing, row, reason }`: the parser could not map a row into a fact, so it
-  dropped the row. `row` holds the table and the primary key of the row. `reason` is an
+  dropped the row. `row` holds the table and the primary key of a Notes row, or the element name
+  and the context ID of an instance fact. `reason` is an
   `InvalidValue`, the rule the row breaks.
 - `UndeclaredFamily { filing, family }`: the filing holds facts of a namespace family that no
   plug-in declares. The parser keeps the facts. They do not join between sources or across
   releases until a plug-in declares the family.
 
 The silver contract had no home for either. Its `findings` dataset had nine kinds, all from the
-standardize steps. The silver prototype of 2026-11-09 dropped both, because its fixture filing
-gave none.
+standardize steps. The fixture filing of the silver prototype of 2026-11-09 gave neither finding.
 
 Integrity check 3 of silver compares row counts inside a unit of `as_is_facts` or `filings`:
 `source_rows` minus `dropped_rows` must equal `row_count`. An unmapped row is a source row with no
@@ -36,8 +36,7 @@ on 2026-11-21, so a reversal today costs no migration.
 1. **`UndeclaredFamily` and `UnmappedRow` are kinds of `findings`.** The parse filing step writes
    them as filing rows (`step = filing`), with `filing_id` set. Empty `concepts` and `periods`.
 2. **A new nullable column `subject` holds what the finding is about.** For `UndeclaredFamily`,
-   the family. For `UnmappedRow`, the table and the primary key of the row. Null for the other
-   kinds.
+   the family. For `UnmappedRow`, the row as the parser prints it. Null for the other kinds.
 3. **`subject` is part of the key of a finding.** One filing can have many unmapped rows and many
    undeclared families. Without `subject`, their rows share a key, and the sort order of
    `content_digest` is not fixed.
@@ -67,6 +66,9 @@ Facts from `xbrl/src/core/finding.rs` and the silver contract on `main` at `7e2c
 
 - `findings` has eleven kinds and the column `subject`. The key of a finding has six parts.
 - The series step does not copy the parser kinds. They stay filing rows.
+- The row of an instance fact names no unit. Two unmapped facts with the same element and context
+  share a key. Rows with the same key sort by the bytes of the whole row
+  ([ADR 0033](0033-byte-form-of-content-digest.md), decision 6), so `content_digest` stays fixed.
 - An `UnmappedRow` appears twice: as a row of `findings`, and in the count of `dropped_rows`. The
   count serves check 3, the row serves a reader.
 - A filing that the parser rejects as a whole is not covered. It gives a parse error, not a
@@ -81,4 +83,8 @@ Facts from `xbrl/src/core/finding.rs` and the silver contract on `main` at `7e2c
 - `xbrl/src/core/finding.rs` at `7e2c83e`: the variants `UndeclaredFamily` and `UnmappedRow`.
 - `xbrl/src/adapter/edgar/notes/mod.rs` at `7e2c83e`: the parser returns these findings, and a
   `sub` row that breaks a rule fails the filing.
+- `xbrl/src/adapter/edgar/instance/mod.rs` at `7e2c83e`: the row of an instance fact is the
+  element name and the context ID, for example `us-gaap:Revenues c-1`.
+- [ADR 0033](0033-byte-form-of-content-digest.md), decision 6: rows of one key sort by the bytes of
+  the whole row.
 - Linear document "Silver Prototype Findings", 2026-11-09, gap 5.
