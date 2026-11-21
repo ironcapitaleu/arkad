@@ -232,6 +232,26 @@ mod tests {
         Sha256::digest(bytes).into()
     }
 
+    /// A row whose whole-row bytes sort in another order than its row key.
+    struct ValueFirstRow {
+        concept: &'static str,
+        value: i64,
+    }
+
+    impl DigestRow for ValueFirstRow {
+        fn write_group_id(&self, byte_form: &mut ByteForm) {
+            byte_form.utf8("0000320193-24-000006");
+        }
+
+        fn write_row_key(&self, byte_form: &mut ByteForm) {
+            byte_form.utf8(self.concept);
+        }
+
+        fn write_row(&self, byte_form: &mut ByteForm) {
+            byte_form.integer(self.value).utf8(self.concept);
+        }
+    }
+
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
     const fn should_implement_auto_traits_for_group_hash() {
@@ -276,6 +296,42 @@ mod tests {
         .concat();
         let group_id = [&[0x01, 0, 0, 0, 20][..], b"0000320193-24-000006"].concat();
         let sorted_rows = [assets_row, liabilities_row].concat();
+
+        let expected_result = vec![GroupHash {
+            group_id,
+            hash: sha256(&sorted_rows),
+        }];
+
+        let result = group_hashes(&rows);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_sort_by_the_row_key_before_the_whole_row_when_the_two_orders_differ() {
+        let rows = vec![
+            ValueFirstRow {
+                concept: "Liabilities",
+                value: 40,
+            },
+            ValueFirstRow {
+                concept: "Assets",
+                value: 100,
+            },
+        ];
+        // By row key, `Assets` comes first. By whole row, the row of `40` would come first.
+        let sorted_rows = [
+            &[0x01, 0, 0, 0, 3][..],
+            b"100",
+            &[0x01, 0, 0, 0, 6],
+            b"Assets",
+            &[0x01, 0, 0, 0, 2],
+            b"40",
+            &[0x01, 0, 0, 0, 11],
+            b"Liabilities",
+        ]
+        .concat();
+        let group_id = [&[0x01, 0, 0, 0, 20][..], b"0000320193-24-000006"].concat();
 
         let expected_result = vec![GroupHash {
             group_id,

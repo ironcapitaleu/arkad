@@ -222,8 +222,9 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
   one group, and keeps the `GroupHash`: the group ID and the hash. At the end of the unit,
   `content_digest` sorts the pairs and computes the digest. If two pairs have one group ID, it
   returns `DuplicateDigestGroup`, because the digest would then depend on the split.
-- The golden test holds one fixture unit per dataset and a table of `transform_version` to
-  expected digest. `TRANSFORM_VERSION` holds the version of the build.
+- The golden test holds one fixture unit and a table of `transform_version` to expected digest.
+  Each dataset adds its own fixture unit when its `DigestRow` type exists. `TRANSFORM_VERSION`
+  holds the version of the build.
 
 ## The Series Step
 
@@ -500,7 +501,9 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 
 [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
-prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread.
+prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print and
+the hash of `content_digest` add about 11 seconds: 9,101,360 rows of `num.tsv` of `2024q1`, a median
+of 10.9 s over 3 runs, on one thread of an Intel Xeon at 2.10 GHz, measured on 2026-11-21.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.

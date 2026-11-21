@@ -16,9 +16,8 @@ const VALUE_MARKER: u8 = 0x01;
 
 /// A byte buffer that holds values in the byte form of `content_digest`.
 ///
-/// The byte form keeps the digest of the same rows equal across Arrow releases and integer widths,
-/// so the transform code prints each value and the Arrow crate prints none. Each method appends one
-/// value. A value starts with a marker byte: `0x00` for null, `0x01` for a value. A scalar then
+/// The transform code prints each value, and the Arrow crate prints none. So the digest of the same
+/// rows stays equal across Arrow releases and integer widths. Each method appends one value. A value starts with a marker byte: `0x00` for null, `0x01` for a value. A scalar then
 /// enters as a 4-byte big-endian length and its UTF-8 text. A list or a struct enters as a 4-byte
 /// big-endian count, and its elements or fields follow in their own byte form.
 ///
@@ -427,12 +426,9 @@ mod tests {
 
     #[test]
     fn should_print_the_same_bytes_when_an_integer_column_widens() {
-        let narrow_value: u8 = 4;
         let wide_value: u16 = 4;
 
-        let expected_result = bytes_of(|byte_form| {
-            byte_form.integer(narrow_value);
-        });
+        let expected_result = scalar("4");
 
         let result = bytes_of(|byte_form| {
             byte_form.integer(wide_value);
@@ -558,14 +554,10 @@ mod tests {
 
     #[test]
     fn should_print_the_same_bytes_when_the_decimal_scale_changes() {
-        let narrow_scale = BigDecimal::from_str("12.5")
-            .expect("Given a hardcoded decimal string, the parse should always succeed");
         let wide_scale = BigDecimal::from_str("12.5000000000")
             .expect("Given a hardcoded decimal string, the parse should always succeed");
 
-        let expected_result = bytes_of(|byte_form| {
-            byte_form.decimal(&narrow_scale);
-        });
+        let expected_result = scalar("12.5");
 
         let result = bytes_of(|byte_form| {
             byte_form.decimal(&wide_scale);
