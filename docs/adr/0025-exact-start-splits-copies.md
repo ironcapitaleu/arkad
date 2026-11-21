@@ -71,7 +71,7 @@ The decision binds the Notes parser (`xbrl/src/adapter/edgar/notes/`), `core::de
 
 Date: 2026-11-21.
 
-**Reason.** Decision 3 is on `main` since ironcapitaleu/arkad#606. So every parser gives each
+**Reason.** ironcapitaleu/arkad#606 put decision 3 on `main`. So every parser gives each
 duration an exact start: the Notes parser from `durp`, the instance parser from `startDate`, and
 `adapter::edgar` from the `start` field of the JSON. If the field is missing, `adapter::edgar`
 builds an instant. No code builds a duration without a start, except tests. Decisions 1 and 5 still name
