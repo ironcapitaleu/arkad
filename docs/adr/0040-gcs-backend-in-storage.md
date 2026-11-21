@@ -1,4 +1,4 @@
-# ADR 0036: The GCS Backend of Silver Sits in `storage` Behind a Cargo Feature
+# ADR 0040: The GCS Backend of Silver Sits in `storage` Behind a Cargo Feature
 
 | Field | Value |
 | ----- | ----- |

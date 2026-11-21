@@ -4,7 +4,7 @@
 > [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md),
 > [ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md),
 > [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md), and
-> [ADR 0036](../../../docs/adr/0036-gcs-backend-in-storage.md) hold the decisions of this document.
+> [ADR 0040](../../../docs/adr/0040-gcs-backend-in-storage.md) hold the decisions of this document.
 >
 > **Marks:** "Measured" means checked on 2026-11-08 against a downloaded SEC file, as the silver
 > prototype findings record it. "Estimate" means not measured. Every other statement is a proposal.
@@ -112,7 +112,7 @@ The GCS backend sets `ifGenerationMatch=0` on each object write, and `ifGenerati
 when it replaces an expired lease. The bucket mount shows no generation, so silver does not use
 it. The backend sits behind the cargo feature `gcs`. A build that turns the feature on compiles the
 client into each of its binaries, the extract binaries included
-([ADR 0036](../../../docs/adr/0036-gcs-backend-in-storage.md)). The backend sends its requests
+([ADR 0040](../../../docs/adr/0040-gcs-backend-in-storage.md)). The backend sends its requests
 through `reqwest`, which `sec` already compiles, so `cargo tree -i openssl-sys` still finds no
 package.
 

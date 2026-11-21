@@ -132,7 +132,9 @@ Rules of the layout:
   `dim.tsv` whole, streams `num.tsv` and `txt.tsv`, and splits them by `adsh`. It picks the main
   instance of a filing and skips the filing-fee exhibit. It reads the raw store, adds the ingestion
   provenance, and writes silver.
-- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. It
+- `xbrl` defines the row types of the Notes tables. The transform fills them from the TSV text. The
+  TSV quotes a field that holds a quote or a tab, as in CSV, and the transform removes the quoting
+  ([`ingestion_paths.md`](../sec/design/pipeline/ingestion_paths.md), "Quoting"). It
   hands `adapter::edgar::notes` the rows of one filing: its `sub` row, its `num` and `txt` rows,
   the `dim` rows that its `num` and `txt` rows name through `dimh`, and the `tag` rows that its
   `num` rows name through `tag` and `version`. The parser reads only `tag.datatype`, to restore
@@ -2447,7 +2449,10 @@ ticket of the instance parser adds the cross-source test.
   `candidates` unit per filing, so step 3 needs no tie-break inside one `FilingId`.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
   `xbrl/tests/parser_comparison.rs` runs them on one 10-Q. Both give the same value keys, and the
-  same content after the Notes losses that the test lists.
+  same content after the Notes losses that the test lists. The fixture set in
+  `xbrl/src/tests/fixtures/data/` holds both sources of five more filings, and the Notes rows of
+  102 filings of 33 companies. `manifest.tsv` lists them, and `xbrl/tests/fixture_set.rs` parses
+  each Notes filing ([ADR 0039](../docs/adr/0039-gzip-fixture-set.md)).
 
 The parsers take seven rules from the segment findings of 2026-10-18. The rules make a Notes row
 equal to an instance fact. The as-is layer keeps every value and leaves dedup to the standardized
