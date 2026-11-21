@@ -136,16 +136,16 @@ Open issues, In Progress, In Review, Backlog, and Todo are never archived. An op
 
 # Milestone rule
 
-An open issue (Backlog, Todo, In Progress, or In Review) in a project with milestones should sit in one of them. Otherwise the milestone views and the epic's progress leave it out.
+An open issue (Backlog, Todo, In Progress, or In Review) in a project with milestones belongs in one of them. Otherwise the milestone views and the epic's progress leave it out.
 
-1. **Find.** List the open issues that have a project but no milestone, and the open issues with no project. Skip closed issues, issues in a project with no milestones, and issues whose history shows that a person removed their milestone.
-2. **Do.** Set the milestone when one of these facts holds, and take the first that fits:
-   - The project has exactly one milestone that is not complete.
+1. **Find.** List the open issues that have a project but no milestone, and the open issues with no project. Skip closed issues, issues in a project with no milestones, and issues whose history shows that a person removed their milestone while the issue stayed in the same project.
+2. **Do.** For an issue that has a project, set the milestone when one of these facts holds, and take the first that fits:
+   - The project has exactly one milestone with progress below 100%.
    - The issue's parent sits in a milestone of the same project.
-   - Every open issue that this issue blocks sits in one and the same milestone.
+   - The issue blocks at least one open issue, and every open issue it blocks sits in one and the same milestone of the issue's project.
    Comment on the issue: `[routine] milestone set to <name>: <the fact>`. List the change in the report under "Milestones set", so the owner can undo it.
-3. **Propose.** If no fact decides, but the issue's scope fits one milestone by its description or by the Definition of Done of the milestone, propose that milestone with a one-line reason. Key: `<identifier> milestone`. If two milestones fit, name both and recommend one.
-4. **No project.** Propose the project whose epic description or fog log covers the issue, and the milestone in it by point 2 or 3. Key: `<identifier> project`. Never set a project alone.
+3. **Propose.** If no fact decides, but the issue's scope fits one milestone by its description or by the Definition of Done of the milestone, propose that milestone with a one-line reason. Key: `<identifier> milestone`. If two milestones fit, name both and recommend one. The form of step 14 offers both, and a comment answer `approve <n>` takes the recommended one.
+4. **No project.** Propose the project whose epic description or fog log covers the issue, and the milestone in it by point 2 or 3. Key: `<identifier> project`. Never set a project alone. If no project fits, list the issue in the report with no proposal.
 5. **Report.** Give the count of open issues without a milestone per project, before and after this run, next to the capacity numbers.
 
 # Steps
@@ -160,7 +160,7 @@ An open issue (Backlog, Todo, In Progress, or In Review) in a project with miles
 6. Archive the matching issues with `issueArchive`, one at a time. Archive one first and check that it worked before you archive the rest. Count successes and failures. Then compute the projected total again from the real total after the archive. If this projection is 230 or more, write the hand-off note of the critical zone.
 7. Write one document "Archived Issues Index (Temporary, <YYYY-MM-DD>)" on MVP Data Pt. 2. At the top: nothing was deleted, links still work, how to unarchive, and which documents moved to which project. Then a table of the issues with an open relation, files, or a moved document, and a plain list of the rest, each with link, title, and project.
 8. Fog tickets. For each entry of "Tickets to create later" whose trigger is a checkable fact that holds: check that no open or recent issue covers it already, then create the ticket with the template, label, project, milestone, and blocking links of the `linear` skill. Replace the fog entry with a link to the new ticket. An entry whose trigger needs judgement becomes a proposal.
-9. Duplicates and milestones. For each pair that meets the duplicate condition of "Autonomy", mark the newer issue as a duplicate of the older one, and comment on both with the reason. Then apply "Milestone rule" to the issues that are still open: set the milestones that a fact decides, and add its proposals to the list of step 13.
+9. Duplicates and milestones. For each pair that meets the duplicate condition of "Autonomy", mark the newer issue as a duplicate of the older one, and comment on both with the reason. Then apply "Milestone rule" to the issues that are still open, and skip each issue that this step marked as a duplicate: set the milestones that a fact decides, and add its proposals to the list of step 13.
 10. Parking. Apply "Parking rule": park the issues whose two questions went unanswered, and list the new questions.
 11. Dwell. Apply "Dwell rule" to every issue in In Progress or In Review. Add its questions and proposals to the list of step 13, and its hand-offs to "Hand off to the human".
 12. Proposals. Never act on these in this run:
@@ -170,7 +170,7 @@ An open issue (Backlog, Todo, In Progress, or In Review) in a project with miles
     - **Epics to close or split:** an open project whose milestones are all at 100%, or with a finished milestone that holds more than 30 Done issues. Propose a close, or a split as MVP Data was split from MVP Data Pt. 2.
     - **Stale points:** an open ticket whose description names a ticket, file, or decision that changed since. Quote the stale sentence and name the source.
     - **Old index documents:** a temporary index document older than 60 days, with no comment that asks to keep it. Propose to delete it.
-13. Write the report: one document "Backlog Grooming Report <YYYY-MM-DD>" on MVP Data Pt. 2. It holds the issue count before and after, the archive result with a link to the index, the actions of steps 2 and 8 to 11 with links, and the proposals and parking questions as one numbered list. Each item starts with its key in backticks, then the evidence and your recommendation. Keep it short.
+13. Write the report: one document "Backlog Grooming Report <YYYY-MM-DD>" on MVP Data Pt. 2. It holds the issue count before and after, the open issues without a milestone per project before and after, the archive result with a link to the index, the actions of steps 2 and 8 to 11 with links, and the proposals and parking questions as one numbered list. Each item starts with its key in backticks, then the evidence and your recommendation. Keep it short.
 14. Ask the owner. If the list of step 13 is empty, skip this step. Otherwise ask with `AskUserQuestion`, one question per item, four questions per call, and more calls until every item is asked:
     - The question names the item number and its key, the ticket or document, the evidence in one line, and the decision.
     - The options are the actions the item allows, such as approve, keep, park, or cancel. Every item also offers reject, except a `cancelled-park` item. The recommended option comes first, with "(Recommended)" after its label.
