@@ -387,6 +387,31 @@ mod tests {
     }
 
     #[test]
+    fn should_format_display_as_expected_when_the_lease_is_invalid() {
+        let reason = FailedFilesystemOperationReason::InvalidLease { line: 1, column: 1 };
+
+        let expected_result = "Lease file holds no valid lease at line 1, column 1";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_a_link_fails() {
+        let reason = FailedFilesystemOperationReason::FailedIo {
+            operation: FilesystemOperation::Link,
+            kind: io::ErrorKind::PermissionDenied,
+        };
+
+        let expected_result = "Failed to link, permission denied";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_format_display_as_expected_when_the_metadata_is_unserializable() {
         let reason = FailedFilesystemOperationReason::UnserializableMetadata;
 

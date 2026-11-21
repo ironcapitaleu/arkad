@@ -2,8 +2,8 @@
 //!
 //! Provides the error types the `storage` crate returns.
 //!
-//! Errors nest by operation: a [`ReadError`], a [`WriteError`], or a [`LeaseError`] wraps a backend error, and an
-//! [`ErrorKind`] wraps that. A caller can therefore propagate one type and still recover the
+//! Errors nest by operation: a [`ReadError`], a [`WriteError`], or a [`LeaseError`] wraps a
+//! backend error, and an [`ErrorKind`] wraps that. A caller can therefore propagate one type and still recover the
 //! specific cause. The [`TryFrom`] impls extract the inner error, returning
 //! [`ErrorKind::DowncastNotPossible`] when the variant does not match.
 //!

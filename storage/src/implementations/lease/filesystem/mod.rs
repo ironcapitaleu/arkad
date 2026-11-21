@@ -182,7 +182,13 @@ impl LeaseStore for FilesystemLeaseStore {
                         lease: held,
                     });
                 }
-                Some((_, LeaseGeneration(previous))) => LeaseGeneration(previous + 1),
+                Some((_, LeaseGeneration(previous))) => {
+                    LeaseGeneration(previous.checked_add(1).ok_or_else(|| {
+                        LeaseError::Backend(BackendError::failed_operation(format!(
+                            "Lease generation {previous} of job kind '{kind}' has no next generation"
+                        )))
+                    })?)
+                }
                 None => LeaseGeneration(1),
             };
             // A write that finds its generation taken lost a race. The next pass reads the
@@ -393,6 +399,42 @@ mod tests {
             store.acquire(&kind, "plan-b", in_hours(16)),
         );
         let result = usize::from(first.is_ok()) + usize::from(second.is_ok());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_lease_held_to_the_loser_when_two_acquires_run_at_the_same_time() {
+        let root = temporary_root();
+        let store = FilesystemLeaseStore::new(root.path());
+        let kind = transform_notes();
+
+        let expected_result = 1;
+
+        let (first, second) = tokio::join!(
+            store.acquire(&kind, "plan-a", in_hours(16)),
+            store.acquire(&kind, "plan-b", in_hours(16)),
+        );
+        let result = usize::from(matches!(first, Err(LeaseError::LeaseHeld { .. })))
+            + usize::from(matches!(second, Err(LeaseError::LeaseHeld { .. })));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_skip_a_temporary_file_and_a_signed_name_when_finding_the_latest_generation() {
+        let root = temporary_root();
+        let directory = root.path().join("leases/transform-notes");
+        std::fs::create_dir_all(&directory)
+            .expect("Given a writable temp directory, creating subdirectories should succeed");
+        for name in ["2", ".7.1.0.tmp", "+9"] {
+            std::fs::write(directory.join(name), b"")
+                .expect("Given an existing directory, writing a file should always succeed");
+        }
+
+        let expected_result = Ok(Some(LeaseGeneration(2)));
+
+        let result = latest_generation(&directory).await;
 
         assert_eq!(result, expected_result);
     }

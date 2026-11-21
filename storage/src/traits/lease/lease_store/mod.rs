@@ -30,16 +30,14 @@ use crate::shared::{JobKind, Lease, LeaseGeneration};
 ///
 /// A store holds at most one lease per [`JobKind`]. A lease expires at its `expires_at`. Then
 /// another plan can take it. Each lease the store writes gets a new [`LeaseGeneration`].
-///
-/// It is not a subtrait of a repository trait, because a store of leases reads and writes no
-/// records.
 #[async_trait]
 pub trait LeaseStore: Send + Sync {
     /// Takes the lease of the job kind for the plan, until `expires_at`.
     ///
     /// Writes the lease if the job kind has none, or if its lease expired at or before the time of
-    /// the call. Returns the generation of the written lease. Two calls at the same time never both
-    /// succeed.
+    /// the call. Returns the generation of the written lease. If `expires_at` is after the time of
+    /// the calls, two calls at the same time never both succeed. A lease that expires during the
+    /// calls lets the next call replace it.
     ///
     /// # Errors
     ///
@@ -82,6 +80,47 @@ mod tests {
     fn transform_notes() -> JobKind {
         JobKind::new("transform-notes")
             .expect("Given a valid hardcoded job kind, the creation should always succeed")
+    }
+
+    #[tokio::test]
+    async fn should_return_lease_held_from_the_fake_when_the_lease_has_not_expired() {
+        let store = FakeLeaseStore::default();
+        let kind = transform_notes();
+        let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
+        store
+            .acquire(&kind, "plan-a", expires_at)
+            .await
+            .expect("Given a job kind without a lease, the acquire should always succeed");
+
+        let expected_result = Err(LeaseError::LeaseHeld {
+            kind: transform_notes(),
+            lease: Lease {
+                plan_id: "plan-a".to_owned(),
+                expires_at,
+            },
+        });
+
+        let result = store.acquire(&kind, "plan-b", expires_at).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_next_generation_from_the_fake_when_the_lease_expired() {
+        let store = FakeLeaseStore::default();
+        let kind = transform_notes();
+        store
+            .acquire(&kind, "plan-a", DateTime::<Utc>::UNIX_EPOCH)
+            .await
+            .expect("Given a job kind without a lease, the acquire should always succeed");
+
+        let expected_result = Ok(LeaseGeneration(2));
+
+        let result = store
+            .acquire(&kind, "plan-b", DateTime::<Utc>::MAX_UTC)
+            .await;
+
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]

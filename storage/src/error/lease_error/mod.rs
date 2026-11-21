@@ -13,7 +13,7 @@ use crate::shared::{JobKind, Lease};
 #[derive(Debug, Error, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 /// Error occurring while taking or reading a lease.
 pub enum LeaseError {
-    /// Another plan holds the lease of the job kind, and the lease has not expired.
+    /// A plan holds the lease of the job kind, and the lease has not expired.
     #[error(
         "[LeaseHeld] Lease of job kind '{kind}' is held by plan '{}' until '{}'",
         .lease.plan_id,
