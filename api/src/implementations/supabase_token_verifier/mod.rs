@@ -210,8 +210,8 @@ impl TokenVerifier for SupabaseTokenVerifier {
 
 /// Keeps every key of `jwk_set` that has a key ID and that signs `ES256` or `RS256`.
 ///
-/// It skips every other key, such as a shared `HS256` secret or a key for encryption. If two keys
-/// share a key ID, the first one wins.
+/// It skips every other key, such as a shared `HS256` secret or a key for encryption. If two kept
+/// keys share a key ID, the first one wins.
 fn signing_keys(jwk_set: &JwkSet) -> Result<HashMap<String, SigningKey>, TokenError> {
     let mut keys = HashMap::new();
     for jwk in &jwk_set.keys {
@@ -783,6 +783,41 @@ mod tests {
         let expected_result = Err(TokenError::InvalidTokenFormat {
             reason: "a part is not the expected JSON".to_owned(),
         });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_verified_token_when_the_fetched_key_signed_the_token() {
+        let key = TestSigningKey::es256("key-1");
+        let jwk_set = JwkSet {
+            keys: vec![key.jwk()],
+        };
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("Given a free port on the loopback interface, binding should always succeed");
+        let port = listener
+            .local_addr()
+            .expect("Given a bound listener, reading its address should always succeed")
+            .port();
+        let app = axum::Router::new().route(
+            JWKS_PATH,
+            axum::routing::get(move || async move { axum::Json(jwk_set) }),
+        );
+        tokio::spawn(async move { axum::serve(listener, app).await });
+        let verifier = SupabaseTokenVerifier::fetch(
+            &reqwest::Client::new(),
+            &format!("http://127.0.0.1:{port}/"),
+        )
+        .await
+        .expect("Given a server that serves a key set, fetching it should always succeed");
+        let mut token_claims = claims();
+        token_claims["iss"] = json!(format!("http://127.0.0.1:{port}/auth/v1"));
+        let token = key.sign(&token_claims);
+
+        let expected_result = Ok(verified_token());
 
         let result = verifier.verify(&token).await;
 

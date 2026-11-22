@@ -106,26 +106,6 @@ fn jwks_route(body: Value) -> Router {
 }
 
 #[tokio::test]
-async fn should_create_the_verifier_when_the_key_endpoint_serves_a_key_set() {
-    // A public P-256 key. A public key cannot sign, so it is safe in the repository.
-    let base_url = serve(jwks_route(json!({ "keys": [{
-        "kty": "EC", "crv": "P-256", "alg": "ES256", "use": "sig", "kid": "key-1",
-        "x": "5_S9ROIqoM8rMZ8f8Z-2JIjT2Ni_8RjJ9iuJoJXrUxo",
-        "y": "rA_DCHy53WPDPmRGQlHoJNgMxbRQrNhTEPgpx79Zm_8",
-    }]})))
-    .await;
-    let supabase_url = format!("{base_url}/");
-
-    let expected_result = Ok(());
-
-    let result = SupabaseTokenVerifier::fetch(&reqwest::Client::new(), &supabase_url)
-        .await
-        .map(|_| ());
-
-    assert_eq!(result, expected_result);
-}
-
-#[tokio::test]
 async fn should_return_failed_key_fetch_when_the_key_endpoint_serves_no_key_set() {
     let supabase_url = serve(jwks_route(json!({ "keys": "x" }))).await;
 
