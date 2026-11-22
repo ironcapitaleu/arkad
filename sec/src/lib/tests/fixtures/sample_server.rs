@@ -3,6 +3,7 @@
 //! Provides local TCP servers that stop sending, close the connection, or send a gzip body, and a
 //! client that gives up on them, for the tests of the request timeouts and of gzip bodies.
 
+use std::future;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -11,7 +12,6 @@ use flate2::Compression;
 use flate2::write::GzEncoder;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::task::JoinHandle;
 
 /// The name of the request header that lists the accepted encodings, in lowercase.
 const ACCEPT_ENCODING_HEADER: &str = "accept-encoding:";
@@ -22,7 +22,7 @@ const GZIP_ENCODING: &str = "gzip";
 /// Starts a server that accepts one connection, reads the request, writes `response_head`, and then
 /// sends nothing.
 ///
-/// The server holds the connection open until the client closes it, and then ends. Pass an empty `response_head` for a
+/// The server holds the connection open until the test ends. Pass an empty `response_head` for a
 /// server that never answers, or the status line and headers for a server that stalls in the body.
 ///
 /// # Panics
@@ -118,7 +118,7 @@ fn asks_for_gzip(request_head: &[u8]) -> bool {
 
 /// What a server does after it writes the response.
 enum AfterResponse {
-    /// Keep the connection open and send nothing, until the client closes it.
+    /// Keep the connection open and send nothing.
     HoldOpen,
     /// Close the connection.
     Close,
@@ -130,42 +130,22 @@ async fn serve_once(
     answer: impl FnOnce(&[u8]) -> Vec<u8> + Send + 'static,
     after_response: AfterResponse,
 ) -> SocketAddr {
-    spawn_server(answer, after_response).await.0
-}
-
-/// Starts the server of [`serve_once`], and returns its address and the handle of its task.
-///
-/// The task ends after the connection closes, so no server outlives its client.
-async fn spawn_server(
-    answer: impl FnOnce(&[u8]) -> Vec<u8> + Send + 'static,
-    after_response: AfterResponse,
-) -> (SocketAddr, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.expect(
         "Port 0 on the loopback interface lets the OS pick a free port, so binding always succeeds",
     );
     let address = listener
         .local_addr()
         .expect("A bound listener always has a local address");
-    let server = tokio::spawn(async move {
+    tokio::spawn(async move {
         if let Ok((mut connection, _)) = listener.accept().await {
             let request_head = read_request_head(&mut connection).await;
             let _ = connection.write_all(&answer(&request_head)).await;
             if matches!(after_response, AfterResponse::HoldOpen) {
-                wait_for_close(&mut connection).await;
+                future::pending::<()>().await;
             }
         }
     });
-    (address, server)
-}
-
-/// Reads from `connection` and drops the bytes, until the client closes it or a read fails.
-async fn wait_for_close(connection: &mut TcpStream) {
-    let mut chunk = [0; 1024];
-    while let Ok(read) = connection.read(&mut chunk).await {
-        if read == 0 {
-            break;
-        }
-    }
+    address
 }
 
 /// Reads from `connection` until the blank line that ends the request head, or until it closes,
@@ -198,32 +178,4 @@ pub fn impatient_client() -> reqwest::Client {
         .no_proxy()
         .build()
         .expect("A builder with only a read timeout and no proxy fails only if the TLS backend cannot initialize")
-}
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-    use tokio::time;
-
-    use super::*;
-
-    #[tokio::test]
-    async fn should_end_the_server_task_when_the_client_closes_a_held_connection() {
-        let (address, server) = spawn_server(|_| Vec::new(), AfterResponse::HoldOpen).await;
-        let mut client = TcpStream::connect(address).await.expect(
-            "Given a server bound on the loopback interface, the connection should always succeed",
-        );
-        client
-            .write_all(b"GET / HTTP/1.1\r\n\r\n")
-            .await
-            .expect("Given an open connection, the write of a request head should always succeed");
-        let guard = Duration::from_secs(5);
-
-        let expected_result = true;
-
-        drop(client);
-        let result = time::timeout(guard, server).await.is_ok();
-
-        assert_eq!(result, expected_result);
-    }
 }

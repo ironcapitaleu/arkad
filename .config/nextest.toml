@@ -2,8 +2,7 @@
 # settings apply to local runs only.
 
 [profile.default]
-# Nextest marks a test as leaky if the output of its process stays open longer than this period
-# after the process exits. A child process that outlives its test keeps the output open until the
-# child ends. On a busy machine, the close of a test that ends with open sockets can take longer
-# than the default of 100 ms.
+# Nextest marks a test as leaky if its output stays open longer than this period after its process
+# exits. On a loaded machine, the output can close later than the default of 100 ms. A child
+# process that outlives its test keeps the output open for longer, and still shows as a leak.
 leak-timeout = "1s"
