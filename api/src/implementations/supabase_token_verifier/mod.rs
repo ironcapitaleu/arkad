@@ -828,7 +828,7 @@ mod tests {
             .expect("Given a bound listener, reading its address should always succeed")
             .port();
         let app = axum::Router::new().route(
-            JWKS_PATH,
+            "/auth/v1/.well-known/jwks.json",
             axum::routing::get(move || async move { axum::Json(jwk_set) }),
         );
         tokio::spawn(async move { axum::serve(listener, app).await });
