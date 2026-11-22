@@ -75,7 +75,8 @@ impl SupabaseTokenVerifier {
     /// Creates the verifier from a key set of the Supabase project at `supabase_url`.
     ///
     /// It keeps every key that has a key ID and that signs `ES256` or `RS256`. It skips every other
-    /// key, such as a shared `HS256` secret or a key for encryption.
+    /// key, such as a shared `HS256` secret or a key for encryption. If two keys share a key ID,
+    /// the first one wins.
     ///
     /// # Errors
     ///
@@ -86,8 +87,13 @@ impl SupabaseTokenVerifier {
             let (Some(kid), Some(algorithm)) = (&jwk.common.key_id, signing_algorithm(jwk)) else {
                 continue;
             };
+            if keys.contains_key(kid) {
+                continue;
+            }
             let decoding_key =
-                DecodingKey::from_jwk(jwk).map_err(|error| failed_key_fetch(&error))?;
+                DecodingKey::from_jwk(jwk).map_err(|_| TokenError::FailedKeyFetch {
+                    reason: format!("the key '{kid}' does not decode"),
+                })?;
             keys.insert(
                 kid.clone(),
                 SigningKey {
@@ -107,7 +113,7 @@ impl SupabaseTokenVerifier {
             jsonwebtoken::decode_header(token).map_err(|error| invalid_token_format(&error))?;
         if !matches!(header.alg, Algorithm::ES256 | Algorithm::RS256) {
             return Err(TokenError::InvalidTokenFormat {
-                reason: format!("the algorithm '{:?}' is not accepted", header.alg),
+                reason: "the algorithm is not ES256 or RS256".to_owned(),
             });
         }
         let kid = header.kid.ok_or_else(|| TokenError::InvalidTokenFormat {
@@ -179,7 +185,7 @@ fn invalid_token_format(error: &JwtError) -> TokenError {
         ErrorKind::Base64(_) => "a part is not base64url".to_owned(),
         ErrorKind::Json(_) => "a part is not the expected JSON".to_owned(),
         ErrorKind::Utf8(_) => "a part is not UTF-8".to_owned(),
-        _ => error.to_string(),
+        _ => "the token does not decode".to_owned(),
     };
     TokenError::InvalidTokenFormat { reason }
 }
@@ -192,6 +198,8 @@ fn failed_key_fetch(error: &impl Display) -> TokenError {
 
 #[cfg(test)]
 mod tests {
+    use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use chrono::{DateTime, TimeZone};
     use jsonwebtoken::{EncodingKey, Header};
     use pretty_assertions::assert_eq;
@@ -385,7 +393,7 @@ mod tests {
             .expect("Given a shared secret and JSON claims, signing should always succeed");
 
         let expected_result = Err(TokenError::InvalidTokenFormat {
-            reason: "the algorithm 'HS256' is not accepted".to_owned(),
+            reason: "the algorithm is not ES256 or RS256".to_owned(),
         });
 
         let result = verifier.verify(&token).await;
@@ -436,6 +444,119 @@ mod tests {
 
         let expected_result = Err(TokenError::UnknownSigningKey {
             kid: "key-1".to_owned(),
+        });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns the public JWK of `key` with `field` set to `value`, or removed if `value` is null.
+    fn jwk_with(key: &TestSigningKey, field: &str, value: Value) -> Jwk {
+        let mut jwk = serde_json::to_value(key.jwk())
+            .expect("Given a JWK of a generated key, serializing it should always succeed");
+        if value.is_null() {
+            jwk.as_object_mut()
+                .map(|object| object.remove(field))
+                .expect("Given a serialized JWK, it should always be a JSON object");
+        } else {
+            jwk[field] = value;
+        }
+        serde_json::from_value(jwk)
+            .expect("Given a JWK with one changed field, parsing it should always succeed")
+    }
+
+    fn verifier_from_jwk(jwk: Jwk) -> SupabaseTokenVerifier {
+        SupabaseTokenVerifier::from_jwk_set(SUPABASE_URL, &JwkSet { keys: vec![jwk] })
+            .expect("Given a key set whose only key is skipped, creating the verifier should always succeed")
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_signing_key_when_the_only_key_is_for_encryption() {
+        let key = TestSigningKey::es256("key-1");
+        let verifier = verifier_from_jwk(jwk_with(&key, "use", json!("enc")));
+        let token = key.sign(&claims());
+
+        let expected_result = Err(TokenError::UnknownSigningKey {
+            kid: "key-1".to_owned(),
+        });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_signing_key_when_the_only_key_is_on_another_curve() {
+        let key = TestSigningKey::es256("key-1");
+        let verifier = verifier_from_jwk(jwk_with(&key, "crv", json!("P-384")));
+        let token = key.sign(&claims());
+
+        let expected_result = Err(TokenError::UnknownSigningKey {
+            kid: "key-1".to_owned(),
+        });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_signing_key_when_the_only_key_names_another_algorithm() {
+        let key = TestSigningKey::es256("key-1");
+        let verifier = verifier_from_jwk(jwk_with(&key, "alg", json!("RS256")));
+        let token = key.sign(&claims());
+
+        let expected_result = Err(TokenError::UnknownSigningKey {
+            kid: "key-1".to_owned(),
+        });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_unknown_signing_key_when_the_only_key_has_no_key_id() {
+        let key = TestSigningKey::es256("key-1");
+        let verifier = verifier_from_jwk(jwk_with(&key, "kid", Value::Null));
+        let token = key.sign(&claims());
+
+        let expected_result = Err(TokenError::UnknownSigningKey {
+            kid: "key-1".to_owned(),
+        });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_the_verified_token_when_the_first_of_two_keys_with_one_key_id_signed() {
+        let first_key = TestSigningKey::es256("key-1");
+        let second_key = TestSigningKey::es256("key-1");
+        let verifier = verifier(&[&first_key, &second_key]);
+        let token = first_key.sign(&claims());
+
+        let expected_result = Ok(verified_token());
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_token_format_when_the_token_uses_alg_none() {
+        let key = TestSigningKey::es256("key-1");
+        let verifier = verifier(&[&key]);
+        // `{"alg":"none","kid":"key-1"}`, the claims, and an empty signature.
+        let token = format!(
+            "eyJhbGciOiJub25lIiwia2lkIjoia2V5LTEifQ.{}.",
+            URL_SAFE_NO_PAD.encode(claims().to_string())
+        );
+
+        let expected_result = Err(TokenError::InvalidTokenFormat {
+            reason: "a part is not the expected JSON".to_owned(),
         });
 
         let result = verifier.verify(&token).await;

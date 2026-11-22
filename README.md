@@ -651,8 +651,8 @@ Open the mail viewer at <http://127.0.0.1:54324>. The mail holds a 6-digit code 
 The public keys for the token check are at <http://127.0.0.1:54321/auth/v1/.well-known/jwks.json>.
 
 The `api` crate checks login tokens with `SupabaseTokenVerifier`. Its integration test signs in a
-test user on the local stack and checks the token. CI starts no Supabase, so the test is ignored
-there. Run it with the secret key that `supabase start` prints:
+test user on the local stack and checks the token. CI starts no Supabase, so the test carries
+`#[ignore]`. Run it with the secret key that `supabase start` prints:
 
 ```bash
 SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SECRET_KEY=<secret key> \

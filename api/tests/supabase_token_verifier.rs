@@ -6,9 +6,9 @@
 
 use api::implementations::SupabaseTokenVerifier;
 use api::traits::token_verifier::{TokenError, TokenVerifier};
-use axum::Router;
 use axum::http::StatusCode;
 use axum::routing::get;
+use axum::{Json, Router};
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
 use storage::AccountId;
@@ -54,16 +54,14 @@ async fn sign_in(
         json!({ "type": "email", "email": TEST_EMAIL, "token": link["email_otp"] }),
     )
     .await;
-    (
-        session["user"]["id"]
-            .as_str()
-            .unwrap_or_default()
-            .to_owned(),
-        session["access_token"]
-            .as_str()
-            .unwrap_or_default()
-            .to_owned(),
-    )
+    let field = |pointer: &str| {
+        session
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .map(str::to_owned)
+            .expect("Given a successful verify call, the session should always hold the field")
+    };
+    (field("/user/id"), field("/access_token"))
 }
 
 #[tokio::test]
@@ -87,8 +85,8 @@ async fn should_return_the_account_of_the_user_when_the_local_stack_signed_the_t
     assert_eq!(result, expected_result);
 }
 
-#[tokio::test]
-async fn should_return_failed_key_fetch_when_the_key_endpoint_answers_an_error() {
+/// Serves `app` on a free loopback port and returns the base URL.
+async fn serve(app: Router) -> String {
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
         .expect("Given a free port on the loopback interface, binding should always succeed");
@@ -96,23 +94,67 @@ async fn should_return_failed_key_fetch_when_the_key_endpoint_answers_an_error()
         .local_addr()
         .expect("Given a bound listener, reading its address should always succeed")
         .port();
-    let app = Router::new().route(
-        "/auth/v1/.well-known/jwks.json",
-        get(|| async { StatusCode::SERVICE_UNAVAILABLE }),
-    );
     tokio::spawn(async move { axum::serve(listener, app).await });
-    let supabase_url = format!("http://127.0.0.1:{port}");
+    format!("http://127.0.0.1:{port}")
+}
 
-    let expected_result = Err(TokenError::FailedKeyFetch {
-        reason: format!(
-            "HTTP status server error (503 Service Unavailable) for url \
-             (http://127.0.0.1:{port}/auth/v1/.well-known/jwks.json)"
-        ),
-    });
+fn jwks_route(body: Value) -> Router {
+    Router::new().route(
+        "/auth/v1/.well-known/jwks.json",
+        get(move || async move { Json(body) }),
+    )
+}
+
+#[tokio::test]
+async fn should_create_the_verifier_when_the_key_endpoint_serves_a_key_set() {
+    // A public P-256 key. A public key cannot sign, so it is safe in the repository.
+    let base_url = serve(jwks_route(json!({ "keys": [{
+        "kty": "EC", "crv": "P-256", "alg": "ES256", "use": "sig", "kid": "key-1",
+        "x": "5_S9ROIqoM8rMZ8f8Z-2JIjT2Ni_8RjJ9iuJoJXrUxo",
+        "y": "rA_DCHy53WPDPmRGQlHoJNgMxbRQrNhTEPgpx79Zm_8",
+    }]})))
+    .await;
+    let supabase_url = format!("{base_url}/");
+
+    let expected_result = Ok(());
 
     let result = SupabaseTokenVerifier::fetch(&reqwest::Client::new(), &supabase_url)
         .await
         .map(|_| ());
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_failed_key_fetch_when_the_key_endpoint_serves_no_key_set() {
+    let supabase_url = serve(jwks_route(json!({ "keys": "x" }))).await;
+
+    // The reason holds the text of `reqwest`, which a patch release can change.
+    let expected_result = Err(true);
+
+    let result = SupabaseTokenVerifier::fetch(&reqwest::Client::new(), &supabase_url)
+        .await
+        .map(|_| ())
+        .map_err(|error| matches!(error, TokenError::FailedKeyFetch { .. }));
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_return_failed_key_fetch_when_the_key_endpoint_answers_an_error() {
+    let supabase_url = serve(Router::new().route(
+        "/auth/v1/.well-known/jwks.json",
+        get(|| async { StatusCode::SERVICE_UNAVAILABLE }),
+    ))
+    .await;
+
+    // The reason holds the text of `reqwest`, which a patch release can change.
+    let expected_result = Err(true);
+
+    let result = SupabaseTokenVerifier::fetch(&reqwest::Client::new(), &supabase_url)
+        .await
+        .map(|_| ())
+        .map_err(|error| matches!(error, TokenError::FailedKeyFetch { .. }));
 
     assert_eq!(result, expected_result);
 }

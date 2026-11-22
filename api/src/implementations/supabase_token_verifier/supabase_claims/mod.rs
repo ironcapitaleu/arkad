@@ -97,7 +97,10 @@ impl SupabaseClaims {
         let exp = required("exp", exp)?;
         let expires_at = DateTime::from_timestamp(exp, 0)
             .ok_or_else(|| invalid_claim("exp", "the time is out of range"))?;
-        if now > expires_at + EXPIRY_LEEWAY {
+        let deadline = expires_at
+            .checked_add_signed(EXPIRY_LEEWAY)
+            .ok_or_else(|| invalid_claim("exp", "the time is out of range"))?;
+        if now > deadline {
             return Err(TokenError::ExpiredToken {
                 expired_at: expires_at,
             });
@@ -339,6 +342,24 @@ mod tests {
         let expected_result = Err(TokenError::InvalidClaim {
             claim: "exp".to_owned(),
             reason: "the claim is missing".to_owned(),
+        });
+
+        let result = claims.check(ISSUER, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_claim_when_the_expiry_plus_the_leeway_is_out_of_range() {
+        let claims = SupabaseClaims {
+            exp: Some(8_210_266_876_799),
+            ..valid_claims()
+        };
+        let now = time(9, 30, 0);
+
+        let expected_result = Err(TokenError::InvalidClaim {
+            claim: "exp".to_owned(),
+            reason: "the time is out of range".to_owned(),
         });
 
         let result = claims.check(ISSUER, now);
