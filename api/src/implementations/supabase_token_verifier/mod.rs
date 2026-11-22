@@ -86,8 +86,9 @@ impl SupabaseTokenVerifier {
     ///
     /// # Errors
     ///
-    /// Returns [`TokenError::FailedKeyFetch`] if the request fails, the server answers with an
-    /// error status, or a signing key in the body does not decode.
+    /// Returns [`TokenError::FailedKeyFetch`] if the request fails or takes longer than
+    /// [`FETCH_TIMEOUT`], the server answers with an error status, or a signing key in the body
+    /// does not decode.
     ///
     /// # Panics
     ///
