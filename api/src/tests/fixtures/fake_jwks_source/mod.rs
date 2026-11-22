@@ -16,10 +16,12 @@ use crate::traits::token_verifier::TokenError;
 /// An in-memory [`JwksSource`] test double.
 ///
 /// Each fetch takes the next answer of the list. The last answer repeats for every later fetch.
+/// Built with [`FakeJwksSource::hanging_after`], it never answers after a number of fetches.
 #[derive(Debug)]
 pub struct FakeJwksSource {
     answers: Mutex<VecDeque<Result<JwkSet, TokenError>>>,
     fetches: Arc<AtomicUsize>,
+    hang_after: Option<usize>,
 }
 
 impl FakeJwksSource {
@@ -37,7 +39,15 @@ impl FakeJwksSource {
         Self {
             answers: Mutex::new(answers.into()),
             fetches: Arc::new(AtomicUsize::new(0)),
+            hang_after: None,
         }
+    }
+
+    /// Returns the source that never answers once it has answered `count` fetches.
+    #[must_use]
+    pub const fn hanging_after(mut self, count: usize) -> Self {
+        self.hang_after = Some(count);
+        self
     }
 
     /// Returns the counter of fetches, which stays readable after the source moves into a verifier.
@@ -50,7 +60,10 @@ impl FakeJwksSource {
 #[async_trait]
 impl JwksSource for FakeJwksSource {
     async fn fetch(&self) -> Result<JwkSet, TokenError> {
-        self.fetches.fetch_add(1, Ordering::SeqCst);
+        let answered = self.fetches.fetch_add(1, Ordering::SeqCst);
+        if self.hang_after.is_some_and(|count| answered >= count) {
+            return std::future::pending().await;
+        }
         let mut answers = self.answers.lock().unwrap_or_else(PoisonError::into_inner);
         if answers.len() > 1 {
             answers

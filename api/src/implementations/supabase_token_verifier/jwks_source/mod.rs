@@ -52,7 +52,7 @@ impl JwksSource for HttpJwksSource {
 }
 
 /// Wraps a failure to get or read the key set into [`TokenError::FailedKeyFetch`].
-pub fn failed_key_fetch(error: &impl Display) -> TokenError {
+fn failed_key_fetch(error: &impl Display) -> TokenError {
     TokenError::FailedKeyFetch {
         reason: error.to_string(),
     }
