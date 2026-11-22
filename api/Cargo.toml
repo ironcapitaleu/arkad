@@ -31,7 +31,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 storage = { version = "0.1.0", path = "../storage" }
 thiserror = "2"
-tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "signal"] }
+tokio = { version = "1.52.3", features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
 tracing = "0.1"
 tracing-appender = "0.2"
 tracing-subscriber = "0.3"
@@ -49,6 +49,8 @@ base64 = "0.23"
 jsonwebtoken = { version = "12", default-features = false, features = ["aws_lc_rs", "use_pem"] }
 http-body-util = "0.1"
 pretty_assertions = "1"
+# Paused time lets the tests of the key refresh skip ahead without waiting.
+tokio = { version = "1.52.3", features = ["test-util"] }
 tower = { version = "0.5", features = ["util"] }
 
 [lib]
