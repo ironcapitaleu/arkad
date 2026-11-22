@@ -1,0 +1,9 @@
+# Settings of `cargo nextest` for every crate of the workspace. CI runs `cargo test`, so these
+# settings apply to local runs only.
+
+[profile.default]
+# Nextest marks a test as leaky if the output of its process stays open longer than this period
+# after the process exits. A child process that outlives its test keeps the output open until the
+# child ends. On a busy machine, the close of a test that ends with open sockets can take longer
+# than the default of 100 ms.
+leak-timeout = "1s"
