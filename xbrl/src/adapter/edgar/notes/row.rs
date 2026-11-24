@@ -1185,6 +1185,42 @@ mod tests {
     }
 
     #[test]
+    fn should_convert_accepted_to_utc_when_accepted_has_no_fraction() {
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260115".to_owned(),
+            accepted: "2026-01-15 16:15:00".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(Utc.with_ymd_and_hms(2026, 1, 15, 21, 15, 0).single());
+
+        let result = sub.filing().ok().map(|filing| filing.accepted);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_milliseconds_when_accepted_has_a_three_digit_fraction() {
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260115".to_owned(),
+            accepted: "2026-01-15 16:15:00.123".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(DateTime::from_timestamp(1_768_511_700, 123_000_000));
+
+        let result = sub.filing().ok().map(|filing| filing.accepted);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_take_the_earlier_time_when_accepted_falls_in_the_autumn_overlap() {
         // New York shows 01:30 twice on 1 November 2026: first at UTC-4, then at UTC-5.
         let sub = SubRow {

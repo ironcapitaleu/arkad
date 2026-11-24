@@ -17,6 +17,10 @@ use jiff::tz::{self, TimeZone};
 static NEW_YORK: TimeZone = tz::get!("America/New_York");
 
 /// Returns today in New York at the time `now`.
+///
+/// # Panics
+///
+/// Panics if `now` lies outside the years -9999 to 9999. A reading of the clock never does.
 pub fn today_in_new_york(now: DateTime<Utc>) -> NaiveDate {
     // The fraction of the second cannot change the date, so the whole seconds are enough.
     let timestamp = Timestamp::from_second(now.timestamp()).expect(
@@ -32,6 +36,10 @@ pub fn today_in_new_york(now: DateTime<Utc>) -> NaiveDate {
 }
 
 /// Returns the day before today in New York at the time `now`.
+///
+/// # Panics
+///
+/// Panics if `now` lies outside the years -9999 to 9999. A reading of the clock never does.
 pub fn previous_day_in_new_york(now: DateTime<Utc>) -> NaiveDate {
     today_in_new_york(now)
         .checked_sub_days(Days::new(1))

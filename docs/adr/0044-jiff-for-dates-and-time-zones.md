@@ -64,13 +64,13 @@ Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0
 | B | `jiff` `tzdb-bundle-always`, all zones compiled in | run time, by name | 8,227,576 B | 8,063,656 B |
 | C | `jiff` default features | run time, from `/usr/share/zoneinfo` first | not built | not built |
 
-- A against B: A is 241,632 B smaller per binary, and a wrong zone name fails the build. B looks up
+- A against B: A is about 242 KB smaller per binary, and a wrong zone name fails the build. B looks up
   the zone at run time, and the lookup returns a `Result` that the code must handle.
 - C breaks ADR 0002. It reads the zone files of the image when they exist, so the result depends on
   the image.
-- A and B both make each binary about 237 KB larger than `main` today. The measure is the code of
-  `jiff` against the code of `chrono` and `chrono-tz`, while both crates stay in the tree. The last
-  slice removes `chrono`.
+- A makes each binary about 237 KB larger than `main` today, and B about 478 KB. The measure is
+  the code of `jiff` against the code of `chrono` and `chrono-tz`, while both crates stay in the
+  tree. The last slice removes `chrono`.
 - `time` was not considered: it has no IANA time zones.
 
 ## Consequences
@@ -79,8 +79,9 @@ Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0
 - A new time zone needs one more `tz::get!` call. No feature changes.
 - The zone data updates only when `jiff-tzdb` updates. A rule change of New York needs a
   `cargo update -p jiff-tzdb` and a new build.
-- A `jiff` date or time that reads the system zone, such as `Zoned::now()`, falls back to UTC,
-  because `tz-system` is off. The code must name the zone with `tz::get!`.
+- A `jiff` value that reads the system zone, such as `ZonedDateTime::now()`, gets the zone
+  `Etc/Unknown`, because `tz-system` is off. That zone has the offset of UTC. The code must name
+  the zone with `tz::get!`.
 - Until the last slice merges, the code converts between `chrono` and `jiff` values at each place
   that has moved. Each slice removes the conversions of its crate.
 
@@ -95,6 +96,8 @@ Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0
 - `cargo audit` on `main` at `850a823`, 2026-11-24: RUSTSEC-2026-0543 (`chrono`) and
   RUSTSEC-2026-0555 (`chrono-tz`).
 - `cargo info jiff`, 2026-11-24: version 1.0.3 and its default features.
+- `jiff::ZonedDateTime::now()` with `jiff` 1.0.3 and the features `std` and `static`, 2026-11-24:
+  printed `2026-11-24T16:08:36.749349896Z[Etc/Unknown]`.
 - `jiff-tzdb` 1.0.0, `tzname.rs`: `VERSION = "2026f"`.
 - The builds and sizes in "Options Considered", 2026-11-24.
 - [ADR 0002](0002-static-binaries.md), "Consequences": a binary compiles in the data it needs.

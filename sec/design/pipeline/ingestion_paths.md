@@ -1508,7 +1508,8 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 - All dates are Eastern time (`America/New_York`). The SEC dates its filings in Eastern time, and
   it publishes a daily index in the evening of that day or later. At 02:00 UTC on 2 November it is still 1
   November in New York. So `yesterday` is the day before today in New York, never in UTC.
-- The dependency `chrono-tz` gives the New York time zone with its daylight-saving rules.
+- The dependency `jiff`, with the feature `static`, compiles the New York time zone and its
+  daylight-saving rules into the binary ([ADR 0044](../../../docs/adr/0044-jiff-for-dates-and-time-zones.md)).
 - If `ARKAD_FROM` is unset, a value does not parse, `ARKAD_FROM` is after `ARKAD_TO`, or
   `ARKAD_TO` is today or later, startup fails. The error names the variables.
 - The binary reads no stored document to pick its dates. Resume from the store comes with the
@@ -1795,7 +1796,7 @@ runs the facade offline and live.
 
 Three PRs, each at most 400 reviewable lines:
 
-1. `dates.rs` with its tests, `constants.rs` with the variable names, the dependency `chrono-tz`,
+1. `dates.rs` with its tests, `constants.rs` with the variable names, the dependency `jiff`,
    and `sec/tests/daily_filings.rs`.
 2. The feature `test-fixtures` with the route of several responses, `FailedSecRequest::is_unavailable`,
    `run.rs` with the retry, the outcomes, the summary, and the offline tests, and the constants
