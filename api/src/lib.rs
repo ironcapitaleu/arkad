@@ -10,6 +10,7 @@
 //!
 //! - [`config`]: The configuration read from environment variables.
 //! - [`error`]: The errors that a client sees, sent as RFC 9457 problem bodies.
+//! - [`implementations`]: The adapters of the ports in [`traits`].
 //! - [`logging`]: The JSON logger and the events of the binary.
 //! - [`middleware`]: The middleware that the router runs on every request.
 //! - [`routes`]: The router of the crate, with `GET /health` and the versioned routes.
@@ -22,6 +23,7 @@ use crate::config::InternalDocs;
 
 pub mod config;
 pub mod error;
+pub mod implementations;
 pub mod logging;
 pub mod middleware;
 pub mod routes;
