@@ -84,6 +84,17 @@ impl ApiError {
         }
     }
 
+    /// Returns the `WWW-Authenticate` challenge of a `401`, as RFC 6750 defines it for bearer
+    /// tokens, or `None` for every other status.
+    #[must_use]
+    pub const fn challenge(self) -> Option<&'static str> {
+        match self {
+            Self::MissingCredentials => Some("Bearer"),
+            Self::InvalidCredentials => Some(r#"Bearer error="invalid_token""#),
+            Self::NotFound | Self::InternalError | Self::NotImplemented => None,
+        }
+    }
+
     /// Returns the explanation of the failure for people.
     #[must_use]
     pub const fn detail(self) -> &'static str {
@@ -290,6 +301,39 @@ mod tests {
         let expected_result = "invalid_credentials";
 
         let result = error.code();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_bearer_challenge_for_missing_credentials() {
+        let error = ApiError::MissingCredentials;
+
+        let expected_result = Some("Bearer");
+
+        let result = error.challenge();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_invalid_token_challenge_for_invalid_credentials() {
+        let error = ApiError::InvalidCredentials;
+
+        let expected_result = Some(r#"Bearer error="invalid_token""#);
+
+        let result = error.challenge();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_challenge_for_not_found() {
+        let error = ApiError::NotFound;
+
+        let expected_result = None;
+
+        let result = error.challenge();
 
         assert_eq!(result, expected_result);
     }

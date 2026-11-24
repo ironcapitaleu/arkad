@@ -28,7 +28,8 @@ pub const INTERNAL_DOCS_ENABLED_ENV_VAR: &str = "INTERNAL_DOCS_ENABLED";
 /// The environment variable that holds the base URL of the Supabase project, such as
 /// `http://127.0.0.1:54321` for the local stack.
 ///
-/// The API fetches the public keys for login tokens from this project.
+/// The API fetches the public keys for login tokens from this project. The variable is required.
+/// Its scheme must be `http` or `https`, and it has no path, query, or fragment.
 pub const SUPABASE_URL_ENV_VAR: &str = "SUPABASE_URL";
 
 /// Whether the router serves the Swagger UI at `/internal/docs`.
@@ -81,7 +82,8 @@ impl Config {
         self.internal_docs
     }
 
-    /// Returns the base URL of the Supabase project, as [`SUPABASE_URL_ENV_VAR`] holds it.
+    /// Returns the base URL of the Supabase project from [`SUPABASE_URL_ENV_VAR`], without a
+    /// trailing `/`.
     #[must_use]
     pub fn supabase_url(&self) -> &str {
         &self.supabase_url
@@ -128,7 +130,13 @@ fn parse_supabase_url(value: Option<OsString>) -> Result<String, ConfigError> {
             "the scheme is neither 'http' nor 'https'",
         ));
     }
-    Ok(text)
+    if url.path() != "/" || url.query().is_some() || url.fragment().is_some() {
+        return Err(ConfigError::invalid_env_var(
+            SUPABASE_URL_ENV_VAR,
+            "the URL has a path, a query, or a fragment",
+        ));
+    }
+    Ok(url.as_str().trim_end_matches('/').to_owned())
 }
 
 #[cfg(test)]
@@ -337,12 +345,13 @@ mod tests {
     fn should_fail_with_invalid_env_var_when_supabase_url_is_not_a_url() {
         let value = Some(OsString::from("supabase.local"));
 
-        let expected_result = Err(ConfigError::invalid_env_var(
-            "SUPABASE_URL",
-            "relative URL without a base",
-        ));
+        // The test leaves out the reason, which holds the text of the `url` crate.
+        let expected_result = true;
 
-        let result = parse_supabase_url(value);
+        let result = matches!(
+            parse_supabase_url(value),
+            Err(ConfigError::InvalidEnvVar { name, .. }) if name == "SUPABASE_URL"
+        );
 
         assert_eq!(result, expected_result);
     }
@@ -354,6 +363,59 @@ mod tests {
         let expected_result = Err(ConfigError::invalid_env_var(
             "SUPABASE_URL",
             "the scheme is neither 'http' nor 'https'",
+        ));
+
+        let result = parse_supabase_url(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_drop_the_trailing_slash_when_supabase_url_ends_with_a_slash() {
+        let value = Some(OsString::from("https://project.supabase.co/"));
+
+        let expected_result = Ok("https://project.supabase.co".to_owned());
+
+        let result = parse_supabase_url(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_env_var_when_supabase_url_has_a_path() {
+        let value = Some(OsString::from("https://project.supabase.co/auth/v1"));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "SUPABASE_URL",
+            "the URL has a path, a query, or a fragment",
+        ));
+
+        let result = parse_supabase_url(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_env_var_when_supabase_url_has_a_query() {
+        let value = Some(OsString::from("https://project.supabase.co?a=1"));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "SUPABASE_URL",
+            "the URL has a path, a query, or a fragment",
+        ));
+
+        let result = parse_supabase_url(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_env_var_when_supabase_url_has_a_fragment() {
+        let value = Some(OsString::from("https://project.supabase.co#top"));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "SUPABASE_URL",
+            "the URL has a path, a query, or a fragment",
         ));
 
         let result = parse_supabase_url(value);

@@ -4,6 +4,8 @@
 //!
 //! ## Modules
 //!
+//! - [`fake_app_state`]: An [`AppState`](crate::routes::AppState) with a fake verifier that
+//!   rejects every token.
 //! - [`fake_jwks_source`]: A fake
 //!   [`JwksSource`](crate::implementations::supabase_token_verifier::JwksSource) that serves the
 //!   key sets a test sets up.
@@ -12,6 +14,7 @@
 //! - `test_signing_key`: A key pair that a test generates to sign login tokens. Only the unit tests
 //!   compile it, because it needs the dev-dependencies `aws-lc-rs` and `base64`.
 
+pub mod fake_app_state;
 pub mod fake_jwks_source;
 pub mod fake_token_verifier;
 #[cfg(test)]

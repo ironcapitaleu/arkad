@@ -11,18 +11,15 @@
 //! UPDATE_OPENAPI=1 cargo test -p api --test openapi
 //! ```
 
-use std::env;
-use std::fs;
-use std::sync::Arc;
-
-use api::AppState;
 use api::config::InternalDocs;
-use api::tests::fixtures::fake_token_verifier::FakeTokenVerifier;
+use api::tests::fixtures::fake_app_state::fake_app_state;
 use axum::body::Body;
 use axum::http::{Request, header};
 use http_body_util::BodyExt;
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
+use std::env;
+use std::fs;
 use tower::ServiceExt;
 
 const COMMITTED_SPEC_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/openapi.json");
@@ -88,13 +85,10 @@ async fn should_serve_the_generated_spec_for_openapi_json_request() {
     let expected_result: Value = serde_json::from_str(&generated_spec())
         .expect("Given the JSON text of the spec, parsing it should always succeed");
 
-    let response = api::router(
-        InternalDocs::Disabled,
-        AppState::new(Arc::new(FakeTokenVerifier::default())),
-    )
-    .oneshot(request)
-    .await
-    .expect("Given the router's infallible service, calling it should always succeed");
+    let response = api::router(InternalDocs::Disabled, fake_app_state())
+        .oneshot(request)
+        .await
+        .expect("Given the router's infallible service, calling it should always succeed");
     let body = response
         .into_body()
         .collect()
@@ -115,13 +109,10 @@ async fn should_answer_json_content_type_for_openapi_json_request() {
 
     let expected_result = Some("application/json");
 
-    let response = api::router(
-        InternalDocs::Disabled,
-        AppState::new(Arc::new(FakeTokenVerifier::default())),
-    )
-    .oneshot(request)
-    .await
-    .expect("Given the router's infallible service, calling it should always succeed");
+    let response = api::router(InternalDocs::Disabled, fake_app_state())
+        .oneshot(request)
+        .await
+        .expect("Given the router's infallible service, calling it should always succeed");
     let result = response
         .headers()
         .get(header::CONTENT_TYPE)

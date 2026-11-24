@@ -67,11 +67,15 @@ async fn get_account(authorization: Option<&str>) -> Response {
         .expect("Given the router's infallible service, calling it should always succeed")
 }
 
-fn request_id(response: &Response) -> String {
+fn header_text<'a>(response: &'a Response, name: &str) -> Option<&'a str> {
     response
         .headers()
-        .get("x-request-id")
+        .get(name)
         .and_then(|value| value.to_str().ok())
+}
+
+fn request_id(response: &Response) -> String {
+    header_text(response, "x-request-id")
         .expect("Given the request ID middleware, every response should always carry X-Request-Id")
         .to_owned()
 }
@@ -108,6 +112,8 @@ async fn should_give_the_handler_the_account_of_the_token_when_the_token_is_vali
 async fn should_answer_401_missing_credentials_problem_when_the_request_has_no_authorization_header()
  {
     let authorization = None;
+    // The request ID is random, so the expected body takes it from the response. That forces the
+    // call before the definition of the expected result.
     let response = get_account(authorization).await;
     let request_id = request_id(&response);
 
@@ -134,6 +140,8 @@ async fn should_answer_401_missing_credentials_problem_when_the_request_has_no_a
 #[tokio::test]
 async fn should_answer_401_invalid_credentials_problem_when_the_verifier_rejects_the_token() {
     let authorization = Some("Bearer forged-token");
+    // The request ID is random, so the expected body takes it from the response. That forces the
+    // call before the definition of the expected result.
     let response = get_account(authorization).await;
     let request_id = request_id(&response);
 
@@ -153,6 +161,30 @@ async fn should_answer_401_invalid_credentials_problem_when_the_verifier_rejects
     let body: Value = serde_json::from_slice(&body_bytes(response).await)
         .expect("Given the problem body of the extractor, parsing it should always succeed");
     let result = (status, body);
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_answer_the_bearer_challenge_when_the_request_has_no_authorization_header() {
+    let authorization = None;
+
+    let expected_result = Some("Bearer");
+
+    let response = get_account(authorization).await;
+    let result = header_text(&response, "www-authenticate");
+
+    assert_eq!(result, expected_result);
+}
+
+#[tokio::test]
+async fn should_answer_the_invalid_token_challenge_when_the_verifier_rejects_the_token() {
+    let authorization = Some("Bearer forged-token");
+
+    let expected_result = Some(r#"Bearer error="invalid_token""#);
+
+    let response = get_account(authorization).await;
+    let result = header_text(&response, "www-authenticate");
 
     assert_eq!(result, expected_result);
 }

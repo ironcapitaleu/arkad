@@ -27,6 +27,9 @@ pub mod v1;
 pub const INTERNAL_DOCS_PATH: &str = "/internal/docs";
 
 /// The state that the router gives its handlers and extractors.
+///
+/// Each port in the state has its own [`FromRef`] impl, so an extractor asks for the port and not
+/// for [`AppState`]. `docs/adr/0044-app-state-with-from-ref.md` records the choice.
 #[derive(Clone)]
 pub struct AppState {
     token_verifier: Arc<dyn TokenVerifier>,
