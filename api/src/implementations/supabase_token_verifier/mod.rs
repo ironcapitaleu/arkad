@@ -5,10 +5,12 @@
 //!
 //! ## Modules
 //!
+//! - [`jwks_source`]: The [`JwksSource`] that the verifier gets the public keys from.
 //! - [`supabase_claims`]: The [`SupabaseClaims`] of a login token and their checks.
 
 use std::collections::HashMap;
-use std::fmt::Display;
+use std::sync::{Arc, Mutex, PoisonError, RwLock};
+use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -17,11 +19,17 @@ use jsonwebtoken::jwk::{
     AlgorithmParameters, EllipticCurve, Jwk, JwkSet, KeyAlgorithm, PublicKeyUse,
 };
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
+use serde_json::json;
+use tokio::task::JoinHandle;
+use tokio::time::{Instant, MissedTickBehavior};
 
+use crate::logging::ApiEvent;
 use crate::traits::token_verifier::{TokenError, TokenVerifier, VerifiedToken};
 
+pub mod jwks_source;
 pub mod supabase_claims;
 
+pub use jwks_source::{HttpJwksSource, JwksSource};
 pub use supabase_claims::SupabaseClaims;
 
 /// The path of the public keys below the URL of a Supabase project.
@@ -30,15 +38,37 @@ const JWKS_PATH: &str = "/auth/v1/.well-known/jwks.json";
 /// The path of Supabase Auth below the URL of a Supabase project, which is the token issuer.
 const AUTH_PATH: &str = "/auth/v1";
 
+/// How often the task of [`SupabaseTokenVerifier::spawn_refresh`] refreshes the keys. It matches
+/// the edge cache of the JWKS endpoint at Supabase.
+pub const REFRESH_INTERVAL: Duration = Duration::from_mins(10);
+
+/// The shortest time between two refreshes that a token with an unknown key ID starts.
+pub const MIN_ON_DEMAND_REFRESH_INTERVAL: Duration = Duration::from_secs(30);
+
+/// The longest time one fetch of the keys can take before it fails.
+pub const FETCH_TIMEOUT: Duration = Duration::from_secs(5);
+
 /// A [`TokenVerifier`] that checks a Supabase login token with the public keys of the project.
 ///
 /// It accepts tokens that an `ES256` or an `RS256` key signs, and rejects every other algorithm,
 /// such as `HS256` and `none`. It checks the signature before it reads any claim. The claims it
-/// checks are those of [`SupabaseClaims::check`]. It keeps the keys it got at creation.
+/// checks are those of [`SupabaseClaims::check`].
+///
+/// It gets the keys at creation and keeps them in memory. Three events refresh them:
+///
+/// - The task of [`Self::spawn_refresh`], every [`REFRESH_INTERVAL`].
+/// - A token with an unknown key ID, at most once per [`MIN_ON_DEMAND_REFRESH_INTERVAL`]. The
+///   verifier then checks the token again.
+/// - A call of [`Self::refresh`].
+///
+/// If a refresh fails, the verifier keeps the keys it has. Every fetch has a time limit, so the
+/// verifier and its [`TokenVerifier::verify`] need a Tokio runtime with the time driver enabled.
 #[derive(Debug)]
 pub struct SupabaseTokenVerifier {
     issuer: String,
-    keys: HashMap<String, SigningKey>,
+    source: Box<dyn JwksSource>,
+    keys: RwLock<HashMap<String, SigningKey>>,
+    last_on_demand_refresh: Mutex<Option<Instant>>,
 }
 
 /// A public key of the project and the one algorithm it checks.
@@ -56,56 +86,108 @@ impl SupabaseTokenVerifier {
     ///
     /// # Errors
     ///
-    /// Returns [`TokenError::FailedKeyFetch`] if the request fails, the server answers with an
-    /// error status, or the body is not a key set that [`Self::from_jwk_set`] accepts.
+    /// Returns [`TokenError::FailedKeyFetch`] if the request fails or takes longer than
+    /// [`FETCH_TIMEOUT`], the server answers with an error status, or a signing key in the body
+    /// does not decode.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called outside a Tokio runtime that has the time driver enabled.
     pub async fn fetch(client: &reqwest::Client, supabase_url: &str) -> Result<Self, TokenError> {
         let base_url = supabase_url.trim_end_matches('/');
-        let jwk_set = client
-            .get(format!("{base_url}{JWKS_PATH}"))
-            .send()
-            .await
-            .and_then(reqwest::Response::error_for_status)
-            .map_err(|error| failed_key_fetch(&error))?
-            .json::<JwkSet>()
-            .await
-            .map_err(|error| failed_key_fetch(&error))?;
-        Self::from_jwk_set(base_url, &jwk_set)
+        let source = HttpJwksSource::new(client.clone(), format!("{base_url}{JWKS_PATH}"));
+        Self::with_source(Box::new(source), base_url).await
     }
 
-    /// Creates the verifier from a key set of the Supabase project at `supabase_url`.
-    ///
-    /// It keeps every key that has a key ID and that signs `ES256` or `RS256`. It skips every other
-    /// key, such as a shared `HS256` secret or a key for encryption. If two kept keys share a key
-    /// ID, the first one wins.
+    /// Creates the verifier with the keys of `source`, for the project at `supabase_url`.
     ///
     /// # Errors
     ///
-    /// Returns [`TokenError::FailedKeyFetch`] if a kept key does not decode.
-    pub fn from_jwk_set(supabase_url: &str, jwk_set: &JwkSet) -> Result<Self, TokenError> {
-        let mut keys = HashMap::new();
-        for jwk in &jwk_set.keys {
-            let (Some(kid), Some(algorithm)) = (&jwk.common.key_id, signing_algorithm(jwk)) else {
-                continue;
-            };
-            if keys.contains_key(kid) {
-                continue;
-            }
-            let decoding_key =
-                DecodingKey::from_jwk(jwk).map_err(|_| TokenError::FailedKeyFetch {
-                    reason: format!("the key '{kid}' does not decode"),
-                })?;
-            keys.insert(
-                kid.clone(),
-                SigningKey {
-                    algorithm,
-                    decoding_key,
-                },
-            );
-        }
+    /// Returns [`TokenError::FailedKeyFetch`] if `source` fails or takes longer than
+    /// [`FETCH_TIMEOUT`], or a signing key does not decode.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called outside a Tokio runtime that has the time driver enabled.
+    pub async fn with_source(
+        source: Box<dyn JwksSource>,
+        supabase_url: &str,
+    ) -> Result<Self, TokenError> {
+        let keys = fetch_signing_keys(source.as_ref()).await?;
         Ok(Self {
             issuer: format!("{}{AUTH_PATH}", supabase_url.trim_end_matches('/')),
-            keys,
+            source,
+            keys: RwLock::new(keys),
+            last_on_demand_refresh: Mutex::new(None),
         })
+    }
+
+    /// Fetches the keys again and replaces the keys the verifier has.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TokenError::FailedKeyFetch`] if the source fails or takes longer than
+    /// [`FETCH_TIMEOUT`], or a signing key does not decode. The verifier then keeps the keys it
+    /// has.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called outside a Tokio runtime that has the time driver enabled.
+    pub async fn refresh(&self) -> Result<(), TokenError> {
+        let keys = fetch_signing_keys(self.source.as_ref()).await?;
+        *self.keys.write().unwrap_or_else(PoisonError::into_inner) = keys;
+        Ok(())
+    }
+
+    /// Spawns the task that refreshes the keys every [`REFRESH_INTERVAL`].
+    ///
+    /// The task logs a failed refresh as a `warn` event and tries again at the next interval. It
+    /// ends when the last [`Arc`] of the verifier drops.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called outside a Tokio runtime.
+    pub fn spawn_refresh(verifier: &Arc<Self>) -> JoinHandle<()> {
+        let verifier = Arc::downgrade(verifier);
+        tokio::spawn(async move {
+            let mut interval =
+                tokio::time::interval_at(Instant::now() + REFRESH_INTERVAL, REFRESH_INTERVAL);
+            interval.set_missed_tick_behavior(MissedTickBehavior::Delay);
+            loop {
+                interval.tick().await;
+                let Some(verifier) = verifier.upgrade() else {
+                    break;
+                };
+                verifier.refresh_or_warn().await;
+            }
+        })
+    }
+
+    async fn refresh_or_warn(&self) {
+        if let Err(error) = self.refresh().await {
+            tracing::warn!(
+                event = %ApiEvent::SigningKeyRefreshFailed,
+                message = %format!(
+                    "[FailedKeyRefresh] Failed to refresh the signing keys, Caused by: {error}"
+                ),
+                context = %json!({ "issuer": self.issuer }),
+            );
+        }
+    }
+
+    /// Returns whether a token with an unknown key ID can start a refresh now, and records the
+    /// start if so.
+    fn claim_on_demand_refresh(&self) -> bool {
+        let mut last = self
+            .last_on_demand_refresh
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner);
+        let now = Instant::now();
+        if last.is_some_and(|at| now.duration_since(at) < MIN_ON_DEMAND_REFRESH_INTERVAL) {
+            return false;
+        }
+        *last = Some(now);
+        true
     }
 
     fn check(&self, token: &str) -> Result<VerifiedToken, TokenError> {
@@ -119,17 +201,19 @@ impl SupabaseTokenVerifier {
         let kid = header.kid.ok_or_else(|| TokenError::InvalidTokenFormat {
             reason: "the header names no key".to_owned(),
         })?;
-        let key = self
-            .keys
-            .get(&kid)
-            .ok_or(TokenError::UnknownSigningKey { kid })?;
-        let claims = jsonwebtoken::decode::<SupabaseClaims>(
-            token,
-            &key.decoding_key,
-            &signature_only(key.algorithm),
-        )
-        .map_err(|error| invalid_signature_or_format(&error))?
-        .claims;
+        let keys = self.keys.read().unwrap_or_else(PoisonError::into_inner);
+        let decoded = keys.get(&kid).map(|key| {
+            jsonwebtoken::decode::<SupabaseClaims>(
+                token,
+                &key.decoding_key,
+                &signature_only(key.algorithm),
+            )
+        });
+        drop(keys);
+        let claims = decoded
+            .ok_or(TokenError::UnknownSigningKey { kid })?
+            .map_err(|error| invalid_signature_or_format(&error))?
+            .claims;
         claims.check(&self.issuer, Utc::now())
     }
 }
@@ -137,8 +221,56 @@ impl SupabaseTokenVerifier {
 #[async_trait]
 impl TokenVerifier for SupabaseTokenVerifier {
     async fn verify(&self, token: &str) -> Result<VerifiedToken, TokenError> {
-        self.check(token)
+        match self.check(token) {
+            Err(TokenError::UnknownSigningKey { .. }) if self.claim_on_demand_refresh() => {
+                self.refresh_or_warn().await;
+                self.check(token)
+            }
+            result => result,
+        }
     }
+}
+
+/// Fetches the key set of `source`, within [`FETCH_TIMEOUT`], and keeps its signing keys.
+async fn fetch_signing_keys(
+    source: &dyn JwksSource,
+) -> Result<HashMap<String, SigningKey>, TokenError> {
+    let jwk_set = tokio::time::timeout(FETCH_TIMEOUT, source.fetch())
+        .await
+        .map_err(|_| TokenError::FailedKeyFetch {
+            reason: format!(
+                "the fetch took longer than {} seconds",
+                FETCH_TIMEOUT.as_secs()
+            ),
+        })??;
+    signing_keys(&jwk_set)
+}
+
+/// Keeps every key of `jwk_set` that has a key ID and that signs `ES256` or `RS256`.
+///
+/// It skips every other key, such as a shared `HS256` secret or a key for encryption. If two kept
+/// keys share a key ID, the first one wins.
+fn signing_keys(jwk_set: &JwkSet) -> Result<HashMap<String, SigningKey>, TokenError> {
+    let mut keys = HashMap::new();
+    for jwk in &jwk_set.keys {
+        let (Some(kid), Some(algorithm)) = (&jwk.common.key_id, signing_algorithm(jwk)) else {
+            continue;
+        };
+        if keys.contains_key(kid) {
+            continue;
+        }
+        let decoding_key = DecodingKey::from_jwk(jwk).map_err(|_| TokenError::FailedKeyFetch {
+            reason: format!("the key '{kid}' does not decode"),
+        })?;
+        keys.insert(
+            kid.clone(),
+            SigningKey {
+                algorithm,
+                decoding_key,
+            },
+        );
+    }
+    Ok(keys)
 }
 
 /// Returns the algorithm that `jwk` signs, if it is a signing key for `ES256` or `RS256`.
@@ -190,14 +322,10 @@ fn invalid_token_format(error: &JwtError) -> TokenError {
     TokenError::InvalidTokenFormat { reason }
 }
 
-fn failed_key_fetch(error: &impl Display) -> TokenError {
-    TokenError::FailedKeyFetch {
-        reason: error.to_string(),
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::Ordering;
+
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use chrono::{DateTime, TimeZone};
@@ -208,6 +336,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
+    use crate::tests::fixtures::fake_jwks_source::FakeJwksSource;
     use crate::tests::fixtures::test_signing_key::TestSigningKey;
 
     const SUPABASE_URL: &str = "http://127.0.0.1:54321";
@@ -240,13 +369,20 @@ mod tests {
         }
     }
 
-    fn verifier(keys: &[&TestSigningKey]) -> SupabaseTokenVerifier {
-        let jwk_set = JwkSet {
+    fn key_set(keys: &[&TestSigningKey]) -> JwkSet {
+        JwkSet {
             keys: keys.iter().map(|key| key.jwk()).collect(),
-        };
-        SupabaseTokenVerifier::from_jwk_set(SUPABASE_URL, &jwk_set).expect(
-            "Given the public keys of generated test keys, decoding them should always succeed",
-        )
+        }
+    }
+
+    async fn verifier_with(source: FakeJwksSource) -> SupabaseTokenVerifier {
+        SupabaseTokenVerifier::with_source(Box::new(source), SUPABASE_URL)
+            .await
+            .expect("Given a source with decodable test keys, creating the verifier should always succeed")
+    }
+
+    async fn verifier(keys: &[&TestSigningKey]) -> SupabaseTokenVerifier {
+        verifier_with(FakeJwksSource::answering(vec![Ok(key_set(keys))])).await
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -258,7 +394,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_the_verified_token_when_an_es256_key_signed_the_token() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let token = key.sign(&claims());
 
         let expected_result = Ok(verified_token());
@@ -271,7 +407,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_the_verified_token_when_an_rs256_key_signed_the_token() {
         let key = TestSigningKey::rs256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let token = key.sign(&claims());
 
         let expected_result = Ok(verified_token());
@@ -286,7 +422,7 @@ mod tests {
      {
         let known_key = TestSigningKey::es256("key-1");
         let forging_key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&known_key]);
+        let verifier = verifier(&[&known_key]).await;
         let mut forged_claims = claims();
         forged_claims["sub"] = json!("not-a-uuid");
         let token = forging_key.sign(&forged_claims);
@@ -301,7 +437,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_subject_when_a_known_key_signed_a_subject_that_is_not_a_uuid() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let mut token_claims = claims();
         token_claims["sub"] = json!("not-a-uuid");
         let token = key.sign(&token_claims);
@@ -318,7 +454,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_expired_token_when_the_token_expired() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let mut token_claims = claims();
         token_claims["exp"] = json!(1_700_000_000);
         let token = key.sign(&token_claims);
@@ -336,7 +472,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_claim_when_the_audience_is_wrong() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let mut token_claims = claims();
         token_claims["aud"] = json!("anon");
         let token = key.sign(&token_claims);
@@ -355,7 +491,7 @@ mod tests {
     async fn should_return_unknown_signing_key_when_the_key_id_is_unknown() {
         let known_key = TestSigningKey::es256("key-1");
         let other_key = TestSigningKey::es256("key-2");
-        let verifier = verifier(&[&known_key]);
+        let verifier = verifier(&[&known_key]).await;
         let token = other_key.sign(&claims());
 
         let expected_result = Err(TokenError::UnknownSigningKey {
@@ -371,7 +507,7 @@ mod tests {
     async fn should_return_invalid_signature_when_the_algorithm_does_not_match_the_key() {
         let ec_key = TestSigningKey::es256("key-1");
         let rsa_key = TestSigningKey::rs256("key-1");
-        let verifier = verifier(&[&ec_key]);
+        let verifier = verifier(&[&ec_key]).await;
         let token = rsa_key.sign(&claims());
 
         let expected_result = Err(TokenError::InvalidSignature);
@@ -384,7 +520,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_token_format_when_the_token_uses_hs256() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let mut header = Header::new(Algorithm::HS256);
         header.kid = Some("key-1".to_owned());
         let secret = EncodingKey::from_secret(b"a-shared-secret-of-32-bytes-long")
@@ -404,7 +540,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_token_format_when_the_header_names_no_key() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let token = key.sign_without_key_id(&claims());
 
         let expected_result = Err(TokenError::InvalidTokenFormat {
@@ -419,7 +555,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_token_format_when_the_token_is_not_a_jwt() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         let token = "not-a-jwt";
 
         let expected_result = Err(TokenError::InvalidTokenFormat {
@@ -438,8 +574,10 @@ mod tests {
             "kty": "oct", "kid": "key-1", "alg": "HS256", "k": "c2VjcmV0",
         }))
         .expect("Given a hardcoded symmetric JWK, parsing it should always succeed");
-        let verifier = SupabaseTokenVerifier::from_jwk_set(SUPABASE_URL, &JwkSet { keys: vec![secret] })
-            .expect("Given a key set whose only key is skipped, creating the verifier should always succeed");
+        let verifier = verifier_with(FakeJwksSource::answering(vec![Ok(JwkSet {
+            keys: vec![secret],
+        })]))
+        .await;
         let token = key.sign(&claims());
 
         let expected_result = Err(TokenError::UnknownSigningKey {
@@ -447,6 +585,130 @@ mod tests {
         });
 
         let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn failed_key_fetch_error() -> TokenError {
+        TokenError::FailedKeyFetch {
+            reason: "the JWKS endpoint answered 503".to_owned(),
+        }
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_return_the_verified_token_when_a_refresh_brings_the_unknown_key() {
+        let old_key = TestSigningKey::es256("key-1");
+        let new_key = TestSigningKey::es256("key-2");
+        let source = FakeJwksSource::answering(vec![
+            Ok(key_set(&[&old_key])),
+            Ok(key_set(&[&old_key, &new_key])),
+        ]);
+        let verifier = verifier_with(source).await;
+        let token = new_key.sign(&claims());
+
+        let expected_result = Ok(verified_token());
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_fetch_no_keys_when_the_unknown_key_id_comes_again_within_30_seconds() {
+        let key = TestSigningKey::es256("key-1");
+        let unknown_key = TestSigningKey::es256("key-2");
+        let source = FakeJwksSource::answering(vec![Ok(key_set(&[&key]))]);
+        let fetches = source.fetches();
+        let verifier = verifier_with(source).await;
+        let token = unknown_key.sign(&claims());
+        let _first = verifier.verify(&token).await;
+        tokio::time::advance(Duration::from_secs(29)).await;
+
+        let expected_result = 2;
+
+        let _second = verifier.verify(&token).await;
+        let result = fetches.load(Ordering::SeqCst);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_fetch_the_keys_again_when_the_unknown_key_id_comes_again_after_30_seconds() {
+        let key = TestSigningKey::es256("key-1");
+        let unknown_key = TestSigningKey::es256("key-2");
+        let source = FakeJwksSource::answering(vec![Ok(key_set(&[&key]))]);
+        let fetches = source.fetches();
+        let verifier = verifier_with(source).await;
+        let token = unknown_key.sign(&claims());
+        let _first = verifier.verify(&token).await;
+        tokio::time::advance(MIN_ON_DEMAND_REFRESH_INTERVAL).await;
+
+        let expected_result = 3;
+
+        let _second = verifier.verify(&token).await;
+        let result = fetches.load(Ordering::SeqCst);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_failed_key_fetch_when_a_refresh_fails() {
+        let key = TestSigningKey::es256("key-1");
+        let source =
+            FakeJwksSource::answering(vec![Ok(key_set(&[&key])), Err(failed_key_fetch_error())]);
+        let verifier = verifier_with(source).await;
+
+        let expected_result = Err(failed_key_fetch_error());
+
+        let result = verifier.refresh().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_old_keys_when_a_refresh_fails() {
+        let key = TestSigningKey::es256("key-1");
+        let source =
+            FakeJwksSource::answering(vec![Ok(key_set(&[&key])), Err(failed_key_fetch_error())]);
+        let verifier = verifier_with(source).await;
+        let _refresh = verifier.refresh().await;
+        let token = key.sign(&claims());
+
+        let expected_result = Ok(verified_token());
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_fetch_the_keys_once_per_interval_when_the_refresh_task_runs() {
+        let key = TestSigningKey::es256("key-1");
+        let source = FakeJwksSource::answering(vec![Ok(key_set(&[&key]))]);
+        let fetches = source.fetches();
+        let verifier = Arc::new(verifier_with(source).await);
+        let _task = SupabaseTokenVerifier::spawn_refresh(&verifier);
+
+        let expected_result = 3;
+
+        tokio::time::sleep(REFRESH_INTERVAL * 2 + Duration::from_secs(1)).await;
+        let result = fetches.load(Ordering::SeqCst);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_end_the_refresh_task_when_the_verifier_drops() {
+        let key = TestSigningKey::es256("key-1");
+        let verifier = Arc::new(verifier(&[&key]).await);
+        let task = SupabaseTokenVerifier::spawn_refresh(&verifier);
+        drop(verifier);
+
+        let expected_result = true;
+
+        let result = tokio::time::timeout(REFRESH_INTERVAL + Duration::from_secs(1), task)
+            .await
+            .is_ok_and(|joined| joined.is_ok());
 
         assert_eq!(result, expected_result);
     }
@@ -466,15 +728,17 @@ mod tests {
             .expect("Given a JWK with one changed field, parsing it should always succeed")
     }
 
-    fn verifier_from_jwk(jwk: Jwk) -> SupabaseTokenVerifier {
-        SupabaseTokenVerifier::from_jwk_set(SUPABASE_URL, &JwkSet { keys: vec![jwk] })
-            .expect("Given a key set whose only key is skipped, creating the verifier should always succeed")
+    async fn verifier_from_jwk(jwk: Jwk) -> SupabaseTokenVerifier {
+        verifier_with(FakeJwksSource::answering(vec![Ok(JwkSet {
+            keys: vec![jwk],
+        })]))
+        .await
     }
 
     #[tokio::test]
     async fn should_return_unknown_signing_key_when_the_only_key_is_for_encryption() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier_from_jwk(jwk_with(&key, "use", json!("enc")));
+        let verifier = verifier_from_jwk(jwk_with(&key, "use", json!("enc"))).await;
         let token = key.sign(&claims());
 
         let expected_result = Err(TokenError::UnknownSigningKey {
@@ -489,7 +753,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_unknown_signing_key_when_the_only_key_is_on_another_curve() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier_from_jwk(jwk_with(&key, "crv", json!("P-384")));
+        let verifier = verifier_from_jwk(jwk_with(&key, "crv", json!("P-384"))).await;
         let token = key.sign(&claims());
 
         let expected_result = Err(TokenError::UnknownSigningKey {
@@ -504,7 +768,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_unknown_signing_key_when_the_only_key_names_another_algorithm() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier_from_jwk(jwk_with(&key, "alg", json!("RS256")));
+        let verifier = verifier_from_jwk(jwk_with(&key, "alg", json!("RS256"))).await;
         let token = key.sign(&claims());
 
         let expected_result = Err(TokenError::UnknownSigningKey {
@@ -519,7 +783,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_unknown_signing_key_when_the_only_key_has_no_key_id() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier_from_jwk(jwk_with(&key, "kid", Value::Null));
+        let verifier = verifier_from_jwk(jwk_with(&key, "kid", Value::Null)).await;
         let token = key.sign(&claims());
 
         let expected_result = Err(TokenError::UnknownSigningKey {
@@ -535,7 +799,7 @@ mod tests {
     async fn should_return_the_verified_token_when_the_first_of_two_keys_with_one_key_id_signed() {
         let first_key = TestSigningKey::es256("key-1");
         let second_key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&first_key, &second_key]);
+        let verifier = verifier(&[&first_key, &second_key]).await;
         let token = first_key.sign(&claims());
 
         let expected_result = Ok(verified_token());
@@ -548,7 +812,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_invalid_token_format_when_the_token_uses_alg_none() {
         let key = TestSigningKey::es256("key-1");
-        let verifier = verifier(&[&key]);
+        let verifier = verifier(&[&key]).await;
         // `{"alg":"none","kid":"key-1"}`, the claims, and an empty signature.
         let token = format!(
             "eyJhbGciOiJub25lIiwia2lkIjoia2V5LTEifQ.{}.",
@@ -595,6 +859,78 @@ mod tests {
         let expected_result = Ok(verified_token());
 
         let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_return_unknown_signing_key_when_the_on_demand_refresh_fails() {
+        let key = TestSigningKey::es256("key-1");
+        let unknown_key = TestSigningKey::es256("key-2");
+        let source =
+            FakeJwksSource::answering(vec![Ok(key_set(&[&key])), Err(failed_key_fetch_error())]);
+        let verifier = verifier_with(source).await;
+        let token = unknown_key.sign(&claims());
+
+        let expected_result = Err(TokenError::UnknownSigningKey {
+            kid: "key-2".to_owned(),
+        });
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_old_keys_when_a_refreshed_key_does_not_decode() {
+        let key = TestSigningKey::es256("key-1");
+        let broken_key = jwk_with(&key, "x", json!("not base64url!"));
+        let source = FakeJwksSource::answering(vec![
+            Ok(key_set(&[&key])),
+            Ok(JwkSet {
+                keys: vec![broken_key],
+            }),
+        ]);
+        let verifier = verifier_with(source).await;
+        let _refresh = verifier.refresh().await;
+        let token = key.sign(&claims());
+
+        let expected_result = Ok(verified_token());
+
+        let result = verifier.verify(&token).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_return_failed_key_fetch_when_a_refresh_takes_longer_than_the_timeout() {
+        let key = TestSigningKey::es256("key-1");
+        let source = FakeJwksSource::answering(vec![Ok(key_set(&[&key]))]).hanging_after(1);
+        let verifier = verifier_with(source).await;
+
+        let expected_result = Err(TokenError::FailedKeyFetch {
+            reason: "the fetch took longer than 5 seconds".to_owned(),
+        });
+
+        let result = verifier.refresh().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn should_fetch_the_keys_again_when_a_token_has_an_unknown_key_id() {
+        let key = TestSigningKey::es256("key-1");
+        let unknown_key = TestSigningKey::es256("key-2");
+        let source =
+            FakeJwksSource::answering(vec![Ok(key_set(&[&key])), Err(failed_key_fetch_error())]);
+        let fetches = source.fetches();
+        let verifier = verifier_with(source).await;
+        let token = unknown_key.sign(&claims());
+
+        let expected_result = 2;
+
+        let _verified = verifier.verify(&token).await;
+        let result = fetches.load(Ordering::SeqCst);
 
         assert_eq!(result, expected_result);
     }
