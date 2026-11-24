@@ -339,6 +339,28 @@ mod tests {
     }
 
     #[test]
+    fn should_return_no_challenge_for_internal_error() {
+        let error = ApiError::InternalError;
+
+        let expected_result = None;
+
+        let result = error.challenge();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_challenge_for_not_implemented() {
+        let error = ApiError::NotImplemented;
+
+        let expected_result = None;
+
+        let result = error.challenge();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_become_invalid_credentials_when_converting_invalid_signature() {
         let error = TokenError::InvalidSignature;
 

@@ -34,7 +34,7 @@ At start, the binary fetches the public keys for login tokens from the Supabase 
 - If `INTERNAL_DOCS_ENABLED=true`, the binary serves Swagger UI at `/internal/docs`. The page is off by default.
 - Every response carries an `X-Request-Id` header.
 - A path that no route matches answers `404` with an RFC 9457 problem body, sent as `application/problem+json`, with the code `not_found`.
-- A handler that takes an `AuthenticatedAccount` runs only for a request with a valid login token in `Authorization: Bearer <token>`. Without the header, the request gets `401` with the code `missing_credentials`. With a token that fails its check, it gets `401` with the code `invalid_credentials`. Both answers carry a `WWW-Authenticate: Bearer` challenge.
+- A handler that takes an `AuthenticatedAccount` runs only for a request with a valid login token in `Authorization: Bearer <token>`. Without the header, the request gets `401` with the code `missing_credentials`. With a token that fails its check, it gets `401` with the code `invalid_credentials`. Both answers carry a `WWW-Authenticate` header with the `Bearer` scheme. The `invalid_credentials` answer adds `error="invalid_token"`.
 
 The repository holds the spec in `api/openapi.json`, and a test fails if the generated spec differs from it. If you change a route, write the file again and commit it: `UPDATE_OPENAPI=1 cargo test -p api --test openapi`.
 

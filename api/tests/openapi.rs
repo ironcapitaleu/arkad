@@ -11,6 +11,9 @@
 //! UPDATE_OPENAPI=1 cargo test -p api --test openapi
 //! ```
 
+use std::env;
+use std::fs;
+
 use api::config::InternalDocs;
 use api::tests::fixtures::fake_app_state::fake_app_state;
 use axum::body::Body;
@@ -18,8 +21,6 @@ use axum::http::{Request, header};
 use http_body_util::BodyExt;
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
-use std::env;
-use std::fs;
 use tower::ServiceExt;
 
 const COMMITTED_SPEC_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/openapi.json");
