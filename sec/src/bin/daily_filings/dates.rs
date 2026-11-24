@@ -14,11 +14,10 @@
 use std::ffi::OsString;
 
 use chrono::{DateTime, Days, NaiveDate, Utc};
-use chrono_tz::America::New_York;
 use thiserror::Error;
 
 use crate::constants::{FROM_ENV_VAR, PREVIOUS_DAY_KEYWORD, TO_ENV_VAR};
-use crate::new_york_clock::previous_day_in_new_york;
+use crate::new_york_clock::{previous_day_in_new_york, today_in_new_york};
 
 /// The error when [`FROM_ENV_VAR`] and [`TO_ENV_VAR`] give no valid dates to run.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -78,7 +77,7 @@ pub fn run_dates(
     to: Option<OsString>,
     now: DateTime<Utc>,
 ) -> Result<Vec<NaiveDate>, InvalidRunDates> {
-    let today = now.with_timezone(&New_York).date_naive();
+    let today = today_in_new_york(now);
     let previous_day = previous_day_in_new_york(now);
 
     let from = non_empty(from).ok_or(InvalidRunDates::MissingStartDate)?;

@@ -12,8 +12,9 @@ use std::fmt;
 use std::str::FromStr;
 
 use bigdecimal::{BigDecimal, RoundingMode, ToPrimitive, Zero};
-use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeDelta, TimeZone, Utc};
-use chrono_tz::America::New_York;
+use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
+use jiff::civil;
+use jiff::tz::{self, AmbiguousOffset, TimeZone};
 
 use crate::adapter::edgar::company_facts::{CIK_SCHEME, SEC_FILING_SOURCE};
 use crate::core::entity_name::EntityName;
@@ -32,6 +33,9 @@ pub const DATE_FORMAT: &str = "%Y%m%d";
 
 /// The format of `sub.accepted`, for example `2026-10-29 16:15:00.0`, in the time of New York.
 pub const ACCEPTED_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.f";
+
+/// The time zone of `sub.accepted`, compiled in from the tz database that `jiff` bundles.
+static NEW_YORK: TimeZone = tz::get!("America/New_York");
 
 /// The name of the table of the `dim` rows.
 pub const DIM_TABLE: &str = "dim.tsv";
@@ -173,18 +177,25 @@ impl SubRow {
     }
 
     fn accepted_utc(text: &str) -> Result<DateTime<Utc>, InvalidValue> {
-        let local = NaiveDateTime::parse_from_str(text, ACCEPTED_FORMAT).map_err(|_| {
+        let local = civil::DateTime::strptime(ACCEPTED_FORMAT, text).map_err(|_| {
             InvalidValue::new(
                 Self::TYPE_NAME,
                 InvalidValueReason::NotADate(ACCEPTED_FORMAT),
                 text,
             )
         })?;
-        New_York
-            .from_local_datetime(&local)
-            .earliest()
-            .map(|time| time.with_timezone(&Utc))
-            .ok_or_else(|| InvalidValue::new(Self::TYPE_NAME, InvalidValueReason::OutOfRange, text))
+        let out_of_range =
+            || InvalidValue::new(Self::TYPE_NAME, InvalidValueReason::OutOfRange, text);
+        let offset = match NEW_YORK.to_ambiguous_timestamp(local).offset() {
+            AmbiguousOffset::Unambiguous { offset } => offset,
+            // The clock of New York skips this time when it moves to summer time.
+            AmbiguousOffset::Gap { .. } => return Err(out_of_range()),
+            // The clock of New York shows this time twice when it moves to standard time.
+            AmbiguousOffset::Fold { before, .. } => before,
+        };
+        let utc = offset.to_timestamp(local).map_err(|_| out_of_range())?;
+        DateTime::from_timestamp(utc.as_second(), utc.subsec_nanosecond().unsigned_abs())
+            .ok_or_else(out_of_range)
     }
 }
 
@@ -650,6 +661,7 @@ fn is_local_name(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use chrono::TimeZone as _;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -1150,6 +1162,88 @@ mod tests {
         let expected_result = Some(Utc.with_ymd_and_hms(2026, 1, 15, 21, 15, 0).single());
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_convert_accepted_to_utc_when_new_york_is_on_summer_time() {
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260729".to_owned(),
+            accepted: "2026-07-29 16:15:00.0".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(Utc.with_ymd_and_hms(2026, 7, 29, 20, 15, 0).single());
+
+        let result = sub.filing().ok().map(|filing| filing.accepted);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_earlier_time_when_accepted_falls_in_the_autumn_overlap() {
+        // New York shows 01:30 twice on 1 November 2026: first at UTC-4, then at UTC-5.
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20261101".to_owned(),
+            accepted: "2026-11-01 01:30:00.0".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(Utc.with_ymd_and_hms(2026, 11, 1, 5, 30, 0).single());
+
+        let result = sub.filing().ok().map(|filing| filing.accepted);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_filing_when_accepted_falls_in_the_spring_gap() {
+        // New York skips 02:00 to 03:00 on 8 March 2026.
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260308".to_owned(),
+            accepted: "2026-03-08 02:30:00.0".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(InvalidValue::new(
+            "SubRow",
+            InvalidValueReason::OutOfRange,
+            "2026-03-08 02:30:00.0",
+        ));
+
+        let result = sub.filing().err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_filing_when_accepted_is_not_a_date() {
+        let sub = SubRow {
+            adsh: "0000000001-26-000001".to_owned(),
+            cik: "1".to_owned(),
+            form: "10-Q".to_owned(),
+            filed: "20260115".to_owned(),
+            accepted: "2026-01-15T16:15:00".to_owned(),
+            ..SubRow::default()
+        };
+
+        let expected_result = Some(InvalidValue::new(
+            "SubRow",
+            InvalidValueReason::NotADate("%Y-%m-%d %H:%M:%S%.f"),
+            "2026-01-15T16:15:00",
+        ));
+
+        let result = sub.filing().err();
 
         assert_eq!(result, expected_result);
     }
