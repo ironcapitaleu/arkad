@@ -1213,7 +1213,11 @@ mod tests {
             ..SubRow::default()
         };
 
-        let expected_result = Some(DateTime::from_timestamp(1_768_511_700, 123_000_000));
+        let expected_result = Some(
+            NaiveDate::from_ymd_opt(2026, 1, 15)
+                .and_then(|date| date.and_hms_milli_opt(21, 15, 0, 123))
+                .map(|time| time.and_utc()),
+        );
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
 
