@@ -345,15 +345,13 @@ mod tests {
     fn should_fail_with_invalid_env_var_when_supabase_url_is_not_a_url() {
         let value = Some(OsString::from("supabase.local"));
 
+        let result = parse_supabase_url(value);
+
         // The test leaves out the reason, which holds the text of the `url` crate.
-        let expected_result = true;
-
-        let result = matches!(
-            parse_supabase_url(value),
+        assert!(matches!(
+            result,
             Err(ConfigError::InvalidEnvVar { name, .. }) if name == "SUPABASE_URL"
-        );
-
-        assert_eq!(result, expected_result);
+        ));
     }
 
     #[test]
