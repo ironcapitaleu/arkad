@@ -1,11 +1,14 @@
 //! # API Binary
 //!
-//! Starts the API: reads the configuration, binds the listener on `$PORT`, and serves the
-//! router until a shutdown signal arrives.
+//! Starts the API: reads the configuration, fetches the public keys for login tokens, binds the
+//! listener on `$PORT`, and serves the router until a shutdown signal arrives.
 
 use std::process::ExitCode;
+use std::sync::Arc;
 
+use api::AppState;
 use api::config::{Config, InternalDocs};
+use api::implementations::SupabaseTokenVerifier;
 use api::logging::{ApiEvent, init_logger};
 use serde_json::json;
 use tokio::net::TcpListener;
@@ -28,6 +31,13 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    let Some(verifier) = create_token_verifier(config.supabase_url()).await else {
+        return ExitCode::FAILURE;
+    };
+    let verifier = Arc::new(verifier);
+    let _refresh_task = SupabaseTokenVerifier::spawn_refresh(&verifier);
+    let state = AppState::new(verifier);
 
     let address = config.socket_addr();
     let listener = match TcpListener::bind(address).await {
@@ -53,7 +63,7 @@ async fn main() -> ExitCode {
         }),
     );
 
-    if let Err(error) = axum::serve(listener, api::router(config.internal_docs()))
+    if let Err(error) = axum::serve(listener, api::router(config.internal_docs(), state))
         .with_graceful_shutdown(shutdown_signal())
         .await
     {
@@ -71,6 +81,38 @@ async fn main() -> ExitCode {
         context = %json!({ "address": address.to_string() }),
     );
     ExitCode::SUCCESS
+}
+
+/// Fetches the public keys of the Supabase project at `supabase_url` and creates the verifier.
+///
+/// Logs the failure and returns `None` if the HTTP client or the fetch fails.
+async fn create_token_verifier(supabase_url: &str) -> Option<SupabaseTokenVerifier> {
+    let client = match reqwest::Client::builder().build() {
+        Ok(client) => client,
+        Err(error) => {
+            tracing::error!(
+                event = %ApiEvent::StartupFailed,
+                message = %format!(
+                    "[FailedClientCreation] Failed to create the HTTP client, Reason: '{error}'"
+                ),
+                context = %json!({}),
+            );
+            return None;
+        }
+    };
+    match SupabaseTokenVerifier::fetch(&client, supabase_url).await {
+        Ok(verifier) => Some(verifier),
+        Err(error) => {
+            tracing::error!(
+                event = %ApiEvent::StartupFailed,
+                message = %format!(
+                    "[FailedTokenVerifierCreation] Failed to create the login token verifier, Caused by: {error}"
+                ),
+                context = %json!({ "supabase_url": supabase_url }),
+            );
+            None
+        }
+    }
 }
 
 /// Completes on `Ctrl+C` or on `SIGTERM`.

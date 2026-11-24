@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
+use api::AppState;
 use api::config::InternalDocs;
+use api::tests::fixtures::fake_token_verifier::FakeTokenVerifier;
 use axum::body::Body;
 use axum::http::Request;
 use axum::response::Response;
@@ -8,10 +12,13 @@ use tower::ServiceExt;
 const CLIENT_REQUEST_ID: &str = "client-chosen-id";
 
 async fn get_health(request: Request<Body>) -> Response {
-    api::router(InternalDocs::Disabled)
-        .oneshot(request)
-        .await
-        .expect("Given the router's infallible service, calling it should always succeed")
+    api::router(
+        InternalDocs::Disabled,
+        AppState::new(Arc::new(FakeTokenVerifier::default())),
+    )
+    .oneshot(request)
+    .await
+    .expect("Given the router's infallible service, calling it should always succeed")
 }
 
 fn request_id_prefix(response: &Response) -> Option<&str> {

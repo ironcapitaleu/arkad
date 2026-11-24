@@ -17,6 +17,7 @@ use thiserror::Error;
 use crate::shared::fiscal_period::UnsupportedFiscalPeriod;
 use crate::shared::pascal_case::InvalidPascalCase;
 use crate::shared::period::UnsupportedPeriod;
+use crate::traits::token_verifier::TokenError;
 
 pub mod problem;
 
@@ -37,6 +38,14 @@ pub enum ApiError {
     /// The route exists in the contract, but the server has no data to answer it yet.
     #[error("[NotImplemented] The server does not answer the route yet")]
     NotImplemented,
+
+    /// The request has no `Authorization: Bearer` header.
+    #[error("[MissingCredentials] The request has no bearer credential")]
+    MissingCredentials,
+
+    /// The credential of the request fails its check.
+    #[error("[InvalidCredentials] The credential of the request fails its check")]
+    InvalidCredentials,
 }
 
 impl ApiError {
@@ -47,6 +56,7 @@ impl ApiError {
             Self::NotFound => StatusCode::NOT_FOUND,
             Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::NotImplemented => StatusCode::NOT_IMPLEMENTED,
+            Self::MissingCredentials | Self::InvalidCredentials => StatusCode::UNAUTHORIZED,
         }
     }
 
@@ -57,6 +67,8 @@ impl ApiError {
             Self::NotFound => "not_found",
             Self::InternalError => "internal_error",
             Self::NotImplemented => "not_implemented",
+            Self::MissingCredentials => "missing_credentials",
+            Self::InvalidCredentials => "invalid_credentials",
         }
     }
 
@@ -67,6 +79,8 @@ impl ApiError {
             Self::NotFound => "Not found",
             Self::InternalError => "Internal error",
             Self::NotImplemented => "Not implemented",
+            Self::MissingCredentials => "Missing credentials",
+            Self::InvalidCredentials => "Invalid credentials",
         }
     }
 
@@ -77,6 +91,10 @@ impl ApiError {
             Self::NotFound => "The path does not exist.",
             Self::InternalError => "The server failed to answer the request.",
             Self::NotImplemented => "The server does not answer this route yet.",
+            Self::MissingCredentials => "The request has no `Authorization: Bearer` header.",
+            Self::InvalidCredentials => {
+                "The API key is unknown, or the login token is malformed, expired, or not signed by Supabase."
+            }
         }
     }
 }
@@ -115,6 +133,22 @@ impl From<InvalidPascalCase> for ApiError {
     /// from the server and not from the client.
     fn from(_: InvalidPascalCase) -> Self {
         Self::InternalError
+    }
+}
+
+impl From<TokenError> for ApiError {
+    /// Converts a [`TokenError`] into [`ApiError::InternalError`] if the verifier cannot fetch its
+    /// signing keys, and into [`ApiError::InvalidCredentials`] otherwise.
+    fn from(error: TokenError) -> Self {
+        match error {
+            TokenError::FailedKeyFetch { .. } => Self::InternalError,
+            TokenError::InvalidTokenFormat { .. }
+            | TokenError::InvalidSignature
+            | TokenError::UnknownSigningKey { .. }
+            | TokenError::ExpiredToken { .. }
+            | TokenError::InvalidClaim { .. }
+            | TokenError::InvalidSubject { .. } => Self::InvalidCredentials,
+        }
     }
 }
 
@@ -208,6 +242,87 @@ mod tests {
     #[test]
     fn should_become_internal_error_when_converting_unsupported_fiscal_period() {
         let error = UnsupportedFiscalPeriod::new("H1");
+
+        let expected_result = ApiError::InternalError;
+
+        let result = ApiError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_answer_401_when_missing_credentials_becomes_a_response() {
+        let error = ApiError::MissingCredentials;
+
+        let expected_result = StatusCode::UNAUTHORIZED;
+
+        let result = error.into_response().status();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_answer_401_when_invalid_credentials_becomes_a_response() {
+        let error = ApiError::InvalidCredentials;
+
+        let expected_result = StatusCode::UNAUTHORIZED;
+
+        let result = error.into_response().status();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_contract_code_for_missing_credentials() {
+        let error = ApiError::MissingCredentials;
+
+        let expected_result = "missing_credentials";
+
+        let result = error.code();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_contract_code_for_invalid_credentials() {
+        let error = ApiError::InvalidCredentials;
+
+        let expected_result = "invalid_credentials";
+
+        let result = error.code();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_become_invalid_credentials_when_converting_invalid_signature() {
+        let error = TokenError::InvalidSignature;
+
+        let expected_result = ApiError::InvalidCredentials;
+
+        let result = ApiError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_become_invalid_credentials_when_converting_expired_token() {
+        let error = TokenError::ExpiredToken {
+            expired_at: chrono::DateTime::UNIX_EPOCH,
+        };
+
+        let expected_result = ApiError::InvalidCredentials;
+
+        let result = ApiError::from(error);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_become_internal_error_when_converting_failed_key_fetch() {
+        let error = TokenError::FailedKeyFetch {
+            reason: "the JWKS endpoint answered 503".to_owned(),
+        };
 
         let expected_result = ApiError::InternalError;
 

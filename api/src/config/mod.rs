@@ -11,6 +11,8 @@ use std::ffi::{OsStr, OsString};
 use std::net::{Ipv4Addr, SocketAddr};
 use std::num::NonZeroU16;
 
+use reqwest::Url;
+
 pub mod config_error;
 
 pub use config_error::ConfigError;
@@ -23,6 +25,12 @@ pub const PORT_ENV_VAR: &str = "PORT";
 /// The value `true` turns the page on. The value `false` or a missing variable turns it off.
 pub const INTERNAL_DOCS_ENABLED_ENV_VAR: &str = "INTERNAL_DOCS_ENABLED";
 
+/// The environment variable that holds the base URL of the Supabase project, such as
+/// `http://127.0.0.1:54321` for the local stack.
+///
+/// The API fetches the public keys for login tokens from this project.
+pub const SUPABASE_URL_ENV_VAR: &str = "SUPABASE_URL";
+
 /// Whether the router serves the Swagger UI at `/internal/docs`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InternalDocs {
@@ -33,10 +41,11 @@ pub enum InternalDocs {
 }
 
 /// The configuration of the `api` binary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Config {
     port: NonZeroU16,
     internal_docs: InternalDocs,
+    supabase_url: String,
 }
 
 impl Config {
@@ -52,9 +61,11 @@ impl Config {
     fn from_lookup(lookup: impl Fn(&str) -> Option<OsString>) -> Result<Self, ConfigError> {
         let port = parse_port(lookup(PORT_ENV_VAR))?;
         let internal_docs = parse_internal_docs(lookup(INTERNAL_DOCS_ENABLED_ENV_VAR).as_deref())?;
+        let supabase_url = parse_supabase_url(lookup(SUPABASE_URL_ENV_VAR))?;
         Ok(Self {
             port,
             internal_docs,
+            supabase_url,
         })
     }
 
@@ -68,6 +79,12 @@ impl Config {
     #[must_use]
     pub const fn internal_docs(&self) -> InternalDocs {
         self.internal_docs
+    }
+
+    /// Returns the base URL of the Supabase project, as [`SUPABASE_URL_ENV_VAR`] holds it.
+    #[must_use]
+    pub fn supabase_url(&self) -> &str {
+        &self.supabase_url
     }
 
     /// Returns the address the API binds to. It covers every IPv4 interface and uses
@@ -98,18 +115,47 @@ fn parse_internal_docs(value: Option<&OsStr>) -> Result<InternalDocs, ConfigErro
     }
 }
 
+fn parse_supabase_url(value: Option<OsString>) -> Result<String, ConfigError> {
+    let value = value.ok_or_else(|| ConfigError::missing_env_var(SUPABASE_URL_ENV_VAR))?;
+    let text = value.into_string().map_err(|_| {
+        ConfigError::invalid_env_var(SUPABASE_URL_ENV_VAR, "the value is not valid UTF-8")
+    })?;
+    let url = Url::parse(&text)
+        .map_err(|error| ConfigError::invalid_env_var(SUPABASE_URL_ENV_VAR, error.to_string()))?;
+    if !matches!(url.scheme(), "http" | "https") {
+        return Err(ConfigError::invalid_env_var(
+            SUPABASE_URL_ENV_VAR,
+            "the scheme is neither 'http' nor 'https'",
+        ));
+    }
+    Ok(text)
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
 
-    fn lookup_port(value: Option<&'static str>) -> impl Fn(&str) -> Option<OsString> {
+    const SUPABASE_URL: &str = "http://127.0.0.1:54321";
+
+    /// Returns a lookup that holds `port` and a valid `SUPABASE_URL`, and no other variable.
+    fn lookup_port(port: Option<&'static str>) -> impl Fn(&str) -> Option<OsString> {
+        lookup(port, Some(SUPABASE_URL))
+    }
+
+    /// Returns a lookup that holds `port` and `supabase_url`, and no other variable.
+    fn lookup(
+        port: Option<&'static str>,
+        supabase_url: Option<&'static str>,
+    ) -> impl Fn(&str) -> Option<OsString> {
         move |name| {
-            (name == PORT_ENV_VAR)
-                .then_some(value)
-                .flatten()
-                .map(OsString::from)
+            match name {
+                PORT_ENV_VAR => port,
+                SUPABASE_URL_ENV_VAR => supabase_url,
+                _ => None,
+            }
+            .map(OsString::from)
         }
     }
 
@@ -261,6 +307,56 @@ mod tests {
         let expected_result = Ok(InternalDocs::Disabled);
 
         let result = Config::from_lookup(lookup).map(|config| config.internal_docs());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_supabase_url_when_supabase_url_is_an_http_url() {
+        let lookup = lookup(Some("8080"), Some("http://127.0.0.1:54321"));
+
+        let expected_result = Ok("http://127.0.0.1:54321".to_owned());
+
+        let result = Config::from_lookup(lookup).map(|config| config.supabase_url().to_owned());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_missing_env_var_when_supabase_url_is_unset() {
+        let lookup = lookup(Some("8080"), None);
+
+        let expected_result = Err(ConfigError::missing_env_var("SUPABASE_URL"));
+
+        let result = Config::from_lookup(lookup);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_env_var_when_supabase_url_is_not_a_url() {
+        let value = Some(OsString::from("supabase.local"));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "SUPABASE_URL",
+            "relative URL without a base",
+        ));
+
+        let result = parse_supabase_url(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_env_var_when_supabase_url_has_no_http_scheme() {
+        let value = Some(OsString::from("ftp://127.0.0.1:54321"));
+
+        let expected_result = Err(ConfigError::invalid_env_var(
+            "SUPABASE_URL",
+            "the scheme is neither 'http' nor 'https'",
+        ));
+
+        let result = parse_supabase_url(value);
 
         assert_eq!(result, expected_result);
     }
