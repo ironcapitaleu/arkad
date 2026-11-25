@@ -649,6 +649,16 @@ Open the mail viewer at <http://127.0.0.1:54324>. The mail holds a 6-digit code 
 [ADR 0038](docs/adr/0038-sign-in-mail-with-code-and-link.md) records why the mail holds both.
 
 The public keys for the token check are at <http://127.0.0.1:54321/auth/v1/.well-known/jwks.json>.
+
+The `api` crate checks login tokens with `SupabaseTokenVerifier`. Its integration test signs in a
+test user on the local stack and checks the token. CI starts no Supabase, so the test carries
+`#[ignore]`. Run it with the secret key that `supabase start` prints:
+
+```bash
+SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SECRET_KEY=<secret key> \
+  cargo test -p api --test supabase_token_verifier -- --ignored
+```
+
 Stop the stack with `supabase stop`.
 
 ## Contributing
