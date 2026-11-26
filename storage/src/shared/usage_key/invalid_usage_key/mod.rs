@@ -39,11 +39,11 @@ pub enum InvalidUsageKeyReason {
         /// The number of parts the string splits into.
         count: usize,
     },
-    /// The first part is not a UUID.
+    /// The first part is not a lowercase hyphenated UUID.
     InvalidAccountId,
     /// The second part is not `api_key` or `login`.
     InvalidChannel,
-    /// The third part is not a calendar date such as `2026-11-26`.
+    /// The third part is not a calendar date in the form `YYYY-MM-DD`, such as `2026-11-26`.
     InvalidDay,
 }
 
@@ -51,9 +51,13 @@ impl Display for InvalidUsageKeyReason {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Self::WrongPartCount { count } => write!(f, "the string has {count} parts, not 3"),
-            Self::InvalidAccountId => f.write_str("the first part is not a UUID"),
+            Self::InvalidAccountId => {
+                f.write_str("the first part is not a lowercase hyphenated UUID")
+            }
             Self::InvalidChannel => f.write_str("the second part is not a channel"),
-            Self::InvalidDay => f.write_str("the third part is not a calendar date"),
+            Self::InvalidDay => {
+                f.write_str("the third part is not a calendar date in the form YYYY-MM-DD")
+            }
         }
     }
 }
@@ -96,7 +100,7 @@ mod tests {
     fn should_name_the_string_and_the_reason_when_displaying_invalid_usage_key() {
         let error = InvalidUsageKey::new(InvalidUsageKeyReason::InvalidDay, "a:login:b");
 
-        let expected_result = "[InvalidUsageKey] Usage key 'a:login:b' is not '<account_id>:<channel>:<day>', Reason: 'the third part is not a calendar date'";
+        let expected_result = "[InvalidUsageKey] Usage key 'a:login:b' is not '<account_id>:<channel>:<day>', Reason: 'the third part is not a calendar date in the form YYYY-MM-DD'";
 
         let result = error.to_string();
 

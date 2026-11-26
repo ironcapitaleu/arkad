@@ -4,11 +4,15 @@
 
 use thiserror::Error;
 
+use crate::shared::api_key_name::MAX_API_KEY_NAME_CHARACTERS;
+
 /// Error raised when a string is empty, holds more than 100 characters, or holds a control
-/// character, so it cannot be an API key name.
+/// character as [`ApiKeyName`](crate::shared::ApiKeyName) defines it, so it cannot be an API key
+/// name.
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[error(
-    "[InvalidApiKeyName] API key name '{value}' is not 1 to 100 characters without control characters"
+    "[InvalidApiKeyName] API key name '{value}' is not 1 to {max} characters without control characters",
+    max = MAX_API_KEY_NAME_CHARACTERS
 )]
 pub struct InvalidApiKeyName {
     /// The string that was rejected.

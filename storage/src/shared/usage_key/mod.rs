@@ -91,6 +91,8 @@ impl FromStr for UsageKey {
     /// Parses `<account_id>:<channel>:<day>` into a [`UsageKey`], the form that
     /// [`Display`] writes.
     ///
+    /// Each part must be in the exact form that [`Display`] writes, so one key has one spelling.
+    ///
     /// # Errors
     ///
     /// Returns an [`InvalidUsageKey`] with the [`InvalidUsageKeyReason`] of the first part that
@@ -98,10 +100,11 @@ impl FromStr for UsageKey {
     ///
     /// - [`InvalidUsageKeyReason::WrongPartCount`] if the string has more or fewer than three
     ///   parts.
-    /// - [`InvalidUsageKeyReason::InvalidAccountId`] if the first part is not a UUID.
+    /// - [`InvalidUsageKeyReason::InvalidAccountId`] if the first part is not a lowercase
+    ///   hyphenated UUID.
     /// - [`InvalidUsageKeyReason::InvalidChannel`] if the second part is not a [`Channel`].
-    /// - [`InvalidUsageKeyReason::InvalidDay`] if the third part is not a date such as
-    ///   `2026-11-26`.
+    /// - [`InvalidUsageKeyReason::InvalidDay`] if the third part is not a calendar date in the form
+    ///   `YYYY-MM-DD`, such as `2026-11-26`.
     ///
     /// # Examples
     ///
@@ -128,13 +131,17 @@ impl FromStr for UsageKey {
             }));
         };
         let account_id = AccountId::parse(account_id)
-            .map_err(|_| reject(InvalidUsageKeyReason::InvalidAccountId))?;
+            .ok()
+            .filter(|parsed| parsed.to_string() == account_id)
+            .ok_or_else(|| reject(InvalidUsageKeyReason::InvalidAccountId))?;
         let channel = channel
             .parse::<Channel>()
             .map_err(|_| reject(InvalidUsageKeyReason::InvalidChannel))?;
         let day = day
             .parse::<NaiveDate>()
-            .map_err(|_| reject(InvalidUsageKeyReason::InvalidDay))?;
+            .ok()
+            .filter(|parsed| parsed.to_string() == day)
+            .ok_or_else(|| reject(InvalidUsageKeyReason::InvalidDay))?;
         Ok(Self::new(account_id, channel, day))
     }
 }
@@ -266,6 +273,62 @@ mod tests {
         let expected_result = Err(InvalidUsageKey::new(
             InvalidUsageKeyReason::InvalidDay,
             "0193b2c1-7d4e-7a2b-9c3d-4e5f6a7b8c9d:login:2026-02-30",
+        ));
+
+        let result = value.parse::<UsageKey>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_account_id_when_the_first_part_is_a_simple_uuid() {
+        let value = "0193b2c17d4e7a2b9c3d4e5f6a7b8c9d:login:2026-11-26";
+
+        let expected_result = Err(InvalidUsageKey::new(
+            InvalidUsageKeyReason::InvalidAccountId,
+            "0193b2c17d4e7a2b9c3d4e5f6a7b8c9d:login:2026-11-26",
+        ));
+
+        let result = value.parse::<UsageKey>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_account_id_when_the_first_part_is_a_braced_uuid() {
+        let value = "{0193b2c1-7d4e-7a2b-9c3d-4e5f6a7b8c9d}:login:2026-11-26";
+
+        let expected_result = Err(InvalidUsageKey::new(
+            InvalidUsageKeyReason::InvalidAccountId,
+            "{0193b2c1-7d4e-7a2b-9c3d-4e5f6a7b8c9d}:login:2026-11-26",
+        ));
+
+        let result = value.parse::<UsageKey>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_account_id_when_the_first_part_is_an_uppercase_uuid() {
+        let value = "0193B2C1-7D4E-7A2B-9C3D-4E5F6A7B8C9D:login:2026-11-26";
+
+        let expected_result = Err(InvalidUsageKey::new(
+            InvalidUsageKeyReason::InvalidAccountId,
+            "0193B2C1-7D4E-7A2B-9C3D-4E5F6A7B8C9D:login:2026-11-26",
+        ));
+
+        let result = value.parse::<UsageKey>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_day_when_the_third_part_has_no_zero_padding() {
+        let value = "0193b2c1-7d4e-7a2b-9c3d-4e5f6a7b8c9d:login:2026-1-5";
+
+        let expected_result = Err(InvalidUsageKey::new(
+            InvalidUsageKeyReason::InvalidDay,
+            "0193b2c1-7d4e-7a2b-9c3d-4e5f6a7b8c9d:login:2026-1-5",
         ));
 
         let result = value.parse::<UsageKey>();

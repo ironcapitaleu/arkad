@@ -20,8 +20,16 @@ pub const MAX_API_KEY_NAME_CHARACTERS: usize = 100;
 /// characters.
 ///
 /// The account area lists the keys by this name. [`ApiKeyName::new`] counts Unicode code points,
-/// as `char_length` in Postgres does. It rejects control characters, because Postgres `text`
-/// cannot hold a NUL character and a label has no use for a line break.
+/// as `char_length` in Postgres does. In this type, a control character is one of these:
+///
+/// - A character of the Unicode category `Cc`, such as NUL or a line feed. Postgres `text` cannot
+///   hold a NUL character.
+/// - The line separator U+2028 and the paragraph separator U+2029.
+/// - A character with the Unicode property `Bidi_Control`, such as U+202E. It can show a name
+///   in reverse, so one key looks like another.
+///
+/// A label has no use for any of them. Other format characters stay, such as the zero-width
+/// joiner in an emoji.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ApiKeyName(String);
 
@@ -33,7 +41,7 @@ impl ApiKeyName {
     /// # Errors
     ///
     /// Returns an [`InvalidApiKeyName`] if the value is empty, holds more than 100 characters, or
-    /// holds a control character, such as a line break.
+    /// holds a control character as [`ApiKeyName`] defines it, such as a line break.
     ///
     /// # Examples
     ///
@@ -51,7 +59,7 @@ impl ApiKeyName {
     pub fn new(value: impl Into<String>) -> Result<Self, InvalidApiKeyName> {
         let value = value.into();
         let character_count = value.chars().count();
-        let has_control_character = value.chars().any(char::is_control);
+        let has_control_character = value.chars().any(is_control_character);
         if !(1..=MAX_API_KEY_NAME_CHARACTERS).contains(&character_count) || has_control_character {
             return Err(InvalidApiKeyName { value });
         }
@@ -82,6 +90,21 @@ impl FromStr for ApiKeyName {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         Self::new(value)
     }
+}
+
+/// Returns `true` for a control character as [`ApiKeyName`] defines it.
+const fn is_control_character(character: char) -> bool {
+    character.is_control()
+        || matches!(
+            character,
+            '\u{2028}'
+                | '\u{2029}'
+                | '\u{061C}'
+                | '\u{200E}'
+                | '\u{200F}'
+                | '\u{202A}'..='\u{202E}'
+                | '\u{2066}'..='\u{2069}'
+        )
 }
 
 #[cfg(test)]
@@ -217,6 +240,39 @@ mod tests {
         let expected_result = Ok(api_key_name);
 
         let result = text.parse::<ApiKeyName>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_api_key_name_when_the_string_holds_a_line_separator() {
+        let value = "CI\u{2028}pipeline";
+
+        let expected_result = Err(InvalidApiKeyName::new("CI\u{2028}pipeline"));
+
+        let result = ApiKeyName::new(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_api_key_name_when_the_string_holds_a_right_to_left_override() {
+        let value = "\u{202E}enilepip IC";
+
+        let expected_result = Err(InvalidApiKeyName::new("\u{202E}enilepip IC"));
+
+        let result = ApiKeyName::new(value);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_create_the_api_key_name_when_the_string_holds_an_emoji_with_a_zero_width_joiner() {
+        let value = "Dev \u{1F468}\u{200D}\u{1F4BB}";
+
+        let expected_result = Ok("Dev \u{1F468}\u{200D}\u{1F4BB}".to_owned());
+
+        let result = ApiKeyName::new(value).map(|name| name.as_str().to_owned());
 
         assert_eq!(result, expected_result);
     }
