@@ -41,7 +41,13 @@ utoipa-swagger-ui = { version = "10", features = ["axum", "vendored"] }
 uuid = { version = "1.23.2", features = ["v7"] }
 xbrl = { version = "0.1.0", path = "../xbrl" }
 
+[features]
+test-fixtures = []
+
 [dev-dependencies]
+# The integration tests use the fixtures of `api`. Only this feature exposes them outside of
+# `cfg(test)`.
+api = { path = ".", features = ["test-fixtures"] }
 aws-lc-rs = "1"
 base64 = "0.23"
 # The PEM parser turns the PKCS#8 RSA test keys of `aws-lc-rs` into the PKCS#1 form that the signer
