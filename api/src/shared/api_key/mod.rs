@@ -102,8 +102,8 @@ impl ApiKey {
     /// Parses a key and checks its prefix, its length, its characters, and its checksum.
     ///
     /// The check reads no database and does no I/O. A key that passes can still be unknown or
-    /// revoked. The check does not reject a secret above 2²⁵⁶, which no generated key holds. Such a
-    /// key fails at the digest lookup.
+    /// revoked. The check does not reject a secret of 2²⁵⁶ or more, which no generated key holds.
+    /// Such a key fails at the digest lookup.
     ///
     /// # Errors
     ///
@@ -187,8 +187,12 @@ impl ApiKey {
 
     /// Builds the key of `environment` from the bytes of a secret.
     fn from_secret(environment: KeyEnvironment, secret: &[u8; SECRET_BYTES]) -> Self {
-        let mut value = prefix_of(environment);
-        value.push_str(&base62_of_bytes(secret, SECRET_LENGTH));
+        // One allocation of the full length, so no outgrown buffer with the secret stays unwiped.
+        let mut value = String::with_capacity(KEY_LENGTH);
+        value.push_str(&prefix_of(environment));
+        let mut secret_digits = base62_of_bytes(secret, SECRET_LENGTH);
+        value.push_str(&secret_digits);
+        secret_digits.zeroize();
         let checksum = checksum_of(&value);
         value.push('_');
         value.push_str(&checksum);
@@ -572,6 +576,18 @@ mod tests {
         let expected_result = Ok("ak_live_zzzz".to_owned());
 
         let result = ApiKey::parse(value).map(|api_key| api_key.display_prefix().to_owned());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_the_key_in_one_allocation_of_key_length_when_building_from_a_secret() {
+        let secret = sequence_secret();
+
+        let expected_result = KEY_LENGTH;
+
+        let api_key = ApiKey::from_secret(KeyEnvironment::Live, &secret);
+        let result = api_key.value.capacity();
 
         assert_eq!(result, expected_result);
     }
