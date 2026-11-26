@@ -276,4 +276,37 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_reject_each_end_of_the_separator_and_bidi_control_ranges_for_an_api_key_name() {
+        let characters = [
+            '\u{2028}', '\u{2029}', '\u{061C}', '\u{200E}', '\u{200F}', '\u{202A}', '\u{202E}',
+            '\u{2066}', '\u{2069}',
+        ];
+
+        let expected_result: Vec<char> = vec![];
+
+        let result: Vec<char> = characters
+            .into_iter()
+            .filter(|character| ApiKeyName::new(character.to_string()).is_ok())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_accept_each_neighbor_of_the_separator_and_bidi_control_ranges_for_an_api_key_name() {
+        let characters = [
+            '\u{2027}', '\u{202F}', '\u{061B}', '\u{061D}', '\u{200D}', '\u{2065}', '\u{206A}',
+        ];
+
+        let expected_result: Vec<char> = vec![];
+
+        let result: Vec<char> = characters
+            .into_iter()
+            .filter(|character| ApiKeyName::new(character.to_string()).is_err())
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
 }
