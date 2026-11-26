@@ -11,6 +11,7 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
 use storage::{KeyEnvironment, Sha256Digest};
+use zeroize::Zeroize;
 
 pub mod failed_api_key_generation;
 pub mod invalid_api_key;
@@ -58,7 +59,8 @@ const DISPLAY_PREFIX_LENGTH: usize = PREFIX_LENGTH + 4;
 ///
 /// The API stores only the [`ApiKey::digest`]. [`Debug`] and [`Display`] print the
 /// [`ApiKey::display_prefix`], never the secret. Only [`ApiKey::expose_secret`] returns the full
-/// key. `docs/adr/0046-api-key-format.md` records the format.
+/// key. A drop overwrites the key in memory with zeros. `docs/adr/0046-api-key-format.md` records
+/// the format.
 #[derive(Clone)]
 pub struct ApiKey {
     environment: KeyEnvironment,
@@ -92,13 +94,16 @@ impl ApiKey {
         let mut secret = [0_u8; SECRET_BYTES];
         getrandom::fill(&mut secret)
             .map_err(|error| FailedApiKeyGeneration::new(error.to_string()))?;
-        Ok(Self::from_secret(environment, &secret))
+        let api_key = Self::from_secret(environment, &secret);
+        secret.zeroize();
+        Ok(api_key)
     }
 
     /// Parses a key and checks its prefix, its length, its characters, and its checksum.
     ///
     /// The check reads no database and does no I/O. A key that passes can still be unknown or
-    /// revoked.
+    /// revoked. The check does not reject a secret above 2²⁵⁶, which no generated key holds. Such a
+    /// key fails at the digest lookup.
     ///
     /// # Errors
     ///
@@ -191,6 +196,13 @@ impl ApiKey {
     }
 }
 
+impl Drop for ApiKey {
+    /// Overwrites the key with zeros, so the freed memory holds no secret.
+    fn drop(&mut self) {
+        self.value.zeroize();
+    }
+}
+
 impl Debug for ApiKey {
     /// Writes the environment and the display prefix, never the secret.
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -230,7 +242,7 @@ fn checksum_of(body: &str) -> String {
     )
 }
 
-/// Writes `bytes`, read as one big-endian number, in base62 with exactly `width` digits.
+/// Returns `bytes`, read as one big-endian number, in base62 with exactly `width` digits.
 ///
 /// Each pass divides the number by 62 and keeps the remainder as the next digit, from the right.
 /// The caller picks a `width` that holds every value of `bytes`, so no digit is lost.
@@ -312,7 +324,7 @@ mod tests {
     }
 
     #[test]
-    fn should_write_43_secret_characters_when_building_from_a_secret_of_max_bytes() {
+    fn should_write_the_known_key_when_building_from_a_secret_of_max_bytes() {
         let secret = [u8::MAX; SECRET_BYTES];
 
         let expected_result = "ak_live_yhjskwdA6OZ1AL1YmHWZWm8LLG7HjnuCA2j5rOw8Xp1_2zsbnN";
@@ -365,7 +377,8 @@ mod tests {
 
         let expected_result = Ok(api_key.expose_secret().to_owned());
 
-        let result = ApiKey::parse(api_key.expose_secret()).map(|parsed| parsed.value);
+        let result =
+            ApiKey::parse(api_key.expose_secret()).map(|parsed| parsed.expose_secret().to_owned());
 
         assert_eq!(result, expected_result);
     }
@@ -525,6 +538,40 @@ mod tests {
         let expected_result = "ak_live_003a…";
 
         let result = api_key.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_character_when_the_first_secret_character_is_a_hyphen() {
+        let value = "ak_live_-03aUlTJC7tjlCTQj2uNU3MFagCXG9LRKRcwGkBIDlf_0gEjkH";
+
+        let expected_result = Some(InvalidApiKey::InvalidCharacter { index: 8 });
+
+        let result = ApiKey::parse(value).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_character_when_the_last_checksum_character_is_a_hyphen() {
+        let value = "ak_live_003aUlTJC7tjlCTQj2uNU3MFagCXG9LRKRcwGkBIDlf_0gEjk-";
+
+        let expected_result = Some(InvalidApiKey::InvalidCharacter { index: 57 });
+
+        let result = ApiKey::parse(value).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_a_secret_above_two_to_the_256_when_its_checksum_matches() {
+        // 43 times `z` is 62^43 - 1, above 2^256. Python's `zlib.crc32` gives the checksum.
+        let value = "ak_live_zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz_1xmd6O";
+
+        let expected_result = Ok("ak_live_zzzz".to_owned());
+
+        let result = ApiKey::parse(value).map(|api_key| api_key.display_prefix().to_owned());
 
         assert_eq!(result, expected_result);
     }

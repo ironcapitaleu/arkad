@@ -12,15 +12,11 @@ use thiserror::Error;
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
 pub enum InvalidApiKey {
     /// The string does not start with `ak_live_` or `ak_test_`.
-    #[error(
-        "[InvalidPrefix] API key has an unknown prefix, Reason: 'the key does not start with ak_live_ or ak_test_'"
-    )]
+    #[error("[InvalidPrefix] API key does not start with 'ak_live_' or 'ak_test_'")]
     InvalidPrefix,
 
     /// The string does not have the 58 bytes of a key.
-    #[error(
-        "[InvalidLength] API key has the wrong length, Reason: 'the key has {length} bytes, not 58'"
-    )]
+    #[error("[InvalidLength] API key has {length} bytes, not 58")]
     InvalidLength {
         /// The number of bytes in the string.
         length: usize,
@@ -28,7 +24,7 @@ pub enum InvalidApiKey {
 
     /// A byte of the secret or the checksum is not base62, or the separator is not `_`.
     #[error(
-        "[InvalidCharacter] API key holds a byte outside its format, Reason: 'the byte at index {index} does not fit ak_<environment>_<secret>_<checksum>'"
+        "[InvalidCharacter] API key byte at index {index} does not fit 'ak_<environment>_<secret>_<checksum>'"
     )]
     InvalidCharacter {
         /// The index of the first byte that does not fit, counted from 0.
@@ -36,9 +32,7 @@ pub enum InvalidApiKey {
     },
 
     /// The checksum does not match the prefix and the secret.
-    #[error(
-        "[InvalidChecksum] API key checksum does not match, Reason: 'the last 6 characters are not the CRC32 of the prefix and the secret'"
-    )]
+    #[error("[InvalidChecksum] API key checksum is not the CRC32 of the prefix and the secret")]
     InvalidChecksum,
 }
 
@@ -67,7 +61,8 @@ mod tests {
     fn should_name_both_prefixes_when_displaying_invalid_prefix() {
         let error = InvalidApiKey::InvalidPrefix;
 
-        let expected_result = "[InvalidPrefix] API key has an unknown prefix, Reason: 'the key does not start with ak_live_ or ak_test_'";
+        let expected_result =
+            "[InvalidPrefix] API key does not start with 'ak_live_' or 'ak_test_'";
 
         let result = error.to_string();
 
@@ -78,8 +73,7 @@ mod tests {
     fn should_name_the_length_when_displaying_invalid_length() {
         let error = InvalidApiKey::InvalidLength { length: 57 };
 
-        let expected_result =
-            "[InvalidLength] API key has the wrong length, Reason: 'the key has 57 bytes, not 58'";
+        let expected_result = "[InvalidLength] API key has 57 bytes, not 58";
 
         let result = error.to_string();
 
@@ -90,7 +84,7 @@ mod tests {
     fn should_name_the_index_when_displaying_invalid_character() {
         let error = InvalidApiKey::InvalidCharacter { index: 51 };
 
-        let expected_result = "[InvalidCharacter] API key holds a byte outside its format, Reason: 'the byte at index 51 does not fit ak_<environment>_<secret>_<checksum>'";
+        let expected_result = "[InvalidCharacter] API key byte at index 51 does not fit 'ak_<environment>_<secret>_<checksum>'";
 
         let result = error.to_string();
 
@@ -101,7 +95,8 @@ mod tests {
     fn should_name_the_crc32_when_displaying_invalid_checksum() {
         let error = InvalidApiKey::InvalidChecksum;
 
-        let expected_result = "[InvalidChecksum] API key checksum does not match, Reason: 'the last 6 characters are not the CRC32 of the prefix and the secret'";
+        let expected_result =
+            "[InvalidChecksum] API key checksum is not the CRC32 of the prefix and the secret";
 
         let result = error.to_string();
 

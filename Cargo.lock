@@ -78,6 +78,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "xbrl",
+ "zeroize",
 ]
 
 [[package]]
