@@ -297,7 +297,8 @@ mod tests {
     #[test]
     fn should_accept_each_neighbor_of_the_separator_and_bidi_control_ranges_for_an_api_key_name() {
         let characters = [
-            '\u{2027}', '\u{202F}', '\u{061B}', '\u{061D}', '\u{200D}', '\u{2065}', '\u{206A}',
+            '\u{2027}', '\u{202F}', '\u{061B}', '\u{061D}', '\u{200D}', '\u{2010}', '\u{2065}',
+            '\u{206A}',
         ];
 
         let expected_result: Vec<char> = vec![];
