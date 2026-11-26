@@ -46,8 +46,11 @@ pub mod traits;
 
 pub use error::{BackendCause, BackendError, ErrorKind, ReadError, WriteError};
 pub use shared::{
-    AccountId, CompanyId, CompanyIdentifier, CompanyScheme, InvalidAccountId, InvalidMic,
-    InvalidSha256Digest, ListingId, ListingIdentifier, ListingScheme, Mic, Sha256Digest,
+    AccountId, AccountPlan, ApiKeyId, ApiKeyName, Channel, CompanyId, CompanyIdentifier,
+    CompanyScheme, InvalidAccountId, InvalidAccountPlan, InvalidApiKeyId, InvalidApiKeyName,
+    InvalidChannel, InvalidKeyEnvironment, InvalidMic, InvalidSha256Digest, InvalidUsageKey,
+    InvalidUsageKeyReason, InvalidWindow, KeyEnvironment, ListingId, ListingIdentifier,
+    ListingScheme, MAX_API_KEY_NAME_CHARACTERS, Mic, Sha256Digest, UsageKey, Window,
 };
 pub use traits::repository::{
     ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
