@@ -845,7 +845,15 @@ The changes are to comments and to the new lists.
 | `DepreciationAmortization`, `CapitalExpenditures`, `DividendsPaid`, `ShareRepurchases`, `ShareBasedCompensation` | stays |
 | `OtherComprehensiveIncome`, `ComprehensiveIncome` | stays |
 
-The flag `required` stays as it is. The completeness check of "5) Validation" reads it.
+The flag `required` marks the 11 roll-ups of the MVP Decision Spike that map to a standard
+concept: `Assets`, `Liabilities`, `Equity`, `LiabilitiesAndEquity`, `Revenue`, `NetIncome`,
+`NetIncomeAttributableToParent`, `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow`, and
+`NetChangeInCash`. `OperatingIncome` has no flag: it is no roll-up of the spike. The cash at the
+end of the period, `CashAndRestrictedCash`, has no flag, because the code does not map it yet. `UsGaap::required_concepts`
+returns the set, and the completeness check of "5) Validation" reads it
+([ADR 0050](../docs/adr/0050-missing-required-finding.md)). The flag does not follow the arrays
+`REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse of the `sec` crate reads
+`REQUIRED_CONCEPTS`.
 
 `CashAndDueFromBanks` and `DueFromBanks` get no mapping. A bank reports `InterestBearingDepositsInBanks`
 next to `CashAndDueFromBanks`, so neither is the whole of `CashAndEquivalents`. The concepts of
@@ -879,6 +887,9 @@ parses it.
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
+- `MissingRequired` is a value of `findings.kind`. `concepts` holds the required concept. `periods`
+  holds the period of report with `quarters` 0. `filing_id` holds the filing, and `reason` holds
+  `Conflict`, `Untagged`, or null ([ADR 0050](../docs/adr/0050-missing-required-finding.md)).
 
 #### Worked Example
 
@@ -2264,9 +2275,9 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`), the entity, the
-  concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
-  not an error type.
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`, `MissingRequired`), the
+  entity, the concept or concepts (see "Conflict"), the periods, and a reason if one is known. A
+  finding is not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
   series, together with the `Conflict` findings of `core/dedup/more-precise@1`. Chronology derives
   `Restatement` from the `restated` flag of `StandardizedFact`.
@@ -2571,7 +2582,8 @@ Data quality checks to validate that parsed data makes sense.
 
 Three levels, applied in order of strictness:
 
-1. **Completeness** — Are all required canonical elements present? Can't validate what's missing.
+1. **Completeness** — Does each periodic report have a value of each required standard concept?
+   See "Completeness Check".
 2. **Consistency** — Do the accounting identities hold? A structural violation (e.g., `Assets != Liabilities + Equity`).
 3. **Precision** — Do sub-items sum exactly to their reported parent totals? A rounding or classification issue.
 
@@ -2583,6 +2595,27 @@ Specific checks include:
 - Sign checks (Assets > 0, Liabilities > 0, Revenue > 0 for non-loss companies)
 - Cross-statement consistency (Net Income in IS == Net Income in CF reconciliation)
 - Rules inspired by DQC Rules (https://github.com/DataQualityCommittee/dqc_us_rules)
+
+### Completeness Check
+
+`core::required_check::check_required` runs in `standardize_series`, after Tier 3. It reports and
+never fails. The shape of its finding follows
+[ADR 0050](../docs/adr/0050-missing-required-finding.md).
+
+- **Required concepts** are the concepts with the flag `required` (see "Alias Lists After the
+  Tree"). The caller passes them to `standardize_series`.
+- **Filings.** The check covers each annual report (`10-K`, `10-KT`, `20-F`, `40-F`) and quarterly
+  report (`10-Q`, `10-QT`) that is no amendment and has a period of report.
+- **Filled.** A value without dimensions of the concept fills the period of report if its end lies
+  within 7 days of it. A value of any length fills it. A value of the series counts, from any
+  filing, and so does a value of Tier 3 or of `core/period/q4-from-fy@1`.
+- **Finding.** Each required concept that no value fills gives one `MissingRequired` finding with
+  the entity, the filing, the concept, and the period of report.
+- **Reason.** `Conflict` if dedup blocks a value of the concept at the period of report.
+  Otherwise `Untagged` if the filing has no candidate of the concept without dimensions, for any
+  period: no concept of the alias list or the parts. Otherwise no reason.
+- **Order.** The findings follow the order of the filings, then the order of the required
+  concepts. `standardize_series` puts them after the sum checks and before chronology.
 
 ### Precision Threshold
 
