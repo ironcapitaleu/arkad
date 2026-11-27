@@ -34,25 +34,25 @@ siblings are:
 3. **Fakes.** Find the fixtures folder of the crate, often `tests/fixtures/`, and name a new fake
    the way its siblings are named, such as `sample_{concept}` or `fake_{type}`. A fake that only the
    tests of one module use can stay in the test module of that file.
-4. **A crate with no shared concepts yet.** Use "Layout by Part", per concept:
-   `shared/{concept}/traits/` and `shared/{concept}/implementations/`.
+4. **No sibling to copy.** If the crate has no shared concepts yet, or no trait yet, use "Layout by
+   Part", per concept: `shared/{concept}/traits/` and `shared/{concept}/implementations/`.
 
 If the layout of the crate differs from "Layout by Part", the crate wins. Do not move code that
 exists to match.
 
 ## Layout by Part
 
-Where a crate uses `traits/` and `implementations/` folders, the parts of a concept decide its
-files, not whether it wraps an external crate:
+Where a crate uses `traits/` and `implementations/` folders, or step 4 of "Where a Concept Lives"
+sends you here, the parts of a concept decide its files, not whether it wraps an external crate:
 
 - **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
   `traits/mod.rs`. This holds for a trait that wraps no external crate too.
 - **A concrete type** that implements a trait of the concept, or that its implementors use to do
   so, goes in `implementations/`, one module per type.
 - **Constants** go in a `constants.rs` next to the type that uses them.
-- **An error** sits next to the code that returns it. A value type, or a function at the root of the
-  concept, uses a `{type}_error.rs` file or a `{type}_error/` module. An implementation folder uses
-  an `error.rs`.
+- **An error** sits next to the code that returns it. A value type uses a `{type}_error.rs` file or
+  a `{type}_error/` module. A function at the root of the concept uses a module named after its
+  error. An implementation folder uses an `error.rs`.
 - **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
   of the concept and does not need to know its subfolders.
 
@@ -73,7 +73,7 @@ a gate.
 
 If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`),
 or the conversation, the ticket, or a design document already established what the concept is,
-skip the questions it answers. Do not guess a name from an existing concept. Infer it from the
+skip the questions they answer. Do not guess a name from an existing concept. Infer it from the
 context, or let the user give it via "Other".
 
 **First prompt:**
