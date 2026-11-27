@@ -230,9 +230,22 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 One row per standard concept, set of dimensions, and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
 `standardized_facts` without `restated`, `change`, and `computed_at`, plus `filing_id`, `filed`,
-`accepted`, `decimals`, `blocked`, and `entity_bucket`. Only a series run sets `restated`, `change`,
+`accepted`, `decimals`, `decimals_infinite`, `blocked`, and `entity_bucket`. Only a series run sets `restated`, `change`,
 and `computed_at`, and the standardize filing step writes `candidates` before any series run. Step 3 needs `decimals` to tell a restatement from a repeated comparative. A blocked candidate has a null `value` and a null `confidence`. Its `rule` names
-the rule that picked the conflicting concept. The segment view of a report and its reconciliation
+the rule that picked the conflicting concept.
+
+| Column | Arrow type | From |
+| ------ | ---------- | ---- |
+| `value`, `confidence` | `decimal128(38, 10)`, `utf8`, both nullable | Null for a blocked candidate |
+| `scope` | `utf8`, nullable | Null until `Candidate` carries a scope |
+| `filing_id`, `filed`, `accepted` | as in `as_is_facts` | `Candidate::source` |
+| `decimals`, `decimals_infinite` | as in `as_is_facts` | The decimals of a reported value. Null and false for a blocked candidate |
+| `blocked` | `bool` | `CandidateValue::Blocked` |
+| `entity_bucket` | `uint8` | 0 to 63, see `silver_writer_and_jobs.md`, "Entity Buckets" |
+| Run columns | `transform_version`, `execution_id`, `loaded_at` | As in `standardized_facts`. A row carries no ingestion provenance. `inputs` leads to it |
+
+The other columns are those of `standardized_facts`, in its order. `CandidateRow` in
+`sec::datasets` holds the order of the schema. The segment view of a report and its reconciliation
 read the rows of one filing, see [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#segment-values).
 
 The owner decided on 2026-11-08 that `candidates` stays a dataset of its own. When a new filing arrives,
