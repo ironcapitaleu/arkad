@@ -124,7 +124,14 @@ mod tests {
         let domain_error = create_baseline_domain_error();
         let failed_request_execution = FailedRequestExecution::new(state_name, domain_error);
 
-        let expected_result = StateError::FailedRequestExecution(failed_request_execution.clone());
+        let expected_result = StateError::FailedRequestExecution(FailedRequestExecution {
+            state_name: "ExecuteSecRequest".to_owned(),
+            domain_error: FailedSecRequest {
+                reason: ErrorReason::FailedRequestExecution {
+                    details: "Network unreachable".to_owned(),
+                },
+            },
+        });
 
         let result: StateError = failed_request_execution.into();
 
@@ -136,7 +143,14 @@ mod tests {
         let state_name = "ExecuteSecRequest";
         let domain_error = create_baseline_domain_error();
 
-        let expected_result = FailedRequestExecution::new(state_name, domain_error.clone());
+        let expected_result = FailedRequestExecution {
+            state_name: "ExecuteSecRequest".to_owned(),
+            domain_error: FailedSecRequest {
+                reason: ErrorReason::FailedRequestExecution {
+                    details: "Network unreachable".to_owned(),
+                },
+            },
+        };
 
         let result = FailedRequestExecution::from_domain_error(state_name, domain_error);
 

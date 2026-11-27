@@ -122,7 +122,13 @@ mod tests {
             cik_error,
         };
 
-        let expected_result = StateError::InvalidCikFormat(invalid_cik_format.clone());
+        let expected_result = StateError::InvalidCikFormat(InvalidCikFormat {
+            state_name: "TestState".to_owned(),
+            cik_error: CikError {
+                reason: InvalidCikReason::ContainsNonNumericCharacters,
+                invalid_cik: "abc".to_owned(),
+            },
+        });
 
         let result: StateError = invalid_cik_format.into();
 

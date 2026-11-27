@@ -108,7 +108,12 @@ mod tests {
     fn should_convert_to_state_error_when_from_is_called() {
         let error = FailedCompanyFactsParse::new(STATE_NAME, missing_facts_key());
 
-        let expected_result = StateError::FailedCompanyFactsParse(error.clone());
+        let expected_result = StateError::FailedCompanyFactsParse(FailedCompanyFactsParse {
+            state_name: "Parse Company Facts".to_owned(),
+            parse_error: Box::new(ParseErrorKind::MissingTopLevelKey {
+                key: "facts".to_owned(),
+            }),
+        });
 
         let result = StateError::from(error);
 
