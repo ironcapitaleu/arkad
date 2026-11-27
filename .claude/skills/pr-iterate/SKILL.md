@@ -210,7 +210,7 @@ Stop iterating when:
 - 3 iterations have passed without convergence (flag to human). A round with only 🟣 findings
   does not count toward this limit
 - 2 rounds in a row had only 🟣 findings. Fix the correct nits of the second round and push, but
-  request no review. Report the PR as ready, and list the fixes that no review has seen
+  request no review. Report the PR as ready, and list the fixes no review saw
 
 ## Replying to Addressed Comments
 
