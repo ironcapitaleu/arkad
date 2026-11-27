@@ -26,6 +26,7 @@ decide, not this table.
 | A trait that wraps no external crate | `sec/src/lib/shared/row_digest/traits/digest_row.rs` |
 | A concrete type in `implementations/` | `sec/src/lib/shared/rate_limiter/implementations/sec_rate_limiter/` |
 | Constants next to their type | `sec/src/lib/shared/row_digest/implementations/byte_form/constants.rs`, `sec/src/lib/shared/cik/constants.rs` |
-| The error of a value type | `sec/src/lib/shared/cik/cik_error.rs`, `api/src/traits/token_verifier/token_error/` |
+| The error of a value type | `sec/src/lib/shared/cik/cik_error.rs` |
+| The error of a trait | `api/src/traits/token_verifier/token_error/` |
 | The error of an implementation folder | `sec/src/lib/shared/http_client/implementations/sec_client/error.rs` |
 | The error of a function at the root of the concept | `sec/src/lib/shared/row_digest/duplicate_digest_group/` |

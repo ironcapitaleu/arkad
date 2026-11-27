@@ -35,7 +35,8 @@ siblings are:
    the way its siblings are named, such as `sample_{concept}` or `fake_{type}`. A fake that only the
    tests of one module use can stay in the test module of that file.
 4. **No sibling to copy.** If the crate has no shared concepts yet, or no trait yet, use "Layout by
-   Part", per concept: `shared/{concept}/traits/` and `shared/{concept}/implementations/`.
+   Part", per concept, in the shared folder of step 1: `{concept}/traits/` and
+   `{concept}/implementations/`.
 
 If the layout of the crate differs from "Layout by Part", the crate wins. Do not move code that
 exists to match.
@@ -55,8 +56,9 @@ sends you here, the parts of a concept decide its files, not whether it wraps an
   so, goes in `implementations/`, one module per type.
 - **Constants** go in a `constants.rs` next to the type that uses them.
 - **An error** sits next to the code that returns it. A value type uses a `{type}_error.rs` file or
-  a `{type}_error/` module. A function at the root of the concept uses a module named after its
-  error. An implementation folder uses an `error.rs`.
+  a `{type}_error/` module. A trait uses a `{name}_error/` module next to the trait. A function at
+  the root of the concept uses a module named after its error. An implementation folder uses an
+  `error.rs`.
 - **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
   of the concept and does not need to know its subfolders.
 
@@ -106,7 +108,8 @@ context, or let the user give it via "Other".
 - If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
 - If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
 - If it defines a trait that several types implement, such as `DigestRow` → Path B layout, with a
-  fake implementor in the tests, unless the crate keeps its traits in the module of their concept
+  fake implementor in the tests. If the crate keeps its traits in the module of their concept, put
+  the trait there
 - Otherwise → Path A (value type with optional validation)
 - If answers are "don't know yet" → start with what's known, discover the rest together
 
@@ -590,7 +593,8 @@ impl Display for EntityName {
 - [ ] Display impl
 - [ ] Getter/accessor method(s)
 - [ ] Real implementation (if trait-based)
-- [ ] Fake implementation in `tests/fixtures/` (if trait-based)
+- [ ] Fake implementation in the fixtures folder of the crate, or in the test module if only that
+      module uses it (if trait-based)
 - [ ] Auto-trait tests
 - [ ] Happy path test(s)
 - [ ] Error path test(s)
