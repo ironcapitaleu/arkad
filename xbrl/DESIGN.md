@@ -836,7 +836,7 @@ The changes are to comments and to the new lists.
 | `OperatingIncome`, `Assets`, `Liabilities` | stays |
 | `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part |
 | `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
-| `ExchangeRateEffect` | `EffectOfExchangeRateOnCashAndCashEquivalents` joins the list, and `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` joins the parts with the other part `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations`, both with the scope `ExcludesRestrictedCash` |
+| `ExchangeRateEffect` | `EffectOfExchangeRateOnCashAndCashEquivalents` joins the list with the scope `ExcludesRestrictedCash`. `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` joins the parts with the same scope, and its other part is `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations` |
 | `NetIncome`, `Equity` | stays. The part rule stays. `NetIncomeLoss` and `StockholdersEquity` also start the new lists |
 | `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
 | `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
@@ -871,7 +871,8 @@ parses it.
 - `scope` is a nullable column of `standardized_facts`. It holds `ExcludesRestrictedCash`, or null
   for the full scope of the concept.
 - `MixedScopes` is a value of `findings.kind`. `concepts` holds the members of
-  `net-change-in-cash` with a value, in the order of `RollUpMismatch`. `reason` holds
+  `net-change-in-cash` with a value, in the order of `RollUpMismatch`. Only `NetChangeInCash` and
+  `ExchangeRateEffect` carry a scope. `reason` holds
   `net-change-in-cash`.
 - `MixedStarts` is a value of `findings.kind`. `concepts` holds the members of the group with a
   value, in the order of `RollUpMismatch`. The members that stand for a start with no value take

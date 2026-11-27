@@ -171,14 +171,14 @@ In the 2026 tree, `CashAndCashEquivalentsAtCarryingValue` is `CashAndDueFromBank
   them. The fixture rows support the placement: Amazon 2014, Baker Hughes 2013, and Intuitive
   Surgical 2013 report goods plus services equal to `SalesRevenueNet`. 3M 2013 reports
   5,817 − 856 − 5,246 − 17 = −302 million USD as
-  `CashAndCashEquivalentsPeriodIncreaseDecrease`. The table of removed elements confirms the
+  `CashAndCashEquivalentsPeriodIncreaseDecrease`. The table of removed elements will confirm the
   placement in the earlier releases. A difference there reopens decisions 1 and 4.
 - The other parts of `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` are only each other. A
   filer that splits revenue into goods and a third line, such as `OtherSalesRevenueNet`, gets the
-  goods line as `Revenue` with no finding. The table of removed elements lists the siblings of the
+  goods line as `Revenue` with no finding. The table of removed elements will list the siblings of the
   two concepts. A sibling there joins the other parts.
 - No fixture 10-K reports `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations`. The
-  table of removed elements confirms its name.
+  table of removed elements will confirm its name.
 - The sum of `CashAndDueFromBanks` and `InterestBearingDepositsInBanks` waits for a rule along the
   calculation tree.
 - A second scope, such as cash of discontinued operations, adds a variant to `Scope` and reopens
