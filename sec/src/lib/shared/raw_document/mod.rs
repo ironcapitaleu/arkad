@@ -973,10 +973,10 @@ mod tests {
     fn should_take_the_digest_from_the_file_without_hashing_the_body_when_building_a_document_from_a_file()
      {
         let digest_of_other_bytes = storage::Sha256Digest::of(b"[]");
-        let file = sample_notes_file().with_body_digest(digest_of_other_bytes.clone());
+        let file = sample_notes_file().with_body_digest(digest_of_other_bytes);
         let document = document_from_file(&file);
 
-        let expected_result = digest_of_other_bytes;
+        let expected_result = storage::Sha256Digest::of(b"[]");
 
         let result = document.metadata().sha256().clone();
 

@@ -156,9 +156,10 @@ mod tests {
     #[test]
     fn should_return_missing_fields_when_accessed() {
         let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
-        let error = IncompleteCompanyFacts::new("TestState", missing.clone());
+        let error = IncompleteCompanyFacts::new("TestState", missing);
 
-        let expected_result = &missing;
+        let expected_result =
+            &MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
 
         let result = error.missing_fields();
 

@@ -82,10 +82,12 @@ mod tests {
         let domain_error = create_baseline_domain_error();
 
         let expected_result = FailedRequestExecution {
-            state_name: "ExecuteSecRequest".to_string(),
-            domain_error: FailedSecRequest::new(ErrorReason::FailedRequestExecution {
-                details: "Network unreachable".to_string(),
-            }),
+            state_name: "ExecuteSecRequest".to_owned(),
+            domain_error: FailedSecRequest {
+                reason: ErrorReason::FailedRequestExecution {
+                    details: "Network unreachable".to_owned(),
+                },
+            },
         };
 
         let result = FailedRequestExecution::new(state_name, domain_error);
@@ -99,7 +101,7 @@ mod tests {
         let domain_error = create_baseline_domain_error();
         let failed_request_execution = FailedRequestExecution::new(state_name, domain_error);
 
-        let expected_result = state_name;
+        let expected_result = "ExecuteSecRequest";
 
         let result = failed_request_execution.state_name();
 
@@ -110,10 +112,13 @@ mod tests {
     fn should_return_domain_error_when_domain_error_method_is_called() {
         let state_name = "ExecuteSecRequest";
         let domain_error = create_baseline_domain_error();
-        let failed_request_execution =
-            FailedRequestExecution::new(state_name, domain_error.clone());
+        let failed_request_execution = FailedRequestExecution::new(state_name, domain_error);
 
-        let expected_result = &domain_error;
+        let expected_result = &FailedSecRequest {
+            reason: ErrorReason::FailedRequestExecution {
+                details: "Network unreachable".to_owned(),
+            },
+        };
 
         let result = failed_request_execution.domain_error();
 
