@@ -98,7 +98,8 @@ fn standardized_counts(facts: &[AsIsFact]) -> BTreeMap<CanonicalElementKind, usi
 /// `StockholdersEquity` without dimensions at 3 instants: 2025-09-30, 2026-05-31, and 2026-09-30.
 /// Both sources give each duration its exact start, so no conflict blocks a quarter. The concepts
 /// of the income statement, the earnings per share, and D&A get both quarters next to both months
-/// of June, so each has 4. Interest expense gets both quarters and no June, so it has 2. Every
+/// of June, so each has 4. Interest expense gets both quarters and no June, so it has 2. Cash and
+/// restricted cash has 4 instants: the start and the end of both periods of four months. Every
 /// other concept has 2.
 fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
     BTreeMap::from([
@@ -130,6 +131,7 @@ fn expected_standardized_counts() -> BTreeMap<CanonicalElementKind, usize> {
         ),
         (CashFlowConcept::NetChangeInCash.element(), 2),
         (CashFlowConcept::ExchangeRateEffect.element(), 2),
+        (CashFlowConcept::CashAndRestrictedCash.element(), 4),
         (BalanceSheetConcept::LiabilitiesAndEquity.element(), 2),
         (BalanceSheetConcept::AccountsPayable.element(), 2),
         (
@@ -376,7 +378,7 @@ fn should_give_the_3_month_revenue_candidate_of_the_reportable_segment_when_tier
 }
 
 #[test]
-fn should_give_84_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
+fn should_give_88_standardized_facts_in_33_concepts_when_the_dedup_rules_run_on_the_notes_facts() {
     let facts = parse_notes_fixture().facts;
 
     let expected_result = expected_standardized_counts();
@@ -387,7 +389,7 @@ fn should_give_84_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_
 }
 
 #[test]
-fn should_give_84_standardized_facts_in_32_concepts_when_the_dedup_rules_run_on_the_instance_facts()
+fn should_give_88_standardized_facts_in_33_concepts_when_the_dedup_rules_run_on_the_instance_facts()
 {
     let facts = parse_instance_fixture().facts;
 
@@ -509,6 +511,10 @@ fn should_resolve_seven_concepts_by_their_part_rules_when_the_dedup_rules_run_on
             rule("us-gaap/alias/exchange-rate-effect@1"),
         ),
         (
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            rule("us-gaap/alias/cash-and-restricted-cash@1"),
+        ),
+        (
             BalanceSheetConcept::LiabilitiesAndEquity.element(),
             rule("us-gaap/alias/liabilities-and-equity@1"),
         ),
@@ -544,6 +550,33 @@ fn should_resolve_seven_concepts_by_their_part_rules_when_the_dedup_rules_run_on
             .into_iter()
             .map(|fact| (fact.concept, fact.rule))
             .collect();
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_give_the_cash_at_the_start_and_the_end_of_both_periods_when_the_dedup_rules_run_on_the_notes_facts()
+ {
+    let facts = parse_notes_fixture().facts;
+
+    // The net change in cash of the four months to 2026-09-30 is 137 million: 388 less 251.
+    let expected_result = vec![
+        (date(2025, 5, 31), number("109000000")),
+        (date(2025, 9, 30), number("85000000")),
+        (date(2026, 5, 31), number("251000000")),
+        (date(2026, 9, 30), number("388000000")),
+    ];
+
+    let mut result: Vec<(Date, BigDecimal)> = newest_filing(&candidates_of(&facts).candidates)
+        .facts
+        .into_iter()
+        .filter(|fact| {
+            fact.concept == CashFlowConcept::CashAndRestrictedCash.element()
+                && fact.dimensions.is_empty()
+        })
+        .map(|fact| (fact.period.end(), fact.value))
+        .collect();
+    result.sort();
 
     assert_eq!(result, expected_result);
 }

@@ -1,12 +1,12 @@
 ---
 source: xbrl/src/core/elements/
-last-verified: 2026-11-16
+last-verified: 2026-11-27
 update-frequency: on-code-change
 ---
 
 # Standard Concepts
 
-These are the 59 standard concepts the system resolves to. `CanonicalElementKind` nests them by
+These are the 60 standard concepts the system resolves to. `CanonicalElementKind` nests them by
 statement and disclosure:
 
 - `CanonicalElementKind::Statement(StatementConcept)`: `BalanceSheetConcept`,
@@ -81,7 +81,7 @@ reports. It leaves out the revenues from "other activities" of E84, such as inte
 
 ## Cash Flow Statement (`CashFlowConcept`)
 
-Each value is a duration.
+Each value is a duration, except the values of `CashAndRestrictedCash`, which are instants.
 
 | Concept | Placement |
 | --- | --- |
@@ -95,6 +95,7 @@ Each value is a duration.
 | CapitalExpenditures | `investing-cash-flow`, −1 |
 | DividendsPaid | `financing-cash-flow`, −1 |
 | ShareRepurchases | `financing-cash-flow`, −1 |
+| CashAndRestrictedCash | Top |
 
 ## Per Share (`PerShareConcept`)
 

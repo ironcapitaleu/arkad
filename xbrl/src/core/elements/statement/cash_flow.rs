@@ -6,9 +6,11 @@
 use crate::core::elements::IncomeStatementConcept;
 use crate::core::elements::Placed;
 use crate::core::elements::roll_up::{Group, GroupKind, Placement, Weight};
+use crate::core::taxonomy::reference::PeriodType;
 
 innermost_concepts! {
-    /// A standard concept of the cash flow statement. Each value is a duration.
+    /// A standard concept of the cash flow statement. Each value is a duration, except the values
+    /// of [`CashFlowConcept::CashAndRestrictedCash`], which are instants.
     pub enum CashFlowConcept in Statement(StatementConcept::CashFlow) {
         /// The net change in cash, cash equivalents, and restricted cash, including the effect of
         /// exchange rates.
@@ -36,6 +38,10 @@ innermost_concepts! {
         /// Share repurchases: the payments for the repurchase of every class of equity
         /// (`PaymentsForRepurchaseOfEquity`).
         ShareRepurchases => "Share Repurchases",
+        /// Cash, cash equivalents, and restricted cash at the end of the period, including the
+        /// cash of disposal groups and discontinued operations: the balance that the statement
+        /// reconciles. A period before ASU 2016-18 has no value.
+        CashAndRestrictedCash => "Cash and Restricted Cash",
     }
 }
 
@@ -53,10 +59,22 @@ group_names! {
     }
 }
 
+impl CashFlowConcept {
+    /// Returns the period type of each value of the concept: [`PeriodType::Instant`] for
+    /// [`CashFlowConcept::CashAndRestrictedCash`], and [`PeriodType::Duration`] for the others.
+    #[must_use]
+    pub const fn period_type(self) -> PeriodType {
+        match self {
+            Self::CashAndRestrictedCash => PeriodType::Instant,
+            _ => PeriodType::Duration,
+        }
+    }
+}
+
 impl Placed for CashFlowConcept {
     fn placement(self) -> Placement {
         match self {
-            Self::NetChangeInCash => Placement::Top,
+            Self::NetChangeInCash | Self::CashAndRestrictedCash => Placement::Top,
             Self::OperatingCashFlow | Self::InvestingCashFlow | Self::FinancingCashFlow => {
                 Placement::child(CashFlowGroup::NetChangeInCash.name(), Weight::Plus)
             }
@@ -171,6 +189,7 @@ mod tests {
                 CashFlowConcept::ShareRepurchases,
                 Placement::child(CashFlowGroup::FinancingCashFlow.name(), Weight::Minus),
             ),
+            (CashFlowConcept::CashAndRestrictedCash, Placement::Top),
         ];
 
         let result: Vec<(CashFlowConcept, Placement)> = concepts

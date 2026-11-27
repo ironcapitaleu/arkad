@@ -973,6 +973,10 @@ mod tests {
                 "us-gaap/alias/exchange-rate-effect@1",
             ),
             (
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                "us-gaap/alias/cash-and-restricted-cash@1",
+            ),
+            (
                 IncomeStatementConcept::OtherComprehensiveIncome.element(),
                 "us-gaap/alias/other-comprehensive-income@1",
             ),
@@ -1107,6 +1111,7 @@ mod tests {
             CashFlowConcept::ShareRepurchases.element(),
             CashFlowConcept::NetChangeInCash.element(),
             CashFlowConcept::ExchangeRateEffect.element(),
+            CashFlowConcept::CashAndRestrictedCash.element(),
             IncomeStatementConcept::OtherComprehensiveIncome.element(),
             IncomeStatementConcept::ComprehensiveIncome.element(),
         ];
@@ -1346,7 +1351,7 @@ mod tests {
     ];
 
     /// The cash flow concepts of [`mappings::OPTIONAL_CONCEPTS`].
-    const CASH_FLOW: [CanonicalElementKind; 7] = [
+    const CASH_FLOW: [CanonicalElementKind; 8] = [
         CashFlowConcept::DepreciationAmortization.element(),
         CashFlowConcept::CapitalExpenditures.element(),
         CashFlowConcept::DividendsPaid.element(),
@@ -1354,6 +1359,7 @@ mod tests {
         CashFlowConcept::ShareBasedCompensation.element(),
         CashFlowConcept::NetChangeInCash.element(),
         CashFlowConcept::ExchangeRateEffect.element(),
+        CashFlowConcept::CashAndRestrictedCash.element(),
     ];
 
     #[test]
@@ -1400,6 +1406,14 @@ mod tests {
                 vec![concept(
                     "us-gaap",
                     "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+                )],
+            ),
+            (
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                rule("us-gaap/alias/cash-and-restricted-cash@1"),
+                vec![concept(
+                    "us-gaap",
+                    "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
                 )],
             ),
         ];
@@ -1530,6 +1544,20 @@ mod tests {
                         concept("us-gaap", "PaymentsForRepurchaseOfPrivatePlacement"),
                         concept("us-gaap", "PaymentsForRepurchaseOfWarrants"),
                     ],
+                },
+            ),
+            (
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                PartAliases {
+                    rule: rule("us-gaap/part/cash-and-restricted-cash@1"),
+                    parts: vec![concept(
+                        "us-gaap",
+                        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                    )],
+                    other_parts: vec![concept(
+                        "us-gaap",
+                        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+                    )],
                 },
             ),
         ];
@@ -2929,6 +2957,81 @@ mod tests {
             rule("us-gaap/part/exchange-rate-effect@1"),
             Some(Confidence::Synonym),
         )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_cash_and_restricted_cash_rule_id_when_registry_with_us_gaap_resolves_the_cash_including_disposal_groups()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+            "388000000",
+        )];
+
+        let expected_result = vec![(
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            rule("us-gaap/alias/cash-and-restricted-cash@1"),
+            Some(Confidence::Exact),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_cash_and_restricted_cash_part_rule_id_when_registry_with_us_gaap_resolves_a_part_alone()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "388000000",
+        )];
+
+        let expected_result = vec![(
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            rule("us-gaap/part/cash-and-restricted-cash@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_cash_and_restricted_cash_when_the_filing_reports_the_part_next_to_the_cash_of_disposal_groups()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                "388000000",
+            ),
+            fact(
+                &filing,
+                "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+                "12000000",
+            ),
+        ];
+
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 

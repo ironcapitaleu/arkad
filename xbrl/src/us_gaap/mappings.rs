@@ -342,6 +342,8 @@ pub const SHARE_BASED_COMPENSATION_RULE: &str = "us-gaap/alias/share-based-compe
 pub const NET_CHANGE_IN_CASH_RULE: &str = "us-gaap/alias/net-change-in-cash@1";
 /// The ID of the alias rule of [`CashFlowConcept::ExchangeRateEffect`].
 pub const EXCHANGE_RATE_EFFECT_RULE: &str = "us-gaap/alias/exchange-rate-effect@1";
+/// The ID of the alias rule of [`CashFlowConcept::CashAndRestrictedCash`].
+pub const CASH_AND_RESTRICTED_CASH_RULE: &str = "us-gaap/alias/cash-and-restricted-cash@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
 pub const OTHER_COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/other-comprehensive-income@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::ComprehensiveIncome`].
@@ -732,6 +734,18 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         EXCHANGE_RATE_EFFECT_RULE,
         false,
     ),
+    ConceptDefinition::new(
+        CashFlowConcept::CashAndRestrictedCash.element(),
+        // `CashAndCashEquivalentsAtCarryingValue` is not in the list, because it leaves out
+        // restricted cash. It is the alias of `CashAndEquivalents`.
+        // `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` is a part, next to the
+        // cash of disposal groups. `PART_CONCEPTS` holds it.
+        &[
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+        ],
+        CASH_AND_RESTRICTED_CASH_RULE,
+        false,
+    ),
     // Comprehensive income. Many filers present no other comprehensive income, so these lists
     // are optional.
     ConceptDefinition::new(
@@ -795,6 +809,8 @@ pub const SHARE_REPURCHASES_PART_RULE: &str = "us-gaap/part/share-repurchases@1"
 pub const NET_CHANGE_IN_CASH_PART_RULE: &str = "us-gaap/part/net-change-in-cash@1";
 /// The ID of the part rule of [`CashFlowConcept::ExchangeRateEffect`].
 pub const EXCHANGE_RATE_EFFECT_PART_RULE: &str = "us-gaap/part/exchange-rate-effect@1";
+/// The ID of the part rule of [`CashFlowConcept::CashAndRestrictedCash`].
+pub const CASH_AND_RESTRICTED_CASH_PART_RULE: &str = "us-gaap/part/cash-and-restricted-cash@1";
 /// The ID of the part rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
 pub const OTHER_COMPREHENSIVE_INCOME_PART_RULE: &str = "us-gaap/part/other-comprehensive-income@1";
 /// The ID of the part rule of [`IncomeStatementConcept::ComprehensiveIncome`].
@@ -1118,6 +1134,15 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         &[],
         EXCHANGE_RATE_EFFECT_PART_RULE,
+    ),
+    PartDefinition::new(
+        CashFlowConcept::CashAndRestrictedCash.element(),
+        &["CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
+        &[
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+        ],
+        &[],
+        CASH_AND_RESTRICTED_CASH_PART_RULE,
     ),
     PartDefinition::new(
         IncomeStatementConcept::OtherComprehensiveIncome.element(),
