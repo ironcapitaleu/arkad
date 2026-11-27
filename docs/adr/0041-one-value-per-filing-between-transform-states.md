@@ -5,7 +5,7 @@
 | Status | Proposed. The project owner confirms |
 | Date | 2026-11-21 |
 | Deciders | The project owner |
-| Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332) |
+| Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332), accessed 2026-11-27 |
 
 ## Context
 
@@ -67,7 +67,8 @@ document "STA-424 Findings: Silver Parquet Layer and Polars for the Transform St
 - Linear document "STA-424 Findings: Silver Parquet Layer and Polars for the Transform Step",
   2026-11-08: the peak of the stream split and of the eager read of `2024q1`.
 - [Linear document "STA-425 Findings: Data Model and Processing of the Silver Layer"](https://linear.app/state-machine/document/sta-425-findings-data-model-and-processing-of-the-silver-layer-2cfdecb2c70a),
-  section 8, 2026-11-07: the size of `2025q3`, rows per filing, and the peak of a streamed pass.
-- [STA-329](https://linear.app/state-machine/issue/STA-329), "Additional Notes": the idea of
-  streamable states.
+  accessed 2026-11-21, section 8, 2026-11-07: the size of `2025q3`, rows per filing, and the peak
+  of a streamed pass.
+- [STA-329](https://linear.app/state-machine/issue/STA-329), accessed 2026-11-21, "Additional
+  Notes": the idea of streamable states.
 - [ADR 0035](0035-one-task-per-notes-file.md).

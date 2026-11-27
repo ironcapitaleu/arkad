@@ -5,7 +5,7 @@
 | Status | Proposed. The project owner confirms |
 | Date | 2026-11-21 |
 | Deciders | The project owner |
-| Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332) |
+| Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332), accessed 2026-11-27 |
 
 ## Context
 
@@ -23,8 +23,8 @@ The two sources of one filing reach silver in different units and at different t
 instance comes in the `filing_day` unit of its filed date. The Notes rows come in the `notes_file`
 unit of a later Notes period, at least weeks later.
 
-Measured on 2026-10-31 on one 10-Q in both sources (STA-402): both parsers give the same value
-keys, and the same content after the losses of Notes. The instance keeps units, text, and
+The parser comparison test runs both parsers on the 10-Q `0001628280-26-068246` in both sources.
+Both give the same value keys, and the same content after the losses of Notes. The instance keeps units, text, and
 footnotes that Notes loses.
 
 This choice binds the filing step, the layout of `candidates`, and the series step that reads it.
@@ -67,6 +67,6 @@ This choice binds the filing step, the layout of `candidates`, and the series st
 - `xbrl/src/core/dedup.rs`, `xbrl/src/core/alias.rs`, and `xbrl/src/core/cadence_filter.rs` on
   `main` at `7e2c83e`: the functions of standardize filing, each on the facts of one filing.
 - [Linear document "STA-425 Findings: Data Model and Processing of the Silver Layer"](https://linear.app/state-machine/document/sta-425-findings-data-model-and-processing-of-the-silver-layer-2cfdecb2c70a),
-  section 6, 2026-11-07: silver keeps both sources of one filing.
-- [STA-402](https://linear.app/state-machine/issue/STA-402), 2026-10-31: the comparison of both
-  sources on one filing.
+  accessed 2026-11-21, section 6, 2026-11-07: silver keeps both sources of one filing.
+- `xbrl/tests/parser_comparison.rs` on `main` at `da46144`: the comparison of both sources on one
+  filing, and the losses of Notes it allows.

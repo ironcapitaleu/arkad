@@ -5,7 +5,7 @@
 | Status | Proposed. The project owner confirms |
 | Date | 2026-11-21 |
 | Deciders | The project owner |
-| Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332) |
+| Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332), accessed 2026-11-27 |
 
 ## Context
 
@@ -94,6 +94,7 @@ This choice binds the filing step, the silver writer, and the run summary of the
   2026-11-08: the filings of `2024q1` and of the filing day 2026-10-28, and the `dropped_rows`
   reasons of the prototype.
 - [Linear document "STA-425 Findings: Data Model and Processing of the Silver Layer"](https://linear.app/state-machine/document/sta-425-findings-data-model-and-processing-of-the-silver-layer-2cfdecb2c70a),
-  section 6, 2026-11-07: the 5,731 filings of the four forms in `2025q3`.
-- [STA-332](https://linear.app/state-machine/issue/STA-332), "Definition of Done": the proposal of
+  accessed 2026-11-21, section 6, 2026-11-07: the 5,731 filings of the four forms in `2025q3`.
+- [STA-332](https://linear.app/state-machine/issue/STA-332), accessed 2026-11-27, "Definition of
+  Done": the proposal of
   STA-425 to skip a rejected filing and fail a unit above about 5%.

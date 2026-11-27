@@ -59,12 +59,12 @@ flowchart LR
 
     WR["Silver writer<br/>one thread"]:::writer
 
-    NR -- "NotesFilingInput,<br/>bounded channel" --> PN
+    NR -- "NotesFilingInput and split,<br/>bounded channel" --> PN
     DR -- "InstanceFilingInput,<br/>bounded channel" --> PI
-    BR -- "FilingRows" --> WR
-    PN -. "rejected" .-> WR
-    PI -. "rejected" .-> WR
-    BR -. "rejected" .-> WR
+    BR -- "WorkerOutcome: Written" --> WR
+    PN -. "WorkerOutcome: Rejected" .-> WR
+    PI -. "WorkerOutcome: Rejected" .-> WR
+    BR -. "WorkerOutcome: Rejected" .-> WR
 ```
 
 A transform task runs one unit. The work has three parts:
@@ -98,7 +98,7 @@ whole filings through the bounded channel of the runner
 ## The Notes Reader
 
 The Notes reader turns one stored Notes file into a sequence of `NotesFilingInput` values. Its
-input is a `NotesArchiveRef` from the unit source. It reads the bytes through a
+input is a `NotesArchiveRef` from the `RawDocumentSource` of the plan step. It reads the bytes through a
 `ReadRepository<Record = RawDocument<RawNotesArchive>>`. The raw store checks the size and the
 SHA-256 against the metadata on each read.
 
@@ -222,7 +222,8 @@ pub struct StoredIndustry {
 - A `submissions` file that arrives later changes the inputs of the day. The raw store listing
   backend hands out every filing of the window of `daily_filings`, so a run of that backend writes
   the day again with the SIC. The write log and the queue hand out no reference for a
-  `submissions` file, so with them the day keeps the null until a replay.
+  `submissions` file, so with them the day keeps the null until a replay. A day outside the window
+  keeps the null until a replay, with every backend.
 - The label file stays unread. The company labels stay out of the MVP.
 - The reader reads one instance at a time. The largest unit of the prototype held 394.7 MB of XML
   for 167 filings, with a peak of 78 MB (measured).
@@ -317,8 +318,14 @@ writer:
 ```rust
 /// The outcome of one filing, as the writer receives it.
 pub struct WorkerOutcome {
-    pub split: Split,                   // Stream or Buckets, copied from the channel message
+    pub split: Split,                   // copied from the channel message
     pub outcome: FilingOutcome,
+}
+
+/// The split of the Notes file that gave a filing. A filing day always has `Stream`.
+pub enum Split {
+    Stream,
+    Buckets,
 }
 ```
 
