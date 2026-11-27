@@ -32,7 +32,8 @@ siblings are:
    Find the matching place of the concrete types, often an `implementations/` folder. Put a new
    trait and its types in the same kind of place.
 3. **Fakes.** Find the fixtures folder of the crate, often `tests/fixtures/`, and name a new fake
-   the way its siblings are named, such as `sample_{concept}` or `fake_{type}`.
+   the way its siblings are named, such as `sample_{concept}` or `fake_{type}`. A fake that only the
+   tests of one module use can stay in the test module of that file.
 4. **A crate with no shared concepts yet.** Use "Layout by Part", per concept:
    `shared/{concept}/traits/` and `shared/{concept}/implementations/`.
 
@@ -46,11 +47,12 @@ files, not whether it wraps an external crate:
 
 - **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
   `traits/mod.rs`. This holds for a trait that wraps no external crate too.
-- **A concrete type** that implements a trait, or that the concept provides next to its trait, goes
-  in `implementations/`, one module per type.
+- **A concrete type** that implements a trait of the concept, or that its implementors use to do
+  so, goes in `implementations/`, one module per type.
 - **Constants** go in a `constants.rs` next to the type that uses them.
-- **An error** sits next to the code that returns it, in a `{type}_error.rs` file or a
-  `{type}_error/` module.
+- **An error** sits next to the code that returns it. A value type, or a function at the root of the
+  concept, uses a `{type}_error.rs` file or a `{type}_error/` module. An implementation folder uses
+  an `error.rs`.
 - **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
   of the concept and does not need to know its subfolders.
 
@@ -589,8 +591,8 @@ impl Display for EntityName {
 - [ ] Happy path test(s)
 - [ ] Error path test(s)
 - [ ] Module registered in parent `mod.rs`
-- [ ] Files follow "Layout by Part": traits in `traits/`, types in `implementations/`, constants in
-      `constants.rs`, errors next to the code that returns them
+- [ ] Files follow the layout of the crate ("Where a Concept Lives"), and "Layout by Part" where
+      the crate uses `traits/` and `implementations/` folders
 - [ ] Compiles and tests pass
 
 ## Self-Improvement
