@@ -1,7 +1,7 @@
 # Transform per Filing
 
 > **Status:** proposed, for review by the owner.
-> [ADR 0047](../../../docs/adr/0047-one-value-per-filing-between-transform-states.md),
+> [ADR 0048](../../../docs/adr/0048-one-value-per-filing-between-transform-states.md),
 > [ADR 0042](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md), and
 > [ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md) hold the decisions of
 > this document.
@@ -85,7 +85,7 @@ filing step that the runner takes as a function.
 The states of the filing machine pass one value: the rows, the facts, or the candidates of one
 whole filing. No state outputs a stream of records. Only the unit reader streams, and it streams
 whole filings through the bounded channel of the runner
-([ADR 0047](../../../docs/adr/0047-one-value-per-filing-between-transform-states.md)).
+([ADR 0048](../../../docs/adr/0048-one-value-per-filing-between-transform-states.md)).
 
 - The largest filing has 27,529 rows in `num.tsv` of `2025q3` (measured). Its facts, candidates,
   and rows fit in memory many times over.
