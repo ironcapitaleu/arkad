@@ -42,8 +42,8 @@ A filing that corrects or adds to an earlier filing of the same entity. Its form
 
 ### Company
 
-A business that the product shows to its users. One company can file under several entities over
-time, for example after a merger that creates a new parent.
+A business that the product shows to its users. One company can have several entities over time,
+for example after a merger that creates a new parent.
 
 - **Not to confuse with:** Entity.
 - **Related:** Entity.
@@ -91,8 +91,8 @@ A report that one entity submits to a regulator at one time.
 
 The type of a filing. It says what the filing reports.
 
-- **Example:** 10-K, the annual report of a US company. 10-Q, its quarterly report. 20-F and 40-F,
-  the annual reports of foreign companies.
+- **Example:** 10-K, the annual report of a US entity. 10-Q, its quarterly report. 20-F and 40-F,
+  the annual reports of foreign entities.
 - **Related:** Amendment, Filing.
 
 ### Instance
@@ -176,11 +176,18 @@ key. The first copy has rank 0.
 
 ### Current Unit
 
-The write unit of a unit key that silver wrote last. A normal read takes only current units. The
+Of the write units of one unit key, the one that silver wrote last. A normal read takes only current units. The
 results of the series step are the exception: a read takes the last full run that finished, and
 the changes of each finished run after it.
 
 - **Related:** Replay, Unit Key, Write Unit.
+
+### Dataset
+
+One table of silver, such as the as-is facts, the filings, or the standardized facts.
+
+- **Not to confuse with:** Notes File.
+- **Related:** Silver, Unit Key.
 
 ### Dropped Row
 
