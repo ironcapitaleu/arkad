@@ -147,7 +147,9 @@ The second test computes `expected_result` from strings with `map`.
 - If the full value is too long to write, assert on a smaller part of the output, and write that part out in full.
 - If the expected value is long but you assert on all of it, you can name it in the Arrange step, as in `let periods_from_2009q1_to_2026_09 = vec![...];`. Then `expected_result` takes that name. The value must stay written out in the test. This needs no deviation comment.
 - If the test checks that two paths agree, `expected_result` can be the output of the reference path. Name both paths in the test name, as in `should_hand_every_stream_item_to_the_caller_when_running_to_the_archive`.
-- If the test checks that a value passes through unchanged, `expected_result` can be a clone of the input, as in `let expected_result = input.clone();`. Examples are an accessor that returns its value, a `From` that wraps an error, and a state whose input stays the same. The test name says that the value stays the same.
+- If the test checks that a value passes through unchanged, `expected_result` can be a clone of the input, as in `let expected_result = input.clone();`. If the code wraps the input, wrap the clone in the same constructor, as in `StateError::UnexpectedCik(error.clone())`. Examples are an accessor that returns a stored field, a `From` that wraps an error, and a state whose input stays the same.
+  - Name the test so it says the value stays the same, as in `should_not_change_input_data_when_computing_output_data`.
+  - The input must differ from its `Default` value. Then code that drops the input and returns a fresh value fails the test.
 
 ### Compare the Value
 
