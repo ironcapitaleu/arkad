@@ -893,7 +893,7 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "RedeemableNoncontrollingInterestEquityOtherFairValue",
         ],
         // The first two parts are each an other part of the other. The parts after them block
-        // nothing, because filers report them next to the first two, and they would stop them.
+        // nothing, because filers report them next to the first two, and they would block them.
         // The six `TemporaryEquityMaturity` siblings are left out, because they split the same
         // total by maturity.
         &[
