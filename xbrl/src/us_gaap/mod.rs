@@ -3723,6 +3723,38 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    // A known gap: the parts below the redeemable noncontrolling interest block nothing, so the
+    // first counts alone.
+    #[test]
+    fn should_give_the_common_part_alone_when_the_filing_reports_it_next_to_the_preferred_part() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+                "100000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+                "50000000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(100_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = temporary_equity_values(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_give_both_eps_concepts_when_the_filing_reports_only_eps_basic_and_diluted() {
         let us_gaap = UsGaap::new();
