@@ -77,6 +77,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::error::BackendCause;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -176,13 +177,16 @@ mod tests {
 
     #[test]
     fn should_downcast_to_backend_error_when_read_error_is_a_backend_variant() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let read_error = ReadError::Backend(backend_error.clone());
+        let read_error = ReadError::Backend(BackendError::unreachable_storage("timeout"));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(read_error)
             .expect("Given a `ReadError::Backend`, the downcast to `BackendError` should succeed");
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]

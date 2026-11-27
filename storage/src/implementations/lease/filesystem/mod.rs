@@ -324,6 +324,9 @@ mod tests {
         let store = FilesystemLeaseStore::new(root.path());
         let expires_at = in_hours(16);
         acquired(&store, "plan-a", expires_at).await;
+        let kind = transform_notes();
+        let plan_id = "plan-b";
+        let new_expires_at = in_hours(16);
 
         let expected_result = Err(LeaseError::LeaseHeld {
             kind: transform_notes(),
@@ -333,9 +336,7 @@ mod tests {
             },
         });
 
-        let result = store
-            .acquire(&transform_notes(), "plan-b", in_hours(16))
-            .await;
+        let result = store.acquire(&kind, plan_id, new_expires_at).await;
 
         assert_eq!(result, expected_result);
     }
@@ -345,12 +346,13 @@ mod tests {
         let root = temporary_root();
         let store = FilesystemLeaseStore::new(root.path());
         acquired(&store, "plan-a", in_hours(-1)).await;
+        let kind = transform_notes();
+        let plan_id = "plan-b";
+        let expires_at = in_hours(16);
 
         let expected_result = Ok(LeaseGeneration(2));
 
-        let result = store
-            .acquire(&transform_notes(), "plan-b", in_hours(16))
-            .await;
+        let result = store.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }
@@ -362,6 +364,7 @@ mod tests {
         let expires_at = in_hours(16);
         acquired(&store, "plan-a", in_hours(-1)).await;
         acquired(&store, "plan-b", expires_at).await;
+        let kind = transform_notes();
 
         let expected_result = Ok(Some((
             Lease {
@@ -371,7 +374,7 @@ mod tests {
             LeaseGeneration(2),
         )));
 
-        let result = store.current(&transform_notes()).await;
+        let result = store.current(&kind).await;
 
         assert_eq!(result, expected_result);
     }
@@ -380,10 +383,11 @@ mod tests {
     async fn should_return_none_when_the_job_kind_has_no_lease() {
         let root = temporary_root();
         let store = FilesystemLeaseStore::new(root.path());
+        let kind = transform_notes();
 
         let expected_result = Ok(None);
 
-        let result = store.current(&transform_notes()).await;
+        let result = store.current(&kind).await;
 
         assert_eq!(result, expected_result);
     }
@@ -393,12 +397,13 @@ mod tests {
         let root = temporary_root();
         let store = FilesystemLeaseStore::new(root.path());
         let kind = transform_notes();
+        let expires_at = in_hours(16);
 
         let expected_result = 1;
 
         let (first, second) = tokio::join!(
-            store.acquire(&kind, "plan-a", in_hours(16)),
-            store.acquire(&kind, "plan-b", in_hours(16)),
+            store.acquire(&kind, "plan-a", expires_at),
+            store.acquire(&kind, "plan-b", expires_at),
         );
         let result = usize::from(first.is_ok()) + usize::from(second.is_ok());
 
@@ -410,12 +415,13 @@ mod tests {
         let root = temporary_root();
         let store = FilesystemLeaseStore::new(root.path());
         let kind = transform_notes();
+        let expires_at = in_hours(16);
 
         let expected_result = 1;
 
         let (first, second) = tokio::join!(
-            store.acquire(&kind, "plan-a", in_hours(16)),
-            store.acquire(&kind, "plan-b", in_hours(16)),
+            store.acquire(&kind, "plan-a", expires_at),
+            store.acquire(&kind, "plan-b", expires_at),
         );
         let result = usize::from(matches!(first, Err(LeaseError::LeaseHeld { .. })))
             + usize::from(matches!(second, Err(LeaseError::LeaseHeld { .. })));
@@ -453,14 +459,15 @@ mod tests {
         )
         .expect("Given an existing directory, writing a file should always succeed");
         let store = FilesystemLeaseStore::new(root.path());
+        let kind = transform_notes();
+        let plan_id = "plan-b";
+        let expires_at = in_hours(16);
 
         let expected_result = Err(LeaseError::Backend(BackendError::failed_operation(
             "Lease generation 18446744073709551615 of job kind 'transform-notes' has no next generation",
         )));
 
-        let result = store
-            .acquire(&transform_notes(), "plan-b", in_hours(16))
-            .await;
+        let result = store.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }
@@ -470,14 +477,15 @@ mod tests {
         let parent = temporary_root();
         let root = parent.path().join("missing");
         let store = FilesystemLeaseStore::new(&root);
+        let kind = transform_notes();
+        let plan_id = "plan-a";
+        let expires_at = in_hours(16);
 
         let expected_result = Err(LeaseError::Backend(BackendError::from(
             FailedFilesystemOperation::new(FailedFilesystemOperationReason::MissingRoot, &root),
         )));
 
-        let result = store
-            .acquire(&transform_notes(), "plan-a", in_hours(16))
-            .await;
+        let result = store.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }
@@ -491,6 +499,7 @@ mod tests {
         std::fs::write(directory.join("1"), b"{")
             .expect("Given an existing directory, writing a file should always succeed");
         let store = FilesystemLeaseStore::new(root.path());
+        let kind = transform_notes();
 
         let expected_result = Err(LeaseError::Backend(BackendError::from(
             FailedFilesystemOperation::new(
@@ -499,7 +508,7 @@ mod tests {
             ),
         )));
 
-        let result = store.current(&transform_notes()).await;
+        let result = store.current(&kind).await;
 
         assert_eq!(result, expected_result);
     }

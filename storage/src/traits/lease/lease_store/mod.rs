@@ -91,6 +91,7 @@ mod tests {
             .acquire(&kind, "plan-a", expires_at)
             .await
             .expect("Given a job kind without a lease, the acquire should always succeed");
+        let plan_id = "plan-b";
 
         let expected_result = Err(LeaseError::LeaseHeld {
             kind: transform_notes(),
@@ -100,7 +101,7 @@ mod tests {
             },
         });
 
-        let result = store.acquire(&kind, "plan-b", expires_at).await;
+        let result = store.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }
@@ -113,12 +114,12 @@ mod tests {
             .acquire(&kind, "plan-a", DateTime::<Utc>::UNIX_EPOCH)
             .await
             .expect("Given a job kind without a lease, the acquire should always succeed");
+        let plan_id = "plan-b";
+        let expires_at = DateTime::<Utc>::MAX_UTC;
 
         let expected_result = Ok(LeaseGeneration(2));
 
-        let result = store
-            .acquire(&kind, "plan-b", DateTime::<Utc>::MAX_UTC)
-            .await;
+        let result = store.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }

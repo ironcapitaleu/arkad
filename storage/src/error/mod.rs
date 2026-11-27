@@ -261,13 +261,16 @@ mod tests {
 
     #[test]
     fn should_downcast_to_read_error_when_error_kind_is_a_read_variant() {
-        let read_error = ReadError::missing_record("0000320193-24-000123");
-        let error_kind = ErrorKind::Read(read_error.clone());
+        let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
+
+        let expected_result = ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        };
 
         let result = ReadError::try_from(error_kind)
             .expect("Given an `ErrorKind::Read`, the downcast to `ReadError` should succeed");
 
-        assert_eq!(result, read_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -283,13 +286,16 @@ mod tests {
 
     #[test]
     fn should_downcast_to_write_error_when_error_kind_is_a_write_variant() {
-        let write_error = WriteError::conflicting_write("duplicate accession");
-        let error_kind = ErrorKind::Write(write_error.clone());
+        let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
+
+        let expected_result = WriteError::ConflictingWrite {
+            reason: "duplicate accession".to_owned(),
+        };
 
         let result = WriteError::try_from(error_kind)
             .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` should succeed");
 
-        assert_eq!(result, write_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -305,26 +311,36 @@ mod tests {
 
     #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_read() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let error_kind = ErrorKind::Read(ReadError::Backend(backend_error.clone()));
+        let error_kind = ErrorKind::Read(ReadError::Backend(BackendError::unreachable_storage(
+            "timeout",
+        )));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(error_kind).expect(
             "Given an `ErrorKind` wrapping a `ReadError::Backend`, the skip-level downcast should succeed",
         );
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_write() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
+        let error_kind = ErrorKind::Write(WriteError::Backend(BackendError::unreachable_storage(
+            "timeout",
+        )));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(error_kind).expect(
             "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast should succeed",
         );
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -345,45 +361,59 @@ mod tests {
     fn should_roundtrip_lease_error_when_upcast_then_downcast() {
         let lease_error = LeaseError::Backend(BackendError::unreachable_storage("timeout"));
 
-        let upcast: ErrorKind = lease_error.clone().into();
-        let result = LeaseError::try_from(upcast)
+        let expected_result = LeaseError::Backend(BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        });
+
+        let result = LeaseError::try_from(ErrorKind::from(lease_error))
             .expect("A `LeaseError` upcast into `ErrorKind` should downcast back unchanged");
 
-        assert_eq!(result, lease_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_lease() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let error_kind = ErrorKind::Lease(LeaseError::Backend(backend_error.clone()));
+        let error_kind = ErrorKind::Lease(LeaseError::Backend(BackendError::unreachable_storage(
+            "timeout",
+        )));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(error_kind).expect(
             "Given an `ErrorKind` wrapping a `LeaseError::Backend`, the skip-level downcast should succeed",
         );
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_roundtrip_read_error_when_upcast_then_downcast() {
         let read_error = ReadError::missing_record("0000320193-24-000123");
 
-        let upcast: ErrorKind = read_error.clone().into();
-        let result = ReadError::try_from(upcast)
+        let expected_result = ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        };
+
+        let result = ReadError::try_from(ErrorKind::from(read_error))
             .expect("A `ReadError` upcast into `ErrorKind` should downcast back unchanged");
 
-        assert_eq!(result, read_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_roundtrip_write_error_when_upcast_then_downcast() {
         let write_error = WriteError::failed_integrity_check("balance sheet identity violated");
 
-        let upcast: ErrorKind = write_error.clone().into();
-        let result = WriteError::try_from(upcast)
+        let expected_result = WriteError::FailedIntegrityCheck {
+            reason: "balance sheet identity violated".to_owned(),
+        };
+
+        let result = WriteError::try_from(ErrorKind::from(write_error))
             .expect("A `WriteError` upcast into `ErrorKind` should downcast back unchanged");
 
-        assert_eq!(result, write_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
