@@ -58,6 +58,8 @@ dependencies = [
  "base64 0.23.1",
  "bigdecimal",
  "chrono",
+ "crc32fast",
+ "getrandom 0.4.2",
  "http-body-util",
  "jsonwebtoken",
  "pretty_assertions",
@@ -76,6 +78,7 @@ dependencies = [
  "utoipa-swagger-ui",
  "uuid",
  "xbrl",
+ "zeroize",
 ]
 
 [[package]]
