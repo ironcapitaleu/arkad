@@ -87,8 +87,8 @@ Options considered:
 
 - A file written before the move and a file written after it can differ in their fraction digits
   for the same instant. Code reads both.
-- Text that compares or sorts stored timestamps as strings can see both forms. No code in the
-  repository does that on 2026-11-27.
+- Stored timestamps have no fixed width, so a text sort does not follow time order. No code in the
+  repository sorts them as text on 2026-11-27.
 - The amendment holds until version 1. A format change after version 1 needs a new ADR.
 
 ## Options Considered

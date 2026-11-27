@@ -455,6 +455,22 @@ mod tests {
     }
 
     #[test]
+    fn should_read_the_instant_when_the_stored_produced_at_has_padded_milliseconds() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["produced_at"] = "2026-09-22T20:05:30.500Z".into();
+
+        let expected_result = Timestamp::new(1_790_107_530, 500_000_000)
+            .expect("Given a hardcoded timestamp in range, the time should always build");
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .expect("Given stored metadata with every field, deserialization should always succeed")
+            .produced_at();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_to_read_metadata_without_the_ingestion_mode_key() {
         let mut stored = serde_json::to_value(sample_metadata())
             .expect("Given metadata of owned fields, serialization should always succeed");
