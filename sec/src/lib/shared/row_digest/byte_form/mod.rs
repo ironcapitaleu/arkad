@@ -171,7 +171,9 @@ impl ByteForm {
     /// # Panics
     ///
     /// Panics if the text is longer than `u32::MAX` bytes, because the length prefix has 4 bytes.
-    /// The text of a `decimal128` value has at most 38 digits, a sign, and a point, so it never is.
+    /// The text of a `decimal128` value has at most 38 digits, a sign, a point, and the 127 zeros of
+    /// the most negative scale. So it stays far below the limit. A `BigDecimal` from another
+    /// source, such as `1E+5000000000`, can reach the panic.
     ///
     /// # Examples
     ///
@@ -313,7 +315,7 @@ impl ByteForm {
     /// # Panics
     ///
     /// Panics if the count is greater than `u32::MAX`, because the count has 4 bytes. The count is
-    /// the number of fields in the schema of the struct, so it never is.
+    /// the number of fields in the schema of the struct, so it is never greater than `u32::MAX`.
     ///
     /// # Examples
     ///
