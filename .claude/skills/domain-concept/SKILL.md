@@ -1,8 +1,8 @@
 ---
 name: domain-concept
 description: >
-  Use when you add or move a type, trait, error, or constant that more than one state, job, or
-  module uses, in any crate (sec, storage, api, xbrl). This includes the work on a ticket, not only
+  Use when you add or move a type, trait, or constant that more than one state, job, or module
+  uses, in any crate (sec, storage, api, xbrl). This includes the work on a ticket, not only
   a request. Also use when the user asks to "create a domain concept", "add a domain type",
   "design a domain concept", "implement a shared type", or "add dependency injection". Covers
   where the concept lives, its layout of traits, implementations, constants, and errors, its
@@ -24,16 +24,19 @@ module uses. It is independent of any specific state, and can be developed and t
 
 | Crate | Value type | Trait and its implementations | Fakes |
 | ----- | ---------- | ----------------------------- | ----- |
-| `sec` | `src/lib/shared/{concept}/` | `src/lib/shared/{concept}/traits/` and `src/lib/shared/{concept}/implementations/`, as in `http_client`, `rate_limiter`, and `row_digest` | `src/lib/tests/fixtures/sample_{concept}/` |
-| `storage` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, split at the crate level | `src/tests/fixtures/` |
-| `api` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, split at the crate level | `src/tests/fixtures/` |
-| `xbrl` | `src/core/{concept}.rs`, one flat file per concept | `xbrl` has no trait for dependency injection today | `src/tests/fixtures/` |
+| `sec` | `src/lib/shared/{concept}/` | `src/lib/shared/{concept}/traits/` and `src/lib/shared/{concept}/implementations/`, per concept, as in `http_client`, `rate_limiter`, and `row_digest` | `src/lib/tests/fixtures/sample_{concept}/` |
+| `storage` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, at the crate root, as in `repository` | `src/tests/fixtures/fake_{type}/` |
+| `api` | `src/shared/{concept}/` | `src/traits/{trait}/` and `src/implementations/{type}/`, at the crate root, one folder per concrete type, as in `token_verifier` and `supabase_token_verifier` | `src/tests/fixtures/fake_{type}/` |
+| `xbrl` | `src/core/{concept}.rs`, or `src/core/{concept}/` with a `mod.rs` | In the module of the concept, as `Taxonomy` in `src/core/taxonomy/mod.rs`. `xbrl` has no `traits/` folder | `src/tests/fixtures/sample_{concept}/` |
 
-Follow the layout of the crate you work in. Do not move the code of another crate to match.
+Follow the layout of the crate you work in. "Layout by Part" holds in the crates with `traits/`
+and `implementations/` folders: `sec`, `storage`, and `api`. Where the layout of a crate differs, as
+in `xbrl`, the crate wins. Do not move the code of another crate to match.
 
 ## Layout by Part
 
-The parts of a concept decide its files, not whether it wraps an external crate:
+In `sec`, `storage`, and `api`, the parts of a concept decide its files, not whether it wraps an
+external crate:
 
 - **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
   `traits/mod.rs`. Examples: `sec::shared::rate_limiter::traits::rate_limiter`, and
@@ -45,13 +48,13 @@ The parts of a concept decide its files, not whether it wraps an external crate:
 - **Constants** go in a `constants.rs` next to the type that uses them. Examples:
   `sec/src/lib/shared/rate_limiter/implementations/sec_rate_limiter/constants.rs` and
   `sec/src/lib/shared/row_digest/implementations/byte_form/constants.rs`.
-- **An error** sits next to the code that returns it: an `error.rs` in the folder of the type, or its
-  own module next to the function that returns it.
-- **The concept's `mod.rs`** re-exports the main items, so a caller imports
-  `crate::shared::{concept}::{Item}` and does not need to know the folders.
+- **An error** sits next to the code that returns it, in a `{type}_error.rs` file or a
+  `{type}_error/` module, as `cik/cik_error.rs` and `token_verifier/token_error/`.
+- **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
+  of the concept and does not need to know its subfolders.
 
-A value type with no trait, such as `Cik`, needs no `traits/` or `implementations/` folder. It still
-puts its constants in a `constants.rs` next to it.
+A value type with no trait, such as `Cik`, needs no `traits/` or `implementations/` folder. If it has
+constants, they go in a `constants.rs` next to it, as in `cik/constants.rs`.
 
 Domain concepts range from simple value types (like `Cik`) to trait-based abstractions with
 dependency injection (like `SecClient` / `InnerClient`).
@@ -67,8 +70,8 @@ a gate.
 
 If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`),
 or the conversation, the ticket, or a design document already established what the concept is,
-skip questions you can already answer. Do not guess names from existing codebase concepts — either infer from context or
-let the user provide the name via "Other".
+skip the questions it answers. Do not guess a name from an existing concept. Infer it from the
+context, or let the user give it via "Other".
 
 **First prompt:**
 
@@ -96,7 +99,7 @@ let the user provide the name via "Other".
 - If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
 - If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
 - If it defines a trait that several types implement, such as `DigestRow` → Path B layout, with a
-  fake implementor in the tests
+  fake implementor in the tests. In `xbrl`, the trait stays in the module of its concept
 - Otherwise → Path A (value type with optional validation)
 - If answers are "don't know yet" → start with what's known, discover the rest together
 
@@ -207,7 +210,8 @@ system, etc.) that needs to be decoupled for testability, or several types imple
 ```
 
 This tree is the per-concept layout of `sec`. In `storage` and `api`, `traits/` and
-`implementations/` sit at the crate root ("Where a Concept Lives").
+`implementations/` sit at the crate root. `xbrl` keeps a trait in the module of its concept ("Where
+a Concept Lives").
 
 #### Phase 1: Define the Trait(s)
 
