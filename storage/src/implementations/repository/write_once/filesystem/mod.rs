@@ -63,8 +63,10 @@ use crate::traits::repository::{ListRepository, ReadRepository, WriteRepository}
 /// [`ListRepository`] lists the blobs under a [`KeyPrefix`].
 ///
 /// A reader that opens the file during the write reads only part of the bytes. A caller that
-/// must not read a partial blob names its key elsewhere only after the write ends. `persist` syncs the file but not its directory, so a crash of the machine can lose an
-/// blob that `persist` reported as written. Tests and local runs use this backend.
+/// must not expose a partial blob publishes its key only after `persist` returns. `persist` syncs
+/// the file but not its directory, so a crash of the machine can lose a blob that `persist`
+/// reported as written. Tests and local runs use this backend.
+///
 /// If the process ends during a write, the partial file stays, and each later write of the key
 /// fails with [`WriteError::ConflictingWrite`]. A caller that retries a write uses a new key, so
 /// the retry never meets that file.
@@ -374,7 +376,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_read_the_whole_object_when_a_write_created_it() {
+    async fn should_read_the_whole_blob_when_a_write_created_it() {
         let root = temporary_root();
         let store = store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
         let key = key("notes/part-0.parquet");
@@ -390,7 +392,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_conflicting_write_when_the_object_exists() {
+    async fn should_return_conflicting_write_when_the_blob_exists() {
         let root = temporary_root();
         let store = store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
         let second = blob("notes/part-0.parquet", b"OTHER");
@@ -419,7 +421,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_return_none_when_no_object_exists_at_the_key() {
+    async fn should_return_none_when_no_blob_exists_at_the_key() {
         let root = temporary_root();
         let store = WriteOnceFilesystemRepository::new(root.path());
         let key = key("notes/part-0.parquet");
@@ -435,7 +437,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_no_file_beside_the_object_when_persisting() {
+    async fn should_write_no_file_beside_the_blob_when_persisting() {
         let root = temporary_root();
         store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
 
@@ -524,7 +526,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_list_the_keys_in_byte_order_for_objects_under_a_prefix() {
+    async fn should_list_the_keys_in_byte_order_for_blobs_under_a_prefix() {
         let root = temporary_root();
         let store = store_with(
             &root,
@@ -545,7 +547,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_list_the_size_for_each_object_under_a_prefix() {
+    async fn should_list_the_size_for_each_blob_under_a_prefix() {
         let root = temporary_root();
         let store = store_with(
             &root,

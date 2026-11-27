@@ -19,7 +19,7 @@ pub use filesystem::WriteOnceFilesystemRepository;
 /// One blob: its key and its bytes.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Blob {
-    /// The key of the blob in the store.
+    /// The key of the blob in the repository.
     pub key: DocumentKey,
     /// The bytes of the blob.
     pub bytes: Bytes,
@@ -28,7 +28,7 @@ pub struct Blob {
 /// One blob that a listing found: its key and its size.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ListedBlob {
-    /// The key of the blob in the store.
+    /// The key of the blob in the repository.
     pub key: DocumentKey,
     /// The number of bytes the blob holds.
     pub size_in_bytes: u64,

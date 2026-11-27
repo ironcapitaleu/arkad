@@ -96,8 +96,8 @@ flowchart TB
 Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
 Principle"):
 
-- **Writes go through `WriteRepository::persist`.** Each write-once repository writes each object once.
-  If the object exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
+- **Writes go through `WriteRepository::persist`.** Each write-once repository writes each blob once.
+  If the blob exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
   raw store backend `FilesystemRepository` does not fit: it replaces a document whose bytes
   differ, and it writes a JSON metadata file next to each document.
 - **The writer computes the size and the CRC32C of each part from its bytes.** The GCS backend
