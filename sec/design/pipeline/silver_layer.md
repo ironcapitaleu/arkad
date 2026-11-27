@@ -375,8 +375,8 @@ columns with one value per file add 0.39%. `txt.tsv` writes 954.6 MB of text to 
 
 | Option | Pro | Con |
 | ------ | --- | --- |
-| A. Plain Parquet files and the `silver_files` list (decided) | No new dependency next to Polars. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
-| B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and Polars must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
+| A. Plain Parquet files and the `silver_files` list (decided) | No new dependency. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
+| B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and the `arrow` crate of the writer must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
 | C. Apache Iceberg through `iceberg-rust` | Open standard, snapshots, hidden partitions, the Supabase Iceberg wrapper | Needs a catalog service. The Rust writer covers less than the Java one. The epic lists Iceberg as out of scope, and ADR 0001 adds Iceberg only next to Postgres, past about 50 GB |
 
 Decided by the owner on 2026-11-08: A. Two reasons:
@@ -804,15 +804,18 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
 | A. A transform super-state per filing, run in batches through a facade, as `notes()` and `daily_filings()` run extract (proposed) | Typed states, typed errors per filing, the observer, the same tests as extract. Matches section "4a) Transform Integration" of `xbrl/DESIGN.md` | More code than a script. A filing is small, so the per-state overhead is a large share of the work |
 | B. One Polars or DuckDB batch job per Notes file | Little code, fast columnar work | No typed per-filing errors. SQL or a DataFrame expression takes the place of the `xbrl` rules, so the rules exist twice |
 
-Proposal: A, with Polars inside the states that move tables:
+Proposal: A. The states move rows as Rust types, and the writer writes them with `arrow` and
+`parquet`. No state uses a DataFrame library:
 
 - The split state streams the ZIP, with C first and B as the fallback, and cuts it into filings, as in
   [Unit of Work and Memory](#unit-of-work-and-memory).
 - The parse and standardize states call the `xbrl` crate on Rust types. Only the Rust code applies
   the rules.
 - The write state turns the Rust rows of one bucket into Arrow batches and writes one Parquet part.
-- The series step is a super-state per entity bucket. Inside it, Polars reads the `candidates` of
-  the bucket, and the `xbrl` rules run per entity.
+- The series step is a super-state per entity bucket. Inside it, the silver reader reads the
+  `candidates` of the bucket, and the `xbrl` rules run per entity.
+
+[`transform_per_filing.md`](transform_per_filing.md) sets the states of the filing step.
 
 ### Per Unit or Over Many Units
 
@@ -877,18 +880,22 @@ source.
   `ON CONFLICT DO NOTHING`), the replay of a filing in gold, dedup for direct reads, and the
   write method of the fact tier. Silver writes units and never upserts rows. A later gold
   design decides these. They are in the fog of the epic MVP Data Pt. 2.
-- **The standardize filing step per filing or per source.** The transform design decides. Silver
-  accepts both. [Current Facts](#current-facts) picks one `candidates` unit per filing either way.
-- **The reload of a corrected Notes file.** Silver writes a new unit only if the transform runs
-  on the new bytes. The transform design decides whether a changed digest starts that run.
 - **The change to ADR 0001.** ADR 0001 writes from raw to Postgres. With silver, load reads silver.
   [Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of ADR 0001
   makes this change.
-- **A filing that the parser rejects as a whole,** in a `filing_day` or a `notes_file` unit. The
-  parser rules of the transform design decide whether the unit fails or lists the filing in
-  `dropped_rows`.
-- **The parallel plan of the transform:** threads inside a task, tasks per unit, the split of one
-  Notes file across tasks, and the order of the jobs.
+
+Other designs set these points of the transform:
+
+- **The standardize filing step runs once per source**
+  ([ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md)).
+  [Current Facts](#current-facts) picks one `candidates` unit per filing.
+- **A corrected Notes file** has a new SHA-256. So rule 2 of a write finds a new `input_digest`,
+  and the task writes a new unit ([`transform_per_filing.md`](transform_per_filing.md), "Handover
+  to Silver and Gold").
+- **A filing that the parser rejects as a whole** leaves its unit and counts in `dropped_rows`
+  ([`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings").
+- **The parallel plan of the transform:** threads inside a task, tasks per unit, and the order of
+  the jobs ([`silver_writer_and_jobs.md`](silver_writer_and_jobs.md), "The Parallel Plan").
 
 ## Measurements
 
