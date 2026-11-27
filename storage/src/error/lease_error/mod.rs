@@ -3,12 +3,10 @@
 //! Provides [`LeaseError`], the error raised when a [`LeaseRepository`](crate::LeaseRepository)
 //! cannot take or read a lease.
 
-use jiff::tz::Offset;
 use thiserror::Error;
 
 use super::ErrorKind;
 use super::backend_error::BackendError;
-use crate::shared::stored_timestamp::fraction_digits;
 use crate::shared::{JobKind, Lease};
 
 #[non_exhaustive]
@@ -17,10 +15,9 @@ use crate::shared::{JobKind, Lease};
 pub enum LeaseError {
     /// A plan holds the lease of the job kind, and the lease has not expired.
     #[error(
-        "[LeaseHeld] Lease of job kind '{kind}' is held by plan '{}' until '{:.*}'",
+        "[LeaseHeld] Lease of job kind '{kind}' is held by plan '{}' until '{}'",
         .lease.plan_id,
-        fraction_digits(.lease.expires_at),
-        .lease.expires_at.display_with_offset(Offset::UTC)
+        .lease.expires_at
     )]
     LeaseHeld {
         /// The job kind of the lease.
@@ -84,7 +81,7 @@ mod tests {
             },
         };
 
-        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan '2026-11-21T180000.000Z' until '2026-11-22T10:00:00+00:00'";
+        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan '2026-11-21T180000.000Z' until '2026-11-22T10:00:00Z'";
 
         let result = error.to_string();
 
@@ -92,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    fn should_print_the_expiry_with_milliseconds_when_the_expiry_has_a_fraction() {
+    fn should_print_the_fraction_of_the_expiry_when_the_expiry_has_a_fraction() {
         let error = LeaseError::LeaseHeld {
             kind: JobKind::new("transform-notes")
                 .expect("Given a valid hardcoded job kind, the creation should always succeed"),
@@ -103,7 +100,7 @@ mod tests {
             },
         };
 
-        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan 'plan-a' until '2026-11-22T10:00:00.500+00:00'";
+        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan 'plan-a' until '2026-11-22T10:00:00.5Z'";
 
         let result = error.to_string();
 

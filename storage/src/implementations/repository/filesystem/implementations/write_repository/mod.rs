@@ -180,7 +180,6 @@ struct StoredRun {
         dead_code,
         reason = "parsed only to check that the stored value is valid"
     )]
-    #[serde(with = "crate::shared::stored_timestamp")]
     produced_at: Timestamp,
     #[expect(
         dead_code,

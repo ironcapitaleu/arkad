@@ -59,7 +59,6 @@ pub struct DocumentMetadata<C> {
     #[serde(rename = "bytes")]
     size_in_bytes: u64,
     sha256: Sha256Digest,
-    #[serde(with = "crate::shared::stored_timestamp")]
     produced_at: Timestamp,
     execution_id: Uuid,
     ingestion_mode: IngestionMode,
@@ -426,10 +425,10 @@ mod tests {
     }
 
     #[test]
-    fn should_pad_the_fraction_to_whole_microseconds_when_the_produced_at_has_trailing_zeros() {
-        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.1234Z");
+    fn should_write_the_fewest_fraction_digits_when_the_produced_at_has_trailing_zeros() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.123400Z");
 
-        let expected_result = serde_json::json!("2026-09-22T20:05:30.123400Z");
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.1234Z");
 
         let result = serde_json::to_value(metadata)
             .expect("Given metadata of owned fields, serialization should always succeed")
@@ -451,92 +450,6 @@ mod tests {
         let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
             .expect("Given stored metadata with every field, deserialization should always succeed")
             .produced_at();
-
-        assert_eq!(result, expected_result);
-    }
-
-    /// Returns stored metadata JSON, as `serde_json::to_vec_pretty` writes it, with the given
-    /// `produced_at`.
-    fn stored_metadata_json(produced_at: &str) -> String {
-        format!(
-            r#"{{
-  "metadata_version": 1,
-  "document_type": "sample_document",
-  "document_type_version": 1,
-  "media_type": "application/json",
-  "bytes": 2,
-  "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-  "produced_at": "{produced_at}",
-  "execution_id": "0b6f3c1e-5d2a-4f7b-9c3e-8a1d2b4c6e8f",
-  "ingestion_mode": "backfill",
-  "producer": {{
-    "name": "Sample State",
-    "crate_version": "0.1.0",
-    "commit": "63c1f59"
-  }},
-  "inputs": [
-    {{
-      "key": "sec/companyfacts/CIK0000320193.json",
-      "sha256": "73a86c6aedc31f77cac2ea4df5f80f0b73a86c6aedc31f77cac2ea4df5f80f0b"
-    }}
-  ],
-  "context": {{
-    "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json"
-  }}
-}}"#
-        )
-    }
-
-    /// Reads stored metadata JSON and writes it back as the write repository does.
-    fn rewritten(stored: &str) -> String {
-        let metadata: DocumentMetadata<SampleContext> = serde_json::from_str(stored)
-            .expect("Given metadata JSON with every field, deserialization should always succeed");
-        let json = serde_json::to_vec_pretty(&metadata)
-            .expect("Given metadata of owned fields, serialization should always succeed");
-        String::from_utf8(json)
-            .expect("Given JSON from serde_json, the bytes should always be UTF-8")
-    }
-
-    #[test]
-    fn should_write_the_stored_bytes_back_when_the_produced_at_has_no_fraction() {
-        let stored = stored_metadata_json("2026-09-22T20:05:30Z");
-
-        let expected_result = stored.clone();
-
-        let result = rewritten(&stored);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_write_the_stored_bytes_back_when_the_produced_at_has_milliseconds() {
-        let stored = stored_metadata_json("2026-09-22T20:05:30.500Z");
-
-        let expected_result = stored.clone();
-
-        let result = rewritten(&stored);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_write_the_stored_bytes_back_when_the_produced_at_has_microseconds() {
-        let stored = stored_metadata_json("2026-09-22T20:05:30.123456Z");
-
-        let expected_result = stored.clone();
-
-        let result = rewritten(&stored);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_write_the_stored_bytes_back_when_the_produced_at_has_nanoseconds() {
-        let stored = stored_metadata_json("2026-09-22T20:05:30.123456789Z");
-
-        let expected_result = stored.clone();
-
-        let result = rewritten(&stored);
 
         assert_eq!(result, expected_result);
     }

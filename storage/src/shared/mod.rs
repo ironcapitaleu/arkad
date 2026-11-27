@@ -20,7 +20,6 @@
 //!   that is not a MIC.
 //! - [`sha256`]: The [`Sha256Digest`] of a byte slice, and the [`InvalidSha256Digest`] for a
 //!   string that is not a digest.
-//! - `stored_timestamp`: The serde functions that write a timestamp in the stored form.
 
 pub mod account_id;
 pub mod company_id;
@@ -31,7 +30,6 @@ pub mod listing_id;
 pub mod listing_identifier;
 pub mod mic;
 pub mod sha256;
-pub(crate) mod stored_timestamp;
 
 pub use account_id::{AccountId, InvalidAccountId};
 pub use company_id::CompanyId;
