@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-547 comment `e66d8405`](https://linear.app/state-machine/issue/STA-547#comment-e66d8405), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-547 comment `e66d8405`](https://linear.app/state-machine/issue/STA-547#comment-e66d8405), accessed 2026-11-27). The project owner confirmed the tolerance and the wording of decision 6 on 2026-11-27 ([STA-547 comment `ba709f1e`](https://linear.app/state-machine/issue/STA-547#comment-ba709f1e), accessed 2026-11-27) |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-547](https://linear.app/state-machine/issue/STA-547), accessed 2026-11-27 |
@@ -51,8 +51,7 @@ change. The **closing balance** is the balance at the end of the change.
    then `NetChangeInCash`. `periods` holds the period of the change. `reason` holds `cash`, the
    name of the roll forward. `confidence` holds the weakest confidence of the three inputs.
 6. **A missing input gives no check and no finding.** The check skips a period if the change, the
-   opening balance, or the closing balance has no value, or if dedup blocks one of them. A value
-   with no exact start also gets no check.
+   opening balance, or the closing balance has no value, or if dedup blocks one of them.
 
 ## Options Considered
 
@@ -107,7 +106,9 @@ Full scope only: the file has no change with the narrow scope.
 
 - Per change: 1,877 pass, 24 fail, and 37 lack a balance. Of the 1,901 checked changes, 1,861 tie
   exactly, 16 within 0.1%, 8 between 0.1% and 1%, and 16 above 1%.
-- Restaurant Brands International shows a failure the check is for. Its total change of −180
+- 2 of the 24 failures differ by one unit of the rounding of the filing: DBV Technologies and XPO.
+  The other 22 differ by 6 to 396,827 units.
+- Restaurant Brands International shows the kind of failure the check finds. Its total change of −180
   million USD holds 9 million of cash held for sale, and its balance moves by −189.
 - No change lacks a balance because the instant lies a few days off. No instant within 7 days of
   the day before the exact start was found where the exact day had none.
@@ -126,6 +127,10 @@ as 1, −1, and 0 million USD, while its balance moves by −46, 14, and 13.
 - A bank before 2018 gets no check: `CashAndEquivalents` has no value.
 - The check reads balances from every filing of the entity. The counts above read one filing, so
   the series has fewer changes without a balance.
+- The series can mix a balance that a later filing recasts with a change of an earlier filing, for
+  example after discontinued operations. That mix can add failures the counts do not show.
+- A difference of one unit of rounding fails if it is above 0.1% of the largest value. It was 2
+  of 1,901 checked changes in `2026_10`.
 - Not covered: a change in a unit other than the unit of the balances, and values with dimensions.
 
 ## Open Questions
@@ -150,3 +155,5 @@ as 1, −1, and 0 million USD, while its balance moves by −46, 14, and 13.
   accessed 2026-11-27: the split of the scope design and this check.
 - [STA-547 comment `e66d8405`](https://linear.app/state-machine/issue/STA-547#comment-e66d8405),
   accessed 2026-11-27: the questions and the answers of the owner.
+- [STA-547 comment `ba709f1e`](https://linear.app/state-machine/issue/STA-547#comment-ba709f1e),
+  accessed 2026-11-27: the answers of the owner on the tolerance and on decision 6.

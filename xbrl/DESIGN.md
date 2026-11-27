@@ -907,7 +907,7 @@ parses it.
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - `RollForwardMismatch` is a value of `findings.kind`. `concepts` holds the balance concept, such
   as `CashAndRestrictedCash`, then `NetChangeInCash`. `periods` holds the period end and length of
-  the change. `reason` holds the name of the roll forward, `cash`. `confidence` holds the weakest
+  the change. The opening day follows from the exact start of the change in `standardized_facts`. `reason` holds the name of the roll forward, `cash`. `confidence` holds the weakest
   confidence of the three inputs
   ([ADR 0052](../docs/adr/0052-change-in-cash-against-two-balances.md)).
 - `MissingRequired` is a value of `findings.kind`. `concepts` holds the required concept. `periods`
@@ -2304,7 +2304,7 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `RollForwardMismatch`, `SumMismatch`, `MissingRequired`), the
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `MixedScopes`, `RollForwardMismatch`, `SumMismatch`, `MissingRequired`), the
   entity, the concept or concepts (see "Conflict"), the periods, and a reason if one is known. A
   finding is not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
