@@ -1,33 +1,33 @@
-//! # Filesystem Silver Object Store
+//! # Write-Once Filesystem Repository
 //!
-//! Provides [`FilesystemSilverObjectStore`], which stores each silver object once as a file under
-//! a root directory.
+//! Provides [`WriteOnceFilesystemRepository`], which stores each blob once as a file under a root
+//! directory.
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use storage::implementations::repository::filesystem::DocumentKey;
-//! use storage::implementations::repository::silver_object_store::{
-//!     FilesystemSilverObjectStore, SilverObject,
+//! use storage::implementations::repository::write_once::{
+//!     WriteOnceFilesystemRepository, Blob,
 //! };
 //! use storage::{WriteError, WriteRepository};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() {
 //! # let root = tempfile::TempDir::new().expect("Given a writable temp directory, it should build");
-//! let store = FilesystemSilverObjectStore::new(root.path());
+//! let store = WriteOnceFilesystemRepository::new(root.path());
 //! let key = DocumentKey::new("notes/part-0.parquet")
 //!     .expect("Given a valid hardcoded relative path, the key should always build");
-//! let object = SilverObject::new(key.clone(), b"PAR1".as_slice());
+//! let blob = Blob::new(key.clone(), b"PAR1".as_slice());
 //! store
-//!     .persist(object.clone())
+//!     .persist(blob.clone())
 //!     .await
 //!     .expect("Given an empty root, the first write of a key should always succeed");
 //!
-//! let expected_result = WriteError::conflicting_write("Object 'notes/part-0.parquet' exists");
+//! let expected_result = WriteError::conflicting_write("Blob 'notes/part-0.parquet' exists");
 //!
 //! let result = store
-//!     .persist(object)
+//!     .persist(blob)
 //!     .await
 //!     .expect_err("A second write of one key should always fail");
 //!
@@ -45,7 +45,7 @@ use futures_core::stream::{BoxStream, Stream};
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
-use super::{ListedObject, SilverObject};
+use super::{Blob, ListedBlob};
 use crate::error::{BackendError, ReadError, WriteError};
 use crate::implementations::repository::filesystem::implementations::key_walk::{
     KeyFiles, WalkedKey, key_text, walk_keys,
@@ -55,27 +55,26 @@ use crate::implementations::repository::filesystem::{
 };
 use crate::traits::repository::{ListRepository, ReadRepository, WriteRepository};
 
-/// Stores silver objects as files under one root directory, and writes each object once.
+/// Stores blobs as files under one root directory, and writes each blob once.
 ///
-/// An object lives at the root joined with its [`DocumentKey`]. `persist` creates the file only if
+/// A blob lives at the root joined with its [`DocumentKey`]. `persist` creates the file only if
 /// no file exists at that path. Otherwise it returns [`WriteError::ConflictingWrite`] and changes
-/// nothing. The store writes no metadata file next to an object. `get` reads a whole object, and
-/// [`ListRepository`] lists the objects under a [`KeyPrefix`].
+/// nothing. The repository writes no metadata file next to a blob. `get` reads a whole blob, and
+/// [`ListRepository`] lists the blobs under a [`KeyPrefix`].
 ///
-/// A reader that opens the file during the write reads only part of the bytes. Silver code names
-/// an object in a control object only after its write ends, so a silver reader never opens it
-/// earlier. `persist` syncs the file but not its directory, so a crash of the machine can lose an
-/// object that `persist` reported as written. Tests and local runs use this backend.
+/// A reader that opens the file during the write reads only part of the bytes. A caller that
+/// must not read a partial blob names its key elsewhere only after the write ends. `persist` syncs the file but not its directory, so a crash of the machine can lose an
+/// blob that `persist` reported as written. Tests and local runs use this backend.
 /// If the process ends during a write, the partial file stays, and each later write of the key
-/// fails with [`WriteError::ConflictingWrite`]. Silver writes each attempt of a task under its own
-/// key, so a retry never meets that file.
+/// fails with [`WriteError::ConflictingWrite`]. A caller that retries a write uses a new key, so
+/// the retry never meets that file.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FilesystemSilverObjectStore {
+pub struct WriteOnceFilesystemRepository {
     root: PathBuf,
 }
 
-impl FilesystemSilverObjectStore {
-    /// Creates a [`FilesystemSilverObjectStore`] under the root directory.
+impl WriteOnceFilesystemRepository {
+    /// Creates a [`WriteOnceFilesystemRepository`] under the root directory.
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
@@ -87,22 +86,19 @@ impl FilesystemSilverObjectStore {
         &self.root
     }
 
-    /// Returns the path on disk of the object a key names.
+    /// Returns the path on disk of the blob a key names.
     #[must_use]
-    pub fn object_path(&self, key: &DocumentKey) -> PathBuf {
+    pub fn blob_path(&self, key: &DocumentKey) -> PathBuf {
         self.root.join(key.as_path())
     }
 
-    /// Creates the file of the object, writes its bytes, and syncs them.
+    /// Creates the file of the blob, writes its bytes, and syncs them.
     ///
     /// Returns `Ok(false)` if a file exists at the path. If the write fails after the file was
     /// created, it removes the file.
-    async fn create_object(
-        &self,
-        object: &SilverObject,
-    ) -> Result<bool, FailedFilesystemOperation> {
+    async fn create_blob(&self, blob: &Blob) -> Result<bool, FailedFilesystemOperation> {
         check_root(&self.root).await?;
-        let path = self.object_path(&object.key);
+        let path = self.blob_path(&blob.key);
         let io_error = |operation| {
             let path = path.clone();
             move |error: io::Error| FailedFilesystemOperation::from_io(operation, path, &error)
@@ -121,7 +117,7 @@ impl FilesystemSilverObjectStore {
             Ok(file) => file,
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
                 // A directory or a symlink at the path also fails with `AlreadyExists`, but neither is
-                // an object.
+                // a blob.
                 return match fs::symlink_metadata(&path).await {
                     Ok(metadata) if metadata.is_file() => Ok(false),
                     _ => Err(io_error(FilesystemOperation::CreateFile)(error)),
@@ -130,7 +126,7 @@ impl FilesystemSilverObjectStore {
             Err(error) => return Err(io_error(FilesystemOperation::CreateFile)(error)),
         };
         let written = async {
-            file.write_all(&object.bytes)
+            file.write_all(&blob.bytes)
                 .await
                 .map_err(io_error(FilesystemOperation::Write))?;
             file.sync_all()
@@ -148,15 +144,12 @@ impl FilesystemSilverObjectStore {
         written.map(|()| true)
     }
 
-    /// Reads the whole object a key names, or `None` if no file exists at its path.
-    async fn read_object(
-        &self,
-        key: DocumentKey,
-    ) -> Result<Option<SilverObject>, FailedFilesystemOperation> {
+    /// Reads the whole blob a key names, or `None` if no file exists at its path.
+    async fn read_blob(&self, key: DocumentKey) -> Result<Option<Blob>, FailedFilesystemOperation> {
         check_root(&self.root).await?;
-        let path = self.object_path(&key);
+        let path = self.blob_path(&key);
         match fs::read(&path).await {
-            Ok(bytes) => Ok(Some(SilverObject::new(key, bytes))),
+            Ok(bytes) => Ok(Some(Blob::new(key, bytes))),
             Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
             Err(error) => Err(FailedFilesystemOperation::from_io(
                 FilesystemOperation::Read,
@@ -166,12 +159,12 @@ impl FilesystemSilverObjectStore {
         }
     }
 
-    /// Returns the size of the object a walked key names, or `None` if the file disappeared after
+    /// Returns the size of the blob a walked key names, or `None` if the file disappeared after
     /// the walk, as the file of a failed write does.
-    async fn list_object(&self, walked: WalkedKey) -> Option<Result<ListedObject, ReadError>> {
-        let path = self.object_path(&walked.key);
+    async fn list_blob(&self, walked: WalkedKey) -> Option<Result<ListedBlob, ReadError>> {
+        let path = self.blob_path(&walked.key);
         match fs::metadata(&path).await {
-            Ok(metadata) => Some(Ok(ListedObject {
+            Ok(metadata) => Some(Ok(ListedBlob {
                 key: walked.key,
                 size_in_bytes: metadata.len(),
             })),
@@ -186,23 +179,23 @@ impl FilesystemSilverObjectStore {
 }
 
 #[async_trait]
-impl WriteRepository for FilesystemSilverObjectStore {
-    type Record = SilverObject;
+impl WriteRepository for WriteOnceFilesystemRepository {
+    type Record = Blob;
 
-    /// Writes the object if no object exists at its key.
+    /// Writes the blob if no blob exists at its key.
     ///
     /// # Errors
     ///
     /// Returns:
-    /// - [`WriteError::ConflictingWrite`] if an object exists at the key. The write changes nothing.
+    /// - [`WriteError::ConflictingWrite`] if a blob exists at the key. The write changes nothing.
     /// - [`WriteError::Backend`] that holds a [`FailedFilesystemOperation`] if the root does not
     ///   exist or is not a directory, a directory sits at the key, or the filesystem cannot create,
     ///   write, or sync the file.
-    async fn persist(&self, record: SilverObject) -> Result<(), WriteError> {
-        match self.create_object(&record).await {
+    async fn persist(&self, record: Blob) -> Result<(), WriteError> {
+        match self.create_blob(&record).await {
             Ok(true) => Ok(()),
             Ok(false) => Err(WriteError::conflicting_write(format!(
-                "Object '{}' exists",
+                "Blob '{}' exists",
                 key_text(record.key.as_path())
             ))),
             Err(error) => Err(WriteError::Backend(BackendError::from(error))),
@@ -211,29 +204,29 @@ impl WriteRepository for FilesystemSilverObjectStore {
 }
 
 #[async_trait]
-impl ReadRepository for FilesystemSilverObjectStore {
-    type Record = SilverObject;
+impl ReadRepository for WriteOnceFilesystemRepository {
+    type Record = Blob;
     type Key = DocumentKey;
 
-    /// Reads the whole object at the key. Returns `Ok(None)` if no object exists there.
+    /// Reads the whole blob at the key. Returns `Ok(None)` if no blob exists there.
     ///
     /// # Errors
     ///
     /// Returns [`ReadError::Backend`] that holds a [`FailedFilesystemOperation`] if the root does
     /// not exist or is not a directory, or the filesystem cannot read the file.
-    async fn get(&self, key: DocumentKey) -> Result<Option<SilverObject>, ReadError> {
-        self.read_object(key).await.map_err(read_error)
+    async fn get(&self, key: DocumentKey) -> Result<Option<Blob>, ReadError> {
+        self.read_blob(key).await.map_err(read_error)
     }
 }
 
-impl ListRepository for FilesystemSilverObjectStore {
+impl ListRepository for WriteOnceFilesystemRepository {
     type Key = DocumentKey;
-    type Entry = ListedObject;
+    type Entry = ListedBlob;
     type Filter = KeyPrefix;
 
-    /// Lists the key of each object under the prefix, sorted by the bytes of the key text.
+    /// Lists the key of each blob under the prefix, sorted by the bytes of the key text.
     ///
-    /// Each regular file is an object. If the filter carries a cursor, it yields only the keys that
+    /// Each regular file is a blob. If the filter carries a cursor, it yields only the keys that
     /// sort after it.
     ///
     /// # Errors
@@ -242,55 +235,55 @@ impl ListRepository for FilesystemSilverObjectStore {
     /// is not a directory, or the filesystem cannot list a directory. An error about a directory
     /// below the prefix does not end the stream.
     fn list_keys(&self, filter: KeyPrefix) -> BoxStream<'_, Result<DocumentKey, ReadError>> {
-        Box::pin(WalkedObjects::keys(self, &filter))
+        Box::pin(WalkedBlobs::keys(self, &filter))
     }
 
-    /// Lists each object under the prefix with its size, in the order of
-    /// [`list_keys`](ListRepository::list_keys). Reads no bytes of an object. Skips an object
+    /// Lists each blob under the prefix with its size, in the order of
+    /// [`list_keys`](ListRepository::list_keys). Reads no bytes of a blob. Skips a blob
     /// whose file disappears after the walk found it.
     ///
     /// # Errors
     ///
     /// Yields a [`ReadError::Backend`] item for each error of
-    /// [`list_keys`](ListRepository::list_keys), and for an object the filesystem cannot inspect.
-    /// The stream continues after an item about one object.
-    fn list(&self, filter: KeyPrefix) -> BoxStream<'_, Result<ListedObject, ReadError>> {
-        Box::pin(WalkedObjects::entries(self, &filter))
+    /// [`list_keys`](ListRepository::list_keys), and for a blob the filesystem cannot inspect.
+    /// The stream continues after an item about one blob.
+    fn list(&self, filter: KeyPrefix) -> BoxStream<'_, Result<ListedBlob, ReadError>> {
+        Box::pin(WalkedBlobs::entries(self, &filter))
     }
 }
 
 /// A future that turns one walked key into an item of a listing, or `None` for a key to skip.
 type ToItem<'a, T> = Pin<Box<dyn Future<Output = Option<Result<T, ReadError>>> + Send + 'a>>;
 
-/// The objects of a walk, one at a time, as keys or as entries with their size.
-struct WalkedObjects<'a, T> {
-    store: &'a FilesystemSilverObjectStore,
+/// The blobs of a walk, one at a time, as keys or as entries with their size.
+struct WalkedBlobs<'a, T> {
+    store: &'a WriteOnceFilesystemRepository,
     walk: BoxStream<'static, Result<WalkedKey, ReadError>>,
     pending: Option<ToItem<'a, T>>,
-    to_item: fn(&'a FilesystemSilverObjectStore, WalkedKey) -> ToItem<'a, T>,
+    to_item: fn(&'a WriteOnceFilesystemRepository, WalkedKey) -> ToItem<'a, T>,
 }
 
-impl<'a> WalkedObjects<'a, DocumentKey> {
-    fn keys(store: &'a FilesystemSilverObjectStore, filter: &KeyPrefix) -> Self {
+impl<'a> WalkedBlobs<'a, DocumentKey> {
+    fn keys(store: &'a WriteOnceFilesystemRepository, filter: &KeyPrefix) -> Self {
         Self::new(store, filter, |_, walked| {
             Box::pin(async move { Some(Ok(walked.key)) })
         })
     }
 }
 
-impl<'a> WalkedObjects<'a, ListedObject> {
-    fn entries(store: &'a FilesystemSilverObjectStore, filter: &KeyPrefix) -> Self {
+impl<'a> WalkedBlobs<'a, ListedBlob> {
+    fn entries(store: &'a WriteOnceFilesystemRepository, filter: &KeyPrefix) -> Self {
         Self::new(store, filter, |store, walked| {
-            Box::pin(store.list_object(walked))
+            Box::pin(store.list_blob(walked))
         })
     }
 }
 
-impl<'a, T> WalkedObjects<'a, T> {
+impl<'a, T> WalkedBlobs<'a, T> {
     fn new(
-        store: &'a FilesystemSilverObjectStore,
+        store: &'a WriteOnceFilesystemRepository,
         filter: &KeyPrefix,
-        to_item: fn(&'a FilesystemSilverObjectStore, WalkedKey) -> ToItem<'a, T>,
+        to_item: fn(&'a WriteOnceFilesystemRepository, WalkedKey) -> ToItem<'a, T>,
     ) -> Self {
         Self {
             store,
@@ -301,7 +294,7 @@ impl<'a, T> WalkedObjects<'a, T> {
     }
 }
 
-impl<T> Stream for WalkedObjects<'_, T> {
+impl<T> Stream for WalkedBlobs<'_, T> {
     type Item = Result<T, ReadError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -352,15 +345,15 @@ mod tests {
             .expect("Given a valid hardcoded relative path, the key should always build")
     }
 
-    fn object(path: &str, bytes: &'static [u8]) -> SilverObject {
-        SilverObject::new(key(path), bytes)
+    fn blob(path: &str, bytes: &'static [u8]) -> Blob {
+        Blob::new(key(path), bytes)
     }
 
-    async fn store_with(root: &TempDir, objects: Vec<SilverObject>) -> FilesystemSilverObjectStore {
-        let store = FilesystemSilverObjectStore::new(root.path());
-        for object in objects {
+    async fn store_with(root: &TempDir, blobs: Vec<Blob>) -> WriteOnceFilesystemRepository {
+        let store = WriteOnceFilesystemRepository::new(root.path());
+        for blob in blobs {
             store
-                .persist(object)
+                .persist(blob)
                 .await
                 .expect("Given distinct keys under an existing root, each write should succeed");
         }
@@ -369,29 +362,29 @@ mod tests {
 
     const fn implements_read_write_and_list<T: ReadWriteRepository + ReadListRepository>() {}
     #[test]
-    const fn should_implement_read_write_and_read_list_repository_for_filesystem_silver_object_store()
+    const fn should_implement_read_write_and_read_list_repository_for_write_once_filesystem_repository()
      {
-        implements_read_write_and_list::<FilesystemSilverObjectStore>();
+        implements_read_write_and_list::<WriteOnceFilesystemRepository>();
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_filesystem_silver_object_store() {
-        implements_auto_traits::<FilesystemSilverObjectStore>();
+    const fn should_implement_auto_traits_for_write_once_filesystem_repository() {
+        implements_auto_traits::<WriteOnceFilesystemRepository>();
     }
 
     #[tokio::test]
     async fn should_read_the_whole_object_when_a_write_created_it() {
         let root = temporary_root();
-        let store = store_with(&root, vec![object("notes/part-0.parquet", b"PAR1")]).await;
+        let store = store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
         let key = key("notes/part-0.parquet");
 
-        let expected_result = Some(object("notes/part-0.parquet", b"PAR1"));
+        let expected_result = Some(blob("notes/part-0.parquet", b"PAR1"));
 
         let result = store
             .get(key)
             .await
-            .expect("Given an object the store wrote, the read should always succeed");
+            .expect("Given a blob the store wrote, the read should always succeed");
 
         assert_eq!(result, expected_result);
     }
@@ -399,11 +392,11 @@ mod tests {
     #[tokio::test]
     async fn should_return_conflicting_write_when_the_object_exists() {
         let root = temporary_root();
-        let store = store_with(&root, vec![object("notes/part-0.parquet", b"PAR1")]).await;
-        let second = object("notes/part-0.parquet", b"OTHER");
+        let store = store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
+        let second = blob("notes/part-0.parquet", b"OTHER");
 
         let expected_result = Err(WriteError::conflicting_write(
-            "Object 'notes/part-0.parquet' exists",
+            "Blob 'notes/part-0.parquet' exists",
         ));
 
         let result = store.persist(second).await;
@@ -414,15 +407,13 @@ mod tests {
     #[tokio::test]
     async fn should_keep_the_first_bytes_when_a_second_write_of_the_key_fails() {
         let root = temporary_root();
-        let store = store_with(&root, vec![object("notes/part-0.parquet", b"PAR1")]).await;
-        let _conflict = store
-            .persist(object("notes/part-0.parquet", b"OTHER"))
-            .await;
+        let store = store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
+        let _conflict = store.persist(blob("notes/part-0.parquet", b"OTHER")).await;
 
         let expected_result = b"PAR1".to_vec();
 
         let result = std::fs::read(root.path().join("notes/part-0.parquet"))
-            .expect("Given an object the store wrote, the file should always be readable");
+            .expect("Given a blob the store wrote, the file should always be readable");
 
         assert_eq!(result, expected_result);
     }
@@ -430,7 +421,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_none_when_no_object_exists_at_the_key() {
         let root = temporary_root();
-        let store = FilesystemSilverObjectStore::new(root.path());
+        let store = WriteOnceFilesystemRepository::new(root.path());
         let key = key("notes/part-0.parquet");
 
         let expected_result = None;
@@ -446,7 +437,7 @@ mod tests {
     #[tokio::test]
     async fn should_write_no_file_beside_the_object_when_persisting() {
         let root = temporary_root();
-        store_with(&root, vec![object("notes/part-0.parquet", b"PAR1")]).await;
+        store_with(&root, vec![blob("notes/part-0.parquet", b"PAR1")]).await;
 
         let expected_result = vec!["part-0.parquet".to_owned()];
 
@@ -468,8 +459,8 @@ mod tests {
     async fn should_return_missing_root_when_persisting_under_a_missing_root() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let store = FilesystemSilverObjectStore::new(&root);
-        let record = object("notes/part-0.parquet", b"PAR1");
+        let store = WriteOnceFilesystemRepository::new(&root);
+        let record = blob("notes/part-0.parquet", b"PAR1");
 
         let expected_result = Err(WriteError::Backend(BackendError::from(
             FailedFilesystemOperation::new(FailedFilesystemOperationReason::MissingRoot, &root),
@@ -483,8 +474,8 @@ mod tests {
     #[tokio::test]
     async fn should_return_a_create_file_error_when_a_directory_sits_at_the_key() {
         let root = temporary_root();
-        let store = store_with(&root, vec![object("notes/a/x.parquet", b"X")]).await;
-        let record = object("notes/a", b"A");
+        let store = store_with(&root, vec![blob("notes/a/x.parquet", b"X")]).await;
+        let record = blob("notes/a", b"A");
         let path = root.path().join("notes/a");
 
         let expected_result = Err(WriteError::Backend(BackendError::from(
@@ -504,7 +495,7 @@ mod tests {
     async fn should_return_missing_root_when_reading_under_a_missing_root() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let store = FilesystemSilverObjectStore::new(&root);
+        let store = WriteOnceFilesystemRepository::new(&root);
         let key = key("notes/part-0.parquet");
 
         let expected_result = Err(ReadError::Backend(BackendError::from(
@@ -520,7 +511,7 @@ mod tests {
     async fn should_return_missing_root_when_listing_under_a_missing_root() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let store = FilesystemSilverObjectStore::new(&root);
+        let store = WriteOnceFilesystemRepository::new(&root);
         let prefix = KeyPrefix::root();
 
         let expected_result = vec![Err(ReadError::Backend(BackendError::from(
@@ -538,9 +529,9 @@ mod tests {
         let store = store_with(
             &root,
             vec![
-                object("notes/b.parquet", b"B"),
-                object("notes/a/x.parquet", b"X"),
-                object("daily/c.parquet", b"C"),
+                blob("notes/b.parquet", b"B"),
+                blob("notes/a/x.parquet", b"X"),
+                blob("daily/c.parquet", b"C"),
             ],
         )
         .await;
@@ -559,19 +550,19 @@ mod tests {
         let store = store_with(
             &root,
             vec![
-                object("notes/a.parquet", b"PAR1"),
-                object("notes/b.parquet", b"PA"),
+                blob("notes/a.parquet", b"PAR1"),
+                blob("notes/b.parquet", b"PA"),
             ],
         )
         .await;
         let prefix = KeyPrefix::root();
 
         let expected_result = vec![
-            Ok(ListedObject {
+            Ok(ListedBlob {
                 key: key("notes/a.parquet"),
                 size_in_bytes: 4,
             }),
-            Ok(ListedObject {
+            Ok(ListedBlob {
                 key: key("notes/b.parquet"),
                 size_in_bytes: 2,
             }),
