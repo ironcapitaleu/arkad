@@ -787,11 +787,11 @@ A Cloud Run task has a limit of one hour. One task transforms one Notes file, so
 largest Notes file, not the length of the history. More history adds tasks, and the tasks run in
 parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of the slowest task.
 
-- Measured on 2026-11-08 with the Rust prototype of the silver layer, on `2024q1`, the largest
-  file, on one thread (Linear document "STA-424 Findings: Silver Parquet Layer and Polars for the
-  Transform Step"): split, parse, map, and write take 45.6 s with C and 97.3 s with B. C that
-  stops on the last row, then B, takes about 2.4 minutes. Not measured: the standardize filing
-  step and the reads from GCS.
+- Measured on `2024q1`, the largest file, on one thread: split, parse, map, and write take 45.6 s
+  with C and 97.3 s with B. C that stops on the last row, then B, takes about 2.4 minutes. The
+  Rust prototype of the silver layer measured these times on 2026-11-08 (Linear document "STA-424
+  Findings: Silver Parquet Layer and Polars for the Transform Step"). Not measured: the
+  standardize filing step and the reads from GCS.
 - Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
   target applies to C and B together, because C can stop on the last row of an unsorted file.
 - Units differ in size: `2009q1` holds no filings, and `2024q1` holds 2.7 GB of text. The time of
