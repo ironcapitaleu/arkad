@@ -72,7 +72,7 @@ impl TryFrom<(SelectFilingDocuments, FilingRef)> for PrepareSecRequest<FilingDoc
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -104,8 +104,7 @@ mod tests {
             Cik::new("3545").expect("Given a hardcoded valid CIK, parsing should always succeed"),
             accession_number(raw_accession_number),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         )
     }
 

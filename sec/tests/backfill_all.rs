@@ -18,7 +18,7 @@
 //!
 //! None. A fake SEC client answers every request, and the stores write to a temp dir.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use sec::implementations::extraction::{
     AllRunSummary, BackfillRepositories, DailyFilingsRepositories, Extraction, FailedAllBackfill,
@@ -56,8 +56,9 @@ const CATCH_UP_DATES: [&str; 9] = [
 const RUN_EXPECT: &str =
     "Given a published Notes period in the list, the run should always find a cut-over date";
 
-fn date(value: &str) -> NaiveDate {
-    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+fn date(value: &str) -> Date {
+    value
+        .parse()
         .expect("Given a hardcoded valid date, parsing should always succeed")
 }
 

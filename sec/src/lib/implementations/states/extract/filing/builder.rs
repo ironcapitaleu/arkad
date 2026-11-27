@@ -327,7 +327,7 @@ where
     /// A builder without an ingestion mode has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
     /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
@@ -343,7 +343,7 @@ where
     ///     Cik::new("3545").expect("The CIK is valid"),
     ///     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
     ///     ParsedForm::new(Form::TenQ, false),
-    ///     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
+    ///     date(2026, 9, 9),
     /// );
     /// let filing_index_repository = FilesystemRepository::builder()
     ///     .writer()
@@ -375,7 +375,7 @@ where
     /// repositories swapped has no `build` method, and this does not compile:
     ///
     /// ```compile_fail,E0271,E0599
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::implementations::states::extract::filing::ExtractFilingSuperState;
     /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
@@ -391,7 +391,7 @@ where
     ///     Cik::new("3545").expect("The CIK is valid"),
     ///     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
     ///     ParsedForm::new(Form::TenQ, false),
-    ///     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
+    ///     date(2026, 9, 9),
     /// );
     /// let filing_index_repository = FilesystemRepository::builder()
     ///     .writer()
@@ -449,7 +449,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::WriteError;
 
@@ -490,8 +490,7 @@ mod tests {
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
             ),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         )
     }
 

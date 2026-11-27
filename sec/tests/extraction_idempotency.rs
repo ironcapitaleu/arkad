@@ -107,7 +107,7 @@ fn temporary_root() -> TempDir {
 mod daily_filings {
     use std::time::Duration;
 
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
     use pretty_assertions::assert_eq;
     use sec::implementations::extraction::{DailyFilingsRepositories, DailyRunSummary, Extraction};
     use sec::shared::raw_document::RawDocument;
@@ -137,8 +137,9 @@ mod daily_filings {
     const SUBMISSIONS_URL: &str = "https://data.sec.gov/submissions/CIK0000003545.json";
     const SUBMISSIONS: &[u8] = br#"{"cik":"3545","name":"ALCO STORES INC","filings":{"recent":{"accessionNumber":["0000003545-26-000047"],"filingDate":["2026-10-26"],"form":["10-Q"]}}}"#;
 
-    fn date(value: &str) -> NaiveDate {
-        NaiveDate::parse_from_str(value, "%Y-%m-%d")
+    fn date(value: &str) -> Date {
+        value
+            .parse()
             .expect("Given a hardcoded valid date, parsing should always succeed")
     }
 

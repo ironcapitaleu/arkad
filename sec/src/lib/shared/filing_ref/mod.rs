@@ -8,7 +8,7 @@ use std::collections::HashSet;
 use std::fmt::{self, Display, Formatter};
 use std::ops::RangeInclusive;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 
 use crate::shared::accession_number::AccessionNumber;
@@ -23,7 +23,7 @@ pub struct FilingRef {
     accession_number: AccessionNumber,
     form: Form,
     is_amendment: bool,
-    filed_date: NaiveDate,
+    filed_date: Date,
 }
 
 impl FilingRef {
@@ -33,7 +33,7 @@ impl FilingRef {
         cik: Cik,
         accession_number: AccessionNumber,
         parsed_form: ParsedForm,
-        filed_date: NaiveDate,
+        filed_date: Date,
     ) -> Self {
         Self {
             cik,
@@ -70,7 +70,7 @@ impl FilingRef {
 
     /// Returns the date filed.
     #[must_use]
-    pub const fn filed_date(&self) -> NaiveDate {
+    pub const fn filed_date(&self) -> Date {
         self.filed_date
     }
 }
@@ -128,7 +128,7 @@ pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a FormIndexRow>) -> V
 /// # Examples
 ///
 /// ```
-/// use chrono::NaiveDate;
+/// use jiff::civil::date;
 /// use sec::shared::form_index_row::parse_form_index;
 /// use sec::shared::filing_ref::select_filings_filed_in;
 ///
@@ -137,10 +137,8 @@ pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a FormIndexRow>) -> V
 ///     10-Q             CARMAX INC                                                    1170010     2026-09-30  edgar/data/1170010/0001170010-26-000104.txt";
 /// let rows = parse_form_index(text)
 ///     .expect("Given two hardcoded well-formed rows, parsing should always succeed");
-/// let october = NaiveDate::from_ymd_opt(2026, 10, 1)
-///     .expect("Given a hardcoded calendar date, the date should always build")
-///     ..=NaiveDate::from_ymd_opt(2026, 10, 31)
-///         .expect("Given a hardcoded calendar date, the date should always build");
+/// let october = date(2026, 10, 1)
+///     ..=date(2026, 10, 31);
 ///
 /// let expected_result = vec!["0000320193-26-000106".to_string()];
 ///
@@ -154,7 +152,7 @@ pub fn select_filings<'a>(rows: impl IntoIterator<Item = &'a FormIndexRow>) -> V
 #[must_use]
 pub fn select_filings_filed_in<'a>(
     rows: impl IntoIterator<Item = &'a FormIndexRow>,
-    dates: &RangeInclusive<NaiveDate>,
+    dates: &RangeInclusive<Date>,
 ) -> Vec<FilingRef> {
     select_filings(
         rows.into_iter()
@@ -164,6 +162,7 @@ pub fn select_filings_filed_in<'a>(
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -181,9 +180,8 @@ mod tests {
         Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed")
     }
 
-    fn filed_date() -> NaiveDate {
-        NaiveDate::from_ymd_opt(2026, 10, 27)
-            .expect("Given a hardcoded calendar date, the date should always build")
+    fn filed_date() -> Date {
+        date(2026, 10, 27)
     }
 
     fn row(form_text: &str) -> FormIndexRow {
@@ -279,11 +277,6 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
-    }
-
     fn rows_of(texts: &[&str]) -> Vec<FormIndexRow> {
         texts
             .iter()
@@ -300,7 +293,7 @@ mod tests {
         accession_number: &str,
         form: Form,
         is_amendment: bool,
-        filed_date: NaiveDate,
+        filed_date: Date,
     ) -> FilingRef {
         FilingRef::new(
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),

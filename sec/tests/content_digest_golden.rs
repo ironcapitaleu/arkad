@@ -8,7 +8,9 @@
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
+use jiff::Timestamp;
+use jiff::civil::{Date, date};
+use jiff::tz::TimeZone;
 use pretty_assertions::assert_eq;
 
 use sec::shared::row_digest::{ByteForm, DigestRow, content_digest, group_hashes};
@@ -31,11 +33,11 @@ struct FixtureRow {
     filing_id: &'static str,
     concept: &'static str,
     dimensions: Vec<Dimension>,
-    period_end: NaiveDate,
+    period_end: Date,
     quarters: u16,
     value: Option<BigDecimal>,
     is_custom: bool,
-    accepted_at: DateTime<Utc>,
+    accepted_at: Timestamp,
 }
 
 impl DigestRow for FixtureRow {
@@ -76,15 +78,12 @@ fn decimal(text: &str) -> BigDecimal {
         .expect("Given a hardcoded decimal string, the parse should always succeed")
 }
 
-const fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(year, month, day)
-        .expect("Given a hardcoded valid date, the creation should always succeed")
-}
-
-fn accepted_at(hour: u32, minute: u32) -> DateTime<Utc> {
-    Utc.with_ymd_and_hms(2024, 2, 2, hour, minute, 0)
-        .single()
-        .expect("Given a hardcoded valid UTC time, the creation should always succeed")
+fn accepted_at(hour: i8, minute: i8) -> Timestamp {
+    TimeZone::UTC
+        .to_timestamp(date(2024, 2, 2).at(hour, minute, 0, 0))
+        .expect(
+            "Given a hardcoded UTC time in the range of jiff, the conversion should always succeed",
+        )
 }
 
 /// The fixture unit: two filings, a null value, a null member, a negative decimal, and a decimal

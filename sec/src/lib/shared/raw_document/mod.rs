@@ -175,7 +175,7 @@ impl<S: RawSource> RawDocument<S> {
     /// ```rust
     /// use std::collections::HashMap;
     ///
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use jiff::Timestamp;
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
@@ -206,8 +206,7 @@ impl<S: RawSource> RawDocument<S> {
     /// let user_agent = UserAgent::new("arkad contact@example.com")
     ///     .expect("A hardcoded SEC-format string should always validate");
     /// let filing = FilingFields {
-    ///     filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
-    ///         .expect("Given a hardcoded calendar date, the date should always build"),
+    ///     filed_date: date(2026, 9, 9),
     ///     form: "10-Q".to_string(),
     ///     is_amendment: false,
     /// };
@@ -376,7 +375,7 @@ impl<S: RawFileSource> RawDocument<S> {
     /// ```rust
     /// use std::collections::HashMap;
     ///
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use jiff::Timestamp;
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
@@ -411,8 +410,7 @@ impl<S: RawFileSource> RawDocument<S> {
     /// let user_agent = UserAgent::new("arkad contact@example.com")
     ///     .expect("A hardcoded SEC-format string should always validate");
     /// let filing = FilingFields {
-    ///     filed_date: NaiveDate::from_ymd_opt(2026, 9, 9)
-    ///         .expect("Given a hardcoded calendar date, the date should always build"),
+    ///     filed_date: date(2026, 9, 9),
     ///     form: "10-Q".to_string(),
     ///     is_amendment: false,
     /// };

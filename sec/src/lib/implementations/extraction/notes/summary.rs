@@ -2,7 +2,7 @@
 //!
 //! Provides [`NotesRunSummary`], the outcome of every period of one Notes batch run.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde_json::{Value, json};
 use thiserror::Error;
 
@@ -90,7 +90,7 @@ impl NotesRunSummary {
     /// Returns [`MissingCutOverDate::FailedBackfill`] if at least one period failed, because the
     /// stored periods can then have a gap. Returns [`MissingCutOverDate::MissingStoredPeriod`] if
     /// no period has a stored file.
-    pub fn cut_over_date(&self) -> Result<NaiveDate, MissingCutOverDate> {
+    pub fn cut_over_date(&self) -> Result<Date, MissingCutOverDate> {
         self.result()?;
         self.stored_archives()
             .map(NotesArchiveRef::period)
@@ -179,6 +179,7 @@ impl NotesRunSummary {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::shared::Sha256Digest;
 
@@ -198,11 +199,6 @@ mod tests {
         let period = NotesPeriod::new(period)
             .expect("Given a hardcoded published period, parsing should always succeed");
         NotesArchiveRef::new(period, notes_key(period), 2, Sha256Digest::of(b"PK"))
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, building it should always succeed")
     }
 
     fn failed(period: &str, source: StateMachine) -> (String, PeriodOutcome) {

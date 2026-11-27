@@ -19,7 +19,7 @@ tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
 chrono = { version = "0.4", features = ["serde"] }
 # No default features: `jiff` reads no zone file of the system. `static` compiles each zone that
 # `tz::get!` names into the binary (ADR 0047).
-jiff = { version = "1", default-features = false, features = ["std", "static"] }
+jiff = { version = "1", default-features = false, features = ["serde", "std", "static"] }
 async-stream = "0.3"
 async-trait = "0.1.88"
 bytes = "1.11.1"

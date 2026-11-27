@@ -25,7 +25,9 @@ use std::fmt::Display;
 use std::process::ExitCode;
 use std::time::{Duration, Instant};
 
-use chrono::{NaiveDate, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 use sec::implementations::extraction::{
     BackfillRepositories, DailyFilingsRepositories, Extraction, FailedNotesProbe, NotesRunSummary,
     RunEvent,
@@ -81,9 +83,9 @@ async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
     };
     let backfill = Extraction::backfill();
     let execution_id = backfill.id();
-    let now = Utc::now();
+    let now = Timestamp::now();
     let last_date = previous_day_in_new_york(now);
-    let periods = notes_periods_of_run(&sec_client, now.date_naive()).await?;
+    let periods = notes_periods_of_run(&sec_client, TimeZone::UTC.to_datetime(now).date()).await?;
     let start = Instant::now();
 
     let summary = backfill
@@ -181,7 +183,7 @@ fn log_notes_summary(
 /// Returns the [`FailedNotesProbe`] of [`notes_periods`].
 async fn notes_periods_of_run(
     sec_client: &SecClient,
-    today: NaiveDate,
+    today: Date,
 ) -> Result<Vec<String>, FailedNotesProbe> {
     let on_retry = |quarter: NotesPeriod, error: &FailedSecRequest| {
         tracing::warn!(

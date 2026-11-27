@@ -11,7 +11,7 @@
 //! Returns [`TransitionError`] (a [`MissingOutput`](crate::error::state_machine::transition::MissingOutput))
 //! when the source state has no computed output.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::error::state_machine::transition;
 use crate::error::state_machine::transition::Transition as TransitionError;
@@ -22,7 +22,7 @@ use crate::implementations::states::extract::select_full_index_filings::{
 use crate::implementations::states::extract::store_full_index::StoreFullIndex;
 use crate::implementations::states::extract::store_full_index::constants::STATE_NAME as STORE_FULL_INDEX;
 
-impl<R> TryFrom<(StoreFullIndex<R>, NaiveDate, NaiveDate)> for SelectFullIndexFilings {
+impl<R> TryFrom<(StoreFullIndex<R>, Date, Date)> for SelectFullIndexFilings {
     type Error = TransitionError;
 
     /// Builds a [`SelectFullIndexFilings`] from a computed [`StoreFullIndex`] and the first and
@@ -32,7 +32,7 @@ impl<R> TryFrom<(StoreFullIndex<R>, NaiveDate, NaiveDate)> for SelectFullIndexFi
     ///
     /// Returns [`TransitionError::MissingOutput`] if `state` has no computed output.
     fn try_from(
-        (state, first_filed_date, last_filed_date): (StoreFullIndex<R>, NaiveDate, NaiveDate),
+        (state, first_filed_date, last_filed_date): (StoreFullIndex<R>, Date, Date),
     ) -> Result<Self, TransitionError> {
         let (_input, output, context) = state.into_parts();
         let output_data = output.ok_or_else(|| {
@@ -57,6 +57,7 @@ mod tests {
     use std::sync::Arc;
 
     use bytes::Bytes;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::Sha256Digest;
     use storage::implementations::repository::filesystem::{DocumentKey, IngestionMode};
@@ -79,11 +80,6 @@ mod tests {
 
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
     const INDEX_BODY: &[u8] = b"Form Type   Company Name\n---\n";
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
-    }
 
     fn store_full_index() -> StoreFullIndex<FakeFullIndexRepository> {
         let url: Url = "https://www.sec.gov/Archives/edgar/full-index/2026/QTR4/form.idx"

@@ -52,7 +52,7 @@ impl SelectFullIndexFilings {
     ///
     /// ```
     /// use bytes::Bytes;
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::implementations::states::extract::select_full_index_filings::*;
     /// use sec::shared::quarter::Quarter;
     /// use sec::shared::stored_form_index::StoredFormIndex;
@@ -67,8 +67,7 @@ impl SelectFullIndexFilings {
     ///     sha256: Sha256Digest::of(b"---"),
     ///     text: Bytes::from_static(b"---"),
     /// };
-    /// let day = NaiveDate::from_ymd_opt(2026, 10, 1)
-    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let day = date(2026, 10, 1);
     /// let state = SelectFullIndexFilings::new(
     ///     SelectFullIndexFilingsInput::new(index),
     ///     SelectFullIndexFilingsContext::new(Uuid::nil(), Quarter::of(day), day, day),
@@ -208,7 +207,7 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use bytes::Bytes;
-    use chrono::NaiveDate;
+    use jiff::civil::{Date, date};
     use pretty_assertions::assert_eq;
     use storage::Sha256Digest;
     use storage::implementations::repository::filesystem::DocumentKey;
@@ -219,17 +218,12 @@ mod tests {
     use crate::shared::stored_form_index::StoredFormIndex;
     use crate::tests::fixtures::data::full_index::SAMPLE_FULL_INDEX_2026_Q3;
 
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
-    }
-
     /// Returns the quarter 2026 Q3, the quarter of the fixture.
     fn q3() -> Quarter {
         Quarter::of(date(2026, 7, 1))
     }
 
-    fn test_state(text: &'static str, first: NaiveDate, last: NaiveDate) -> SelectFullIndexFilings {
+    fn test_state(text: &'static str, first: Date, last: Date) -> SelectFullIndexFilings {
         let index = StoredFormIndex {
             key: DocumentKey::new("sec/full-index/2026/QTR3/form.idx")
                 .expect("Given a hardcoded valid relative path, the key should always build"),

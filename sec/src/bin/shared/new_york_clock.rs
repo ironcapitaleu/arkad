@@ -9,45 +9,33 @@
 //! The zone data of New York is compiled into the binary, so no binary reads the zone files of the
 //! image.
 
-use chrono::{DateTime, Days, NaiveDate, Utc};
-use jiff::Timestamp;
+use jiff::civil::Date;
 use jiff::tz::{self, TimeZone};
+use jiff::{Timestamp, ToSpan};
 
 /// The time zone of New York, compiled in from the tz database that `jiff` bundles.
 static NEW_YORK: TimeZone = tz::get!("America/New_York");
 
 /// Returns today in New York at the time `now`.
-///
-/// # Panics
-///
-/// Panics if `now` lies outside the years -9999 to 9999. A reading of the clock never does.
-pub fn today_in_new_york(now: DateTime<Utc>) -> NaiveDate {
-    // The fraction of the second cannot change the date, so the whole seconds are enough.
-    let timestamp = Timestamp::from_second(now.timestamp()).expect(
-        "Given a time of the current era, it is always inside the range of a jiff timestamp",
-    );
-    let date = NEW_YORK.to_datetime(timestamp).date();
-    NaiveDate::from_ymd_opt(
-        i32::from(date.year()),
-        u32::from(date.month().unsigned_abs()),
-        u32::from(date.day().unsigned_abs()),
-    )
-    .expect("Given a valid jiff date, the same calendar date always exists in chrono")
+pub fn today_in_new_york(now: Timestamp) -> Date {
+    NEW_YORK.to_datetime(now).date()
 }
 
 /// Returns the day before today in New York at the time `now`.
 ///
 /// # Panics
 ///
-/// Panics if `now` lies outside the years -9999 to 9999. A reading of the clock never does.
-pub fn previous_day_in_new_york(now: DateTime<Utc>) -> NaiveDate {
+/// Panics if today in New York is the first day that [`Date`] holds. A reading of the clock never
+/// is.
+pub fn previous_day_in_new_york(now: Timestamp) -> Date {
     today_in_new_york(now)
-        .checked_sub_days(Days::new(1))
+        .checked_sub(1.day())
         .expect("Given a date of the current era, the day before it always exists")
 }
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -55,12 +43,11 @@ mod tests {
     #[test]
     fn should_return_the_previous_day_in_new_york_when_utc_is_already_the_next_day() {
         // 23:00 on 31 October in New York (UTC-4). In UTC it is already 1 November.
-        let now = DateTime::parse_from_rfc3339("2026-11-01T03:00:00Z")
-            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
-            .with_timezone(&Utc);
+        let now: Timestamp = "2026-11-01T03:00:00Z"
+            .parse()
+            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed");
 
-        let expected_result = NaiveDate::from_ymd_opt(2026, 10, 30)
-            .expect("Given a hardcoded calendar date, building it should always succeed");
+        let expected_result = date(2026, 10, 30);
 
         let result = previous_day_in_new_york(now);
 
@@ -70,12 +57,11 @@ mod tests {
     #[test]
     fn should_return_today_in_new_york_when_utc_is_already_the_next_day_on_standard_time() {
         // 21:30 on 15 January in New York (UTC-5). In UTC it is already 16 January.
-        let now = DateTime::parse_from_rfc3339("2026-01-16T02:30:00Z")
-            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
-            .with_timezone(&Utc);
+        let now: Timestamp = "2026-01-16T02:30:00Z"
+            .parse()
+            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed");
 
-        let expected_result = NaiveDate::from_ymd_opt(2026, 1, 15)
-            .expect("Given a hardcoded calendar date, building it should always succeed");
+        let expected_result = date(2026, 1, 15);
 
         let result = today_in_new_york(now);
 

@@ -215,7 +215,7 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 `sec::shared::row_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
-  `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
+  `decimal(&BigDecimal)` and `date(jiff::civil::Date)`, plus `null()`, `list(len)`, and `struct_(fields)`.
 - Each `DigestRow` writes its columns in schema order and skips `execution_id`, `loaded_at`, and
   `computed_at`.
 - The writer hashes one digest group when the group is whole. The filing step hands over one whole

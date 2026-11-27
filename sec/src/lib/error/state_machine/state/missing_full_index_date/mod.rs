@@ -3,7 +3,7 @@
 //! Provides the [`MissingFullIndexDate`] error: the full index of a quarter does not cover a date
 //! yet, because the date comes after the date of its header line `Last Data Received`.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use thiserror::Error;
 
 use super::State as StateError;
@@ -21,19 +21,15 @@ pub struct MissingFullIndexDate {
     /// The name of the state where the error occurred.
     pub state_name: String,
     /// The date that the full index does not cover.
-    pub date: NaiveDate,
+    pub date: Date,
     /// The date of the header line `Last Data Received` of the full index.
-    pub last_data_received: NaiveDate,
+    pub last_data_received: Date,
 }
 
 impl MissingFullIndexDate {
     /// Creates a new state-level [`MissingFullIndexDate`] error.
     #[must_use]
-    pub fn new(
-        state_name: impl Into<String>,
-        date: NaiveDate,
-        last_data_received: NaiveDate,
-    ) -> Self {
+    pub fn new(state_name: impl Into<String>, date: Date, last_data_received: Date) -> Self {
         Self {
             state_name: state_name.into(),
             date,
@@ -51,6 +47,7 @@ impl From<MissingFullIndexDate> for StateError {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -58,10 +55,8 @@ mod tests {
     fn sample_error() -> MissingFullIndexDate {
         MissingFullIndexDate::new(
             "Select Full Index Filings",
-            NaiveDate::from_ymd_opt(2026, 11, 13)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-            NaiveDate::from_ymd_opt(2026, 11, 12)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 11, 13),
+            date(2026, 11, 12),
         )
     }
 

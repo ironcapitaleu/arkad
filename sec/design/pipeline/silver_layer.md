@@ -865,7 +865,8 @@ Two notes for the writer:
 
 - **Time zone.** The Arrow time zone `UTC` of the timestamp columns needs the `chrono-tz` feature
   of `arrow`. Without it, `arrow` reads only offsets such as `+00:00`, and fails on `UTC`. The
-  writer turns on the feature. `sec` already compiles `chrono-tz`.
+  writer turns on the feature. No crate of the workspace compiles `chrono-tz` yet, so the feature
+  adds it.
 - **`serde_json` precision.** The `arbitrary_precision` feature of `serde_json` breaks the Arrow
   JSON decoder, so the writer builds the Arrow arrays directly, see
   [`silver_writer_and_jobs.md`](silver_writer_and_jobs.md#silverrecord-and-digestrow).

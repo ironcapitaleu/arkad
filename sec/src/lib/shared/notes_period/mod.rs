@@ -32,7 +32,7 @@ pub use year::Year;
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::{Months, NaiveDate};
+use jiff::civil::Date;
 use serde::{Serialize, Serializer};
 
 use constants::{FILE_NAME_SUFFIX, FIRST_YEAR};
@@ -125,36 +125,36 @@ impl NotesPeriod {
     ///
     /// # Panics
     ///
-    /// Never panics: every year of a [`NotesPeriod`] fits a [`NaiveDate`].
+    /// Never panics: every year of a [`NotesPeriod`] fits a [`Date`].
     ///
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::notes_period::NotesPeriod;
     ///
     /// let period = NotesPeriod::new("2024q1").expect("A hardcoded published quarter should always parse");
     ///
-    /// let expected_result =
-    ///     NaiveDate::from_ymd_opt(2024, 3, 31).expect("A hardcoded calendar date should always be valid");
+    /// let expected_result = date(2024, 3, 31);
     ///
     /// let result = period.last_day();
     ///
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn last_day(&self) -> NaiveDate {
+    pub fn last_day(&self) -> Date {
         let last_month = match self.part {
             PeriodPart::Quarter(Quarter::Q1) => 3,
             PeriodPart::Quarter(Quarter::Q2) => 6,
             PeriodPart::Quarter(Quarter::Q3) => 9,
             PeriodPart::Quarter(Quarter::Q4) => 12,
-            PeriodPart::Month(month) => month.0.number_from_month(),
+            PeriodPart::Month(month) => month.0,
         };
-        NaiveDate::from_ymd_opt(i32::from(self.year.0), last_month, 1)
-            .and_then(|first_day| first_day.checked_add_months(Months::new(1)))
-            .and_then(|first_day_of_next_month| first_day_of_next_month.pred_opt())
-            .expect("Given a year of at most 65535 and a month from 1 to 12, the last day of the month should always exist")
+        i16::try_from(self.year.0)
+            .ok()
+            .and_then(|year| Date::new(year, last_month, 1).ok())
+            .map(Date::last_of_month)
+            .expect("Given a year of four digits and a month from 1 to 12, the last day of the month should always exist")
     }
 }
 
@@ -212,6 +212,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -336,7 +337,7 @@ mod tests {
 
         let expected_result = Ok(NotesPeriod {
             year: Year(2025),
-            part: PeriodPart::Month(Month(chrono::Month::October)),
+            part: PeriodPart::Month(Month(10)),
         });
 
         let result = NotesPeriod::new(period_string);
@@ -504,6 +505,32 @@ mod tests {
     }
 
     #[test]
+    fn should_parse_the_serialized_string_back_to_the_same_period_for_quarters_and_months() {
+        let periods = [
+            NotesPeriod::new("2024q1")
+                .expect("Given a published quarter, parsing should always succeed"),
+            NotesPeriod::new("2025_10")
+                .expect("Given a published month, parsing should always succeed"),
+        ];
+        let serialized: Vec<String> = serde_json::from_value(
+            serde_json::to_value(periods)
+                .expect("Serializing periods as JSON strings should always succeed"),
+        )
+        .expect(
+            "Given periods serialized as JSON strings, reading the strings should always succeed",
+        );
+
+        let expected_result = periods.map(Ok);
+
+        let result = [
+            NotesPeriod::new(&serialized[0]),
+            NotesPeriod::new(&serialized[1]),
+        ];
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_the_measured_file_names_for_all_periods_from_2009q1_to_2026_09() {
         let quarters = (2009..=2025)
             .flat_map(|year| (1..=4).map(move |quarter| format!("{year}q{quarter}")))
@@ -524,11 +551,6 @@ mod tests {
             .collect();
 
         assert_eq!(result, expected_result);
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, building it should always succeed")
     }
 
     fn period(period: &str) -> NotesPeriod {

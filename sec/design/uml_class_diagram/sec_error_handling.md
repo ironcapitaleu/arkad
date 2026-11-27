@@ -90,8 +90,8 @@ classDiagram
         %% State-level leaf error for dates filed out of order or outside the quarter of the full index
         +String state_name
         +Quarter quarter
-        +NaiveDate first_filed_date
-        +NaiveDate last_filed_date
+        +Date first_filed_date
+        +Date last_filed_date
     }
 
     class FailedRequestExecution{
@@ -112,8 +112,8 @@ classDiagram
         << struct >>
         %% State-level leaf error for a date that the full index does not cover yet
         +String state_name
-        +NaiveDate date
-        +NaiveDate last_data_received
+        +Date date
+        +Date last_data_received
     }
 
     class FailedDocumentSelection{
@@ -219,7 +219,7 @@ classDiagram
         %% Why a string failed index date validation
         +InvalidIndexDateFormat
         +EarlyIndexDate
-        +FutureIndexDate(today: NaiveDate)
+        +FutureIndexDate(today: Date)
     }
 
     class FormIndexError{

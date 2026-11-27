@@ -58,7 +58,7 @@ impl Display for FilingDocumentSetRef {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use crate::shared::accession_number::AccessionNumber;
@@ -76,8 +76,7 @@ mod tests {
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
             ),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         )
     }
 

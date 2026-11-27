@@ -6,7 +6,7 @@
 
 use std::fmt;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
@@ -25,9 +25,9 @@ pub struct SelectFullIndexFilingsContext {
     /// The quarter of the full index.
     pub quarter: Quarter,
     /// The first date filed that the state keeps.
-    pub first_filed_date: NaiveDate,
+    pub first_filed_date: Date,
     /// The last date filed that the state keeps.
-    pub last_filed_date: NaiveDate,
+    pub last_filed_date: Date,
     /// The maximum number of retries of the state.
     pub max_retries: u32,
 }
@@ -38,15 +38,13 @@ impl SelectFullIndexFilingsContext {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::implementations::states::extract::select_full_index_filings::SelectFullIndexFilingsContext;
     /// use sec::shared::quarter::Quarter;
     /// use uuid::Uuid;
     ///
-    /// let first = NaiveDate::from_ymd_opt(2026, 9, 1)
-    ///     .expect("Given a hardcoded calendar date, the date should always build");
-    /// let last = NaiveDate::from_ymd_opt(2026, 9, 30)
-    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let first = date(2026, 9, 1);
+    /// let last = date(2026, 9, 30);
     /// let context = SelectFullIndexFilingsContext::new(Uuid::nil(), Quarter::of(first), first, last);
     ///
     /// let expected_result = 0;
@@ -59,8 +57,8 @@ impl SelectFullIndexFilingsContext {
     pub const fn new(
         execution_id: Uuid,
         quarter: Quarter,
-        first_filed_date: NaiveDate,
-        last_filed_date: NaiveDate,
+        first_filed_date: Date,
+        last_filed_date: Date,
     ) -> Self {
         Self {
             execution_id,
@@ -115,9 +113,9 @@ impl fmt::Display for SelectFullIndexFilingsContext {
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord)]
 pub struct SelectFullIndexFilingsContextUpdater {
     /// The new first date filed.
-    pub first_filed_date: Option<NaiveDate>,
+    pub first_filed_date: Option<Date>,
     /// The new last date filed.
-    pub last_filed_date: Option<NaiveDate>,
+    pub last_filed_date: Option<Date>,
     /// The new retry budget.
     pub max_retries: Option<u32>,
 }
@@ -133,8 +131,8 @@ impl SelectFullIndexFilingsContextUpdater {
 /// Fluent builder for a [`SelectFullIndexFilingsContextUpdater`].
 #[derive(Debug, Default)]
 pub struct SelectFullIndexFilingsContextUpdaterBuilder {
-    first_filed_date: Option<NaiveDate>,
-    last_filed_date: Option<NaiveDate>,
+    first_filed_date: Option<Date>,
+    last_filed_date: Option<Date>,
     max_retries: Option<u32>,
 }
 
@@ -151,14 +149,14 @@ impl SelectFullIndexFilingsContextUpdaterBuilder {
 
     /// Sets the first date filed.
     #[must_use]
-    pub const fn first_filed_date(mut self, first_filed_date: NaiveDate) -> Self {
+    pub const fn first_filed_date(mut self, first_filed_date: Date) -> Self {
         self.first_filed_date = Some(first_filed_date);
         self
     }
 
     /// Sets the last date filed.
     #[must_use]
-    pub const fn last_filed_date(mut self, last_filed_date: NaiveDate) -> Self {
+    pub const fn last_filed_date(mut self, last_filed_date: Date) -> Self {
         self.last_filed_date = Some(last_filed_date);
         self
     }
@@ -185,14 +183,10 @@ impl SelectFullIndexFilingsContextUpdaterBuilder {
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
-    }
 
     /// Returns the quarter 2026 Q3.
     fn q3() -> Quarter {

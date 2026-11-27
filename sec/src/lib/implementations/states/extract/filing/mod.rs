@@ -28,7 +28,7 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use chrono::NaiveDate;
+//! use jiff::civil::date;
 //! use sec::implementations::states::extract::filing::ExtractFilingSuperState;
 //! use sec::shared::accession_number::AccessionNumber;
 //! use sec::shared::cik::Cik;
@@ -46,7 +46,7 @@
 //!     Cik::new("3545").expect("The CIK is valid"),
 //!     AccessionNumber::new("0000003545-26-000047").expect("The accession number is valid"),
 //!     ParsedForm::new(Form::TenQ, false),
-//!     NaiveDate::from_ymd_opt(2026, 9, 9).expect("The date exists"),
+//!     date(2026, 9, 9),
 //! );
 //! let filing_index_repository = FilesystemRepository::builder()
 //!     .writer()
@@ -767,7 +767,7 @@ where
 mod tests {
     use std::path::Path;
 
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::filesystem::{Document, FilesystemRepository, Write};
     use tempfile::TempDir;
@@ -831,8 +831,7 @@ mod tests {
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
             ),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         )
     }
 

@@ -7,7 +7,8 @@
 //! a later run reads the date again.
 //! A filing is unextractable if its folder holds no XBRL instance. Neither fails the run.
 
-use chrono::{Days, NaiveDate};
+use jiff::ToSpan;
+use jiff::civil::Date;
 use serde_json::{Value, json};
 use thiserror::Error;
 
@@ -70,7 +71,7 @@ pub(super) struct CompanyOutcome {
 
 /// The outcome of every date of one run, oldest date first.
 #[derive(Debug)]
-pub struct DailyRunSummary(pub(super) Vec<(NaiveDate, DateOutcome)>);
+pub struct DailyRunSummary(pub(super) Vec<(Date, DateOutcome)>);
 
 /// The error of a run in which at least one date, filing, or `submissions` file failed.
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -92,12 +93,7 @@ pub struct FailedDailyRun {
 /// after the date [`PENDING_DAYS`] - 1 days before `as_of`. The first date of a run can be its last
 /// read, for example `yesterday-3` in the scheduled run, so a missing index there fails the run.
 /// This keeps the rule safe whatever window the job sets.
-pub(super) fn is_pending(
-    error: &StreamError,
-    date: NaiveDate,
-    first_date: NaiveDate,
-    as_of: NaiveDate,
-) -> bool {
+pub(super) fn is_pending(error: &StreamError, date: Date, first_date: Date, as_of: Date) -> bool {
     date != first_date
         && is_recent(date, as_of)
         && matches!(
@@ -119,9 +115,9 @@ pub(super) fn is_pending(
 /// throttling also counts.
 pub(super) fn is_pending_quarter(
     error: &StreamError,
-    quarter_first_date: NaiveDate,
-    first_date: NaiveDate,
-    as_of: NaiveDate,
+    quarter_first_date: Date,
+    first_date: Date,
+    as_of: Date,
 ) -> bool {
     quarter_first_date != first_date
         && is_recent(quarter_first_date, as_of)
@@ -129,10 +125,11 @@ pub(super) fn is_pending_quarter(
 }
 
 /// Returns `true` if `date` is on or after the date [`PENDING_DAYS`] - 1 days before `as_of`.
-fn is_recent(date: NaiveDate, as_of: NaiveDate) -> bool {
-    // An `as_of` near `NaiveDate::MIN` has no oldest pending date, so every date is recent.
+fn is_recent(date: Date, as_of: Date) -> bool {
+    // An `as_of` near `Date::MIN` has no oldest pending date, so every date is recent.
     as_of
-        .checked_sub_days(Days::new(PENDING_DAYS - 1))
+        .checked_sub((PENDING_DAYS - 1).days())
+        .ok()
         .is_none_or(|oldest_pending| date >= oldest_pending)
 }
 
@@ -309,8 +306,9 @@ mod tests {
 
     const ACCESSION_NUMBER: &str = "0000003545-26-000047";
 
-    fn date(value: &str) -> NaiveDate {
-        NaiveDate::parse_from_str(value, "%Y-%m-%d")
+    fn date(value: &str) -> Date {
+        value
+            .parse()
             .expect("Given a hardcoded valid date, parsing should always succeed")
     }
 
@@ -502,10 +500,10 @@ mod tests {
 
     #[test]
     fn should_count_a_missing_index_as_pending_when_as_of_is_the_minimum_date() {
-        let run_date = NaiveDate::MIN;
+        let run_date = Date::MIN;
         let error = missing_daily_index("2026-10-31");
         let first_date = date("2026-10-28");
-        let as_of = NaiveDate::MIN;
+        let as_of = Date::MIN;
 
         let expected_result = true;
 

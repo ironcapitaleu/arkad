@@ -4,7 +4,7 @@
 
 use std::time::Duration;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use thiserror::Error;
 
 use crate::implementations::extraction::daily_filings::DailyRunSummary;
@@ -36,9 +36,9 @@ pub struct FailedAllBackfill {
 pub struct AllRunSummary {
     pub(super) notes: NotesRunSummary,
     pub(super) notes_duration: Duration,
-    pub(super) cut_over_date: NaiveDate,
+    pub(super) cut_over_date: Date,
     pub(super) newest_published: bool,
-    pub(super) catch_up_dates: Vec<NaiveDate>,
+    pub(super) catch_up_dates: Vec<Date>,
     pub(super) catch_up: DailyRunSummary,
     pub(super) catch_up_duration: Duration,
 }
@@ -59,13 +59,13 @@ impl AllRunSummary {
     /// Returns the cut-over date: the last day of the newest published Notes period. The catch-up
     /// starts [`CATCH_UP_LOOKBACK_DAYS`](super::CATCH_UP_LOOKBACK_DAYS) days before it.
     #[must_use]
-    pub const fn cut_over_date(&self) -> NaiveDate {
+    pub const fn cut_over_date(&self) -> Date {
         self.cut_over_date
     }
 
     /// Returns the dates of the catch-up, oldest first.
     #[must_use]
-    pub fn catch_up_dates(&self) -> &[NaiveDate] {
+    pub fn catch_up_dates(&self) -> &[Date] {
         &self.catch_up_dates
     }
 

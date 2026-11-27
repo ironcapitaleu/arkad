@@ -13,7 +13,8 @@
 
 use std::ffi::OsString;
 
-use chrono::{DateTime, Days, NaiveDate, Utc};
+use jiff::civil::Date;
+use jiff::{Span, Timestamp, ToSpan};
 use thiserror::Error;
 
 use crate::constants::{FROM_ENV_VAR, PREVIOUS_DAY_KEYWORD, TO_ENV_VAR};
@@ -44,17 +45,17 @@ pub enum InvalidRunDates {
     )]
     InvalidLastDate {
         /// The last date of the run.
-        to: NaiveDate,
+        to: Date,
         /// Today in New York.
-        today: NaiveDate,
+        today: Date,
     },
     /// The first date comes after the last date.
     #[error("[InvalidDateOrder] {FROM_ENV_VAR} date '{from}' comes after the last date '{to}'")]
     InvalidDateOrder {
         /// The first date of the run.
-        from: NaiveDate,
+        from: Date,
         /// The last date of the run.
-        to: NaiveDate,
+        to: Date,
     },
 }
 
@@ -75,8 +76,8 @@ pub enum InvalidRunDates {
 pub fn run_dates(
     from: Option<OsString>,
     to: Option<OsString>,
-    now: DateTime<Utc>,
-) -> Result<Vec<NaiveDate>, InvalidRunDates> {
+    now: Timestamp,
+) -> Result<Vec<Date>, InvalidRunDates> {
     let today = today_in_new_york(now);
     let previous_day = previous_day_in_new_york(now);
 
@@ -93,7 +94,10 @@ pub fn run_dates(
     if from > to {
         return Err(InvalidRunDates::InvalidDateOrder { from, to });
     }
-    Ok(from.iter_days().take_while(|date| *date <= to).collect())
+    Ok(from
+        .series(1.day())
+        .take_while(|date| *date <= to)
+        .collect())
 }
 
 /// Returns the value as a string, or `None` if it is unset or empty.
@@ -108,8 +112,8 @@ fn non_empty(value: Option<OsString>) -> Option<String> {
 fn parse_date(
     variable: &'static str,
     value: &str,
-    previous_day: NaiveDate,
-) -> Result<NaiveDate, InvalidRunDates> {
+    previous_day: Date,
+) -> Result<Date, InvalidRunDates> {
     let date = if value == PREVIOUS_DAY_KEYWORD {
         Some(previous_day)
     } else if let Some(days) = value
@@ -128,21 +132,22 @@ fn parse_date(
 
 /// Returns the date `days` days before `previous_day`, or `None` if `days` is not a whole number
 /// of at least 1 written without a sign or a leading zero.
-fn days_before(previous_day: NaiveDate, days: &str) -> Option<NaiveDate> {
-    // `u64` also reads a `+` and leading zeros, so the number must print back to the same text.
-    days.parse::<u64>()
+fn days_before(previous_day: Date, days: &str) -> Option<Date> {
+    // `i64` also reads a sign and leading zeros, so the number must print back to the same text.
+    days.parse::<i64>()
         .ok()
         .filter(|count| *count >= 1 && count.to_string() == days)
-        .and_then(|count| previous_day.checked_sub_days(Days::new(count)))
+        .and_then(|count| Span::new().try_days(count).ok())
+        .and_then(|span| previous_day.checked_sub(span).ok())
 }
 
 /// Returns the date written as `YYYY-MM-DD`, or `None` if `value` is not in that exact form.
-fn calendar_date(value: &str) -> Option<NaiveDate> {
+fn calendar_date(value: &str) -> Option<Date> {
     // `%Y` also reads a sign, and `%m` and `%d` also read one digit, so the date must print back
     // to the same text.
-    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+    Date::strptime("%Y-%m-%d", value)
         .ok()
-        .filter(|date| date.format("%Y-%m-%d").to_string() == value)
+        .filter(|date| date.to_string() == value)
 }
 
 #[cfg(test)]
@@ -152,14 +157,15 @@ mod tests {
     use super::*;
 
     /// 12:00 UTC on 2026-11-01, which is 07:00 on 2026-11-01 in New York.
-    fn noon_utc() -> DateTime<Utc> {
-        DateTime::parse_from_rfc3339("2026-11-01T12:00:00Z")
+    fn noon_utc() -> Timestamp {
+        "2026-11-01T12:00:00Z"
+            .parse()
             .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
-            .with_timezone(&Utc)
     }
 
-    fn date(value: &str) -> NaiveDate {
-        NaiveDate::parse_from_str(value, "%Y-%m-%d")
+    fn date(value: &str) -> Date {
+        value
+            .parse()
             .expect("Given a hardcoded valid date, parsing should always succeed")
     }
 
@@ -179,9 +185,9 @@ mod tests {
     #[test]
     fn should_return_the_day_before_in_new_york_when_it_is_already_the_next_day_in_utc() {
         let from = Some(OsString::from("yesterday"));
-        let now = DateTime::parse_from_rfc3339("2026-11-02T02:00:00Z")
-            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
-            .with_timezone(&Utc);
+        let now: Timestamp = "2026-11-02T02:00:00Z"
+            .parse()
+            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed");
         let to = None;
 
         let expected_result = Ok(vec![date("2026-10-31")]);
@@ -388,9 +394,9 @@ mod tests {
         let from = Some(OsString::from("yesterday"));
         let to = None;
         // 00:30 on 1 July in New York (UTC-4). A fixed UTC-5 offset gives 23:30 on 30 June.
-        let now = DateTime::parse_from_rfc3339("2026-07-01T04:30:00Z")
-            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
-            .with_timezone(&Utc);
+        let now: Timestamp = "2026-07-01T04:30:00Z"
+            .parse()
+            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed");
 
         let expected_result = Ok(vec![date("2026-06-30")]);
 
@@ -404,9 +410,9 @@ mod tests {
         let from = Some(OsString::from("yesterday"));
         let to = None;
         // 23:30 on 14 January in New York (UTC-5). A fixed UTC-4 offset gives 00:30 on 15 January.
-        let now = DateTime::parse_from_rfc3339("2026-01-15T04:30:00Z")
-            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed")
-            .with_timezone(&Utc);
+        let now: Timestamp = "2026-01-15T04:30:00Z"
+            .parse()
+            .expect("Given a hardcoded RFC 3339 time, parsing should always succeed");
 
         let expected_result = Ok(vec![date("2026-01-13")]);
 

@@ -19,7 +19,7 @@
 //! - [`form_index_error`]: The [`FormIndexError`] returned when the text or one of its lines is
 //!   malformed.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 
 use crate::shared::accession_number::AccessionNumber;
@@ -59,9 +59,9 @@ const FILE_NAME_EXTENSION: &str = ".txt";
 /// The label of the header line that names the last date the index covers.
 const LAST_DATA_RECEIVED_LABEL: &str = "Last Data Received:";
 
-/// The format of the date of the header line `Last Data Received`. When parsing, `%B` also
-/// accepts the short month name of the daily index.
-const LAST_DATA_RECEIVED_FORMAT: &str = "%B %d, %Y";
+/// The formats of the date of the header line `Last Data Received`: the full month name of the
+/// full index, and the short month name of the daily index.
+const LAST_DATA_RECEIVED_FORMATS: [&str; 2] = ["%B %d, %Y", "%b %d, %Y"];
 
 /// One row of an EDGAR form index, daily or full: the form text, the CIK, the date filed, and the
 /// accession number.
@@ -69,7 +69,7 @@ const LAST_DATA_RECEIVED_FORMAT: &str = "%B %d, %Y";
 pub struct FormIndexRow {
     form_text: String,
     cik: Cik,
-    filed_date: NaiveDate,
+    filed_date: Date,
     accession_number: AccessionNumber,
 }
 
@@ -126,25 +126,27 @@ pub fn parse_form_index(text: &str) -> Result<Vec<FormIndexRow>, FormIndexError>
 /// # Examples
 ///
 /// ```
-/// use chrono::NaiveDate;
+/// use jiff::civil::date;
 /// use sec::shared::form_index_row::last_data_received;
 ///
 /// let text = b"Last Data Received:    November 12, 2026\nForm Type   Company Name\n---\n";
 ///
-/// let expected_result = NaiveDate::from_ymd_opt(2026, 11, 12);
+/// let expected_result = Some(date(2026, 11, 12));
 ///
 /// let result = last_data_received(text);
 ///
 /// assert_eq!(result, expected_result);
 /// ```
 #[must_use]
-pub fn last_data_received(text: &[u8]) -> Option<NaiveDate> {
+pub fn last_data_received(text: &[u8]) -> Option<Date> {
     text.split(|byte| *byte == b'\n')
         .map(String::from_utf8_lossy)
         .take_while(|line| !line.starts_with(HEADER_END_PREFIX))
         .find_map(|line| {
             let date = line.strip_prefix(LAST_DATA_RECEIVED_LABEL)?.trim();
-            NaiveDate::parse_from_str(date, LAST_DATA_RECEIVED_FORMAT).ok()
+            LAST_DATA_RECEIVED_FORMATS
+                .iter()
+                .find_map(|format| Date::strptime(format, date).ok())
         })
 }
 
@@ -154,7 +156,7 @@ impl FormIndexRow {
     pub const fn new(
         form_text: String,
         cik: Cik,
-        filed_date: NaiveDate,
+        filed_date: Date,
         accession_number: AccessionNumber,
     ) -> Self {
         Self {
@@ -179,7 +181,7 @@ impl FormIndexRow {
 
     /// Returns the date filed.
     #[must_use]
-    pub const fn filed_date(&self) -> NaiveDate {
+    pub const fn filed_date(&self) -> Date {
         self.filed_date
     }
 
@@ -237,7 +239,7 @@ impl FormIndexRow {
 ///
 /// Checks the length and the characters first, because both formats also accept a 1-digit month
 /// or day, as in `2026102`, and a sign before the year.
-fn filed_date_of(text: &str) -> Option<NaiveDate> {
+fn filed_date_of(text: &str) -> Option<Date> {
     let format = match text.len() {
         DAILY_FILED_DATE_LENGTH if text.bytes().all(|byte| byte.is_ascii_digit()) => {
             DAILY_FILED_DATE_FORMAT
@@ -246,7 +248,7 @@ fn filed_date_of(text: &str) -> Option<NaiveDate> {
         _ => return None,
     };
 
-    NaiveDate::parse_from_str(text, format).ok()
+    Date::strptime(format, text).ok()
 }
 
 /// Returns `true` if `text` has a `-` at the two positions of `2026-10-27` and a digit at every
@@ -274,6 +276,7 @@ fn accession_number_of(file_name: &str) -> Option<AccessionNumber> {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -298,7 +301,7 @@ mod tests {
     fn should_return_the_last_data_received_for_sample_full_index() {
         let text = SAMPLE_FULL_INDEX_2026_Q3.as_bytes();
 
-        let expected_result = NaiveDate::from_ymd_opt(2026, 9, 30);
+        let expected_result = Some(date(2026, 9, 30));
 
         let result = last_data_received(text);
 
@@ -309,7 +312,7 @@ mod tests {
     fn should_return_the_last_data_received_for_sample_daily_index() {
         let text = SAMPLE_DAILY_INDEX.as_bytes();
 
-        let expected_result = NaiveDate::from_ymd_opt(2026, 10, 27);
+        let expected_result = Some(date(2026, 10, 27));
 
         let result = last_data_received(text);
 
@@ -320,7 +323,7 @@ mod tests {
     fn should_return_the_last_data_received_when_the_day_has_one_digit() {
         let text = b"Last Data Received:    October 1, 2026\n---\n";
 
-        let expected_result = NaiveDate::from_ymd_opt(2026, 10, 1);
+        let expected_result = Some(date(2026, 10, 1));
 
         let result = last_data_received(text);
 
@@ -369,8 +372,7 @@ mod tests {
         FormIndexRow::new(
             form_text.to_string(),
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
-            NaiveDate::from_ymd_opt(2026, 10, 27)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 10, 27),
             AccessionNumber::new(accession_number).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
         )
     }
