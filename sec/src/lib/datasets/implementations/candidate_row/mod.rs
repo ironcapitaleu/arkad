@@ -469,10 +469,14 @@ impl<'a> CandidateColumns<'a> {
                     )
                 })?,
             }),
-            (false, None, _) => Err(unexpected("value", "a candidate that is not blocked")),
-            (false, Some(_), None) => {
-                Err(unexpected("confidence", "a candidate that is not blocked"))
-            }
+            (false, None, _) => Err(unexpected(
+                "value",
+                "null in a candidate that is not blocked",
+            )),
+            (false, Some(_), None) => Err(unexpected(
+                "confidence",
+                "null in a candidate that is not blocked",
+            )),
         }
     }
 }
@@ -862,7 +866,7 @@ mod tests {
             dataset: "candidates",
             column: "confidence",
             row: 0,
-            reason: "a candidate that is not blocked".to_owned(),
+            reason: "null in a candidate that is not blocked".to_owned(),
         });
 
         let result = CandidateRow::from_batch(&batch, 1);
@@ -885,7 +889,7 @@ mod tests {
             dataset: "candidates",
             column: "value",
             row: 0,
-            reason: "a candidate that is not blocked".to_owned(),
+            reason: "null in a candidate that is not blocked".to_owned(),
         });
 
         let result = CandidateRow::from_batch(&batch, 1);
@@ -1192,6 +1196,44 @@ mod tests {
 \x01\x00\x00\x00\x05false\
 \x01\x00\x00\x00\x04true\
 \x01\x00\x00\x00\x0263\
+\x01\x00\x00\x00\x011";
+
+        let mut byte_form = ByteForm::new();
+        row.write_row(&mut byte_form);
+        let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_value_the_confidence_and_infinite_decimals_when_a_row_is_reported() {
+        let row = sample_rows().remove(1);
+
+        // As the blocked row, but with period_start 2025-09-28, quarters 4, one dimension pair
+        // with a non-ASCII member, value -6.11, confidence Synonym, a value key with every field
+        // set, accepted, decimals null, decimals_infinite true, blocked false, entity_bucket 7
+        let expected_result: &[u8] = b"\x01\x00\x00\x00\x16http://www.sec.gov/CIK\
+\x01\x00\x00\x00\x0a0000320193\
+\x01\x00\x00\x00\x07Revenue\
+\x01\x00\x00\x00\x0a2026-09-26\
+\x01\x00\x00\x00\x0a2025-09-28\
+\x01\x00\x00\x00\x014\
+\x01\x00\x00\x00\x01\x01\x00\x00\x00\x02\x01\x00\x00\x00\x19StatementGeographicalAxis\x01\x00\x00\x00\x25Soci\xc3\xa9t\xc3\xa9G\xc3\xa9n\xc3\xa9rale\xe6\xa0\xaa\xe5\xbc\x8f\xe4\xbc\x9a\xe7\xa4\xbeMember\
+\x01\x00\x00\x00\x03USD\
+\x01\x00\x00\x00\x05-6.11\
+\x01\x00\x00\x00\x07Synonym\
+\x01\x00\x00\x00\x17us-gaap/alias/revenue@1\
+\x01\x00\x00\x00\x0cus-gaap/2026\
+\x01\x00\x00\x00\x40a92083bfe2d99f604c258a3a192602c4e8c8292d08f51cd3d34db30b80353b3c\
+\x01\x00\x00\x00\x01\x01\x00\x00\x00\x09\x01\x00\x00\x00\x18sec:0000320193-26-000001\x01\x00\x00\x00\x07us-gaap\x01\x00\x00\x00\x08Revenues\x01\x00\x00\x00\x0cus-gaap/2026\x01\x00\x00\x00\x0a2026-09-26\x01\x00\x00\x00\x014\x01\x00\x00\x00\x03USD\x01\x00\x00\x00\x01\x01\x00\x00\x00\x02\x01\x00\x00\x00\x1dStatementBusinessSegmentsAxis\x01\x00\x00\x00\x0cIPhoneMember\x01\x00\x00\x00\x010\
+\x00\
+\x01\x00\x00\x00\x18sec:0000320193-26-000001\
+\x01\x00\x00\x00\x0a2026-11-06\
+\x01\x00\x00\x00\x182026-11-06T12:05:00.000Z\
+\x00\
+\x01\x00\x00\x00\x04true\
+\x01\x00\x00\x00\x05false\
+\x01\x00\x00\x00\x017\
 \x01\x00\x00\x00\x011";
 
         let mut byte_form = ByteForm::new();
