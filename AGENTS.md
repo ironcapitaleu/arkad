@@ -707,9 +707,13 @@ Do NOT create a skill when:
    points to the reference file
 4. Add staleness headers to reference files. The minimum is `last-verified` and `update-frequency`; add `source` to say where the data comes from. Only add domain-specific fields when they apply (e.g. `taxonomy-year` for the xbrl skill) — do not carry them into skills with no such taxonomy.
 5. If reference content derives from source code, note the source file in the header
-6. If a reference file holds examples, its first paragraph says three things: the file is a snapshot
-   of the date in `last-verified`, it is a full list or not, and the rules of `SKILL.md` decide where
-   an example differs from them. A lookup table or a quoted standard needs no such paragraph
+6. If a reference file holds few-shot examples or examples taken from the codebase, its first
+   paragraph says three things:
+   - The file is a snapshot of the date in `last-verified`.
+   - The file is a full list, or it is not.
+   - Where an example differs from the rules of `SKILL.md`, the rules decide.
+
+   A lookup table or a quoted standard needs no such paragraph.
 7. Consider adding a **Self-Improvement** section if the skill covers a domain that evolves through usage (templates, conventions, examples). This section instructs the agent to propose updates to the skill when the user corrects or refines a pattern during use.
 
 **Minimal SKILL.md example:**
