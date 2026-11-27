@@ -1,6 +1,6 @@
 //! # Silver
 //!
-//! Provides [`SilverRecord`], the trait of a row type of one silver dataset and its Arrow form,
+//! Provides [`ArrowRow`], the trait of a row type of one silver dataset and its Arrow form,
 //! and the row types of the datasets.
 //!
 //! The Rust row types are the source of each schema. Each row type builds its Arrow arrays column
@@ -8,7 +8,7 @@
 //!
 //! ## Modules
 //!
-//! - [`traits`]: The [`SilverRecord`] contract of a row type.
+//! - [`traits`]: The [`ArrowRow`] contract of a row type.
 //! - [`implementations`]: The row types, such as [`AsIsFactRow`], and their [`Provenance`].
 //! - [`silver_error`]: The [`SilverError`] of a row type.
 //! - [`schema_text`](mod@schema_text): The text form of a schema.
@@ -17,7 +17,7 @@
 //! ## See Also
 //!
 //! - `sec/design/pipeline/silver_layer.md`, "Datasets": the columns of each dataset.
-//! - `sec/design/pipeline/silver_writer_and_jobs.md`, "`SilverRecord` and `DigestRow`" and
+//! - `sec/design/pipeline/silver_writer_and_jobs.md`, "`ArrowRow` and `DigestRow`" and
 //!   "Schema Tests".
 
 mod columns;
@@ -31,4 +31,4 @@ pub use constants::{FOLDER_LABELS, UTC_TIME_ZONE};
 pub use implementations::{AsIsFactRow, Provenance, SourceKind};
 pub use schema_text::schema_text;
 pub use silver_error::SilverError;
-pub use traits::SilverRecord;
+pub use traits::ArrowRow;

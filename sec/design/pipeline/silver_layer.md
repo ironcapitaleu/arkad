@@ -850,7 +850,7 @@ the other way.
 | Option | Pro | Con |
 | ------ | --- | --- |
 | A. `serde` on the contract types and `serde_arrow` for the batches | Little code. A new field on the type reaches the schema | Newtypes need `#[serde(transparent)]` or a custom mapping. The Arrow type of `Decimal` needs an explicit choice |
-| B. A hand-written `SilverRecord` trait per dataset: `schema()`, `to_batch()`, `from_batch()` (proposed) | Full control over each column. No `arrow` dependency in `xbrl` | More code per dataset |
+| B. A hand-written `ArrowRow` trait per dataset: `schema()`, `to_batch()`, `from_batch()` (proposed) | Full control over each column. No `arrow` dependency in `xbrl` | More code per dataset |
 | C. Schema first, Rust code generated from it | One schema file | The Rust types stop being the source, which is the drift this item must prevent |
 
 Proposal: B, in the transform crate, not in `xbrl`. Three tests keep the schema and the types in
@@ -868,7 +868,7 @@ Two notes for the writer:
   ([ADR 0049](../../../docs/adr/0049-utc-offset-as-arrow-time-zone.md)).
 - **`serde_json` precision.** The `arbitrary_precision` feature of `serde_json` breaks the Arrow
   JSON decoder, so the writer builds the Arrow arrays directly, see
-  [`silver_writer_and_jobs.md`](silver_writer_and_jobs.md#silverrecord-and-digestrow).
+  [`silver_writer_and_jobs.md`](silver_writer_and_jobs.md#arrowrow-and-digestrow).
 
 ### Cloud Run Sizing
 

@@ -1,7 +1,7 @@
 //! # Traits
 //!
-//! Provides [`SilverRecord`], the contract of a row type of one silver dataset.
+//! Provides [`ArrowRow`], the contract of a row type of one silver dataset.
 
-pub mod silver_record;
+pub mod arrow_row;
 
-pub use silver_record::SilverRecord;
+pub use arrow_row::ArrowRow;

@@ -90,7 +90,7 @@ flowchart TB
 | Lease port | `storage` | `LeaseRepository`, a standalone trait, with `FakeLeaseRepository` and `FilesystemLeaseRepository` |
 | GCS backend | `storage`, behind the cargo feature `gcs` | A write-once repository and a `LeaseRepository` backend on the GCS JSON API, beside the filesystem backends |
 | Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
-| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
+| Silver code | `sec`, module `silver` | `ArrowRow`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
 Only one trait of `storage` is new, `LeaseRepository`. No existing trait changes (`AGENTS.md`,
@@ -119,11 +119,11 @@ package.
 
 The filesystem backend opens each file with `create_new`. Tests and local runs use it.
 
-### `SilverRecord` and `DigestRow`
+### `ArrowRow` and `DigestRow`
 
 ```rust
 /// A row type of one silver dataset and its Arrow form.
-pub trait SilverRecord: Sized {
+pub trait ArrowRow: Sized {
     const DATASET: &'static str;
     const SCHEMA_VERSION: u16;
     fn schema(version: u16) -> Option<SchemaRef>;
@@ -580,9 +580,9 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 2. FEATURE: the GCS backends of the write-once repository and `LeaseRepository`, behind the cargo
    feature `gcs`.
 3. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
-4. FEATURE: `SilverRecord` for `as_is_facts` and `filings`, with the schema tests.
-5. FEATURE: `SilverRecord` for `candidates`, `findings`, and `silver_files`.
-6. FEATURE: `SilverRecord` for `standardized_facts` and `taxonomy_elements`.
+4. FEATURE: `ArrowRow` for `as_is_facts` and `filings`, with the schema tests.
+5. FEATURE: `ArrowRow` for `candidates`, `findings`, and `silver_files`.
+6. FEATURE: `ArrowRow` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
 8. FEATURE: the transform plan step and task runner: `RawDocumentSource` with the raw store

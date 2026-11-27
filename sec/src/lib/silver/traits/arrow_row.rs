@@ -1,6 +1,6 @@
-//! # Silver Record
+//! # Arrow Row
 //!
-//! Provides [`SilverRecord`], the trait of a row type of one silver dataset and its Arrow form.
+//! Provides [`ArrowRow`], the trait of a row type of one silver dataset and its Arrow form.
 
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
@@ -14,7 +14,7 @@ use crate::silver::SilverError;
 /// the Arrow arrays column by column, with no JSON step.
 ///
 /// The columns of each dataset are in `sec/design/pipeline/silver_layer.md`, "Datasets".
-pub trait SilverRecord: Sized {
+pub trait ArrowRow: Sized {
     /// The name of the dataset, for example `as_is_facts`. The silver path and the `dataset`
     /// column of `silver_files` hold it.
     const DATASET: &'static str;

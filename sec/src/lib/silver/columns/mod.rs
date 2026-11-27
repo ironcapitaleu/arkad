@@ -17,7 +17,7 @@ use jiff::civil::{Date, date};
 use jiff::{Span, Timestamp};
 
 use crate::shared::row_digest::ByteForm;
-use crate::silver::{SilverError, SilverRecord, UTC_TIME_ZONE, schema_text};
+use crate::silver::{ArrowRow, SilverError, UTC_TIME_ZONE, schema_text};
 
 /// The date that `date32` counts its days from.
 const UNIX_EPOCH: Date = date(1970, 1, 1);
@@ -127,10 +127,7 @@ impl<'a> BatchColumns<'a> {
     ///
     /// Returns [`SilverError::UnknownSchemaVersion`] if `R` has no schema of `version`, and
     /// [`SilverError::UnexpectedSchema`] if a field of the batch differs from the schema.
-    pub fn check<R: SilverRecord>(
-        batch: &'a RecordBatch,
-        version: u16,
-    ) -> Result<Self, SilverError> {
+    pub fn check<R: ArrowRow>(batch: &'a RecordBatch, version: u16) -> Result<Self, SilverError> {
         let schema = R::schema(version).ok_or(SilverError::UnknownSchemaVersion {
             dataset: R::DATASET,
             version,

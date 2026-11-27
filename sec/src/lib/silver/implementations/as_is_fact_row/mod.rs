@@ -32,7 +32,7 @@ use crate::silver::columns::{
     naive_date, nullable, string_list, string_struct_array, string_struct_list, timestamp_array,
     timestamp_from_milliseconds, timestamp_type, unexpected_value, utc_time, utf8_or_null,
 };
-use crate::silver::{Provenance, SilverError, SilverRecord};
+use crate::silver::{ArrowRow, Provenance, SilverError};
 
 pub mod constants;
 
@@ -47,7 +47,7 @@ pub struct AsIsFactRow {
     pub provenance: Provenance,
 }
 
-impl SilverRecord for AsIsFactRow {
+impl ArrowRow for AsIsFactRow {
     const DATASET: &'static str = "as_is_facts";
     const SCHEMA_VERSION: u16 = 1;
 
