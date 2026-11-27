@@ -96,17 +96,16 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data");
+        let company_facts_request_for_0001234567 = SecRequest::builder()
+            .all_company_facts()
+            .cik(
+                Cik::new("0001234567")
+                    .expect("Hardcoded valid CIK string should always parse successfully"),
+            )
+            .build();
 
-        let expected_result = ExecuteSecRequestInput::new(
-            SecClient::default(),
-            SecRequest::builder()
-                .all_company_facts()
-                .cik(
-                    Cik::new("0001234567")
-                        .expect("Hardcoded valid CIK string should always parse successfully"),
-                )
-                .build(),
-        );
+        let expected_result =
+            ExecuteSecRequestInput::new(SecClient::default(), company_facts_request_for_0001234567);
 
         let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")
@@ -218,8 +217,10 @@ mod tests {
             .await
             .expect("Request preparation should always succeed for a valid period");
 
-        let expected_result =
-            ExecuteSecRequestInput::<NotesFile, _>::new(client.clone(), SecRequest::new(period));
+        let expected_result = ExecuteSecRequestInput::<NotesFile, _>::new(
+            SecClient::default(),
+            SecRequest::new(period),
+        );
 
         let result = ExecuteSecRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")
@@ -244,7 +245,7 @@ mod tests {
             .expect("Request preparation should always succeed for a valid CIK");
 
         let expected_result = ExecuteSecRequestInput::<Submissions, _>::new(
-            client.clone(),
+            SecClient::default(),
             SecRequest::builder().submissions().cik(cik).build(),
         );
 
