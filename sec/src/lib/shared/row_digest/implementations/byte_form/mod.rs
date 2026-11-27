@@ -236,7 +236,7 @@ impl ByteForm {
         })
     }
 
-    /// Appends a `timestamp[ms, UTC]` value as `YYYY-MM-DDTHH:MM:SS.mmmZ`.
+    /// Appends a `timestamp[ms, +00:00]` value as `YYYY-MM-DDTHH:MM:SS.mmmZ`.
     ///
     /// The text drops the part of a second below one millisecond.
     ///

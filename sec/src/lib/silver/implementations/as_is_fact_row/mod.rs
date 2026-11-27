@@ -140,7 +140,7 @@ impl SilverRecord for AsIsFactRow {
     }
 
     fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, SilverError> {
-        let (columns, _) = BatchColumns::check::<Self>(batch, version)?;
+        let columns = BatchColumns::check::<Self>(batch, version)?;
         let provenances = Provenance::read(&columns)?;
         let reader = FactColumns::new(&columns)?;
         provenances
@@ -287,8 +287,8 @@ struct FactColumns<'a> {
     decimals_infinite: &'a BooleanArray,
     copy_ranks: &'a UInt16Array,
     footnotes: &'a ListArray,
-    fileds: &'a Date32Array,
-    accepteds: &'a TimestampMillisecondArray,
+    filed_dates: &'a Date32Array,
+    accepted_times: &'a TimestampMillisecondArray,
 }
 
 impl<'a> FactColumns<'a> {
@@ -314,8 +314,8 @@ impl<'a> FactColumns<'a> {
             decimals_infinite: columns.get("decimals_infinite")?,
             copy_ranks: columns.get("copy_rank")?,
             footnotes: columns.get("footnotes")?,
-            fileds: columns.get("filed")?,
-            accepteds: columns.get("accepted")?,
+            filed_dates: columns.get("filed")?,
+            accepted_times: columns.get("accepted")?,
         })
     }
 
@@ -350,19 +350,19 @@ impl<'a> FactColumns<'a> {
         let pairs = string_struct_list(self.dimensions, row)
             .into_iter()
             .map(|pair| {
-                let mut fields = pair.into_iter().flatten();
+                let mut fields = pair.into_iter();
                 // Both fields are not null in the schema, so the defaults never apply.
                 (
-                    fields.next().unwrap_or_default(),
-                    fields.next().unwrap_or_default(),
+                    fields.next().flatten().unwrap_or_default(),
+                    fields.next().flatten().unwrap_or_default(),
                 )
             });
         Ok(AsIsFact {
             source: FilingSource {
                 filing: FilingId::from_str(self.filing_ids.value(row))
                     .map_err(invalid("filing_id"))?,
-                filed: date("filed", self.fileds.value(row))?,
-                accepted: nullable(self.accepteds, row)
+                filed: date("filed", self.filed_dates.value(row))?,
+                accepted: nullable(self.accepted_times, row)
                     .map(timestamp_from_milliseconds)
                     .transpose()
                     .map_err(unexpected("accepted"))?,
@@ -410,9 +410,8 @@ impl<'a> FactColumns<'a> {
     fn value(&self, row: usize) -> Result<FactValue, SilverError> {
         let kind = self.value_kinds.value(row);
         let value = match kind {
-            VALUE_KIND_NUMERIC => nullable(self.value_numerics, row).map(|digits| {
-                FactValue::Numeric(BigDecimal::new(BigInt::from(digits), DECIMAL_SCALE.into()))
-            }),
+            VALUE_KIND_NUMERIC => nullable(self.value_numerics, row)
+                .map(|digits| FactValue::Numeric(number_from_decimal128(digits))),
             VALUE_KIND_TEXT => {
                 nullable(self.value_texts, row).map(|text| FactValue::Text(text.to_owned()))
             }
@@ -436,6 +435,19 @@ const fn value_kind(value: &FactValue) -> &'static str {
         FactValue::Numeric(_) => VALUE_KIND_NUMERIC,
         FactValue::Text(_) => VALUE_KIND_TEXT,
         FactValue::Nil => VALUE_KIND_NIL,
+    }
+}
+
+/// Returns the number of the unscaled digits of a `decimal128(38, 10)` value.
+///
+/// The number has no trailing zeros after the point, and no exponent: `-6.1100000000` reads as
+/// `-6.11`, and `100.0000000000` as `100`. So a filed `6.10` reads back as `6.1`, an equal number.
+fn number_from_decimal128(digits: i128) -> BigDecimal {
+    let number = BigDecimal::new(BigInt::from(digits), DECIMAL_SCALE.into()).normalized();
+    if number.fractional_digit_count() < 0 {
+        number.with_scale(0)
+    } else {
+        number
     }
 }
 
@@ -473,6 +485,8 @@ mod tests {
     use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
+
+    use xbrl::core::invalid_value::InvalidValueReason;
 
     use super::*;
     use crate::silver::implementations::provenance::sample_provenance;
@@ -542,6 +556,36 @@ mod tests {
             row(fact(number("-6.11"), Some(Decimals::Infinite))),
             row(empty),
         ]
+    }
+
+    /// Returns the batch of the first fixture row, with the column `name` replaced by `column`.
+    fn batch_with(name: &str, column: ArrayRef) -> RecordBatch {
+        let batch = AsIsFactRow::to_batch(&sample_rows()[..1])
+            .expect("Given rows whose values fit their columns, the batch should always build");
+        let index = batch
+            .schema()
+            .index_of(name)
+            .expect("Given a column of the schema of version 1, the lookup should always succeed");
+        let mut columns = batch.columns().to_vec();
+        columns[index] = column;
+        RecordBatch::try_new(batch.schema(), columns)
+            .expect("Given a column of the same type, the batch should always build")
+    }
+
+    /// Returns the text of the value of the fact after one pass through a batch.
+    fn value_text_after_round_trip(text: &str) -> String {
+        let rows = vec![AsIsFactRow {
+            fact: fact(number(text), None),
+            provenance: sample_provenance(),
+        }];
+        let batch = AsIsFactRow::to_batch(&rows)
+            .expect("Given rows whose values fit their columns, the batch should always build");
+        let rows = AsIsFactRow::from_batch(&batch, AsIsFactRow::SCHEMA_VERSION)
+            .expect("Given a batch that `to_batch` built, the read should always succeed");
+        match &rows[0].fact.value {
+            FactValue::Numeric(number) => number.to_string(),
+            FactValue::Text(_) | FactValue::Nil => String::new(),
+        }
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -686,6 +730,162 @@ mod tests {
 
         let mut result = ByteForm::new();
         second.write_row(&mut result);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_rows_when_the_batch_holds_no_rows() {
+        let rows: Vec<AsIsFactRow> = Vec::new();
+
+        let expected_result: Vec<AsIsFactRow> = Vec::new();
+
+        let batch =
+            AsIsFactRow::to_batch(&rows).expect("Given no rows, the batch should always build");
+        let result = AsIsFactRow::from_batch(&batch, AsIsFactRow::SCHEMA_VERSION)
+            .expect("Given a batch that `to_batch` built, the read should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_the_filed_digits_when_a_number_with_a_fraction_reads_back() {
+        let text = "-6.11";
+
+        let expected_result = "-6.11";
+
+        let result = value_text_after_round_trip(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_no_exponent_when_a_whole_number_reads_back() {
+        let text = "391035000000";
+
+        let expected_result = "391035000000";
+
+        let result = value_text_after_round_trip(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_row_has_finite_decimals_and_decimals_infinite() {
+        let batch = batch_with(
+            "decimals_infinite",
+            Arc::new(BooleanArray::from(vec![true])),
+        );
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "decimals",
+            row: 0,
+            reason: "a finite value with 'decimals_infinite' true".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_value_kind_is_unknown() {
+        let batch = batch_with("value_kind", Arc::new(StringArray::from(vec!["ratio"])));
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "value_kind",
+            row: 0,
+            reason: "kind 'ratio' without a value in its column".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_quarters_differ_from_the_period_dates() {
+        let batch = batch_with("quarters", Arc::new(UInt16Array::from(vec![5])));
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "quarters",
+            row: 0,
+            reason: "the dates give '4' quarters".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_the_rule_when_a_unit_is_empty() {
+        let batch = batch_with("unit", Arc::new(StringArray::from(vec![""])));
+
+        let expected_result = Err(SilverError::InvalidColumnValue {
+            dataset: "as_is_facts",
+            column: "unit",
+            row: 0,
+            source: InvalidValue::new("Unit", InvalidValueReason::Empty, ""),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_source_kind_is_unknown() {
+        let batch = batch_with("source_kind", Arc::new(StringArray::from(vec!["zip"])));
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "source_kind",
+            row: 0,
+            reason: "not 'notes' or 'instance'".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_filing_id_as_the_digest_group() {
+        let row = sample_rows().remove(0);
+
+        // marker 01 | length 00000018 | text sec:0000320193-26-000001
+        let expected_result: &[u8] = b"\x01\x00\x00\x00\x18sec:0000320193-26-000001";
+
+        let mut byte_form = ByteForm::new();
+        row.write_group_id(&mut byte_form);
+        let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_value_key_in_key_order_as_the_row_key() {
+        let row = sample_rows().remove(3);
+
+        // filing_id | concept_family | concept_name | taxonomy_version null | period_end |
+        // quarters 0 | unit null | dimensions empty list | copy_rank 0
+        let expected_result: &[u8] = b"\x01\x00\x00\x00\x18sec:0000320193-26-000001\
+\x01\x00\x00\x00\x07us-gaap\
+\x01\x00\x00\x00\x08Revenues\
+\x00\
+\x01\x00\x00\x00\x0a2026-09-26\
+\x01\x00\x00\x00\x010\
+\x00\
+\x01\x00\x00\x00\x00\
+\x01\x00\x00\x00\x010";
+
+        let mut byte_form = ByteForm::new();
+        row.write_row_key(&mut byte_form);
+        let result = byte_form.as_bytes();
 
         assert_eq!(result, expected_result);
     }

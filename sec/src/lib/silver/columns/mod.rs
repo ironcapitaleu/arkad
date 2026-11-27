@@ -10,7 +10,7 @@ use arrow::array::{
     TimestampMillisecondArray,
 };
 use arrow::buffer::OffsetBuffer;
-use arrow::datatypes::{DataType, Field, FieldRef, Fields, Schema, SchemaRef, TimeUnit};
+use arrow::datatypes::{DataType, Field, FieldRef, Fields, Schema, TimeUnit};
 use arrow::error::ArrowError;
 use chrono::{DateTime, NaiveDate, Utc};
 use jiff::civil::{Date, date};
@@ -22,7 +22,7 @@ use crate::silver::{SilverError, SilverRecord, UTC_TIME_ZONE, schema_text};
 /// The date that `date32` counts its days from.
 const UNIX_EPOCH: Date = date(1970, 1, 1);
 
-/// Returns the type of a `timestamp[ms, UTC]` column.
+/// Returns the type of a `timestamp[ms, +00:00]` column.
 pub fn timestamp_type() -> DataType {
     DataType::Timestamp(TimeUnit::Millisecond, Some(UTC_TIME_ZONE.into()))
 }
@@ -58,7 +58,7 @@ pub fn timestamp_from_milliseconds(milliseconds: i64) -> Result<Timestamp, Strin
     Timestamp::from_millisecond(milliseconds).map_err(|error| error.to_string())
 }
 
-/// Returns a `timestamp[ms, UTC]` array of the timestamps. The part below one millisecond drops.
+/// Returns a `timestamp[ms, +00:00]` array of the timestamps. The part below one millisecond drops.
 pub fn timestamp_array(values: impl IntoIterator<Item = Option<Timestamp>>) -> ArrayRef {
     let milliseconds = values
         .into_iter()
@@ -130,7 +130,7 @@ impl<'a> BatchColumns<'a> {
     pub fn check<R: SilverRecord>(
         batch: &'a RecordBatch,
         version: u16,
-    ) -> Result<(Self, SchemaRef), SilverError> {
+    ) -> Result<Self, SilverError> {
         let schema = R::schema(version).ok_or(SilverError::UnknownSchemaVersion {
             dataset: R::DATASET,
             version,
@@ -161,7 +161,7 @@ impl<'a> BatchColumns<'a> {
             dataset: R::DATASET,
             version,
         };
-        Ok((columns, schema))
+        Ok(columns)
     }
 
     /// Returns the array of a column as its Arrow array type.
@@ -289,6 +289,7 @@ mod tests {
     fn should_fail_when_a_day_count_lies_past_the_dates_of_jiff() {
         let days = i32::MAX;
 
+        // The text of the `jiff` error is not stable across releases, so the test checks the kind.
         let expected_result = true;
 
         let result = date_from_days(days).is_err();
