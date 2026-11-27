@@ -321,7 +321,8 @@ mod tests {
         let input = SampleStateData::new(String::from("Input that differs from the default"));
         let mut sample_state = SampleState::new(input, SampleStateContext::default());
 
-        let expected_result = &sample_state.input_data().clone();
+        let expected_result =
+            &SampleStateData::new(String::from("Input that differs from the default"));
 
         sample_state.compute_output_data();
         let result = sample_state.input_data();

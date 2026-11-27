@@ -256,7 +256,7 @@ mod tests {
         let input = SampleSecStateInput::new("Input that differs from the default");
         let mut sample_state = SampleSecState::new(input, SampleSecStateContext::default());
 
-        let expected_result = &sample_state.input_data().clone();
+        let expected_result = &SampleSecStateInput::new("Input that differs from the default");
 
         sample_state
             .compute_output_data_async()
