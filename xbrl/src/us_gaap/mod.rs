@@ -995,12 +995,17 @@ mod tests {
     fn should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created() {
         let us_gaap = UsGaap::new();
 
-        // The 2026 release does not hold these concepts. The EPS concept is in two lists.
+        // The 2026 release does not hold these concepts. The EPS concept and the two revenue parts
+        // are in two lists each.
         let expected_result = vec![
             concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
             concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
             concept("us-gaap", "IncomeLossFromOperations"),
+            concept("us-gaap", "SalesRevenueGoodsNet"),
+            concept("us-gaap", "SalesRevenueGoodsNet"),
             concept("us-gaap", "SalesRevenueNet"),
+            concept("us-gaap", "SalesRevenueServicesNet"),
+            concept("us-gaap", "SalesRevenueServicesNet"),
         ];
 
         let mut result: Vec<ConceptName> = us_gaap
@@ -1026,6 +1031,8 @@ mod tests {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
+            concept("us-gaap", "SalesRevenueGoodsNet"),
+            concept("us-gaap", "SalesRevenueServicesNet"),
             concept(
                 "us-gaap",
                 "TemporaryEquityCarryingAmountAttributableToParent",
@@ -1143,6 +1150,8 @@ mod tests {
                         "us-gaap",
                         "RevenueFromContractWithCustomerIncludingAssessedTax",
                     ),
+                    concept("us-gaap", "SalesRevenueGoodsNet"),
+                    concept("us-gaap", "SalesRevenueServicesNet"),
                 ],
                 other_parts: vec![
                     concept(
@@ -1165,6 +1174,8 @@ mod tests {
                     ),
                     concept("us-gaap", "RevenuesExcludingInterestAndDividends"),
                     concept("us-gaap", "SaleOfTrustAssetsToPayExpenses"),
+                    concept("us-gaap", "SalesRevenueGoodsNet"),
+                    concept("us-gaap", "SalesRevenueServicesNet"),
                     concept("us-gaap", "SalesTypeLeaseInterestIncome"),
                     concept("us-gaap", "SalesTypeLeaseRevenue"),
                     concept("us-gaap", "SalesTypeLeaseVariableLeaseIncome"),
@@ -3066,6 +3077,65 @@ mod tests {
             rule("us-gaap/part/revenue@1"),
             Some(Confidence::Synonym),
         )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_revenue_part_rule_id_when_the_filing_reports_only_sales_revenue_of_goods()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000021344-14-000008", date(2014, 2, 27));
+        let facts = vec![fact(&filing, "SalesRevenueGoodsNet", "46854000000")];
+
+        let expected_result = vec![(
+            IncomeStatementConcept::Revenue.element(),
+            rule("us-gaap/part/revenue@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_revenue_part_rule_id_when_the_filing_reports_only_sales_revenue_of_services()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000021344-14-000008", date(2014, 2, 27));
+        let facts = vec![fact(&filing, "SalesRevenueServicesNet", "2100000000")];
+
+        let expected_result = vec![(
+            IncomeStatementConcept::Revenue.element(),
+            rule("us-gaap/part/revenue@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_revenue_when_the_filing_reports_sales_revenue_of_goods_and_services_without_a_total()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000021344-14-000008", date(2014, 2, 27));
+        let facts = vec![
+            fact(&filing, "SalesRevenueGoodsNet", "62000000000"),
+            fact(&filing, "SalesRevenueServicesNet", "26900000000"),
+        ];
+
+        let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
 

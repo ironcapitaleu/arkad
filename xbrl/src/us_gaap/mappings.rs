@@ -817,7 +817,16 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &[
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
+            "SalesRevenueGoodsNet",
+            "SalesRevenueServicesNet",
         ],
+        // The 2026 release does not hold `SalesRevenueGoodsNet` and `SalesRevenueServicesNet`.
+        // Filers before 2018 split revenue into the two, so each is an other part of the other. A
+        // filing that reports both gets no value from them, and the alias `SalesRevenueNet` covers
+        // it. A known gap: a filer that splits revenue into goods and a third line, such as
+        // `OtherSalesRevenueNet`, gets the goods line as `Revenue` with no finding. ADR 0049
+        // records the decision and the gap.
+        //
         // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
         // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
         // `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`, and
@@ -840,6 +849,8 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "RevenueNotFromContractWithCustomerExcludingInterestIncome",
             "RevenuesExcludingInterestAndDividends",
             "SaleOfTrustAssetsToPayExpenses",
+            "SalesRevenueGoodsNet",
+            "SalesRevenueServicesNet",
             "SalesTypeLeaseInterestIncome",
             "SalesTypeLeaseRevenue",
             "SalesTypeLeaseVariableLeaseIncome",
