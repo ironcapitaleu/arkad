@@ -86,7 +86,7 @@ Record the answer in the `Status` row of the ADR, as "Amend or Supersede" says.
 
 | Field | Value |
 | ----- | ----- |
-| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link) or [ironcapitaleu/arkad#NNN](link)) \| Superseded by ADR NNNN> |
+| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link), accessed YYYY-MM-DD, or [ironcapitaleu/arkad#NNN](link), accessed YYYY-MM-DD) \| Superseded by ADR NNNN> |
 | Date | YYYY-MM-DD |
 | Deciders | <who decides> |
 | Ticket | <[STA-123](link): the ticket that needs the decision, with its ID as the link text, or "None"> |
