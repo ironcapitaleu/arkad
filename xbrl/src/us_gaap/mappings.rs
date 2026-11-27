@@ -8,9 +8,13 @@
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
 //! standard concept, at version 1, for example `us-gaap/alias/operating-cash-flow@1`.
 //!
-//! ## Two-Tier Validation
-//! - **Required**: Structural backbone concepts every public company reports.
-//! - **Optional**: Enriching detail extracted when available, skipped when absent.
+//! ## Required Concepts
+//!
+//! The flag `required` of a definition marks the 11 roll-ups that each annual and quarterly report
+//! needs. If a filing leaves one without a value,
+//! [`check_required`](crate::core::required_check::check_required) reports it. The flag does not
+//! follow the two arrays: [`REQUIRED_CONCEPTS`] holds the concepts that the parse of the `sec`
+//! crate checks over all years of a company, and [`OPTIONAL_CONCEPTS`] holds the others.
 
 use crate::core::elements::{
     BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, DebtMaturityConcept,
@@ -29,7 +33,7 @@ pub struct ConceptDefinition {
     xbrl_keys: &'static [&'static str],
     /// The ID of the alias rule, for example `us-gaap/alias/revenue@1`.
     alias_rule: &'static str,
-    /// Whether this concept is required (validation fails if absent).
+    /// Whether a filing without a value of this concept gets a finding.
     required: bool,
 }
 
@@ -68,7 +72,8 @@ impl ConceptDefinition {
         self.alias_rule
     }
 
-    /// Returns `true` if this concept is required for valid output.
+    /// Returns `true` if a filing without a value of this concept gets a
+    /// [`Finding::MissingRequired`](crate::core::finding::Finding::MissingRequired).
     #[must_use]
     pub const fn required(&self) -> bool {
         self.required
@@ -165,8 +170,9 @@ pub const INVESTING_CASH_FLOW_RULE: &str = "us-gaap/alias/investing-cash-flow@1"
 /// The ID of the alias rule of [`CashFlowConcept::FinancingCashFlow`].
 pub const FINANCING_CASH_FLOW_RULE: &str = "us-gaap/alias/financing-cash-flow@1";
 
-/// Required concept definitions that every public company is expected to report.
-/// Validation fails if any of these cannot be resolved in the SEC response.
+/// The definitions whose concept a company must report in some year. The parse of the `sec`
+/// crate fails a company if one of them has no fact on an alias or a part. `OperatingIncome` has
+/// no `required` flag.
 pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     // Income Statement backbone
     ConceptDefinition::new(
@@ -181,7 +187,7 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
         IncomeStatementConcept::OperatingIncome.element(),
         &["OperatingIncomeLoss", "IncomeLossFromOperations"],
         OPERATING_INCOME_RULE,
-        true,
+        false,
     ),
     ConceptDefinition::new(
         IncomeStatementConcept::NetIncome.element(),
@@ -342,8 +348,8 @@ pub const OTHER_COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/other-comprehen
 /// The ID of the alias rule of [`IncomeStatementConcept::ComprehensiveIncome`].
 pub const COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/comprehensive-income@1";
 
-/// Optional concept definitions that enrich financial statements when available.
-/// Their absence does not cause validation failure.
+/// The definitions whose concept a company need not report. `LiabilitiesAndEquity`,
+/// `NetIncomeAttributableToParent`, and `NetChangeInCash` have the `required` flag.
 pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     // Balance Sheet detail
     ConceptDefinition::new(
@@ -417,7 +423,7 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         BalanceSheetConcept::LiabilitiesAndEquity.element(),
         &["LiabilitiesAndStockholdersEquity"],
         LIABILITIES_AND_EQUITY_RULE,
-        false,
+        true,
     ),
     ConceptDefinition::new(
         BalanceSheetConcept::TemporaryEquity.element(),
@@ -574,7 +580,7 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         // `NetIncomeLoss` is also the part of `NetIncome`. `PART_CONCEPTS` holds it.
         &["NetIncomeLoss"],
         NET_INCOME_ATTRIBUTABLE_TO_PARENT_RULE,
-        false,
+        true,
     ),
     ConceptDefinition::new(
         IncomeStatementConcept::NetIncomeAttributableToNoncontrollingInterest.element(),
@@ -714,7 +720,7 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
             "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect",
         ],
         NET_CHANGE_IN_CASH_RULE,
-        false,
+        true,
     ),
     ConceptDefinition::new(
         CashFlowConcept::ExchangeRateEffect.element(),

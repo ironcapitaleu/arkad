@@ -4,7 +4,7 @@
 //! its output [`SeriesOutcome`].
 //!
 //! The rules run in the dedup order of `xbrl/DESIGN.md`, "Dedup Rules": step 3, step 4, the checks,
-//! then chronology. Values with dimensions pass step 3 and reach the output. The later rules read
+//! the check of the required concepts, then chronology. Values with dimensions pass step 3 and reach the output. The later rules read
 //! only values without dimensions. No rule here builds the segment reconciliation, so the output
 //! holds no line of it (`docs/adr/0030-segment-reconciliation-per-report.md`).
 
@@ -12,9 +12,11 @@ use super::candidate::Candidate;
 use super::chronology::check_chronology;
 use super::closed_group::derive_from_closed_groups;
 use super::dedup::{Series, newest_filing};
+use super::elements::CanonicalElementKind;
 use super::filing::Filing;
 use super::finding::Finding;
 use super::period_identity::derive_q4;
+use super::required_check::check_required;
 use super::roll_up_check::check_roll_ups;
 use super::standardized::StandardizedFact;
 use super::sum_check::check_all_sums;
@@ -26,7 +28,7 @@ pub struct SeriesOutcome {
     /// sorted by series key, with the blocked series keys.
     pub series: Series,
     /// The findings of [`check_roll_ups`], then of [`check_all_sums`], then of
-    /// [`check_chronology`], which end with the conflicts.
+    /// [`check_required`], then of [`check_chronology`], which end with the conflicts.
     pub findings: Vec<Finding>,
 }
 
@@ -42,17 +44,22 @@ pub struct SeriesOutcome {
 /// 4. `added` is the fourth quarters, then the roll-up values.
 /// 5. [`check_roll_ups`] with `added`.
 /// 6. [`check_all_sums`] with the same `added`.
-/// 7. [`check_chronology`] on the series with `added` merged in, with `filings` and with
+/// 7. [`check_required`] with the same `added`, `candidates`, `filings`, and `required`.
+/// 8. [`check_chronology`] on the series with `added` merged in, with `filings` and with
 ///    `conflicts` as the findings of dedup.
 ///
 /// `candidates` holds the candidates of every filing of the entity. `filings` holds the filings of
 /// the entity, for the forms and the fiscal year end. `conflicts` holds the
-/// [`Finding::Conflict`] findings of the filings of `candidates`.
+/// [`Finding::Conflict`] findings of the filings of `candidates`. `required` holds the required
+/// standard concepts of the plug-in, such as [`UsGaap::required_concepts`].
+///
+/// [`UsGaap::required_concepts`]: crate::us_gaap::UsGaap::required_concepts
 #[must_use]
 pub fn standardize_series(
     candidates: &[Candidate],
     filings: &[Filing],
     conflicts: Vec<Finding>,
+    required: &[CanonicalElementKind],
 ) -> SeriesOutcome {
     let series = newest_filing(candidates);
     let mut added = derive_q4(&series);
@@ -60,6 +67,9 @@ pub fn standardize_series(
     added.extend(roll_ups);
     let mut findings = check_roll_ups(&series, &added);
     findings.extend(check_all_sums(&series, &added));
+    findings.extend(check_required(
+        &series, &added, candidates, filings, required,
+    ));
     let chronology = check_chronology(merged(series, added), filings, conflicts);
     findings.extend(chronology.findings);
     SeriesOutcome {
@@ -94,7 +104,7 @@ mod tests {
     use crate::core::period::{Duration, Period};
     use crate::core::rule::RuleId;
     use crate::core::segment::ReconciliationLine;
-    use crate::tests::fixtures::sample_fact::{candidate, date, source};
+    use crate::tests::fixtures::sample_fact::{candidate, date, filing, source};
 
     /// The concept, the period, and the rule of a standardized fact.
     type Summary = (CanonicalElementKind, String, String);
@@ -235,6 +245,7 @@ mod tests {
                 Finding::UnmappedRow { .. } => "UnmappedRow",
                 Finding::Conflict { .. } => "Conflict",
                 Finding::Gap { .. } => "Gap",
+                Finding::MissingRequired { .. } => "MissingRequired",
                 Finding::Overlap { .. } => "Overlap",
                 Finding::Restatement { .. } => "Restatement",
                 Finding::SuspiciousPeriod { .. } => "SuspiciousPeriod",
@@ -294,7 +305,7 @@ mod tests {
             ),
         ];
 
-        let result = derived_summaries(&standardize_series(&candidates, &filings, conflicts));
+        let result = derived_summaries(&standardize_series(&candidates, &filings, conflicts, &[]));
 
         assert_eq!(result, expected_result);
     }
@@ -313,7 +324,7 @@ mod tests {
 
         let expected_result = vec!["RollUpMismatch", "SumMismatch"];
 
-        let result = kinds(&standardize_series(&candidates, &filings, conflicts).findings);
+        let result = kinds(&standardize_series(&candidates, &filings, conflicts, &[]).findings);
 
         assert_eq!(result, expected_result);
     }
@@ -341,7 +352,7 @@ mod tests {
 
         let expected_result: Vec<String> = Vec::new();
 
-        let result: Vec<String> = standardize_series(&candidates, &filings, conflicts)
+        let result: Vec<String> = standardize_series(&candidates, &filings, conflicts, &[])
             .series
             .facts
             .iter()
@@ -366,7 +377,7 @@ mod tests {
 
         let expected_result = vec!["Restatement", "Conflict"];
 
-        let result = kinds(&standardize_series(&candidates, &filings, conflicts).findings);
+        let result = kinds(&standardize_series(&candidates, &filings, conflicts, &[]).findings);
 
         assert_eq!(result, expected_result);
     }
@@ -380,7 +391,7 @@ mod tests {
 
         let expected_result = vec![segment.dimensions];
 
-        let result: Vec<Dimensions> = standardize_series(&candidates, &filings, conflicts)
+        let result: Vec<Dimensions> = standardize_series(&candidates, &filings, conflicts, &[])
             .series
             .facts
             .into_iter()
@@ -415,7 +426,7 @@ mod tests {
             ),
         ];
 
-        let result = derived_summaries(&standardize_series(&candidates, &filings, conflicts));
+        let result = derived_summaries(&standardize_series(&candidates, &filings, conflicts, &[]));
 
         assert_eq!(result, expected_result);
     }
@@ -442,7 +453,23 @@ mod tests {
 
         let expected_result = vec!["RollUpMismatch"];
 
-        let result = kinds(&standardize_series(&candidates, &filings, conflicts).findings);
+        let result = kinds(&standardize_series(&candidates, &filings, conflicts, &[]).findings);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_missing_required_concepts_before_the_findings_of_chronology_when_a_required_concept_has_no_value()
+     {
+        let candidates: Vec<Candidate> = Vec::new();
+        let filings = vec![filing("10-K", date(2024, 9, 28), "0928")];
+        let conflicts = vec![revenue_conflict()];
+        let required = [BalanceSheetConcept::Assets.element()];
+
+        let expected_result = vec!["MissingRequired", "Conflict"];
+
+        let result =
+            kinds(&standardize_series(&candidates, &filings, conflicts, &required).findings);
 
         assert_eq!(result, expected_result);
     }
@@ -459,7 +486,7 @@ mod tests {
 
         let expected_result = vec![blocked.series_key()];
 
-        let result = standardize_series(&candidates, &filings, conflicts)
+        let result = standardize_series(&candidates, &filings, conflicts, &[])
             .series
             .blocked;
 

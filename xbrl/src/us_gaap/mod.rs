@@ -21,6 +21,7 @@ use std::str::FromStr;
 use bigdecimal::BigDecimal;
 
 use crate::core::concept::{ConceptName, NamespaceFamily};
+use crate::core::elements::CanonicalElementKind;
 use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
 use crate::core::rule::RuleId;
 use crate::core::taxonomy::Taxonomy;
@@ -270,6 +271,23 @@ impl UsGaap {
                 .map(|row| element_reference(row, &release_id))
                 .collect(),
         }
+    }
+}
+
+impl UsGaap {
+    /// Returns the standard concepts whose definition in [`mappings`] has the flag `required`, in
+    /// the order of [`mappings::REQUIRED_CONCEPTS`], then [`mappings::OPTIONAL_CONCEPTS`].
+    ///
+    /// [`standardize_series`](crate::core::series::standardize_series) takes them to report a
+    /// [`Finding::MissingRequired`](crate::core::finding::Finding::MissingRequired).
+    #[must_use]
+    pub fn required_concepts(&self) -> Vec<CanonicalElementKind> {
+        mappings::REQUIRED_CONCEPTS
+            .iter()
+            .chain(mappings::OPTIONAL_CONCEPTS)
+            .filter(|definition| definition.required())
+            .map(mappings::ConceptDefinition::canonical_element)
+            .collect()
     }
 }
 
@@ -693,6 +711,29 @@ mod tests {
                 (candidate.concept, candidate.rule, confidence)
             })
             .collect()
+    }
+
+    #[test]
+    fn should_return_the_11_roll_ups_as_required_concepts_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            IncomeStatementConcept::Revenue.element(),
+            IncomeStatementConcept::NetIncome.element(),
+            BalanceSheetConcept::Assets.element(),
+            BalanceSheetConcept::Liabilities.element(),
+            BalanceSheetConcept::Equity.element(),
+            CashFlowConcept::OperatingCashFlow.element(),
+            CashFlowConcept::InvestingCashFlow.element(),
+            CashFlowConcept::FinancingCashFlow.element(),
+            BalanceSheetConcept::LiabilitiesAndEquity.element(),
+            IncomeStatementConcept::NetIncomeAttributableToParent.element(),
+            CashFlowConcept::NetChangeInCash.element(),
+        ];
+
+        let result = us_gaap.required_concepts();
+
+        assert_eq!(result, expected_result);
     }
 
     // The test writes out every alias list in one place, so a list that goes missing fails it. A
