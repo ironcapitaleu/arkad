@@ -8,7 +8,7 @@
 //! - [`token_error`]: The [`TokenError`] for a login token that fails its check.
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use storage::AccountId;
 
 pub mod token_error;
@@ -40,12 +40,13 @@ pub struct VerifiedToken {
     /// The Supabase session of the token, from its `session_id` claim.
     pub session_id: String,
     /// The time the token expires, from its `exp` claim.
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use jiff::civil::date;
+    use jiff::tz::TimeZone;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -63,9 +64,8 @@ mod tests {
         VerifiedToken {
             account_id: AccountId::from_uuid(Uuid::from_u128(1)),
             session_id: "session-1".to_owned(),
-            expires_at: Utc
-                .with_ymd_and_hms(2026, 11, 15, 11, 0, 0)
-                .single()
+            expires_at: TimeZone::UTC
+                .to_timestamp(date(2026, 11, 15).at(11, 0, 0, 0))
                 .expect("Given a valid hardcoded UTC time, building it should always succeed"),
         }
     }
