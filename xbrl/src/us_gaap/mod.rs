@@ -3160,13 +3160,18 @@ mod tests {
             fact(&filing, "SalesRevenueGoodsNet", "60000000"),
         ];
 
-        let expected_result = vec![(
-            IncomeStatementConcept::Revenue.element(),
-            rule("us-gaap/part/revenue@1"),
-            Some(Confidence::Synonym),
-        )];
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(60_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
 
-        let result = resolve(&facts, &registry);
+        let result: Vec<CandidateValue> = resolve_aliases(&more_precise(&facts), &registry)
+            .candidates
+            .into_iter()
+            .filter(|candidate| candidate.concept == IncomeStatementConcept::Revenue.element())
+            .map(|candidate| candidate.value)
+            .collect();
 
         assert_eq!(result, expected_result);
     }

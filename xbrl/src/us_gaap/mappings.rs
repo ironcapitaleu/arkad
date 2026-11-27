@@ -820,8 +820,8 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "SalesRevenueGoodsNet",
             "SalesRevenueServicesNet",
         ],
-        // The 2026 release does not hold `SalesRevenueGoodsNet` and `SalesRevenueServicesNet`, so
-        // ADR 0049 places them: each is an other part of the other. The other parts are one list,
+        // The 2026 release does not hold `SalesRevenueGoodsNet` and `SalesRevenueServicesNet`.
+        // ADR 0049 makes each an other part of the other. The other parts are one list,
         // so each also blocks the contract revenue parts. Known gap: goods next to a third line,
         // such as `OtherSalesRevenueNet` or contract revenue, resolves to the goods line with no
         // finding.
