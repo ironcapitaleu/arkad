@@ -171,8 +171,8 @@ impl ByteForm {
     /// # Panics
     ///
     /// Panics if the text is longer than `u32::MAX` bytes, because the length prefix has 4 bytes.
-    /// The text of a `decimal128` value has at most 38 digits, a sign, a point, and the 127 zeros of
-    /// the most negative scale. So it stays far below the limit. A `BigDecimal` from another
+    /// The text of a `decimal128` value has at most 38 digits, a sign, a point, and the 128 zeros of
+    /// the most negative scale, -128. So it stays far below the limit. A `BigDecimal` from another
     /// source, such as `1E+5000000000`, can reach the panic.
     ///
     /// # Examples
