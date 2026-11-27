@@ -437,9 +437,8 @@ tree is `NetChangeInCash`.
   period that the statement reconciles, with cash equivalents and restricted cash. Its values are
   instants, and it is in no group. A period
   before ASU 2016-18 has no value. The balance sheet line stays `CashAndEquivalents`.
-- No rule derives `NetChangeInCash` from two balances. The design has no check of
-  `NetChangeInCash` against two balances. Such a check needs the balance at the day before the
-  exact start of the period.
+- No rule derives `NetChangeInCash` from two balances. The check of the cash roll forward compares
+  it with two balances (see "Checks the Tree Gives").
 - Only `NetChangeInCash` and `ExchangeRateEffect` carry a scope (see "`StandardizedFact`"). A value
   from a concept before ASU 2016-18 has the scope `ExcludesRestrictedCash`. The three cash flow
   totals carry no scope, and they count with either scope. The reasons are in
@@ -629,10 +628,14 @@ The checks run in the series step, on the values without dimensions after
    line means that two children overlap, or that an alias list holds a wider concept. A failure is a
    `NegativeOther` finding. Other lines of steps and of equity can be negative, so they get no
    check.
+4. **Cash roll forward.** The opening balance plus `NetChangeInCash` must equal the closing
+   balance. A failure is a `RollForwardMismatch` finding
+   ([ADR 0052](../docs/adr/0052-change-in-cash-against-two-balances.md)).
 
 The tolerance is the one of "5) Validation": ±0.1% of the largest absolute value in the group,
 not of the parent. For the balance sheet identity, the base is the larger of `Assets` and
-`LiabilitiesAndEquity`. In a step, the parent can be near zero while its
+`LiabilitiesAndEquity`. For the cash roll forward, the base is the largest of the opening balance,
+the change, and the closing balance. In a step, the parent can be near zero while its
 members are large. Comprehensive income of 1 from net income of 10,000 and OCI of −9,999 is an example. Then a base of the parent
 fails on the rounding of the members.
 
@@ -657,6 +660,21 @@ So the check of that group is skipped for that period.
   and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
   Statement Output Types"). It computes no other line of its own.
+- The cash roll forward reads a balance by the scope of the change. A change with no scope reads
+  `CashAndRestrictedCash`. A change with the scope `ExcludesRestrictedCash` reads
+  `CashAndEquivalents`.
+- The opening balance is the balance at the day before the exact start of the change, with no
+  window. The closing balance is the balance at the end. A year-to-date change of a 10-Q starts on
+  the first day of the fiscal year, so its opening balance is the balance at the end of the prior
+  fiscal year.
+- The cash roll forward checks every change without dimensions, of any length, and the derived
+  changes of `core/period/q4-from-fy@1` and `core/roll-up/net-change-in-cash@1`. The three values
+  must share one unit. A balance can come from any filing of the entity.
+- The cash roll forward gets no check and reports nothing if the change, the opening balance, or
+  the closing balance has no value, or if dedup blocks one of them.
+- Cash of discontinued operations before 2018 and bank cash before 2018 have no balance concept.
+  A filer with discontinued operations can get a false `RollForwardMismatch`, and a bank gets no
+  check.
 
 #### Derivation From a Closed Group
 
@@ -887,6 +905,11 @@ parses it.
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
+- `RollForwardMismatch` is a value of `findings.kind`. `concepts` holds the balance concept, such
+  as `CashAndRestrictedCash`, then `NetChangeInCash`. `periods` holds the period end and length of
+  the change. `reason` holds the name of the roll forward, `cash`. `confidence` holds the weakest
+  confidence of the three inputs
+  ([ADR 0052](../docs/adr/0052-change-in-cash-against-two-balances.md)).
 - `MissingRequired` is a value of `findings.kind`. `concepts` holds the required concept. `periods`
   holds the period of report with `quarters` 0. `filing_id` holds the filing, and `reason` holds
   `Conflict`, `Untagged`, or null ([ADR 0050](../docs/adr/0050-missing-required-finding.md)).
@@ -948,6 +971,11 @@ every line from the four-month fact to show the arithmetic only. In the series,
 `operating-cash-flow` mixes the three-month net income with four-month lines, so that group
 reports `MixedStarts`, and the statement shows no other operating cash flow. `net-change-in-cash` holds only four-month values and keeps
 its check.
+
+The four-month period starts on 2026-06-01, so the cash roll forward reads `CashAndRestrictedCash`
+on 2026-05-31 and on 2026-09-30. The filing reports 251 and 388, from the alias
+`CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations`.
+251 + 137 = 388, so the check holds.
 
 #### Decided Points
 
@@ -2107,6 +2135,7 @@ Once elements are populated, enforce the identities:
 Check:  Assets == LiabilitiesAndEquity == Liabilities + TemporaryEquity + Equity
 Check:  NetChangeInCash == Operating CF + Investing CF + Financing CF + ExchangeRateEffect
 Check:  every closed group of the roll-up tree adds up
+Check:  cash at the day before the start + NetChangeInCash == cash at the end
 ```
 
 "Roll-Up Tree", "Checks the Tree Gives", lists every check. The cascade of the income statement
@@ -2275,7 +2304,7 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`, `MissingRequired`), the
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `RollForwardMismatch`, `SumMismatch`, `MissingRequired`), the
   entity, the concept or concepts (see "Conflict"), the periods, and a reason if one is known. A
   finding is not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
