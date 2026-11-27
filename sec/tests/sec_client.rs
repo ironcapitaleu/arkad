@@ -10,7 +10,7 @@
 
 use chrono::{Datelike, Months, NaiveDate, Utc};
 use pretty_assertions::assert_eq;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use sec::implementations::extraction::notes::published_periods::MERGE_WAIT_MONTHS;
 use sec::shared::cik::Cik;
@@ -196,10 +196,8 @@ async fn should_return_expected_cik_when_retrieving_berkshire_company_facts() {
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
-    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
-        .expect("The Berkshire Hathaway fixture should always be valid JSON");
 
-    let expected_result = fixture["cik"].clone();
+    let expected_result = json!(1_067_983);
 
     let result = client
         .execute_sec_request(request)
@@ -216,10 +214,8 @@ async fn should_return_expected_entity_name_when_retrieving_berkshire_company_fa
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
-    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
-        .expect("The Berkshire Hathaway fixture should always be valid JSON");
 
-    let expected_result = fixture["entityName"].clone();
+    let expected_result = json!("BERKSHIRE HATHAWAY INC");
 
     let result = client
         .execute_sec_request(request)

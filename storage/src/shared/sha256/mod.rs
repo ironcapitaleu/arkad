@@ -218,9 +218,11 @@ mod tests {
 
     #[test]
     fn should_return_invalid_sha256_digest_when_the_string_is_uppercase() {
-        let uppercase = DIGEST_OF_ABC.to_uppercase();
+        let uppercase = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
 
-        let expected_result = Err(InvalidSha256Digest::new(uppercase.clone()));
+        let expected_result = Err(InvalidSha256Digest::new(
+            "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD",
+        ));
 
         let result = uppercase.parse::<Sha256Digest>();
 
@@ -229,9 +231,11 @@ mod tests {
 
     #[test]
     fn should_return_invalid_sha256_digest_when_the_string_holds_a_non_hex_character() {
-        let non_hex = format!("{}g", &DIGEST_OF_ABC[..63]);
+        let non_hex = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ag";
 
-        let expected_result = Err(InvalidSha256Digest::new(non_hex.clone()));
+        let expected_result = Err(InvalidSha256Digest::new(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ag",
+        ));
 
         let result = non_hex.parse::<Sha256Digest>();
 
