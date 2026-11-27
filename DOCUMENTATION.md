@@ -782,9 +782,11 @@ without notice. The date lets a reader tell a later change of the page from an e
 - If the page changed, correct the text, then change the date.
 - If a link names its date as "read on YYYY-MM-DD", change it to the form above when you read the
   page again.
+- In an accepted or a superseded ADR, never change a link, its date, or the text that relies on it.
+  If the page changed, add an amendment, as the `adr` skill says.
 - A bare ID with no link, such as `STA-550`, needs no date.
-- A relative link to a file in this repository needs no date. The commit that holds the link fixes
-  the file it points to.
+- A relative link to a file in this repository needs no date. The commit that holds the link pins
+  the version of the file.
 - A URL that code requests, or a URL in an example, is data, not a source. It needs no date.
 - A link that no text relies on, such as an attribution line or a link to open an issue, needs no
   date.
