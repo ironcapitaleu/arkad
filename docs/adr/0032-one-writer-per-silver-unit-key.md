@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)). The project owner accepted [Amendment 1](#amendment-1-the-cloud-run-assumptions-hold) on 2026-11-21 ([STA-550 comment `2421befd`](https://linear.app/state-machine/issue/STA-550#comment-2421befd)) |
+| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)). The project owner accepted [Amendment 1](#amendment-1-the-cloud-run-assumptions-hold) on 2026-11-21 ([STA-550 comment `2421befd`](https://linear.app/state-machine/issue/STA-550#comment-2421befd), accessed 2026-11-27) |
 | Date | 2026-11-16 |
 | Deciders | The project owner |
 | Ticket | [STA-463](https://linear.app/state-machine/issue/STA-463/design-silver-writer-and-transform-job-plan) |
