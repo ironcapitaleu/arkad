@@ -1,6 +1,6 @@
 //! # Silver Error
 //!
-//! Provides [`SilverError`], the error of a [`ArrowRow`](crate::silver::ArrowRow) that
+//! Provides [`SilverError`], the error of an [`ArrowRow`](crate::silver::ArrowRow) that
 //! fails to turn rows into a record batch, or a record batch into rows.
 
 use thiserror::Error;
