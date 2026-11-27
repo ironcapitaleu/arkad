@@ -24,7 +24,9 @@ The persistence layer: backend-agnostic `ReadRepository` and `WriteRepository` t
 
 ### `api`
 
-An axum binary for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks. Start it with `PORT=8080 cargo run -p api`.
+An axum binary for company fundamentals. It listens on `$PORT` and answers `GET /health` for uptime checks.
+
+At start, the binary fetches the public keys for login tokens from the Supabase project at `$SUPABASE_URL`. If the fetch fails, the binary does not start. With the local Supabase stack running (see "Local Supabase Stack"), start it with `PORT=8080 SUPABASE_URL=http://127.0.0.1:54321 cargo run -p api`.
 
 - `GET /v1/concepts` lists the concepts that `xbrl` maps from US-GAAP.
 - `GET /v1/companies`, `GET /v1/companies/{company_id}`, `…/facts`, and `…/filings` are in the spec. Until the data store is live, each route answers `501` with the code `not_implemented`.
@@ -32,6 +34,7 @@ An axum binary for company fundamentals. It listens on `$PORT` and answers `GET 
 - If `INTERNAL_DOCS_ENABLED=true`, the binary serves Swagger UI at `/internal/docs`. The page is off by default.
 - Every response carries an `X-Request-Id` header.
 - A path that no route matches answers `404` with an RFC 9457 problem body, sent as `application/problem+json`, with the code `not_found`.
+- A handler that takes an `AuthenticatedAccount` runs only for a request with a valid login token in `Authorization: Bearer <token>`. Without the header, the request gets `401` with the code `missing_credentials`. With a token that fails its check, it gets `401` with the code `invalid_credentials`. Both answers carry a `WWW-Authenticate` header with the `Bearer` scheme. The `invalid_credentials` answer adds `error="invalid_token"`.
 
 The repository holds the spec in `api/openapi.json`, and a test fails if the generated spec differs from it. If you change a route, write the file again and commit it: `UPDATE_OPENAPI=1 cargo test -p api --test openapi`.
 

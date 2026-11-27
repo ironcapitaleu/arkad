@@ -275,7 +275,10 @@ mod tests {
         let cik = Cik::new("0001234567")
             .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
 
-        let expected_result = SecRequestType::FetchAllCompanyFacts { cik: cik.clone() };
+        let expected_result = SecRequestType::FetchAllCompanyFacts {
+            cik: Cik::new("0001234567")
+                .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed"),
+        };
 
         let result = CompanyFacts::request_type(cik);
 
@@ -334,7 +337,10 @@ mod tests {
         let cik = Cik::new("0001234567")
             .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed");
 
-        let expected_result = SecRequestType::FetchSubmissions { cik: cik.clone() };
+        let expected_result = SecRequestType::FetchSubmissions {
+            cik: Cik::new("0001234567")
+                .expect("Given a hardcoded 10-digit CIK, Cik creation should always succeed"),
+        };
 
         let result = Submissions::request_type(cik);
 

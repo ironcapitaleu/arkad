@@ -2451,7 +2451,7 @@ ticket of the instance parser adds the cross-source test.
   `xbrl/tests/parser_comparison.rs` runs them on one 10-Q. Both give the same value keys, and the
   same content after the Notes losses that the test lists. The fixture set in
   `xbrl/src/tests/fixtures/data/` holds both sources of five more filings, and the Notes rows of
-  102 filings of 33 companies. `manifest.tsv` lists them, and `xbrl/tests/fixture_set.rs` parses
+  105 filings of 33 companies. `manifest.tsv` lists them, and `xbrl/tests/fixture_set.rs` parses
   each Notes filing ([ADR 0039](../docs/adr/0039-gzip-fixture-set.md)).
 
 The parsers take seven rules from the segment findings of 2026-10-18. The rules make a Notes row

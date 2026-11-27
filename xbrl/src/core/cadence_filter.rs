@@ -37,7 +37,10 @@ const FISCAL_YEAR: &str = "FY";
 ///     findings: Vec::new(),
 /// };
 ///
-/// let expected_result = filing_candidates.clone();
+/// let expected_result = FilingCandidates {
+///     candidates: vec![candidate(&source("0000320193-24-000123", date(2024, 7, 29)), "100")],
+///     findings: Vec::new(),
+/// };
 ///
 /// let result = keep_by_cadence(filing_candidates, &quarterly_report);
 ///

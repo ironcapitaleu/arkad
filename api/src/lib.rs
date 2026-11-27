@@ -30,14 +30,14 @@ pub mod routes;
 pub mod shared;
 pub mod traits;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-fixtures"))]
 pub mod tests;
 
-pub use routes::INTERNAL_DOCS_PATH;
+pub use routes::{AppState, INTERNAL_DOCS_PATH};
 
 /// Builds the router of the crate. See [`routes::router`].
-pub fn router(internal_docs: InternalDocs) -> Router {
-    routes::router(internal_docs)
+pub fn router(internal_docs: InternalDocs, state: AppState) -> Router {
+    routes::router(internal_docs, state)
 }
 
 /// Returns the spec of every `/v1` route.

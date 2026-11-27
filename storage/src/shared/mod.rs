@@ -9,6 +9,10 @@
 //! - [`company_id`]: The [`CompanyId`], the internal key of a company.
 //! - [`company_identifier`]: The [`CompanyIdentifier`], a `(scheme, value)` pair that names a
 //!   company, and its [`CompanyScheme`].
+//! - [`job_kind`]: The [`JobKind`] that names the jobs writing one silver unit key, and the
+//!   [`InvalidJobKind`] for a string that is not a job kind.
+//! - [`lease`]: The [`Lease`] that names the one run of a job kind that can write, and its
+//!   [`LeaseGeneration`].
 //! - [`listing_id`]: The [`ListingId`], the internal key of a listing.
 //! - [`listing_identifier`]: The [`ListingIdentifier`], a `(scheme, value)` pair that names a
 //!   listing, and its [`ListingScheme`].
@@ -20,6 +24,8 @@
 pub mod account_id;
 pub mod company_id;
 pub mod company_identifier;
+pub mod job_kind;
+pub mod lease;
 pub mod listing_id;
 pub mod listing_identifier;
 pub mod mic;
@@ -28,6 +34,8 @@ pub mod sha256;
 pub use account_id::{AccountId, InvalidAccountId};
 pub use company_id::CompanyId;
 pub use company_identifier::{CompanyIdentifier, CompanyScheme};
+pub use job_kind::{InvalidJobKind, JobKind};
+pub use lease::{Lease, LeaseGeneration};
 pub use listing_id::ListingId;
 pub use listing_identifier::{ListingIdentifier, ListingScheme};
 pub use mic::{InvalidMic, Mic};

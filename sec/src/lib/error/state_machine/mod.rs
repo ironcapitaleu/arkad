@@ -231,7 +231,13 @@ mod tests {
             "Sample reason",
         ));
 
-        let expected_result = StateMachine::Transition(error.clone());
+        let expected_result = StateMachine::Transition(Transition::FailedOutputConversion(
+            transition::FailedOutputConversion {
+                source_state_name: "StateA".to_owned(),
+                target_state_name: "StateB".to_owned(),
+                reason: "Sample reason".to_owned(),
+            },
+        ));
 
         let result: StateMachine = error.into();
 

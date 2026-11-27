@@ -114,6 +114,10 @@ before you write or amend an ADR.
   record it in an ADR, and link the ADR from the document. To learn why the code is as it is,
   read the current docs and the ADRs.
   [`DOCUMENTATION.md`](DOCUMENTATION.md), "Temporal references", gives examples.
+- **Date each external link.** Each link to a page outside the repository names the date you read
+  the page: `([Title](https://…), accessed YYYY-MM-DD)`. So does each link to a ticket or a pull
+  request. [`DOCUMENTATION.md`](DOCUMENTATION.md), "External Links and References", holds the
+  rule.
 - **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 
 ### Writing Style
@@ -678,7 +682,7 @@ A skill is a domain-specific knowledge bundle that loads into the agent's contex
 | ------- | -------- | ------ |
 | Universal dev rules (all crates) | AGENTS.md | Always |
 | Domain knowledge for specific crate work | .claude/skills/{name}/SKILL.md | On trigger |
-| Large reference data (lookup tables) | .claude/skills/{name}/references/*.md | On demand |
+| Large reference data (lookup tables), few-shot examples, and examples taken from the codebase | .claude/skills/{name}/references/*.md | On demand |
 | Live external data queries | MCP tools / WebFetch | Runtime |
 | Project decisions, status, strategy | .claude/memory/ | Session |
 | Prompts of scheduled, unattended sessions | .claude/routines/*.md | At run time |
@@ -703,10 +707,19 @@ Do NOT create a skill when:
 
 1. Create `.claude/skills/{name}/SKILL.md` with frontmatter (name, description, version)
 2. Write procedures and decision rules in the body
-3. Put lookup/reference data in `.claude/skills/{name}/references/` as separate markdown files
+3. Put lookup data, few-shot examples, and examples taken from the codebase in
+   `.claude/skills/{name}/references/` as separate markdown files. `SKILL.md` keeps the rules and
+   points to the reference file
 4. Add staleness headers to reference files. The minimum is `last-verified` and `update-frequency`; add `source` to say where the data comes from. Only add domain-specific fields when they apply (e.g. `taxonomy-year` for the xbrl skill) — do not carry them into skills with no such taxonomy.
 5. If reference content derives from source code, note the source file in the header
-6. Consider adding a **Self-Improvement** section if the skill covers a domain that evolves through usage (templates, conventions, examples). This section instructs the agent to propose updates to the skill when the user corrects or refines a pattern during use.
+6. If a reference file holds few-shot examples or examples taken from the codebase, its first
+   paragraph says three things:
+   - The file is a snapshot of the date in `last-verified`.
+   - The file is a full list, or it is not.
+   - Where an example differs from the rules of `SKILL.md`, the rules decide.
+
+   A lookup table or a quoted standard needs no such paragraph.
+7. Consider adding a **Self-Improvement** section if the skill covers a domain that evolves through usage (templates, conventions, examples). This section instructs the agent to propose updates to the skill when the user corrects or refines a pattern during use.
 
 **Minimal SKILL.md example:**
 
@@ -741,12 +754,16 @@ version: 0.1.0
 
 - Skills are auto-discovered — avoid cataloging other skills inside a skill (references to prerequisite or next-step skills are fine)
 - SKILL.md is for procedures and decision rules, not raw data dumps
-- Reference files are for lookup data the agent consults during specific tasks
-- Keep SKILL.md focused on procedures and decision rules; move large reference/lookup data into references/
+- Reference files are for lookup data, few-shot examples, and examples taken from the codebase
+  that the agent consults during specific tasks
+- **Rules in `SKILL.md`, examples in `references/`.** A rule stays true when the code changes. An
+  example taken from the codebase drifts. In `references/`, the header dates the example, and the
+  first paragraph says how far it holds. So a new crate or a moved file makes the example out of
+  date, not the rule
 - Include "Authoritative Sources" section with URLs for live lookup when references are insufficient
 - Include staleness instructions so the agent knows when to prompt for updates
 - **Keep authoritative data as-is in terms of content.** When including external reference data (e.g., taxonomy files, standards documents), store it in its original form or a lossless format conversion. Do not rewrite, summarize, or reinterpret authoritative content — this avoids translation drift and ensures the skill always reflects the source of truth exactly
-- **Self-improvement sections** — for skills that encode conventions, templates, or workflows that evolve through team usage, add a "Self-Improvement" section at the end. This instructs the agent to ask the user whether corrections or refinements should be captured back into the skill. Good candidates: naming patterns, few-shot examples, new variants, checklist items discovered during use. Not every skill needs this — static reference data or fixed procedures do not benefit from it.
+- **Self-improvement sections** — for skills that encode conventions, templates, or workflows that evolve through team usage, add a "Self-Improvement" section at the end. This instructs the agent to ask the user whether corrections or refinements should be captured back into the skill: a rule goes in `SKILL.md`, an example goes in `references/`. Good candidates: naming patterns, few-shot examples, new variants, checklist items discovered during use. Not every skill needs this — static reference data or fixed procedures do not benefit from it.
 
 ---
 

@@ -253,14 +253,15 @@ mod tests {
 
     #[tokio::test]
     async fn should_not_change_input_data_when_computing_output_data() {
-        let mut sample_state = SampleSecState::default();
+        let input = SampleSecStateInput::new("Input that differs from the default");
+        let mut sample_state = SampleSecState::new(input, SampleSecStateContext::default());
 
-        let expected_result = &sample_state.input_data().clone();
+        let expected_result = &SampleSecStateInput::new("Input that differs from the default");
 
         sample_state
             .compute_output_data_async()
             .await
-            .expect("Default test state should always compute output successfully");
+            .expect("The sample state sets a fixed output and never returns an error");
         let result = sample_state.input_data();
 
         assert_eq!(result, expected_result);

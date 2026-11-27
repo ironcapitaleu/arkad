@@ -92,6 +92,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::error::BackendCause;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
@@ -169,7 +170,10 @@ mod tests {
     #[test]
     fn should_wrap_backend_error_into_backend_variant_when_converting_from_backend_error() {
         let backend_error = BackendError::failed_operation("disk full");
-        let expected_result = WriteError::Backend(backend_error.clone());
+
+        let expected_result = WriteError::Backend(BackendError::FailedOperation {
+            cause: BackendCause::Reason("disk full".to_owned()),
+        });
 
         let result = WriteError::from(backend_error);
 
@@ -178,13 +182,16 @@ mod tests {
 
     #[test]
     fn should_downcast_to_backend_error_when_write_error_is_a_backend_variant() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let write_error = WriteError::Backend(backend_error.clone());
+        let write_error = WriteError::Backend(BackendError::unreachable_storage("timeout"));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(write_error)
             .expect("Given a `WriteError::Backend`, the downcast to `BackendError` should succeed");
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]

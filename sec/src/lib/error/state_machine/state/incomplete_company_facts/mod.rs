@@ -127,8 +127,11 @@ mod tests {
         let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
 
         let expected_result = IncompleteCompanyFacts {
-            state_name: state_name.to_string(),
-            missing_fields: missing.clone(),
+            state_name: "Parse Company Facts".to_string(),
+            missing_fields: MissingFields::new(vec![
+                "Revenue".to_string(),
+                "Total Assets".to_string(),
+            ]),
         };
 
         let result = IncompleteCompanyFacts::new(state_name, missing);
@@ -153,9 +156,10 @@ mod tests {
     #[test]
     fn should_return_missing_fields_when_accessed() {
         let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
-        let error = IncompleteCompanyFacts::new("TestState", missing.clone());
+        let error = IncompleteCompanyFacts::new("TestState", missing);
 
-        let expected_result = &missing;
+        let expected_result =
+            &MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
 
         let result = error.missing_fields();
 
@@ -169,7 +173,10 @@ mod tests {
             MissingFields::new(vec!["Revenue".to_string()]),
         );
 
-        let expected_result = StateError::IncompleteCompanyFacts(error.clone());
+        let expected_result = StateError::IncompleteCompanyFacts(IncompleteCompanyFacts {
+            state_name: "TestState".to_owned(),
+            missing_fields: MissingFields(vec!["Revenue".to_owned()]),
+        });
 
         let result: StateError = error.into();
 
