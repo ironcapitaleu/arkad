@@ -828,10 +828,10 @@ The changes are to comments and to the new lists.
 The flag `required` marks the 11 roll-ups of the MVP Decision Spike that map to a standard
 concept: `Assets`, `Liabilities`, `Equity`, `LiabilitiesAndEquity`, `Revenue`, `NetIncome`,
 `NetIncomeAttributableToParent`, `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow`, and
-`NetChangeInCash`. The owner chose this set on 2026-11-27. `OperatingIncome` has no flag: it is no
-roll-up of the spike. The cash at the end of the period has no standard concept, so it is not in the
-set. `UsGaap::required_concepts` returns the set, and the completeness check of "5) Validation"
-reads it. The flag does not follow the arrays `REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse
+`NetChangeInCash`. `OperatingIncome` has no flag: it is no roll-up of the spike. The cash at the
+end of the period has no standard concept, so it is not in the set. `UsGaap::required_concepts`
+returns the set, and the completeness check of "5) Validation" reads it
+([ADR 0050](../docs/adr/0050-missing-required-finding.md)). The flag does not follow the arrays `REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse
 of the `sec` crate reads `REQUIRED_CONCEPTS`.
 
 #### Names in Silver

@@ -67,6 +67,9 @@ of the acceptance test A2 (`xbrl/tests/acceptance_open_roll_ups.rs`).
 - A filing whose only value of a concept has another length, such as a Q4 value without a fiscal
   year value, gets no finding.
 - A filing with no period of report gets no finding.
+- A `20-F` or `40-F` in `ifrs-full` gets one `Untagged` finding per required concept, because no
+  plug-in maps IFRS concepts. Such a row says that the concept has no mapping, not that the filer
+  left out the statement.
 - The parse of the `sec` crate keeps its own check: it reads the array `REQUIRED_CONCEPTS`, not
   the flag. Its set differs from the flag in four concepts.
 

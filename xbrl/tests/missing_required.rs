@@ -57,49 +57,49 @@ macro_rules! missing_required_tests {
 }
 
 missing_required_tests! {
-    should_report_the_missing_required_concepts_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [
+    should_list_the_missing_required_concepts_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_apa_10_k_2013_fy: "0001193125-14-077668" => [
+    should_list_the_missing_required_concepts_for_apa_10_k_2013_fy: "0001193125-14-077668" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_apa_10_k_2025_fy: "0001841666-26-000015" => [
+    should_list_the_missing_required_concepts_for_apa_10_k_2025_fy: "0001841666-26-000015" => [
         "Revenue",
     ],
-    should_report_the_missing_required_concepts_for_kkr_10_k_2013_fy: "0001047469-14-001189" => [
+    should_list_the_missing_required_concepts_for_kkr_10_k_2013_fy: "0001047469-14-001189" => [
         "Revenue",
         "OperatingCashFlow",
         "InvestingCashFlow",
         "FinancingCashFlow",
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [
+    should_list_the_missing_required_concepts_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_jpmorgan_chase_10_k_2025_fy: "0001628280-26-008131" => [],
-    should_report_the_missing_required_concepts_for_simon_property_10_k_2013_fy: "0001047469-14-001416" => [
+    should_list_the_missing_required_concepts_for_jpmorgan_chase_10_k_2025_fy: "0001628280-26-008131" => [],
+    should_list_the_missing_required_concepts_for_simon_property_10_k_2013_fy: "0001047469-14-001416" => [
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_simon_property_10_k_2025_fy: "0001104659-26-019419" => [],
-    should_report_the_missing_required_concepts_for_evergy_10_k_2013_fy: "0001143068-14-000021" => [
+    should_list_the_missing_required_concepts_for_simon_property_10_k_2025_fy: "0001104659-26-019419" => [],
+    should_list_the_missing_required_concepts_for_evergy_10_k_2013_fy: "0001143068-14-000021" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [],
-    should_report_the_missing_required_concepts_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [
+    should_list_the_missing_required_concepts_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [],
+    should_list_the_missing_required_concepts_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [
         "OperatingCashFlow",
         "InvestingCashFlow",
         "FinancingCashFlow",
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [],
-    should_report_the_missing_required_concepts_for_regions_financial_10_k_2013_fy: "0001281761-14-000009" => [
+    should_list_the_missing_required_concepts_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [],
+    should_list_the_missing_required_concepts_for_regions_financial_10_k_2013_fy: "0001281761-14-000009" => [
         "Revenue",
         "NetChangeInCash",
     ],
-    should_report_the_missing_required_concepts_for_regions_financial_10_k_2025_fy: "0001281761-26-000019" => [
+    should_list_the_missing_required_concepts_for_regions_financial_10_k_2025_fy: "0001281761-26-000019" => [
         "Revenue",
     ],
 }

@@ -257,7 +257,8 @@ pub enum MissingReason {
     /// The copy ranks of the newest filing disagree, so dedup blocks the value. A
     /// [`Finding::Conflict`] names the ranks.
     Conflict,
-    /// The filing has no value of the concept on any alias or part, for any period.
+    /// The filing has no value of the concept without dimensions, on any alias or part, for any
+    /// period.
     Untagged,
 }
 

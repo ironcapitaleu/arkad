@@ -714,7 +714,7 @@ mod tests {
     }
 
     #[test]
-    fn should_return_the_11_roll_ups_as_required_concepts_when_created() {
+    fn should_return_the_11_roll_ups_as_required_concepts_for_us_gaap() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![

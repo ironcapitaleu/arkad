@@ -171,8 +171,7 @@ pub const INVESTING_CASH_FLOW_RULE: &str = "us-gaap/alias/investing-cash-flow@1"
 pub const FINANCING_CASH_FLOW_RULE: &str = "us-gaap/alias/financing-cash-flow@1";
 
 /// The definitions whose concept a company must report in some year. The parse of the `sec`
-/// crate fails a company if one of them has no fact on an alias or a part. `OperatingIncome` has
-/// no `required` flag.
+/// crate fails a company if one of them has no fact on an alias or a part.
 pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     // Income Statement backbone
     ConceptDefinition::new(
@@ -348,8 +347,7 @@ pub const OTHER_COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/other-comprehen
 /// The ID of the alias rule of [`IncomeStatementConcept::ComprehensiveIncome`].
 pub const COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/comprehensive-income@1";
 
-/// The definitions whose concept a company need not report. `LiabilitiesAndEquity`,
-/// `NetIncomeAttributableToParent`, and `NetChangeInCash` have the `required` flag.
+/// The definitions whose concept a company need not report.
 pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
     // Balance Sheet detail
     ConceptDefinition::new(

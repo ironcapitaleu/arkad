@@ -279,6 +279,58 @@ mod tests {
     }
 
     #[test]
+    fn should_report_the_concept_as_untagged_when_a_quarterly_report_has_no_value_of_it() {
+        let filings = vec![filing("10-Q", date(2024, 6, 29), "0928")];
+        let required = [IncomeStatementConcept::Revenue.element()];
+
+        let expected_result = vec![Some(MissingReason::Untagged)];
+
+        let result = reasons(&check_required(&no_series(), &[], &[], &filings, &required));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_reason_untagged_when_the_filing_tags_the_concept_in_a_segment_only() {
+        let segment = Candidate {
+            dimensions: Dimensions::new([("BusinessSegments", "Cloud")])
+                .expect("Given one hardcoded axis and member, the creation should always succeed"),
+            ..revenue_of_annual_report()
+        };
+        let candidates = vec![segment];
+        let filings = vec![annual_report()];
+        let required = [IncomeStatementConcept::Revenue.element()];
+
+        let expected_result = vec![Some(MissingReason::Untagged)];
+
+        let result = reasons(&check_required(
+            &no_series(),
+            &[],
+            &candidates,
+            &filings,
+            &required,
+        ));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_finding_when_the_filing_has_no_period_of_report() {
+        let without_period = Filing {
+            period_of_report: None,
+            ..annual_report()
+        };
+        let filings = vec![without_period];
+        let required = [IncomeStatementConcept::Revenue.element()];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_required(&no_series(), &[], &[], &filings, &required);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_no_finding_when_the_filing_is_an_amendment() {
         let filings = vec![filing("10-K/A", date(2024, 9, 28), "0928")];
         let required = [IncomeStatementConcept::Revenue.element()];
