@@ -129,7 +129,7 @@ mod tests {
     use std::str::FromStr;
 
     use bigdecimal::BigDecimal;
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -141,8 +141,7 @@ mod tests {
     fn candidate(order: u32, row: usize, value: &str) -> Candidate<u32, usize> {
         let filing = FilingId::new("sec", "0000000001-26-000001")
             .expect("Given a hardcoded source and ID, the creation should always succeed");
-        let date = NaiveDate::from_ymd_opt(2026, 9, 30)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
+        let date = date(2026, 9, 30);
         let family = NamespaceFamily::new("us-gaap").expect(
             "Given a hardcoded family without whitespace, the creation should always succeed",
         );

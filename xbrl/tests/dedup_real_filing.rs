@@ -24,7 +24,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::{FilingCandidates, resolve_aliases};
 use xbrl::core::candidate::CandidateValue;
@@ -300,7 +300,7 @@ fn should_give_the_june_revenue_when_the_dedup_rules_run_on_the_notes_facts() {
         facts: standardized,
         ..
     } = newest_filing(&candidates_of(&facts).candidates);
-    let result: Vec<(NaiveDate, u16, BigDecimal, Confidence)> = standardized
+    let result: Vec<(Date, u16, BigDecimal, Confidence)> = standardized
         .into_iter()
         .filter(|fact| {
             fact.concept == IncomeStatementConcept::Revenue.element() && fact.period.quarters() == 0

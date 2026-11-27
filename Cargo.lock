@@ -61,6 +61,7 @@ dependencies = [
  "crc32fast",
  "getrandom 0.4.2",
  "http-body-util",
+ "jiff",
  "jsonwebtoken",
  "pretty_assertions",
  "reqwest",
@@ -3153,7 +3154,6 @@ name = "xbrl"
 version = "0.1.0"
 dependencies = [
  "bigdecimal",
- "chrono",
  "flate2",
  "jiff",
  "pretty_assertions",

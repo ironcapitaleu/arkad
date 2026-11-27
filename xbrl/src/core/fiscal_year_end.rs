@@ -6,7 +6,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{Datelike, Months, NaiveDate, NaiveTime};
+use jiff::ToSpan as _;
+use jiff::civil::{Date, Time};
 
 use super::invalid_value::{InvalidValue, InvalidValueReason};
 use super::period::TOLERANCE_DAYS;
@@ -36,7 +37,7 @@ use super::period::TOLERANCE_DAYS;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FiscalYearEnd {
     text: String,
-    day_of_year: u32,
+    day_of_year: i16,
     month: u8,
 }
 
@@ -45,7 +46,7 @@ impl FiscalYearEnd {
     const TYPE_NAME: &'static str = "FiscalYearEnd";
 
     /// A leap year, so that `0229` is a valid fiscal year end.
-    const LEAP_YEAR: i32 = 2000;
+    const LEAP_YEAR: i16 = 2000;
 
     /// The forms of the text after [`Self::LEAP_YEAR`]: `0930` as in the Notes data set, and
     /// `--09-30` as in an instance document.
@@ -64,7 +65,7 @@ impl FiscalYearEnd {
     const ZONE_OFFSET_FORMAT: &'static str = "%H:%M";
 
     /// The days of a leap year.
-    const LEAP_YEAR_DAYS: u32 = 366;
+    const LEAP_YEAR_DAYS: u16 = 366;
 
     /// Returns the text as the filing writes it, for example `0930` or `--09-27`.
     #[must_use]
@@ -90,12 +91,11 @@ impl FiscalYearEnd {
     }
 
     /// Returns the month of the month end nearest to `date`, as [`Self::month`] states the rule.
-    fn nearest_month_end(date: NaiveDate) -> Option<u32> {
-        if 2 * date.day() >= u32::from(date.num_days_in_month()) {
+    fn nearest_month_end(date: Date) -> Option<i8> {
+        if 2 * date.day() >= date.days_in_month() {
             Some(date.month())
         } else {
-            date.checked_sub_months(Months::new(1))
-                .map(|previous| previous.month())
+            date.checked_sub(1.month()).ok().map(Date::month)
         }
     }
 
@@ -109,9 +109,9 @@ impl FiscalYearEnd {
         else {
             return text;
         };
-        let is_offset = zone.strip_prefix(['+', '-']).is_some_and(|offset| {
-            NaiveTime::parse_from_str(offset, Self::ZONE_OFFSET_FORMAT).is_ok()
-        });
+        let is_offset = zone
+            .strip_prefix(['+', '-'])
+            .is_some_and(|offset| Time::strptime(Self::ZONE_OFFSET_FORMAT, offset).is_ok());
         if zone == Self::UTC_ZONE || is_offset {
             month_day
         } else {
@@ -127,7 +127,7 @@ impl FromStr for FiscalYearEnd {
         let dated = format!("{}{}", Self::LEAP_YEAR, Self::without_time_zone(text));
         let date = Self::FORMATS
             .iter()
-            .find_map(|format| NaiveDate::parse_from_str(&dated, format).ok())
+            .find_map(|format| Date::strptime(format, &dated).ok())
             .ok_or_else(|| {
                 InvalidValue::new(
                     Self::TYPE_NAME,
@@ -143,7 +143,7 @@ impl FromStr for FiscalYearEnd {
             })?;
         Ok(Self {
             text: text.to_owned(),
-            day_of_year: date.ordinal(),
+            day_of_year: date.day_of_year(),
             month,
         })
     }

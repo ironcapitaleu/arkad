@@ -160,7 +160,7 @@ mod tests {
     use std::str::FromStr;
 
     use bigdecimal::BigDecimal;
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -181,21 +181,17 @@ mod tests {
     }
 
     fn fiscal_year_2023() -> Period {
-        let start = NaiveDate::from_ymd_opt(2022, 9, 25)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
-        let end = NaiveDate::from_ymd_opt(2023, 9, 30)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
+        let start = date(2022, 9, 25);
+        let end = date(2023, 9, 30);
         Period::Duration(
             Duration::from_dates(start, end)
                 .expect("Given an end after the start, the creation should always succeed"),
         )
     }
 
-    fn fiscal_year_2024_with_start(start_day: u32) -> Period {
-        let start = NaiveDate::from_ymd_opt(2023, 10, start_day)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
-        let end = NaiveDate::from_ymd_opt(2024, 9, 28)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
+    fn fiscal_year_2024_with_start(start_day: i8) -> Period {
+        let start = date(2023, 10, start_day);
+        let end = date(2024, 9, 28);
         Period::Duration(
             Duration::from_dates(start, end)
                 .expect("Given an end after the start, the creation should always succeed"),
@@ -203,8 +199,7 @@ mod tests {
     }
 
     fn end_of_fiscal_year_2024() -> Period {
-        let end = NaiveDate::from_ymd_opt(2024, 9, 28)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
+        let end = date(2024, 9, 28);
         Period::Instant { end }
     }
 

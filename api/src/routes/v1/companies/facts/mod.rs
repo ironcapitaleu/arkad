@@ -139,6 +139,7 @@ mod tests {
     use std::str::FromStr;
 
     use bigdecimal::BigDecimal;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use xbrl::core::elements::IncomeStatementConcept;
@@ -170,8 +171,7 @@ mod tests {
         let fiscal_period = DomainFiscalPeriod::new("FY")
             .expect("Given the hardcoded period 'FY', the creation should always succeed");
         let period = DomainPeriod::Instant {
-            end: NaiveDate::from_ymd_opt(2024, 9, 28)
-                .expect("Given a valid hardcoded date, building it should always succeed"),
+            end: date(2024, 9, 28),
         };
         let filing_id = FilingId::new("sec", "0000320193-24-000123")
             .expect("Given a hardcoded source and ID, the creation should always succeed");

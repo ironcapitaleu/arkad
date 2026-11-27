@@ -10,7 +10,8 @@
 
 use std::str::FromStr;
 
-use chrono::{NaiveDate, TimeZone, Utc};
+use jiff::Timestamp;
+use jiff::civil::date;
 use pretty_assertions::assert_eq;
 use xbrl::core::entity_name::EntityName;
 use xbrl::core::fact::FactValue;
@@ -36,36 +37,39 @@ fn should_keep_every_row_except_the_repeated_copies_for_a_real_filing() {
 fn should_map_the_sub_row_into_the_filing_for_a_real_filing() {
     let parsed = parse_notes_fixture();
 
-    let expected_result =
-        Filing {
-            id: FilingId::new("sec", "0001628280-26-068246")
-                .expect("Given a hardcoded source and ID, the creation should always succeed"),
-            entity: EntityId::new("http://www.sec.gov/CIK", "0002082247")
-                .expect("Given a hardcoded scheme and ID, the creation should always succeed"),
-            form: Form::new("10-Q")
-                .expect("Given a hardcoded form, the creation should always succeed"),
-            is_amendment: false,
-            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
-            accepted: Utc.with_ymd_and_hms(2026, 10, 29, 20, 15, 0).single(),
-            period_of_report: NaiveDate::from_ymd_opt(2026, 9, 30),
-            fiscal_year: Some(FiscalYear::new(2026)),
-            fiscal_period: Some(
-                FiscalPeriod::new("Q3")
-                    .expect("Given a hardcoded fiscal period, the creation should always succeed"),
-            ),
-            company: CompanyAttributes {
-                name: Some(EntityName::new("FEDEX FREIGHT HOLDING COMPANY, INC.")),
-                industry: Some(IndustryCode::new("sic", "4513").expect(
+    let expected_result = Filing {
+        id: FilingId::new("sec", "0001628280-26-068246")
+            .expect("Given a hardcoded source and ID, the creation should always succeed"),
+        entity: EntityId::new("http://www.sec.gov/CIK", "0002082247")
+            .expect("Given a hardcoded scheme and ID, the creation should always succeed"),
+        form: Form::new("10-Q")
+            .expect("Given a hardcoded form, the creation should always succeed"),
+        is_amendment: false,
+        filed: date(2026, 10, 29),
+        accepted: Some(
+            Timestamp::from_str("2026-10-29T20:15:00Z")
+                .expect("Given a hardcoded RFC 3339 timestamp, the parse should always succeed"),
+        ),
+        period_of_report: Some(date(2026, 9, 30)),
+        fiscal_year: Some(FiscalYear::new(2026)),
+        fiscal_period: Some(
+            FiscalPeriod::new("Q3")
+                .expect("Given a hardcoded fiscal period, the creation should always succeed"),
+        ),
+        company: CompanyAttributes {
+            name: Some(EntityName::new("FEDEX FREIGHT HOLDING COMPANY, INC.")),
+            industry: Some(
+                IndustryCode::new("sic", "4513").expect(
                     "Given a hardcoded scheme and code, the creation should always succeed",
-                )),
-                tickers: vec![],
-                fiscal_year_end: Some(
-                    FiscalYearEnd::from_str("1231")
-                        .expect("Given a hardcoded month and day, the parse should always succeed"),
                 ),
-            },
-        };
+            ),
+            tickers: vec![],
+            fiscal_year_end: Some(
+                FiscalYearEnd::from_str("1231")
+                    .expect("Given a hardcoded month and day, the parse should always succeed"),
+            ),
+        },
+    };
 
     let result = parsed.filing;
 

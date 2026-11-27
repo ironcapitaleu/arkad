@@ -7,7 +7,7 @@
 //! - [`unsupported_period`]: The [`UnsupportedPeriod`] error for a kind of period that the
 //!   contract has no shape for.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 use utoipa::ToSchema;
 use xbrl::core::period::Period as DomainPeriod;
@@ -26,16 +26,16 @@ pub enum Period {
     Duration {
         /// The first day.
         #[schema(value_type = String, format = Date, example = "2023-10-01")]
-        start: NaiveDate,
+        start: Date,
         /// The last day.
         #[schema(value_type = String, format = Date, example = "2024-09-28")]
-        end: NaiveDate,
+        end: Date,
     },
     /// One day, for example a balance sheet date.
     Instant {
         /// The day.
         #[schema(value_type = String, format = Date, example = "2024-09-28")]
-        end: NaiveDate,
+        end: Date,
     },
 }
 
@@ -64,6 +64,7 @@ impl FromDomain<DomainPeriod> for Period {}
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use serde_json::json;
     use xbrl::core::period::Duration;
@@ -75,11 +76,6 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_period() {
         implements_auto_traits::<Period>();
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a valid hardcoded date, building it should always succeed")
     }
 
     #[test]

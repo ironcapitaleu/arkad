@@ -27,6 +27,8 @@ bigdecimal = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 crc32fast = "1.5"
 getrandom = "0.4"
+# No default features: `jiff` reads no zone file of the system (ADR 0047). `api` needs no zone.
+jiff = { version = "1", default-features = false, features = ["serde", "std"] }
 jsonwebtoken = { version = "12", default-features = false, features = ["aws_lc_rs"] }
 reqwest = { version = "0.13", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }

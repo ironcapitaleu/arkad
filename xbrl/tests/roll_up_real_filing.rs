@@ -20,7 +20,7 @@
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::resolve_aliases;
 use xbrl::core::closed_group::derive_from_closed_groups;
@@ -138,7 +138,7 @@ fn findings_of(series: &Series) -> Vec<Finding> {
 }
 
 /// The kind of a finding, the name of its group, and the end of its period.
-type FindingSummary = (&'static str, String, NaiveDate);
+type FindingSummary = (&'static str, String, Date);
 
 /// Returns the [`FindingSummary`] of each roll-up finding in `findings`.
 fn summaries(findings: Vec<Finding>) -> Vec<FindingSummary> {

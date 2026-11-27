@@ -7,7 +7,8 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 use bigdecimal::{BigDecimal, RoundingMode};
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 
 use super::candidate::{Candidate, CandidateValue, SeriesKey};
 use super::fact::{AsIsFact, Decimals, FactValue, FilingSource};
@@ -116,7 +117,7 @@ pub fn newest_filing(candidates: &[Candidate]) -> Series {
 /// is known if it was filed before the date of `as_of` in UTC. Such a filing has only a filing
 /// date, so a filing of that date can still be in the future.
 #[must_use]
-pub fn newest_filing_as_of(candidates: &[Candidate], as_of: DateTime<Utc>) -> Series {
+pub fn newest_filing_as_of(candidates: &[Candidate], as_of: Timestamp) -> Series {
     newest_of(
         candidates
             .iter()
@@ -189,9 +190,9 @@ fn filing_order(left: &FilingSource, right: &FilingSource) -> Ordering {
         .then_with(|| left.filing.cmp(&right.filing))
 }
 
-fn is_known_at(source: &FilingSource, as_of: DateTime<Utc>) -> bool {
+fn is_known_at(source: &FilingSource, as_of: Timestamp) -> bool {
     source.accepted.map_or_else(
-        || source.filed < as_of.date_naive(),
+        || source.filed < TimeZone::UTC.to_datetime(as_of).date(),
         |accepted| accepted <= as_of,
     )
 }
@@ -246,7 +247,6 @@ fn numbers_agree(
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -254,9 +254,9 @@ mod tests {
     use crate::core::period::{Duration, Period};
     use crate::tests::fixtures::sample_fact::{candidate, date, fact, source};
 
-    fn moment(year: i32, month: u32, day: u32, hour: u32) -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(year, month, day, hour, 0, 0)
-            .single()
+    fn moment(year: i16, month: i8, day: i8, hour: i8) -> Timestamp {
+        TimeZone::UTC
+            .to_timestamp(date(year, month, day).at(hour, 0, 0, 0))
             .expect("Given a hardcoded valid time in UTC, the creation should always succeed")
     }
 
@@ -352,7 +352,7 @@ mod tests {
     }
 
     /// Returns `fact` with the duration from `start` to 2026-09-30.
-    fn from(mut fact: AsIsFact, start: chrono::NaiveDate) -> AsIsFact {
+    fn from(mut fact: AsIsFact, start: jiff::civil::Date) -> AsIsFact {
         fact.context.period = Period::Duration(
             Duration::from_dates(start, date(2026, 9, 30))
                 .expect("Given a start before the end, the creation should always succeed"),

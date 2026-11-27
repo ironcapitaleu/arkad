@@ -12,7 +12,7 @@
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::elements::GroupName;
 use xbrl::core::elements::statement::cash_flow::CashFlowGroup;
@@ -22,7 +22,7 @@ use xbrl::tests::fixtures::data::resolved::{derived_values, resolve_fixture_fili
 use xbrl::tests::fixtures::sample_fact::date;
 
 /// Returns the start and the end of each failed check of `net-change-in-cash` in `findings`.
-fn cash_mismatches(findings: Vec<Finding>) -> Vec<(Option<NaiveDate>, NaiveDate)> {
+fn cash_mismatches(findings: Vec<Finding>) -> Vec<(Option<Date>, Date)> {
     findings
         .into_iter()
         .filter_map(|finding| match finding {
@@ -56,7 +56,7 @@ fn should_fail_no_cash_identity_for_apple_10_k_2025_fy() {
     let series = resolve_fixture_filings(&["0000320193-25-000079"]).series();
     let added = derived_values(&series);
 
-    let expected_result: Vec<(Option<NaiveDate>, NaiveDate)> = Vec::new();
+    let expected_result: Vec<(Option<Date>, Date)> = Vec::new();
 
     let result = cash_mismatches(check_roll_ups(&series, &added));
 

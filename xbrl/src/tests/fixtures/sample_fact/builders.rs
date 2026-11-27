@@ -6,7 +6,8 @@
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDate, Utc};
+use jiff::civil::Date;
+use jiff::{Timestamp, ToSpan as _};
 
 use crate::core::candidate::{Candidate, CandidateValue};
 use crate::core::concept::{ConceptName, NamespaceFamily};
@@ -38,9 +39,8 @@ const FAMILY: &str = "us-gaap";
 ///
 /// Panics if the date does not exist.
 #[must_use]
-pub const fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-    NaiveDate::from_ymd_opt(year, month, day)
-        .expect("Given a hardcoded valid date, the creation should always succeed")
+pub const fn date(year: i16, month: i8, day: i8) -> Date {
+    jiff::civil::date(year, month, day)
 }
 
 /// Returns the source of the SEC filing `accession`, filed on `filed`, with no acceptance time.
@@ -49,12 +49,12 @@ pub const fn date(year: i32, month: u32, day: u32) -> NaiveDate {
 ///
 /// Panics if `accession` is not a filing ID.
 #[must_use]
-pub fn source(accession: &str, filed: NaiveDate) -> FilingSource {
+pub fn source(accession: &str, filed: Date) -> FilingSource {
     FilingSource {
         filing: FilingId::new("sec", accession)
             .expect("Given a hardcoded source and ID, the creation should always succeed"),
         filed,
-        accepted: None::<DateTime<Utc>>,
+        accepted: None::<Timestamp>,
     }
 }
 
@@ -249,7 +249,7 @@ pub fn in_cloud_segment(facts: Vec<StandardizedFact>) -> Vec<StandardizedFact> {
 ///
 /// Panics if `form` is empty, or if the filing date lies outside the range of a date.
 #[must_use]
-pub fn filing(form: &str, period_of_report: NaiveDate, fiscal_year_end: &str) -> Filing {
+pub fn filing(form: &str, period_of_report: Date, fiscal_year_end: &str) -> Filing {
     let form =
         Form::new(form).expect("Given a hardcoded form type, the creation should always succeed");
     Filing {
@@ -259,7 +259,7 @@ pub fn filing(form: &str, period_of_report: NaiveDate, fiscal_year_end: &str) ->
         entity: apple(),
         is_amendment: form.is_amendment(),
         form,
-        filed: period_of_report + chrono::Days::new(30),
+        filed: period_of_report + 30.days(),
         accepted: None,
         period_of_report: Some(period_of_report),
         fiscal_year: None,

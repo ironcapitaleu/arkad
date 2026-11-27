@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use roxmltree::Node;
 
 use crate::adapter::edgar::company_facts::CIK_SCHEME;
@@ -372,9 +372,9 @@ fn required_child<'a, 'input>(
 /// # Errors
 ///
 /// Returns [`InvalidValue`] if the text is not a date in [`DATE_FORMAT`].
-pub fn date(text: &str) -> Result<NaiveDate, InvalidValue> {
+pub fn date(text: &str) -> Result<Date, InvalidValue> {
     let text = text.trim();
-    NaiveDate::parse_from_str(text, DATE_FORMAT).map_err(|_| {
+    Date::strptime(DATE_FORMAT, text).map_err(|_| {
         InvalidValue::new(
             Document::TYPE_NAME,
             InvalidValueReason::NotADate(DATE_FORMAT),

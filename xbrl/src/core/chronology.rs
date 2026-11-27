@@ -6,7 +6,8 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use chrono::{Months, NaiveDate};
+use jiff::Span;
+use jiff::civil::Date;
 
 use super::candidate::SeriesKey;
 use super::dedup::Series;
@@ -134,7 +135,7 @@ impl Timeline {
         }
     }
 
-    fn key(&self, period_end: NaiveDate, quarters: u16) -> SeriesKey {
+    fn key(&self, period_end: Date, quarters: u16) -> SeriesKey {
         SeriesKey {
             entity: self.entity.clone(),
             concept: self.concept,
@@ -150,8 +151,8 @@ impl Timeline {
 /// blocked keys.
 #[derive(Debug, Default)]
 struct Ends {
-    reported: BTreeSet<(NaiveDate, u16)>,
-    blocked: BTreeSet<NaiveDate>,
+    reported: BTreeSet<(Date, u16)>,
+    blocked: BTreeSet<Date>,
     /// Whether a value of the timeline is a duration.
     has_duration: bool,
 }
@@ -213,7 +214,7 @@ fn gaps(timeline: &Timeline, ends: &Ends, calendar: &Calendar) -> Vec<Finding> {
 }
 
 fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
-    let mut by_length: BTreeMap<u16, Vec<NaiveDate>> = BTreeMap::new();
+    let mut by_length: BTreeMap<u16, Vec<Date>> = BTreeMap::new();
     for &(end, quarters) in &ends.reported {
         by_length.entry(quarters).or_default().push(end);
     }
@@ -221,10 +222,9 @@ fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
     for (quarters, ends) in by_length {
         let days = days_of_quarters(quarters);
         for (index, &first) in ends.iter().enumerate() {
-            for &second in ends[index + 1..]
-                .iter()
-                .take_while(|second| (**second - first).num_days() < days - TOLERANCE_DAYS)
-            {
+            for &second in ends[index + 1..].iter().take_while(|second| {
+                i64::from((**second - first).get_days()) < days - TOLERANCE_DAYS
+            }) {
                 findings.push(Finding::Overlap {
                     first: timeline.key(first, quarters),
                     second: timeline.key(second, quarters),
@@ -239,7 +239,7 @@ fn overlaps(timeline: &Timeline, ends: &Ends) -> Vec<Finding> {
 /// whether it ends a fiscal year.
 #[derive(Debug, Clone)]
 struct Expected {
-    end: NaiveDate,
+    end: Date,
     fiscal_period: Option<FiscalPeriod>,
     quarters: u16,
     is_fiscal_year_end: bool,
@@ -250,7 +250,7 @@ struct Expected {
 #[derive(Debug, Default)]
 struct Calendar {
     expected: Vec<Expected>,
-    changes: Vec<(NaiveDate, NaiveDate)>,
+    changes: Vec<(Date, Date)>,
 }
 
 impl Calendar {
@@ -264,13 +264,13 @@ impl Calendar {
             .copied()
             .filter(|filing| is_form(&filing.form, &QUARTERLY_FORMS))
             .collect();
-        let year_ends: BTreeSet<NaiveDate> = filings
+        let year_ends: BTreeSet<Date> = filings
             .iter()
             .filter(|filing| is_form(&filing.form, &ANNUAL_FORMS))
             .filter_map(|filing| filing.period_of_report)
             .collect();
         let mut expected = Vec::new();
-        let mut previous: Option<NaiveDate> = None;
+        let mut previous: Option<Date> = None;
         for &year_end in &year_ends {
             if let Some(previous) = previous {
                 let step = step_before(&filings, &quarterly, year_end);
@@ -332,7 +332,7 @@ impl Calendar {
 
     /// Returns the reason of a gap at `end`. [`GapReason::Conflict`] wins over
     /// [`GapReason::FiscalYearChange`].
-    fn reason(&self, end: NaiveDate, blocked: &BTreeSet<NaiveDate>) -> Option<GapReason> {
+    fn reason(&self, end: Date, blocked: &BTreeSet<Date>) -> Option<GapReason> {
         if blocked.iter().any(|blocked| is_near(*blocked, end)) {
             return Some(GapReason::Conflict);
         }
@@ -356,7 +356,7 @@ pub(super) fn is_form(form: &Form, forms: &[&str]) -> bool {
 /// transition period, so its length runs from the previous fiscal year end, rounded as
 /// [`Duration::from_dates`] rounds, and limited to 4 quarters. Every other fiscal year, and a
 /// `10-KT` with no previous fiscal year end, is 4 quarters.
-fn year_length(filings: &[&Filing], previous: Option<NaiveDate>, year_end: NaiveDate) -> u16 {
+fn year_length(filings: &[&Filing], previous: Option<Date>, year_end: Date) -> u16 {
     let is_transition = filings.iter().any(|filing| {
         filing.period_of_report == Some(year_end) && is_form(&filing.form, &TRANSITION_ANNUAL_FORMS)
     });
@@ -370,7 +370,7 @@ fn year_length(filings: &[&Filing], previous: Option<NaiveDate>, year_end: Naive
 /// Returns the step in quarters for the span that ends at the fiscal year end `year_end`: 1 if the
 /// annual report for that end is a `10-K` or `10-KT` and the entity filed a quarterly report
 /// before that end, otherwise 4.
-fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: NaiveDate) -> u16 {
+fn step_before(filings: &[&Filing], quarterly: &[&Filing], year_end: Date) -> u16 {
     let is_quarterly = quarterly
         .iter()
         .filter_map(|filing| filing.period_of_report)
@@ -389,7 +389,7 @@ const fn step(is_domestic: bool, is_quarterly: bool) -> u16 {
 }
 
 /// Returns `true` if the annual report for the fiscal year end `year_end` is a `10-K` or `10-KT`.
-fn is_domestic_at(filings: &[&Filing], year_end: NaiveDate) -> bool {
+fn is_domestic_at(filings: &[&Filing], year_end: Date) -> bool {
     filings.iter().any(|filing| {
         filing.period_of_report == Some(year_end) && is_form(&filing.form, &DOMESTIC_ANNUAL_FORMS)
     })
@@ -397,12 +397,14 @@ fn is_domestic_at(filings: &[&Filing], year_end: NaiveDate) -> bool {
 
 /// Returns the expected periods before `year_end`, every `step` quarters back, that lie more than
 /// 7 days after `previous`.
-fn steps_back(previous: NaiveDate, year_end: NaiveDate, step: u16) -> Vec<Expected> {
+fn steps_back(previous: Date, year_end: Date, step: u16) -> Vec<Expected> {
     (1..)
         .map(|count| u32::from(step) * QUARTER_MONTHS * count)
         .map_while(|months| {
-            let end = year_end.checked_sub_months(Months::new(months))?;
-            ((end - previous).num_days() > TOLERANCE_DAYS).then(|| Expected {
+            let end = year_end
+                .checked_sub(Span::new().try_months(months).ok()?)
+                .ok()?;
+            (i64::from((end - previous).get_days()) > TOLERANCE_DAYS).then(|| Expected {
                 end,
                 fiscal_period: fiscal_period(months),
                 quarters: step,
@@ -414,12 +416,14 @@ fn steps_back(previous: NaiveDate, year_end: NaiveDate, step: u16) -> Vec<Expect
 
 /// Returns the expected periods after the last fiscal year end `last`, every `step` quarters, up
 /// to 7 days after the latest period of report.
-fn steps_forward(last: NaiveDate, latest: NaiveDate, step: u16) -> Vec<Expected> {
+fn steps_forward(last: Date, latest: Date, step: u16) -> Vec<Expected> {
     (1..)
         .map(|count| u32::from(step) * QUARTER_MONTHS * count)
         .map_while(|months| {
-            let end = last.checked_add_months(Months::new(months))?;
-            ((end - latest).num_days() <= TOLERANCE_DAYS).then(|| Expected {
+            let end = last
+                .checked_add(Span::new().try_months(months).ok()?)
+                .ok()?;
+            (i64::from((end - latest).get_days()) <= TOLERANCE_DAYS).then(|| Expected {
                 end,
                 fiscal_period: fiscal_period((YEAR_MONTHS - months % YEAR_MONTHS) % YEAR_MONTHS),
                 quarters: step,
@@ -441,7 +445,7 @@ fn fiscal_period(months: u32) -> Option<FiscalPeriod> {
 /// The filings count in the order they were filed, because a filing states the fiscal year end as
 /// of its filing date. An amendment does not count, because it can state the end of the year it
 /// amends.
-fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
+fn changes(filings: &[&Filing]) -> Vec<(Date, Date)> {
     let mut filings: Vec<&Filing> = filings
         .iter()
         .copied()
@@ -451,7 +455,7 @@ fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
         (left.filed, left.accepted, &left.id).cmp(&(right.filed, right.accepted, &right.id))
     });
     let mut changes = Vec::new();
-    let mut current: Option<(&FiscalYearEnd, Option<NaiveDate>)> = None;
+    let mut current: Option<(&FiscalYearEnd, Option<Date>)> = None;
     for filing in filings {
         let Some(year_end) = filing.company.fiscal_year_end.as_ref() else {
             continue;
@@ -462,7 +466,8 @@ fn changes(filings: &[&Filing]) -> Vec<(NaiveDate, NaiveDate)> {
                 if let Some(after) = latest {
                     changes.extend(
                         after
-                            .checked_add_months(Months::new(YEAR_MONTHS))
+                            .checked_add(Span::new().months(YEAR_MONTHS))
+                            .ok()
                             .map(|until| (after, until)),
                     );
                 }
@@ -489,19 +494,14 @@ mod tests {
 
     /// Returns a value of `quarters` quarters to `end`. It starts `quarters` times 91.3125 days
     /// before `end`, rounded down.
-    fn value(end: NaiveDate, quarters: u16) -> StandardizedFact {
-        let start = end - chrono::TimeDelta::days(days_of_quarters(quarters));
+    fn value(end: Date, quarters: u16) -> StandardizedFact {
+        let start = end - Span::new().days(days_of_quarters(quarters));
         let period = Duration::from_dates(start, end)
             .expect("Given a start before the end, the creation should always succeed");
         standardized(Period::Duration(period), "100")
     }
 
-    fn gap(
-        end: NaiveDate,
-        fiscal_period: &str,
-        quarters: u16,
-        reason: Option<GapReason>,
-    ) -> Finding {
+    fn gap(end: Date, fiscal_period: &str, quarters: u16, reason: Option<GapReason>) -> Finding {
         let template = value(end, 1);
         Finding::Gap {
             entity: template.entity,
@@ -1114,14 +1114,14 @@ mod tests {
     }
 
     /// Returns the standardized value of `concept` at the instant `end`.
-    fn debt_value(concept: DebtMaturityConcept, end: NaiveDate) -> StandardizedFact {
+    fn debt_value(concept: DebtMaturityConcept, end: Date) -> StandardizedFact {
         let mut debt = standardized(Period::Instant { end }, "500000000");
         debt.concept = concept.element();
         debt
     }
 
     /// Returns the gap of `concept` at the instant `end` with the fiscal period `fiscal_period`.
-    fn debt_gap(concept: DebtMaturityConcept, end: NaiveDate, fiscal_period: &str) -> Finding {
+    fn debt_gap(concept: DebtMaturityConcept, end: Date, fiscal_period: &str) -> Finding {
         let template = debt_value(concept, end);
         Finding::Gap {
             entity: template.entity,

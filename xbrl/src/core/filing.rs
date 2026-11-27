@@ -7,7 +7,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{DateTime, NaiveDate, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
 
 use super::entity_name::EntityName;
 use super::fiscal_period::FiscalPeriod;
@@ -294,11 +295,11 @@ pub struct Filing {
     /// Whether the filing amends an earlier filing.
     pub is_amendment: bool,
     /// The filing date.
-    pub filed: NaiveDate,
+    pub filed: Date,
     /// The acceptance time, if the source gives it.
-    pub accepted: Option<DateTime<Utc>>,
+    pub accepted: Option<Timestamp>,
     /// The end of the period the filing reports on, if the source gives it.
-    pub period_of_report: Option<NaiveDate>,
+    pub period_of_report: Option<Date>,
     /// The fiscal year as filed.
     pub fiscal_year: Option<FiscalYear>,
     /// The fiscal period as filed.

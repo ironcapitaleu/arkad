@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::candidate::{Candidate, CandidateValue};
 use super::concept::ConceptName;
@@ -132,14 +132,14 @@ impl<'a> Reported<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct PeriodKey {
     entity: EntityId,
-    period_end: NaiveDate,
+    period_end: Date,
     quarters: u16,
     unit: Unit,
     dimensions: Dimensions,
 }
 
 /// The fields of a [`PeriodKey`] without the dimensions.
-type PeriodSpan = (EntityId, NaiveDate, u16, Unit);
+type PeriodSpan = (EntityId, Date, u16, Unit);
 
 impl PeriodKey {
     fn span(&self) -> PeriodSpan {

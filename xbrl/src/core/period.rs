@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::invalid_value::{InvalidValue, InvalidValueReason};
 use super::taxonomy::reference::PeriodType;
@@ -19,7 +19,7 @@ pub enum Period {
     /// A point in time, for example the date of a balance sheet.
     Instant {
         /// The date of the instant.
-        end: NaiveDate,
+        end: Date,
     },
     /// A span of time, for example a fiscal quarter.
     Duration(Duration),
@@ -28,7 +28,7 @@ pub enum Period {
 impl Period {
     /// Returns the end date. For an instant, the end is the date of the instant.
     #[must_use]
-    pub const fn end(&self) -> NaiveDate {
+    pub const fn end(&self) -> Date {
         match self {
             Self::Instant { end } => *end,
             Self::Duration(duration) => duration.end,
@@ -46,7 +46,7 @@ impl Period {
 
     /// Returns the exact start, or `None` for an instant.
     #[must_use]
-    pub const fn start(&self) -> Option<NaiveDate> {
+    pub const fn start(&self) -> Option<Date> {
         match self {
             Self::Instant { .. } => None,
             Self::Duration(duration) => Some(duration.start),
@@ -77,8 +77,8 @@ impl fmt::Display for Period {
 pub(super) const TOLERANCE_DAYS: i64 = 7;
 
 /// Returns `true` if `left` and `right` lie at most [`TOLERANCE_DAYS`] days apart.
-pub(super) fn is_near(left: NaiveDate, right: NaiveDate) -> bool {
-    (left - right).num_days().abs() <= TOLERANCE_DAYS
+pub(super) fn is_near(left: Date, right: Date) -> bool {
+    i64::from((left - right).get_days()).abs() <= TOLERANCE_DAYS
 }
 
 /// A quarter is `QUARTER_NUMERATOR / QUARTER_DENOMINATOR` days, that is 91.3125 days.
@@ -101,9 +101,9 @@ pub(crate) fn days_of_quarters(quarters: u16) -> i64 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct Duration {
     /// The exact start.
-    start: NaiveDate,
+    start: Date,
     /// The exact end.
-    end: NaiveDate,
+    end: Date,
     /// The length in quarters. It is a field, because the value key and the series key use it.
     quarters: u16,
 }
@@ -125,11 +125,11 @@ impl Duration {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use xbrl::core::period::Duration;
     ///
-    /// let start = NaiveDate::from_ymd_opt(2023, 10, 1).expect("Given a hardcoded valid date, the creation should always succeed");
-    /// let end = NaiveDate::from_ymd_opt(2024, 9, 28).expect("Given a hardcoded valid date, the creation should always succeed");
+    /// let start = date(2023, 10, 1);
+    /// let end = date(2024, 9, 28);
     ///
     /// let expected_result = 4;
     ///
@@ -138,8 +138,8 @@ impl Duration {
     ///
     /// assert_eq!(result, expected_result);
     /// ```
-    pub fn from_dates(start: NaiveDate, end: NaiveDate) -> Result<Self, InvalidValue> {
-        let days = (end - start).num_days();
+    pub fn from_dates(start: Date, end: Date) -> Result<Self, InvalidValue> {
+        let days = i64::from((end - start).get_days());
         if days < 0 {
             return Err(InvalidValue::new(
                 Self::TYPE_NAME,
@@ -171,19 +171,19 @@ impl Duration {
     /// 121-day period that also rounds to 1 quarter.
     #[must_use]
     pub fn distance_to_full_quarters(&self) -> i64 {
-        let days = (self.end - self.start).num_days();
+        let days = i64::from((self.end - self.start).get_days());
         (QUARTER_DENOMINATOR * days - QUARTER_NUMERATOR * i64::from(self.quarters)).abs()
     }
 
     /// Returns the exact start.
     #[must_use]
-    pub const fn start(&self) -> NaiveDate {
+    pub const fn start(&self) -> Date {
         self.start
     }
 
     /// Returns the exact end.
     #[must_use]
-    pub const fn end(&self) -> NaiveDate {
+    pub const fn end(&self) -> Date {
         self.end
     }
 
@@ -202,14 +202,10 @@ impl fmt::Display for Duration {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded valid date, the creation should always succeed")
-    }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
@@ -313,13 +309,13 @@ mod tests {
 
     #[test]
     fn should_reject_duration_when_quarters_exceed_sixteen_bits() {
-        let start = date(1, 1, 1);
-        let end = date(20_000, 1, 1);
+        let start = Date::MIN;
+        let end = Date::MAX;
 
         let expected_result = Err(InvalidValue::new(
             "Duration",
             InvalidValueReason::OutOfRange,
-            "0001-01-01 to +20000-01-01",
+            "-009999-01-01 to 9999-12-31",
         ));
 
         let result = Duration::from_dates(start, end);
