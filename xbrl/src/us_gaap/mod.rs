@@ -3089,7 +3089,7 @@ mod tests {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
             .expect("Given one plug-in with distinct families, the registry should always start");
-        let filing = source("0000021344-14-000008", date(2014, 2, 27));
+        let filing = source("0000000001-14-000001", date(2014, 2, 27));
         let facts = vec![fact(&filing, "SalesRevenueGoodsNet", "46854000000")];
 
         let expected_result = vec![(
@@ -3109,8 +3109,8 @@ mod tests {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
             .expect("Given one plug-in with distinct families, the registry should always start");
-        let filing = source("0000021344-14-000008", date(2014, 2, 27));
-        let facts = vec![fact(&filing, "SalesRevenueServicesNet", "2100000000")];
+        let filing = source("0000000001-14-000001", date(2014, 2, 27));
+        let facts = vec![fact(&filing, "SalesRevenueServicesNet", "1250000000")];
 
         let expected_result = vec![(
             IncomeStatementConcept::Revenue.element(),
@@ -3129,13 +3129,42 @@ mod tests {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
             .expect("Given one plug-in with distinct families, the registry should always start");
-        let filing = source("0000021344-14-000008", date(2014, 2, 27));
+        let filing = source("0000000001-14-000001", date(2014, 2, 27));
         let facts = vec![
-            fact(&filing, "SalesRevenueGoodsNet", "62000000000"),
-            fact(&filing, "SalesRevenueServicesNet", "26900000000"),
+            fact(&filing, "SalesRevenueGoodsNet", "830000000"),
+            fact(&filing, "SalesRevenueServicesNet", "1250000000"),
         ];
 
         let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    // A known gap: the goods line blocks the contract revenue part, but the contract revenue
+    // concepts are no other parts, so the goods line alone resolves `Revenue`.
+    #[test]
+    fn should_give_the_goods_line_as_revenue_when_the_filing_reports_contract_revenue_next_to_sales_revenue_of_goods()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000000001-19-000001", date(2019, 2, 21));
+        let facts = vec![
+            fact(
+                &filing,
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "100000000",
+            ),
+            fact(&filing, "SalesRevenueGoodsNet", "60000000"),
+        ];
+
+        let expected_result = vec![(
+            IncomeStatementConcept::Revenue.element(),
+            rule("us-gaap/part/revenue@1"),
+            Some(Confidence::Synonym),
+        )];
 
         let result = resolve(&facts, &registry);
 
