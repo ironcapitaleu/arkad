@@ -24,7 +24,7 @@ module uses. It is independent of any specific state, and can be developed and t
 
 | Crate | Value type | Trait and its implementations | Fakes |
 | ----- | ---------- | ----------------------------- | ----- |
-| `sec` | `src/lib/shared/{concept}/` | `src/lib/shared/{concept}/traits/` and `src/lib/shared/{concept}/implementations/`, as in `http_client` and `rate_limiter` | `src/lib/tests/fixtures/sample_{concept}/` |
+| `sec` | `src/lib/shared/{concept}/` | `src/lib/shared/{concept}/traits/` and `src/lib/shared/{concept}/implementations/`, as in `http_client`, `rate_limiter`, and `row_digest` | `src/lib/tests/fixtures/sample_{concept}/` |
 | `storage` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, split at the crate level | `src/tests/fixtures/` |
 | `api` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, split at the crate level | `src/tests/fixtures/` |
 | `xbrl` | `src/core/{concept}.rs`, one flat file per concept | `xbrl` has no trait for dependency injection today | `src/tests/fixtures/` |
@@ -36,12 +36,15 @@ Follow the layout of the crate you work in. Do not move the code of another crat
 The parts of a concept decide its files, not whether it wraps an external crate:
 
 - **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
-  `traits/mod.rs`. Example: `sec::shared::rate_limiter::traits::rate_limiter`.
+  `traits/mod.rs`. Examples: `sec::shared::rate_limiter::traits::rate_limiter`, and
+  `sec::shared::row_digest::traits::digest_row`, a trait that wraps no external crate.
 - **A concrete type** that implements a trait, or that the concept provides next to its trait, goes
-  in `implementations/`, one module per type. Example:
-  `sec::shared::rate_limiter::implementations::sec_rate_limiter`.
-- **Constants** go in a `constants.rs` next to the type that uses them. Example:
-  `sec/src/lib/shared/rate_limiter/implementations/sec_rate_limiter/constants.rs`.
+  in `implementations/`, one module per type. Examples:
+  `sec::shared::rate_limiter::implementations::sec_rate_limiter` and
+  `sec::shared::row_digest::implementations::byte_form`.
+- **Constants** go in a `constants.rs` next to the type that uses them. Examples:
+  `sec/src/lib/shared/rate_limiter/implementations/sec_rate_limiter/constants.rs` and
+  `sec/src/lib/shared/row_digest/implementations/byte_form/constants.rs`.
 - **An error** sits next to the code that returns it: an `error.rs` in the folder of the type, or its
   own module next to the function that returns it.
 - **The concept's `mod.rs`** re-exports the main items, so a caller imports
@@ -92,8 +95,8 @@ let the user provide the name via "Other".
 
 - If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
 - If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
-- If it defines a trait that several types implement → Path B layout, with a fake implementor in
-  the tests
+- If it defines a trait that several types implement, such as `DigestRow` → Path B layout, with a
+  fake implementor in the tests
 - Otherwise → Path A (value type with optional validation)
 - If answers are "don't know yet" → start with what's known, discover the rest together
 
