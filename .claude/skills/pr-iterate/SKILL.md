@@ -6,7 +6,7 @@ description: >
   to enter a tight iterate-on-PR-feedback workflow. It drives the cycle of: request a review on
   the current head → implement valid feedback → request a fresh review → repeat until nothing new
   → then notify the human.
-version: 0.3.0
+version: 0.4.0
 argument-hint: "[PR number or URL]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion, Agent]
 ---
@@ -121,7 +121,7 @@ Categorize each comment:
 | **Clearly valid** | Implement immediately | Bug fix, security issue, naming rule violation, missing test, style per AGENTS.md |
 | **Ambiguous / subjective** | Escalate to human | Architecture choice, scope question, "maybe we should...", taste-based |
 | **Already resolved** | Skip | Marked as resolved, outdated by subsequent commits |
-| **Nitpick / trivial** | Implement if cheap, otherwise batch | Typo, minor formatting |
+| **Nitpick / trivial** | Implement if correct and cheap, even when it is the only finding. It starts a push on its own | Typo, minor formatting, a 🟣 finding |
 
 ### Step 3: Implement Valid Feedback
 
@@ -199,7 +199,9 @@ findings and continues.
 ### Exit Conditions
 
 Stop iterating when:
-- The review returns clean (no new comments)
+- The review returns clean (no new comments). A review with only 🟣 findings is not clean: fix the
+  correct ones, push, and request a review. The owner does not watch the loop, so a nit left open
+  stays open
 - All remaining comments are ambiguous/human-decision items (escalated)
 - The human says to stop
 - 3 iterations have passed without convergence (flag to human)
