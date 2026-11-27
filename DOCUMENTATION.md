@@ -20,6 +20,7 @@ The document is organized as follows:
 - Choose `a`/`an` by the **spoken sound**, not the first letter. "SEC" is read "ess-ee-see", so write "an SEC response", not "a SEC response".
 - Prefer clarity over terseness. A few extra words that remove ambiguity beat a tighter phrase that reads as jargon (e.g. "concepts that are missing inside a response" over "concepts missing from a response").
 - When tightening documentation that is already good, **blend** rather than replace: keep the established, well-worded opening and enrich it, instead of rewriting it wholesale.
+- Use each business term of the data pipeline, such as "filing", "unit", or "source", in the meaning that [`GLOSSARY.md`](GLOSSARY.md) gives it. If a document adds a term that a reader can misread, add an entry to the glossary in the same PR.
 
 ### Documentable Items
 
