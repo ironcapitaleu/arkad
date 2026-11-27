@@ -201,6 +201,38 @@ mod tests {
     }
 
     #[test]
+    fn should_give_an_instant_only_to_the_cash_at_the_end_for_every_cash_flow_concept() {
+        let concepts = CashFlowConcept::ALL;
+
+        let expected_result = vec![
+            (CashFlowConcept::NetChangeInCash, PeriodType::Duration),
+            (CashFlowConcept::OperatingCashFlow, PeriodType::Duration),
+            (CashFlowConcept::InvestingCashFlow, PeriodType::Duration),
+            (CashFlowConcept::FinancingCashFlow, PeriodType::Duration),
+            (CashFlowConcept::ExchangeRateEffect, PeriodType::Duration),
+            (
+                CashFlowConcept::DepreciationAmortization,
+                PeriodType::Duration,
+            ),
+            (
+                CashFlowConcept::ShareBasedCompensation,
+                PeriodType::Duration,
+            ),
+            (CashFlowConcept::CapitalExpenditures, PeriodType::Duration),
+            (CashFlowConcept::DividendsPaid, PeriodType::Duration),
+            (CashFlowConcept::ShareRepurchases, PeriodType::Duration),
+            (CashFlowConcept::CashAndRestrictedCash, PeriodType::Instant),
+        ];
+
+        let result: Vec<(CashFlowConcept, PeriodType)> = concepts
+            .iter()
+            .map(|concept| (*concept, concept.period_type()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_the_kebab_case_name_for_every_cash_flow_group() {
         let groups = CashFlowGroup::ALL;
 
