@@ -40,15 +40,21 @@ fn should_keep_the_more_precise_copy_of_the_restructuring_charges_for_procter_an
         .filter(|fact| is_restructuring_charges_of_2026(fact))
         .map(|fact| (fact.copy_rank, fact.value.clone(), fact.decimals))
         .collect();
-    let precise = FactValue::Numeric(BigDecimal::from(1_230_000_000_i64));
-    let rounded = FactValue::Numeric(BigDecimal::from(1_200_000_000_i64));
 
     let expected_result = (
         vec![
-            (0, precise.clone(), Some(Decimals::Finite(-6))),
-            (1, rounded, Some(Decimals::Finite(-8))),
+            (
+                0,
+                FactValue::Numeric(BigDecimal::from(1_230_000_000_i64)),
+                Some(Decimals::Finite(-6)),
+            ),
+            (
+                1,
+                FactValue::Numeric(BigDecimal::from(1_200_000_000_i64)),
+                Some(Decimals::Finite(-8)),
+            ),
         ],
-        vec![(0, precise)],
+        vec![(0, FactValue::Numeric(BigDecimal::from(1_230_000_000_i64)))],
     );
 
     let result = (
