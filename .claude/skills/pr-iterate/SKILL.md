@@ -189,7 +189,7 @@ After requesting the re-review, wait for it by the means the environment allows:
 
 Then:
 
-1. If new findings exist, return to Step 2.
+1. If new findings exist, and item 3 does not apply, return to Step 2.
 2. If a review returns nothing new, only approvals, or only 🟣 findings that you answered as wrong,
    notify the human: "The review is clean, the PR is ready to merge."
 3. If 2 rounds in a row had only 🟣 findings, fix the correct nits of the second round and push,
@@ -232,7 +232,7 @@ human-escalated items.
 - **Never resolve a comment without implementing it** (or explicitly explaining why it was skipped)
 - **Max 3 autonomous iterations** before consulting the human. A round with only 🟣 findings does
   not count. After 2 such rounds in a row, fix the correct nits and push, request no review, and
-  report the PR as ready
+  report the PR as ready with the fixes no review saw
 - **Never change the PR scope** — if feedback suggests new features or large refactors, flag
   to the human as a potential follow-up ticket
 - **Follow AGENTS.md** — all code changes must follow the project's development guidelines
