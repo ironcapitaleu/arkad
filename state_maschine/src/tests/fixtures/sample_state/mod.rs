@@ -15,6 +15,16 @@ pub struct SampleState {
     context_data: SampleStateContext,
 }
 
+impl SampleState {
+    pub const fn new(input: SampleStateData, context_data: SampleStateContext) -> Self {
+        Self {
+            input,
+            output: None,
+            context_data,
+        }
+    }
+}
+
 impl State for SampleState {
     type InputData = SampleStateData;
     type OutputData = SampleStateData;

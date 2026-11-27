@@ -73,15 +73,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
-            url: String::from("https://example.com"),
-            body: String::from("This is a fake response body."),
-            headers: String::from("This is a fake response header."),
-            status_code: 200,
-            content_type: String::from("application/json"),
-        }
-        .url()
-        .clone();
+        let expected_result = String::from("https://example.com");
 
         let result = FakeInnerResponse::new(url, body, headers, status_code, content_type)
             .url()
@@ -98,16 +90,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
-            url: String::from("https://example.com"),
-            body: String::from("This is a fake response body."),
-            headers: String::from("This is a fake response header."),
-            status_code: 200,
-            content_type: String::from("application/json"),
-        }
-        .body()
-        .await
-        .expect("A hardcoded FakeInnerResponse body should always succeed");
+        let expected_result = String::from("This is a fake response body.");
 
         let result = FakeInnerResponse::new(url, body, headers, status_code, content_type)
             .body()
@@ -125,14 +108,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
-            url: String::from("https://example.com"),
-            body: String::from("This is a fake response body."),
-            headers: String::from("This is a fake response header."),
-            status_code: 200,
-            content_type: String::from("application/json"),
-        }
-        .status_code();
+        let expected_result = 200;
 
         let result =
             FakeInnerResponse::new(url, body, headers, status_code, content_type).status_code();
@@ -148,14 +124,7 @@ mod tests {
         let status_code = 200;
         let content_type = String::from("application/json");
 
-        let expected_result = FakeInnerResponse {
-            url: String::from("https://example.com"),
-            body: String::from("This is a fake response body."),
-            headers: String::from("This is a fake response header."),
-            status_code: 200,
-            content_type: String::from("application/json"),
-        }
-        .content_type();
+        let expected_result = String::from("application/json");
 
         let result =
             FakeInnerResponse::new(url, body, headers, status_code, content_type).content_type();

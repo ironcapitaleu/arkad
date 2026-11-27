@@ -199,7 +199,7 @@ mod tests {
         let cik = Cik::new("1234567890").expect("Hardcoded CIK should always be valid");
 
         let expected_result = TestContext {
-            request_input: cik.clone(),
+            request_input: Cik::new("1234567890").expect("Hardcoded CIK should always be valid"),
             max_retries: 0,
         };
 

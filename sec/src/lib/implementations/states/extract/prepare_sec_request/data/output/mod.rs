@@ -235,7 +235,10 @@ mod tests {
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
         let expected_result = PrepareSecRequestOutput {
-            request: request.clone(),
+            request: SecRequest::builder()
+                .all_company_facts()
+                .cik(Cik::new("1234567890").expect("Hardcoded CIK string should be valid format"))
+                .build(),
         };
 
         let result = PrepareSecRequestOutput::new(request);

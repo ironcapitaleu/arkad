@@ -467,7 +467,7 @@ mod tests {
         let sample_document = sample_document();
         let metadata_path = repository.metadata_path(sample_document.key());
 
-        let expected_result = sample_document.metadata().clone();
+        let expected_result = sample_metadata();
 
         repository
             .persist(sample_document)
@@ -510,7 +510,7 @@ mod tests {
         let second_document = sample_document_holding(br#"{"cik":320193}"#, "2026-10-04T08:00:00Z");
         let metadata_path = repository.metadata_path(first_document.key());
 
-        let expected_result = second_document.metadata().clone();
+        let expected_result = sample_metadata_of(br#"{"cik":320193}"#, "2026-10-04T08:00:00Z");
 
         repository
             .persist(first_document)
@@ -790,7 +790,7 @@ mod tests {
         let refetched_document = sample_document_holding(b"{}", "2026-10-04T08:00:00Z");
         let metadata_path = repository.metadata_path(first_document.key());
 
-        let expected_result = first_document.metadata().clone();
+        let expected_result = sample_metadata();
 
         repository
             .persist(first_document)
@@ -892,7 +892,7 @@ mod tests {
         let next_document = with_producer(&sample_document(), &next_build());
         let metadata_path = repository.metadata_path(first_document.key());
 
-        let expected_result = first_document.metadata().producer().clone();
+        let expected_result = Producer::new("Sample State", "0.1.0", "63c1f59");
 
         repository
             .persist(first_document)

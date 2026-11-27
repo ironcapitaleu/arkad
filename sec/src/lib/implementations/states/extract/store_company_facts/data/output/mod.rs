@@ -147,7 +147,7 @@ mod tests {
     fn should_return_reference_to_self_when_accessing_state() {
         let output = StoreCompanyFactsOutput::new(sample_key("0001067983"));
 
-        let expected_result = &output.clone();
+        let expected_result = &StoreCompanyFactsOutput::new(sample_key("0001067983"));
 
         let result = output.state();
 

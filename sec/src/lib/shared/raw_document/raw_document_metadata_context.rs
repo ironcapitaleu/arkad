@@ -184,7 +184,7 @@ mod tests {
         let requested_url = sample_requested_url();
         let user_agent = sample_user_agent();
 
-        let expected_result = response.url().clone();
+        let expected_result = sample_final_url();
 
         let result =
             RawDocumentMetadataContext::new(&response, &requested_url, &user_agent).final_url;

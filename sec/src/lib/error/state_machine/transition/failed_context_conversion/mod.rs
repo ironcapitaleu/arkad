@@ -74,7 +74,11 @@ mod tests {
     fn should_convert_to_transition_error_when_into_is_called() {
         let error = FailedContextConversion::new("StateA", "StateB", "Sample reason");
 
-        let expected_result = TransitionError::FailedContextConversion(error.clone());
+        let expected_result = TransitionError::FailedContextConversion(FailedContextConversion {
+            source_state_name: "StateA".to_owned(),
+            target_state_name: "StateB".to_owned(),
+            reason: "Sample reason".to_owned(),
+        });
 
         let result: TransitionError = error.into();
 
