@@ -3,7 +3,7 @@
 //! Provides the [`InvalidFiledDateRange`] error: the dates filed that a full index selection keeps
 //! are out of order or outside the quarter of the full index.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use thiserror::Error;
 
 use super::State as StateError;
@@ -24,9 +24,9 @@ pub struct InvalidFiledDateRange {
     /// The quarter of the full index.
     pub quarter: Quarter,
     /// The first date filed of the range.
-    pub first_filed_date: NaiveDate,
+    pub first_filed_date: Date,
     /// The last date filed of the range.
-    pub last_filed_date: NaiveDate,
+    pub last_filed_date: Date,
 }
 
 impl InvalidFiledDateRange {
@@ -35,8 +35,8 @@ impl InvalidFiledDateRange {
     pub fn new(
         state_name: impl Into<String>,
         quarter: Quarter,
-        first_filed_date: NaiveDate,
-        last_filed_date: NaiveDate,
+        first_filed_date: Date,
+        last_filed_date: Date,
     ) -> Self {
         Self {
             state_name: state_name.into(),
@@ -56,6 +56,7 @@ impl From<InvalidFiledDateRange> for StateError {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -63,14 +64,9 @@ mod tests {
     fn sample_error() -> InvalidFiledDateRange {
         InvalidFiledDateRange::new(
             "Select Full Index Filings",
-            Quarter::of(
-                NaiveDate::from_ymd_opt(2026, 9, 1)
-                    .expect("Given a hardcoded calendar date, the date should always build"),
-            ),
-            NaiveDate::from_ymd_opt(2026, 9, 30)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-            NaiveDate::from_ymd_opt(2026, 9, 29)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            Quarter::of(date(2026, 9, 1)),
+            date(2026, 9, 30),
+            date(2026, 9, 29),
         )
     }
 

@@ -241,7 +241,7 @@ pub trait StoredAs: HasResponse {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use crate::shared::accession_number::AccessionNumber;
@@ -265,8 +265,7 @@ mod tests {
             Cik::new("320193").expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new("0000320193-17-000070").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(Form::TenK, false),
-            NaiveDate::from_ymd_opt(2017, 11, 3)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2017, 11, 3),
         )
     }
 
@@ -311,10 +310,7 @@ mod tests {
 
     #[test]
     fn should_return_fetch_full_index_for_full_index_kind() {
-        let quarter = Quarter::of(
-            NaiveDate::from_ymd_opt(2026, 10, 1)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-        );
+        let quarter = Quarter::of(date(2026, 10, 1));
 
         let expected_result = SecRequestType::FetchFullIndex { quarter };
 

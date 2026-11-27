@@ -103,6 +103,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -345,8 +346,7 @@ mod tests {
     #[test]
     fn should_write_the_filed_date_and_the_form_when_the_document_is_part_of_a_filing() {
         let context = sample_context().with_filing(FilingFields {
-            filed_date: chrono::NaiveDate::from_ymd_opt(2025, 11, 28)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            filed_date: date(2025, 11, 28),
             form: "10-K".to_string(),
             is_amendment: false,
         });

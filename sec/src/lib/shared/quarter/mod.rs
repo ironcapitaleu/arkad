@@ -5,26 +5,26 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::{Datelike, NaiveDate};
+use jiff::civil::Date;
 use serde::{Serialize, Serializer};
 
 /// The quarter folders of the daily index and the full index, in the order of the quarters.
 const QUARTER_FOLDERS: [&str; 4] = ["QTR1", "QTR2", "QTR3", "QTR4"];
 
 /// The number of months in one quarter.
-const MONTHS_PER_QUARTER: u32 = 3;
+const MONTHS_PER_QUARTER: i8 = 3;
 
 /// The number of quarters in one year.
-const QUARTERS_PER_YEAR: u32 = 4;
+const QUARTERS_PER_YEAR: i8 = 4;
 
 /// One calendar quarter of one year, for example the fourth quarter of 2026.
 ///
 /// Quarters order by year, then by their place in the year.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Quarter {
-    year: i32,
+    year: i16,
     /// The place of the quarter in its year, from 0 to 3.
-    index: u32,
+    index: i8,
 }
 
 impl Quarter {
@@ -33,11 +33,10 @@ impl Quarter {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::quarter::Quarter;
     ///
-    /// let date = NaiveDate::from_ymd_opt(2026, 10, 1)
-    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let date = date(2026, 10, 1);
     ///
     /// let expected_result = "2026/QTR4";
     ///
@@ -46,23 +45,23 @@ impl Quarter {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn of(date: NaiveDate) -> Self {
+    pub fn of(date: Date) -> Self {
         Self {
             year: date.year(),
-            index: date.month0() / MONTHS_PER_QUARTER,
+            index: (date.month() - 1) / MONTHS_PER_QUARTER,
         }
     }
 
     /// Returns the year of the quarter, the `YYYY` part of the URL.
     #[must_use]
-    pub const fn year(&self) -> i32 {
+    pub const fn year(&self) -> i16 {
         self.year
     }
 
     /// Returns the folder of the quarter, `QTR1` to `QTR4`, the `QTRn` part of the URL.
     #[must_use]
     pub const fn folder(&self) -> &'static str {
-        QUARTER_FOLDERS[self.index as usize]
+        QUARTER_FOLDERS[self.index.unsigned_abs() as usize]
     }
 
     /// Returns the quarter after this one. The quarter after the fourth is the first of the next
@@ -71,11 +70,10 @@ impl Quarter {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::quarter::Quarter;
     ///
-    /// let date = NaiveDate::from_ymd_opt(2026, 12, 31)
-    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let date = date(2026, 12, 31);
     ///
     /// let expected_result = "2027/QTR1";
     ///
@@ -99,10 +97,10 @@ impl Quarter {
     }
 
     /// Returns the first day of the quarter, or `None` if the quarter lies after the last year that
-    /// [`NaiveDate`] holds.
+    /// [`Date`] holds.
     #[must_use]
-    pub const fn first_day(&self) -> Option<NaiveDate> {
-        NaiveDate::from_ymd_opt(self.year, self.index * MONTHS_PER_QUARTER + 1, 1)
+    pub fn first_day(&self) -> Option<Date> {
+        Date::new(self.year, self.index * MONTHS_PER_QUARTER + 1, 1).ok()
     }
 }
 
@@ -122,14 +120,10 @@ impl Serialize for Quarter {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
-    }
 
     #[test]
     fn should_return_the_first_quarter_when_the_date_is_the_first_day_of_the_year() {
@@ -266,8 +260,8 @@ mod tests {
     }
 
     #[test]
-    fn should_return_no_first_day_when_the_quarter_lies_after_the_last_year_of_naive_date() {
-        let quarter = Quarter::of(NaiveDate::MAX);
+    fn should_return_no_first_day_when_the_quarter_lies_after_the_last_year_of_date() {
+        let quarter = Quarter::of(Date::MAX);
 
         let expected_result = None;
 

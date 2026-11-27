@@ -18,7 +18,7 @@
 //! ## Usage
 //!
 //! ```no_run
-//! use chrono::NaiveDate;
+//! use jiff::civil::date;
 //! use sec::implementations::states::extract::full_index::{
 //!     DetectQuarterFilingsSuperState, DetectQuarterFilingsSuperStateContext,
 //! };
@@ -30,8 +30,8 @@
 //!
 //! # #[tokio::main]
 //! # async fn main() {
-//! let first_filed_date = NaiveDate::from_ymd_opt(2026, 10, 1).expect("A hardcoded date should build");
-//! let last_filed_date = NaiveDate::from_ymd_opt(2026, 10, 31).expect("A hardcoded date should build");
+//! let first_filed_date = date(2026, 10, 1);
+//! let last_filed_date = date(2026, 10, 31);
 //! let repository = FilesystemRepository::builder()
 //!     .writer()
 //!     .document_type::<RawDocument<RawFullIndex>>()
@@ -55,8 +55,8 @@
 use std::fmt::{self, Display, Formatter};
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use futures_util::StreamExt;
+use jiff::civil::Date;
 use serde::Serialize;
 use state_maschine::prelude::{StateMachine as SMStateMachine, Transition as SMTransition};
 use storage::implementations::repository::filesystem::IngestionMode;
@@ -90,7 +90,7 @@ pub struct DetectedQuarterFilings {
     /// The selected filings and the stored full index.
     pub detected: DetectedFilings,
     /// The last date that the full index covers, or `None` if its header names no date.
-    pub last_data_received: Option<NaiveDate>,
+    pub last_data_received: Option<Date>,
 }
 
 /// Input and output data for the [`DetectQuarterFilingsSuperState`].
@@ -124,8 +124,8 @@ pub struct DetectQuarterFilingsSuperStateContext<R, C> {
     pub(crate) execution_id: Uuid,
     pub(crate) ingestion_mode: IngestionMode,
     pub(crate) repository: R,
-    pub(crate) first_filed_date: NaiveDate,
-    pub(crate) last_filed_date: NaiveDate,
+    pub(crate) first_filed_date: Date,
+    pub(crate) last_filed_date: Date,
     pub(crate) filings_slot: OutputSlot<DetectedQuarterFilings>,
 }
 
@@ -139,8 +139,8 @@ impl<R, C> DetectQuarterFilingsSuperStateContext<R, C> {
         execution_id: Uuid,
         ingestion_mode: IngestionMode,
         repository: R,
-        first_filed_date: NaiveDate,
-        last_filed_date: NaiveDate,
+        first_filed_date: Date,
+        last_filed_date: Date,
     ) -> Self {
         Self {
             sec_client,
@@ -513,6 +513,7 @@ impl<R: RawRepository<RawFullIndex>, C: SecClientTrait>
 mod tests {
     use std::{fmt::Debug, hash::Hash};
 
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::Sha256Digest;
     use storage::implementations::repository::filesystem::{
@@ -535,11 +536,6 @@ mod tests {
     const SAMPLE_EXECUTION_ID: Uuid = Uuid::from_u128(7);
     const QTR4_URL: &str = "https://www.sec.gov/Archives/edgar/full-index/2026/QTR4/form.idx";
     const QTR4_KEY: &str = "sec/full-index/2026/QTR4/form.idx";
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
-    }
 
     /// Returns a client that answers the full index of 2026 Q4 with `status` and `body`.
     fn sec_client(status: u16, body: &[u8]) -> RoutingSecClient {
@@ -567,8 +563,8 @@ mod tests {
         sec_client: RoutingSecClient,
         repository: R,
         ingestion_mode: IngestionMode,
-        first: NaiveDate,
-        last: NaiveDate,
+        first: Date,
+        last: Date,
     ) -> DetectQuarterFilingsSuperState<PrepareSecRequest<FullIndex>, R, RoutingSecClient> {
         let context = DetectQuarterFilingsSuperStateContext::new(
             sec_client,

@@ -359,8 +359,8 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use chrono::NaiveDate;
     use jiff::Timestamp;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use serde_json::{Value, json};
     use storage::implementations::repository::filesystem::DocumentKey;
@@ -639,8 +639,7 @@ mod tests {
         let sec_client = sec_client_with_files_of(&["2025q3"]);
         let periods = ["2025q3", "2025_10"];
 
-        let expected_result = Ok(NaiveDate::from_ymd_opt(2025, 9, 30)
-            .expect("Given a hardcoded calendar date, building it should always succeed"));
+        let expected_result = Ok(date(2025, 9, 30));
 
         let result = run_batch(&root, sec_client, &periods, |_, _| {})
             .await

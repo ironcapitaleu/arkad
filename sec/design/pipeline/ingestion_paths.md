@@ -1116,7 +1116,7 @@ pub struct FilingRef {
     accession_number: AccessionNumber,
     form: Form,
     is_amendment: bool,
-    filed_date: NaiveDate,
+    filed_date: jiff::civil::Date,
 }
 ```
 

@@ -545,7 +545,7 @@ impl<R: RawRepository<RawDailyIndex>, C: SecClientTrait>
 mod tests {
     use std::path::Path;
 
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::WriteError;
     use storage::implementations::repository::filesystem::{Document, FilesystemRepository, Write};
@@ -638,8 +638,7 @@ mod tests {
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new(accession_number).expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(form, false),
-            NaiveDate::from_ymd_opt(2026, 10, 27)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 10, 27),
         )
     }
 

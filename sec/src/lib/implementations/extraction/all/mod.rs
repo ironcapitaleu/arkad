@@ -18,8 +18,9 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use chrono::{Days, NaiveDate};
 use futures_util::future::join;
+use jiff::ToSpan;
+use jiff::civil::Date;
 use storage::implementations::repository::filesystem::{FilesystemRepository, Write};
 use thiserror::Error;
 
@@ -66,7 +67,7 @@ type FullIndexWriter = FilesystemRepository<Write, RawDocument<RawFullIndex>>;
 /// that the SEC sends after the cut-over date can carry an earlier date filed, and a range that
 /// starts at the cut-over date would miss it. The overlap with the Notes files costs only
 /// requests, because every write is idempotent and a repeat run skips the stored filings.
-pub const CATCH_UP_LOOKBACK_DAYS: u64 = 7;
+pub const CATCH_UP_LOOKBACK_DAYS: i64 = 7;
 
 /// The SEC client that the cut-over probe and both steps of the pipeline accept.
 pub trait AllClient:
@@ -190,7 +191,7 @@ impl<C, R> AllBatchBuilder<NoUntil, C, R> {
     /// Sets the last date of the catch-up. The catch-up also counts back from it for its pending
     /// rule, as [`DailyFilingsBuilder::as_of`](super::DailyFilingsBuilder::as_of) does.
     #[must_use]
-    pub fn until(self, until: NaiveDate) -> AllBatchBuilder<NaiveDate, C, R> {
+    pub fn until(self, until: Date) -> AllBatchBuilder<Date, C, R> {
         AllBatchBuilder {
             backfill: self.backfill,
             periods: self.periods,
@@ -264,7 +265,7 @@ impl<U, C, R> AllBatchBuilder<U, C, R> {
     }
 }
 
-impl<C> AllBatchBuilder<NaiveDate, C, BackfillRepositories>
+impl<C> AllBatchBuilder<Date, C, BackfillRepositories>
 where
     C: AllClient,
     ExtractNotesSuperState<ValidateNotesPeriod, NotesWriter, C>: IntoStateMachineStream,
@@ -405,24 +406,24 @@ async fn cut_over_date<C: AllClient>(
 /// The cut-over date, and whether the `HEAD` request found the file of the newest period.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct CutOver {
-    date: NaiveDate,
+    date: Date,
     newest_published: bool,
 }
 
 /// Returns the first date of the catch-up: [`CATCH_UP_LOOKBACK_DAYS`] days before `cut_over`, or
-/// `cut_over` itself if that date lies before the first date that [`NaiveDate`] holds.
-fn catch_up_start(cut_over: NaiveDate) -> NaiveDate {
+/// `cut_over` itself if that date lies before the first date that [`Date`] holds.
+fn catch_up_start(cut_over: Date) -> Date {
     cut_over
-        .checked_sub_days(Days::new(CATCH_UP_LOOKBACK_DAYS))
+        .checked_sub(CATCH_UP_LOOKBACK_DAYS.days())
         .unwrap_or(cut_over)
 }
 
 /// Returns every date from `cut_over` to `until`, both included, oldest first.
 ///
 /// If `cut_over` comes after `until`, the list is empty.
-fn dates_between(cut_over: NaiveDate, until: NaiveDate) -> Vec<NaiveDate> {
+fn dates_between(cut_over: Date, until: Date) -> Vec<Date> {
     cut_over
-        .iter_days()
+        .series(1.day())
         .take_while(|date| *date <= until)
         .collect()
 }
@@ -438,6 +439,7 @@ async fn timed<T>(step: impl Future<Output = T>) -> (T, Duration) {
 mod tests {
     use std::collections::BTreeMap;
 
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
@@ -456,11 +458,6 @@ mod tests {
         TempDir::new().expect(
             "Given a writable system temp directory, creating a directory in it should always succeed",
         )
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, building it should always succeed")
     }
 
     fn repositories(root: &TempDir) -> BackfillRepositories {
@@ -532,8 +529,7 @@ mod tests {
 
     #[test]
     const fn should_implement_auto_traits_for_all_batch_builder() {
-        implements_auto_traits::<AllBatchBuilder<NaiveDate, RoutingSecClient, BackfillRepositories>>(
-        );
+        implements_auto_traits::<AllBatchBuilder<Date, RoutingSecClient, BackfillRepositories>>();
     }
 
     #[test]
@@ -697,7 +693,7 @@ mod tests {
         let cut_over = date(2026, 11, 30);
         let until = date(2026, 11, 1);
 
-        let expected_result: Vec<NaiveDate> = Vec::new();
+        let expected_result: Vec<Date> = Vec::new();
 
         let result = dates_between(cut_over, until);
 
@@ -717,9 +713,9 @@ mod tests {
 
     #[test]
     fn should_start_the_catch_up_on_the_cut_over_date_when_the_lookback_leaves_the_date_range() {
-        let cut_over = NaiveDate::MIN;
+        let cut_over = Date::MIN;
 
-        let expected_result = NaiveDate::MIN;
+        let expected_result = Date::MIN;
 
         let result = catch_up_start(cut_over);
 

@@ -13,8 +13,8 @@
 
 use std::time::Duration;
 
-use chrono::NaiveDate;
 use futures_util::StreamExt;
+use jiff::civil::Date;
 use storage::implementations::repository::filesystem::{
     Document, FilesystemRepository, IngestionMode, InputDocument, Read, Write,
 };
@@ -77,7 +77,7 @@ pub const DEFAULT_MACHINES_IN_FLIGHT: usize = 8;
 /// The number of days that the pending rule counts back from
 /// [`as_of`](DailyFilingsBuilder::as_of), `as_of` included. A pending date does not fail the run,
 /// because a later run reads it again.
-pub const PENDING_DAYS: u64 = 3;
+pub const PENDING_DAYS: i64 = 3;
 
 /// The SEC client that every machine of a run accepts.
 pub trait DailyClient:
@@ -157,9 +157,9 @@ impl IncrementalDailyFilings {
     #[must_use]
     pub fn dates(
         self,
-        dates: impl IntoIterator<Item = NaiveDate>,
+        dates: impl IntoIterator<Item = Date>,
     ) -> DailyFilingsBuilder<NoAsOf, NoSecClient, NoRepositories> {
-        let mut dates: Vec<NaiveDate> = dates.into_iter().collect();
+        let mut dates: Vec<Date> = dates.into_iter().collect();
         dates.sort_unstable();
         dates.dedup();
         DailyFilingsBuilder {
@@ -183,11 +183,11 @@ impl IncrementalDailyFilings {
 /// `run` needs the stores:
 ///
 /// ```compile_fail,E0599
-/// use chrono::NaiveDate;
+/// use jiff::civil::Date;
 /// use sec::implementations::extraction::Extraction;
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
-/// let as_of = NaiveDate::MIN;
+/// let as_of = Date::MIN;
 /// let _run = Extraction::incremental()
 ///     .daily_filings()
 ///     .dates([as_of])
@@ -199,14 +199,14 @@ impl IncrementalDailyFilings {
 /// `run` needs the SEC client:
 ///
 /// ```compile_fail,E0599
-/// use chrono::NaiveDate;
+/// use jiff::civil::Date;
 /// use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
 ///
 /// fn run_without_sec_client(repositories: DailyFilingsRepositories) {
 ///     let _run = Extraction::incremental()
 ///         .daily_filings()
-///         .dates([NaiveDate::MIN])
-///         .as_of(NaiveDate::MIN)
+///         .dates([Date::MIN])
+///         .as_of(Date::MIN)
 ///         .repositories(repositories)
 ///         .run(|_, _| {});
 /// }
@@ -215,14 +215,14 @@ impl IncrementalDailyFilings {
 /// And `run` needs the `as_of` date:
 ///
 /// ```compile_fail,E0599
-/// use chrono::NaiveDate;
+/// use jiff::civil::Date;
 /// use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
 /// use sec::shared::http_client::implementations::sec_client::SecClient;
 ///
 /// fn run_without_as_of(repositories: DailyFilingsRepositories) {
 ///     let _run = Extraction::incremental()
 ///         .daily_filings()
-///         .dates([NaiveDate::MIN])
+///         .dates([Date::MIN])
 ///         .sec_client(SecClient::default())
 ///         .repositories(repositories)
 ///         .run(|_, _| {});
@@ -231,7 +231,7 @@ impl IncrementalDailyFilings {
 #[derive(Debug, Clone)]
 pub struct DailyFilingsBuilder<A, C, R> {
     incremental: Incremental,
-    dates: Vec<NaiveDate>,
+    dates: Vec<Date>,
     as_of: A,
     sec_client: C,
     repositories: R,
@@ -247,7 +247,7 @@ impl<C, R> DailyFilingsBuilder<NoAsOf, C, R> {
     /// counts. A pending date does not fail the run. The binaries pass the day before today in New
     /// York.
     #[must_use]
-    pub fn as_of(self, as_of: NaiveDate) -> DailyFilingsBuilder<NaiveDate, C, R> {
+    pub fn as_of(self, as_of: Date) -> DailyFilingsBuilder<Date, C, R> {
         DailyFilingsBuilder {
             incremental: self.incremental,
             dates: self.dates,
@@ -318,7 +318,7 @@ impl<A, C, R> DailyFilingsBuilder<A, C, R> {
     }
 }
 
-impl<C> DailyFilingsBuilder<NaiveDate, C, DailyFilingsRepositories>
+impl<C> DailyFilingsBuilder<Date, C, DailyFilingsRepositories>
 where
     C: DailyClient,
     DetectFilingsSuperState<ValidateIndexDate, DailyIndexRepository, C>: IntoStateMachineStream,
@@ -520,7 +520,7 @@ where
     /// (see [`StoreReaders::skip`]).
     async fn extract_filings(
         &self,
-        date: NaiveDate,
+        date: Date,
         detected: &DetectedFilings,
         observer: &(impl Fn(&Unit, RunEvent<'_>) + Sync),
     ) -> Vec<FilingOutcome> {
@@ -595,7 +595,7 @@ where
     /// [`in_flight`](Self::in_flight) at once, in the order in which each CIK first appears.
     async fn extract_companies(
         &self,
-        date: NaiveDate,
+        date: Date,
         filings: &[FilingRef],
         observer: &(impl Fn(&Unit, RunEvent<'_>) + Sync),
     ) -> Vec<CompanyOutcome> {
@@ -647,8 +647,8 @@ where
 /// succeeds, so it can take the path of a detection error through [`is_pending`]. The state name
 /// names the state that read the header.
 fn missing_full_index_date(
-    date: NaiveDate,
-    last_data_received: Option<NaiveDate>,
+    date: Date,
+    last_data_received: Option<Date>,
     execution_id: Uuid,
 ) -> Option<StreamError> {
     let last_data_received = last_data_received.filter(|last| date > *last)?;
@@ -746,6 +746,7 @@ async fn run_to_end(
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -760,24 +761,18 @@ mod tests {
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
             ),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 8)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 8),
         )
-    }
-
-    fn calendar_date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
     }
 
     #[test]
     fn should_return_no_error_when_the_date_is_the_last_data_received() {
-        let date = calendar_date(2026, 11, 12);
-        let last_data_received = Some(calendar_date(2026, 11, 12));
+        let day = date(2026, 11, 12);
+        let last_data_received = Some(date(2026, 11, 12));
 
         let expected_result = None;
 
-        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+        let result = missing_full_index_date(day, last_data_received, Uuid::nil())
             .map(|error| error.to_string());
 
         assert_eq!(result, expected_result);
@@ -785,12 +780,12 @@ mod tests {
 
     #[test]
     fn should_return_no_error_when_the_header_names_no_date() {
-        let date = calendar_date(2026, 11, 13);
+        let day = date(2026, 11, 13);
         let last_data_received = None;
 
         let expected_result = None;
 
-        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+        let result = missing_full_index_date(day, last_data_received, Uuid::nil())
             .map(|error| error.to_string());
 
         assert_eq!(result, expected_result);
@@ -798,15 +793,15 @@ mod tests {
 
     #[test]
     fn should_name_the_date_and_the_last_data_received_when_the_date_comes_after_it() {
-        let date = calendar_date(2026, 11, 13);
-        let last_data_received = Some(calendar_date(2026, 11, 12));
+        let day = date(2026, 11, 13);
+        let last_data_received = Some(date(2026, 11, 12));
 
         let expected_result = Some(
             "[StreamError][00000000-0000-0000-0000-000000000000] 'state_failed' in 'Select Full Index Filings', Caused by: [MissingFullIndexDate] The full index does not cover the date yet, Date: '2026-11-13', Last Data Received: '2026-11-12'"
                 .to_string(),
         );
 
-        let result = missing_full_index_date(date, last_data_received, Uuid::nil())
+        let result = missing_full_index_date(day, last_data_received, Uuid::nil())
             .map(|error| error.to_string());
 
         assert_eq!(result, expected_result);
@@ -864,7 +859,7 @@ mod tests {
 
         let result = Extraction::incremental()
             .daily_filings()
-            .dates([NaiveDate::MIN])
+            .dates([Date::MIN])
             .in_flight(in_flight)
             .in_flight;
 

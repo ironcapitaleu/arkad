@@ -119,7 +119,7 @@
 //!
 //! ```no_run
 //! # async fn example() {
-//! use chrono::NaiveDate;
+//! use jiff::civil::date;
 //! use sec::implementations::extraction::{DailyFilingsRepositories, Extraction, RunEvent};
 //! use sec::shared::http_client::implementations::sec_client::SecClient;
 //! use sec::shared::raw_document::RawDocument;
@@ -141,8 +141,8 @@
 //!     labels: writer(),
 //!     submissions: writer(),
 //! };
-//! let as_of = NaiveDate::from_ymd_opt(2026, 10, 31).expect("a valid date");
-//! let dates = vec![NaiveDate::from_ymd_opt(2026, 10, 28).expect("a valid date"), as_of];
+//! let as_of = date(2026, 10, 31);
+//! let dates = vec![date(2026, 10, 28), as_of];
 //! let summary = Extraction::incremental()
 //!     .daily_filings()
 //!     .dates(dates)
@@ -420,6 +420,7 @@ mod tests {
     use std::hash::Hash;
 
     use futures_util::StreamExt;
+    use jiff::civil::date;
     use pretty_assertions::{assert_eq, assert_ne};
     use storage::implementations::repository::filesystem::{Document, FilesystemRepository};
     use tempfile::TempDir;
@@ -586,8 +587,7 @@ mod tests {
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
             ),
             ParsedForm::new(Form::TenQ, false),
-            chrono::NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         )
     }
 

@@ -2,7 +2,7 @@
 //!
 //! Provides [`FilingFields`], the metadata fields that name the filing a raw document belongs to.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 
 use crate::shared::filing_ref::FilingRef;
@@ -11,7 +11,7 @@ use crate::shared::filing_ref::FilingRef;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct FilingFields {
     /// The filed date of the filing in the daily index.
-    pub filed_date: NaiveDate,
+    pub filed_date: Date,
     /// The form of the filing, for example `10-Q`, without the `/A` of an amendment.
     pub form: String,
     /// `true` if the filing amends an earlier one, for example a `10-Q/A`.
@@ -37,8 +37,9 @@ mod tests {
     use crate::shared::cik::Cik;
     use crate::shared::form::{Form, ParsedForm};
 
-    fn date(value: &str) -> NaiveDate {
-        NaiveDate::parse_from_str(value, "%Y-%m-%d")
+    fn date(value: &str) -> Date {
+        value
+            .parse()
             .expect("Given a hardcoded valid date, parsing should always succeed")
     }
 
@@ -60,6 +61,44 @@ mod tests {
         };
 
         let result = FilingFields::from(&filing);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_serialize_the_filed_date_as_yyyy_mm_dd() {
+        let fields = FilingFields {
+            filed_date: date("2026-10-30"),
+            form: "10-Q".to_string(),
+            is_amendment: false,
+        };
+
+        let expected_result = serde_json::json!({
+            "filed_date": "2026-10-30",
+            "form": "10-Q",
+            "is_amendment": false,
+        });
+
+        let result = serde_json::to_value(&fields)
+            .expect("Given filing fields, serialization to JSON should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_deserialize_the_serialized_fields_back_to_the_same_fields() {
+        let fields = FilingFields {
+            filed_date: date("2026-10-30"),
+            form: "10-Q".to_string(),
+            is_amendment: false,
+        };
+        let serialized = serde_json::to_string(&fields)
+            .expect("Given filing fields, serialization to JSON should always succeed");
+
+        let expected_result = fields;
+
+        let result: FilingFields = serde_json::from_str(&serialized)
+            .expect("Given serialized filing fields, deserialization should always succeed");
 
         assert_eq!(result, expected_result);
     }
