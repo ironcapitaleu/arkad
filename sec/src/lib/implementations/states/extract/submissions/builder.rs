@@ -332,7 +332,7 @@ mod tests {
             sec_client,
             execution_id,
             ingestion_mode,
-            repository.clone(),
+            FakeSubmissionsRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
 
         let result = builder.repository(repository).build();

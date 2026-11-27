@@ -962,8 +962,8 @@ quarantines the row or the filing, and the file goes on.
 3. **Table format**, in each read state: UTF-8, a quote-aware tab-separated reader, a header equal
    to the columns in the metadata member, the same field count in every row, and the CRC-32 of
    the member.
-4. **Row content**, in the map state: types and references between tables. Round 3 (STA-332)
-   designs this layer.
+4. **Row content**, in the parse states and the Notes reader: types and references between tables.
+   [`transform_per_filing.md`](transform_per_filing.md), "Validation Layers", places this layer.
 
 ### Tests
 
@@ -1100,8 +1100,9 @@ pub const SELECTED_FORMS: [Form; 4] = [Form::TenK, Form::TenQ, Form::TwentyF, Fo
 - `SelectFilings` and the transform of the backfill both read `SELECTED_FORMS`.
 - `Form::from_sec_str` parses the SEC form text into a `ParsedForm`. A form with `/A` matches its
   base form and sets `is_amendment`. Any other text returns an `UnsupportedForm` error.
-- The `companyfacts` cross-check still keeps only 10-K and 10-Q, with no amendments. STA-332
-  decides whether to widen it, and how to handle the facts that amendments duplicate.
+- The `companyfacts` cross-check keeps only 10-K and 10-Q, with no amendments. It is a check over
+  silver, see [`transform_per_filing.md`](transform_per_filing.md), "Company Facts and the Old
+  Transform".
 - To widen the list later, add a variant to `Form` and to `SELECTED_FORMS`. The raw store already
   holds all forms of the backfill in the Notes ZIPs, and the stored daily indexes list the skipped
   filings. So widening needs no new download of the Notes files.
@@ -1508,7 +1509,8 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
 - All dates are Eastern time (`America/New_York`). The SEC dates its filings in Eastern time, and
   it publishes a daily index in the evening of that day or later. At 02:00 UTC on 2 November it is still 1
   November in New York. So `yesterday` is the day before today in New York, never in UTC.
-- The dependency `chrono-tz` gives the New York time zone with its daylight-saving rules.
+- The dependency `jiff`, with the feature `static`, compiles the New York time zone and its
+  daylight-saving rules into the binary ([ADR 0047](../../../docs/adr/0047-jiff-for-dates-and-time-zones.md)).
 - If `ARKAD_FROM` is unset, a value does not parse, `ARKAD_FROM` is after `ARKAD_TO`, or
   `ARKAD_TO` is today or later, startup fails. The error names the variables.
 - The binary reads no stored document to pick its dates. Resume from the store comes with the
@@ -1795,7 +1797,7 @@ runs the facade offline and live.
 
 Three PRs, each at most 400 reviewable lines:
 
-1. `dates.rs` with its tests, `constants.rs` with the variable names, the dependency `chrono-tz`,
+1. `dates.rs` with its tests, `constants.rs` with the variable names, the dependency `jiff`,
    and `sec/tests/daily_filings.rs`.
 2. The feature `test-fixtures` with the route of several responses, `FailedSecRequest::is_unavailable`,
    `run.rs` with the retry, the outcomes, the summary, and the offline tests, and the constants

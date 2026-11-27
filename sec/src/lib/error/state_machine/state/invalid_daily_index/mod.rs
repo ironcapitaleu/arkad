@@ -75,7 +75,10 @@ mod tests {
         let invalid_daily_index =
             InvalidDailyIndex::from_domain_error("TestState", daily_index_error);
 
-        let expected_result = StateError::InvalidDailyIndex(invalid_daily_index.clone());
+        let expected_result = StateError::InvalidDailyIndex(InvalidDailyIndex {
+            state_name: "TestState".to_owned(),
+            daily_index_error: FormIndexError::MissingFormIndexHeader,
+        });
 
         let result: StateError = invalid_daily_index.into();
 

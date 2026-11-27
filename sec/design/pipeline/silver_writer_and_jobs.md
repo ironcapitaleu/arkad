@@ -12,8 +12,8 @@
 This document sets how the code meets the silver contract of [`silver_layer.md`](silver_layer.md).
 It covers how a unit reaches silver, how the series step runs, and how the jobs run and fail. It does not
 change the contract. The per-filing work of the transform, its states, parsers, standardize filing,
-and checks, belongs to the per-filing transform design. This document calls that work "the filing
-step".
+and checks, belongs to the per-filing transform design, [`transform_per_filing.md`](transform_per_filing.md).
+This document calls that work "the filing step".
 
 ## Reading Guide
 
@@ -86,17 +86,18 @@ flowchart TB
 
 | Part | Crate | Holds |
 | ---- | ----- | ----- |
-| Silver backend | `storage` | `SilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects. Filesystem by default |
-| Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
-| GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
-| Silver code | `sec`, module `silver` | `SilverRecord`, `DigestRow`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
+| Silver backend | `storage`, module `write_once` | `Blob`, `ListedBlob`, and `WriteOnceFilesystemRepository`, a write-once backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository`. Silver stores its Parquet parts and control objects as blobs |
+| Lease port | `storage` | `LeaseRepository`, a standalone trait, with `FakeLeaseRepository` and `FilesystemLeaseRepository` |
+| GCS backend | `storage`, behind the cargo feature `gcs` | A write-once repository and a `LeaseRepository` backend on the GCS JSON API, beside the filesystem backends |
+| Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
+| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
-Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
-Principle"):
+Only one trait of `storage` is new, `LeaseRepository`. No existing trait changes (`AGENTS.md`,
+"Open-Closed Principle"):
 
-- **Writes go through `WriteRepository::persist`.** `SilverObjectStore` writes each object once.
-  If the object exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
+- **Writes go through `WriteRepository::persist`.** Each write-once repository writes each blob once.
+  If the blob exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
   raw store backend `FilesystemRepository` does not fit: it replaces a document whose bytes
   differ, and it writes a JSON metadata file next to each document.
 - **The writer computes the size and the CRC32C of each part from its bytes.** The GCS backend
@@ -105,7 +106,7 @@ Principle"):
 - **Reads take whole objects** through `ReadRepository`. A part holds about 25 to 60 MB. GCS can
   read a byte range of an object, so a range read can come later without a change to this
   design.
-- **`LeaseStore`** has `acquire` and `current`. The workflow deletes a lease through the GCS API.
+- **`LeaseRepository`** has `acquire` and `current`. The workflow deletes a lease through the GCS API.
   See [One Writer per Unit Key](#one-writer-per-unit-key).
 
 The GCS backend sets `ifGenerationMatch=0` on each object write, and `ifGenerationMatch=<generation>`
@@ -210,18 +211,21 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 
 ## Byte Form of `content_digest`
 
-[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) sets the form. In the code:
+[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) sets the form. The code lives in
+`sec::shared::row_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
 - Each `DigestRow` writes its columns in schema order and skips `execution_id`, `loaded_at`, and
   `computed_at`.
 - The writer hashes one digest group when the group is whole. The filing step hands over one whole
-  filing, and the series step one whole entity. So the writer sorts the rows of one group, hashes
-  them, and keeps the group ID and the hash. At the end of the unit, it sorts the pairs and computes
-  `content_digest`.
-- The golden test holds one fixture unit per dataset and a table of `transform_version` to
-  expected digest.
+  filing, and the series step one whole entity. So the writer calls `group_hashes` on the rows of
+  one group, and keeps the `GroupHash`: the group ID and the hash. At the end of the unit,
+  `content_digest` sorts the pairs and computes the digest. If two pairs have one group ID, it
+  returns `DuplicateDigestGroup`, because the digest would then depend on the split.
+- The golden test holds one fixture unit and a table of `transform_version` to expected digest.
+  Each dataset adds its own fixture unit when its `DigestRow` type exists. `TRANSFORM_VERSION`
+  holds the version of the build.
 
 ## The Series Step
 
@@ -238,7 +242,7 @@ second hash enters the code. The count 64 comes from "Cloud Run Sizing" of the c
 rules of one entity in this order:
 
 1. `newest_filing(candidates)` gives the `Series`: step 3 of the dedup order.
-2. `derive_q4(&series, filings)` gives the fourth quarters.
+2. `derive_q4(&series)` gives the fourth quarters.
 3. `derive_from_closed_groups(&series, &fourth_quarters)` gives the roll-up values. Steps 2 and 3
    are step 4 of the dedup order.
 4. `added` is the fourth quarters, then the roll-up values.
@@ -363,14 +367,14 @@ of that run read the list. A rule by time alone misses such a unit.
 [ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) sets the rule. The parts in
 the code:
 
-- `LeaseStore::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
+- `LeaseRepository::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
   if absent. It replaces the object if its expiry passed. Otherwise it returns `LeaseHeld` with
   the plan that holds it.
 - The plan step computes `expires_at`: the time of `acquire`, plus `ceil(units / parallel tasks)`
   times the task timeout times the attempts per task, plus 20 minutes. The 20 minutes cover the
   rest of the plan step, at most 10 minutes, and the start of the worker step. For 80 Notes files,
   10 parallel tasks, a timeout of 1 hour, and 2 attempts, that is 16 hours and 20 minutes.
-- Each worker task calls `LeaseStore::current(kind)` before its first write. It fails with
+- Each worker task calls `LeaseRepository::current(kind)` before its first write. It fails with
   `LeaseLost` if the lease names another plan, or if less than one task timeout plus 1 minute
   remains before the expiry. Cloud Run stops an attempt at its timeout, so the task ends before
   the expiry. The minute covers clock skew between the task and the next plan step.
@@ -477,7 +481,7 @@ flowchart LR
   whole filing to the channel. A `filing_day` unit has one reader, which reads the instances of the
   day one after the other.
 - **N filing workers.** Each worker runs the filing step on one filing: parse, standardize filing,
-  and the per-filing checks. N is the number of cores of the task, at least 1. Measured on one
+  and the rows of the filing. N is the number of cores of the task, at least 1. Measured on one
   thread, `2024q1` took 45.6 s, so N bounds cost, not the target.
 - **One writer.** It receives the rows of whole filings and writes the parts of every dataset of
   the unit. It hashes each filing when it arrives.
@@ -504,7 +508,10 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 
 [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
-prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread.
+prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print,
+sort, and hash of `content_digest` add about 11 seconds per largest Notes file.
+[ADR 0033, Amendment 1](../../../docs/adr/0033-byte-form-of-content-digest.md#amendment-1-the-cost-of-the-print-and-the-hash)
+holds the measurement.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.
@@ -535,8 +542,8 @@ prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thre
 | Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops. The references stay with their source | The next run of the workflow |
 | Lease lost | A worker task finds another plan in the lease, or less than one task timeout plus 1 minute before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
 
-- The per-filing transform design decides which filing the parser rejects, and the share of
-  rejected filings that fails a unit.
+- [`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings", sets which filing the
+  parser rejects, and the share of rejected filings that fails a unit.
 - A series task that fails leaves its run without a count. The next series run compares against the
   run before it, so it recomputes every entity of the failed run.
 - A unit that fails stays in the next plan through the carry-over of
@@ -558,7 +565,8 @@ Each task logs one JSON event `task_summary` at its end, with these keys in `con
 | `slowest_unit`, `slowest_unit_seconds` | The unit with the longest time |
 | `series` | For a series task: `mode`, `entities`, rows `new`, `changed`, `removed`, findings `new`, `changed`, `resolved` |
 
-The task also logs `unit_written`, `unit_skipped`, `unit_failed`, and `unit_slow` for each unit.
+The task also logs `unit_written`, `unit_skipped`, `unit_failed`, and `unit_slow` for each unit,
+and `filing_rejected` for each rejected filing.
 The summary of a run is the set of `task_summary` events with its `plan_id`. A task exits with an
 error if a unit failed. The workflow ends as failed if a step failed.
 
@@ -566,11 +574,11 @@ error if a unit failed. The workflow ends as failed if a step failed.
 
 Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The list gives the order.
 
-1. FEATURE: `SilverObjectStore`, a create-only filesystem backend of `WriteRepository`,
-   `ReadRepository`, and `ListRepository`, and the port `LeaseStore` with a fake and a filesystem
-   backend.
-2. FEATURE: the GCS backend of `SilverObjectStore` and `LeaseStore`, behind the cargo feature
-   `gcs`.
+1. FEATURE: `WriteOnceFilesystemRepository`, a create-only filesystem backend of `WriteRepository`,
+   `ReadRepository`, and `ListRepository`, and the port `LeaseRepository` with a fake and a
+   filesystem backend.
+2. FEATURE: the GCS backends of the write-once repository and `LeaseRepository`, behind the cargo
+   feature `gcs`.
 3. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
 4. FEATURE: `SilverRecord` for `as_is_facts` and `filings`, with the schema tests.
 5. FEATURE: `SilverRecord` for `candidates`, `findings`, and `silver_files`.
@@ -607,8 +615,9 @@ jobs, and are not in this list.
 - **The startup of an execution.** Not measured. ADR 0034 names it.
 - **The mount for silver.** Not tested: whether the GCS bucket mount honors "create only if
   absent". An upload through the mount also carries no CRC32C, so GCS cannot reject a damaged
-  upload, and only integrity check 1 finds it. If both are acceptable, `SilverObjectStore` can
-  write through the mount, and only `LeaseStore` needs the GCS client.
+  upload, and only integrity check 1 finds it. If both are acceptable,
+  `WriteOnceFilesystemRepository` can write through the mount, and only `LeaseRepository` needs the
+  GCS client.
 - **A signal for a rule change.** The design of the replay of the standardized layer adds a signal
   that starts a base run. The plan step reads it next to the conditions of [Mode](#mode).
 - **Gold.** The load step and its ledger belong to the gold design.

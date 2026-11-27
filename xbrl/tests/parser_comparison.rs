@@ -1,14 +1,25 @@
 //! # Parser Comparison Integration Tests
 //!
-//! Runs [`xbrl::adapter::edgar::notes::parse`] and [`xbrl::adapter::edgar::instance::parse`] on one
-//! real filing in both sources, the 10-Q `0001628280-26-068246`, and compares their as-is facts.
+//! Runs [`xbrl::adapter::edgar::notes::parse`] and [`xbrl::adapter::edgar::instance::parse`] on the
+//! real filings in both sources, and compares their as-is facts. The 10-Q `0001628280-26-068246`
+//! compares every fact. The five filings of the parser agreement set (AMD, Procter & Gamble,
+//! Walmart, Disney, and Apple) compare their numeric facts. Their text differs in two ways the
+//! losses below do not cover:
+//!
+//! - Notes writes some accented letters as the letter without the accent, as in `Comision` for
+//!   `Comisión` in a Walmart text block. The comparison drops non-ASCII characters on the instance
+//!   side, so it gives `Comisin`, and the text differs.
+//! - The Procter & Gamble 10-K reports cybersecurity facts of the `cyd` family, which the fake
+//!   registry does not declare. Each parser keeps another family and version for them, so their
+//!   value keys differ.
 //!
 //! The Notes data set loses some content on the way from the instance. The comparison allows the
 //! losses below. "readme" is `readme.htm` in each Notes ZIP. "Measured Result" is the section of
 //! `sec/design/pipeline/ingestion_paths.md`.
 //!
 //! - Notes rounds a number to 4 decimals (readme and "Measured Result").
-//! - Notes drops non-ASCII characters ("Measured Result").
+//! - Notes drops non-ASCII characters, except some accented letters, which it writes without the
+//!   accent ("Measured Result").
 //! - Notes collapses whitespace and removes the markup of a text block (readme).
 //! - Notes cuts a footnote at 512 characters (readme), and drops a footnote that no statement page
 //!   shows ("Measured Result").
@@ -27,8 +38,10 @@ use bigdecimal::RoundingMode;
 use pretty_assertions::assert_eq;
 use xbrl::core::fact::{AsIsFact, FactKey, FactValue};
 use xbrl::core::period::Period;
-use xbrl::tests::fixtures::data::instance::parse_instance_fixture;
-use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
+use xbrl::tests::fixtures::data::instance::{
+    parse_instance_fixture, parse_instance_fixture_filing,
+};
+use xbrl::tests::fixtures::data::notes::{parse_notes_fixture, parse_notes_fixture_filing};
 
 /// The decimals that Notes keeps of a number.
 const NOTES_SCALE: i64 = 4;
@@ -144,6 +157,15 @@ fn same_footnotes(notes: &[String], instance: &[String]) -> bool {
         })
 }
 
+/// Returns `true` if the instance fact differs from the Notes fact after the Notes losses.
+fn differs(notes: &AsIsFact, instance: &AsIsFact) -> bool {
+    !same_value(&notes.value, &instance.value)
+        || notes.decimals != instance.decimals
+        || !same_period(&notes.context.period, &instance.context.period)
+        || notes.context.entity != instance.context.entity
+        || !same_footnotes(&notes.footnotes, &instance.footnotes)
+}
+
 #[test]
 fn should_give_the_same_value_keys_from_both_parsers_for_a_real_filing() {
     let notes = parse_notes_fixture().facts;
@@ -171,13 +193,7 @@ fn should_give_the_same_content_per_value_key_from_both_parsers_for_a_real_filin
     let result: Vec<String> = notes
         .iter()
         .filter_map(|notes| instance.get(&notes.key()).map(|instance| (notes, instance)))
-        .filter(|(notes, instance)| {
-            !same_value(&notes.value, &instance.value)
-                || notes.decimals != instance.decimals
-                || !same_period(&notes.context.period, &instance.context.period)
-                || notes.context.entity != instance.context.entity
-                || !same_footnotes(&notes.footnotes, &instance.footnotes)
-        })
+        .filter(|(notes, instance)| differs(notes, instance))
         .map(|(notes, _)| format!("{:?}", notes.key()))
         .collect();
 
@@ -213,4 +229,74 @@ fn should_give_every_notes_duration_the_exact_start_of_the_instance_for_a_real_f
     let result = (durations.len(), differences);
 
     assert_eq!(result, expected_result);
+}
+
+/// Returns the numeric as-is facts of the fixture filing `accession` from both parsers: Notes, then
+/// instance. The instance parser takes the filed date of the `sub` row.
+fn numeric_facts_of_both_sources(accession: &str) -> (Vec<AsIsFact>, Vec<AsIsFact>) {
+    let is_numeric = |fact: &AsIsFact| matches!(fact.value, FactValue::Numeric(_));
+    let notes = parse_notes_fixture_filing(accession);
+    let instance = parse_instance_fixture_filing(accession, notes.filing.filed);
+    (
+        notes.facts.into_iter().filter(is_numeric).collect(),
+        instance.facts.into_iter().filter(is_numeric).collect(),
+    )
+}
+
+/// Returns the count of numeric Notes facts, the value keys that only one parser gives, and the
+/// value keys whose content differs after the Notes losses.
+fn numeric_agreement(
+    notes: &[AsIsFact],
+    instance: Vec<AsIsFact>,
+) -> (usize, Vec<String>, Vec<String>) {
+    let notes_keys = sorted_keys(notes);
+    let instance_keys = sorted_keys(&instance);
+    let only_one_parser = notes_keys
+        .iter()
+        .filter(|key| instance_keys.binary_search(key).is_err())
+        .chain(
+            instance_keys
+                .iter()
+                .filter(|key| notes_keys.binary_search(key).is_err()),
+        )
+        .map(|key| format!("{key:?}"))
+        .collect();
+    let instance: HashMap<FactKey, AsIsFact> = instance
+        .into_iter()
+        .map(|fact| (fact.key(), fact))
+        .collect();
+    let differences = notes
+        .iter()
+        .filter_map(|notes| instance.get(&notes.key()).map(|instance| (notes, instance)))
+        .filter(|(notes, instance)| differs(notes, instance))
+        .map(|(notes, _)| format!("{:?}", notes.key()))
+        .collect();
+    (notes.len(), only_one_parser, differences)
+}
+
+/// Writes one test per filing of the parser agreement set. Each checks that both parsers give
+/// the same numeric value keys with the same content, and counts the numeric Notes facts.
+macro_rules! parser_agreement_tests {
+    ($($name:ident: $accession:literal => $count:literal,)+) => {
+        $(
+            #[test]
+            fn $name() {
+                let (notes, instance) = numeric_facts_of_both_sources($accession);
+
+                let expected_result = ($count, Vec::<String>::new(), Vec::<String>::new());
+
+                let result = numeric_agreement(&notes, instance);
+
+                assert_eq!(result, expected_result);
+            }
+        )+
+    };
+}
+
+parser_agreement_tests! {
+    should_give_the_same_numeric_facts_from_both_parsers_for_amd_10_q_2026_q2: "0000002488-26-000123" => 784,
+    should_give_the_same_numeric_facts_from_both_parsers_for_procter_and_gamble_10_k_2026_fy: "0000080424-26-000103" => 1614,
+    should_give_the_same_numeric_facts_from_both_parsers_for_walmart_10_q_2027_q2: "0000104169-26-000154" => 705,
+    should_give_the_same_numeric_facts_from_both_parsers_for_disney_10_q_2026_q3: "0001744489-26-000057" => 1433,
+    should_give_the_same_numeric_facts_from_both_parsers_for_apple_10_q_2026_q3: "0000320193-26-000020" => 684,
 }

@@ -10,12 +10,16 @@ keywords = ["state-machine", "design-pattern"]
 
 [dependencies]
 thiserror = "2"
+bigdecimal = "0.4"
+sha2 = "0.11.1"
 tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros"] }
 tracing = { version = "0.1", optional = true }
 tracing-appender = { version = "0.2", optional = true }
 tracing-subscriber = { version = "0.3", features = ["json"], optional = true }
 chrono = { version = "0.4", features = ["serde"] }
-chrono-tz = "0.10"
+# No default features: `jiff` reads no zone file of the system. `static` compiles each zone that
+# `tz::get!` names into the binary (ADR 0047).
+jiff = { version = "1", default-features = false, features = ["std", "static"] }
 async-stream = "0.3"
 async-trait = "0.1.88"
 bytes = "1.11.1"

@@ -358,7 +358,7 @@ mod tests {
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
     use crate::core::taxonomy::reference::PartAliases;
-    use crate::tests::fixtures::sample_fact::{date, fact, source, us_gaap_plugin};
+    use crate::tests::fixtures::sample_fact::{apple, date, fact, source, us_gaap_plugin};
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin_with_aliases};
 
     fn concept_of(family: &str, local_name: &str) -> ConceptName {
@@ -593,7 +593,7 @@ mod tests {
         let copies = more_precise(&facts);
 
         let expected_result = vec![Finding::Conflict {
-            entity: quarter.context.entity.clone(),
+            entity: apple(),
             key: quarter.key(),
             ranks: vec![1],
             standard_concept: Some(IncomeStatementConcept::Revenue.element()),
@@ -618,7 +618,7 @@ mod tests {
         let copies = more_precise(&facts);
 
         let expected_result = vec![Finding::Conflict {
-            entity: first.context.entity.clone(),
+            entity: apple(),
             key: first.key(),
             ranks: vec![1],
             standard_concept: None,
@@ -645,7 +645,7 @@ mod tests {
         let copies = more_precise(&facts);
 
         let expected_result = vec![Finding::Conflict {
-            entity: quarter.context.entity.clone(),
+            entity: apple(),
             key: quarter.key(),
             ranks: vec![2],
             standard_concept: Some(IncomeStatementConcept::Revenue.element()),
@@ -925,7 +925,7 @@ mod tests {
         let copies = more_precise(&facts);
 
         let expected_result = vec![Finding::Conflict {
-            entity: equity.context.entity.clone(),
+            entity: apple(),
             key: equity.key(),
             ranks: vec![1],
             standard_concept: Some(BalanceSheetConcept::Equity.element()),
@@ -1180,7 +1180,7 @@ mod tests {
         let copies = more_precise(&facts);
 
         let expected_result = vec![Finding::Conflict {
-            entity: quarter.context.entity.clone(),
+            entity: apple(),
             key: quarter.key(),
             ranks: vec![1],
             standard_concept: Some(IncomeStatementConcept::Revenue.element()),
