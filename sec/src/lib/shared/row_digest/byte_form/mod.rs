@@ -65,6 +65,21 @@ impl ByteForm {
     }
 
     /// Appends a null value of any type: the marker `0x00` and no more bytes.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let mut byte_form = ByteForm::new();
+    ///
+    /// // null: 00
+    /// let expected_result: &[u8] = b"\x00";
+    ///
+    /// let result = byte_form.null().as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn null(&mut self) -> &mut Self {
         self.bytes.push(NULL_MARKER);
         self
@@ -74,13 +89,47 @@ impl ByteForm {
     ///
     /// # Panics
     ///
-    /// Panics if the string is longer than `u32::MAX` bytes. No Arrow `utf8` value is, because its
-    /// offsets are 32-bit signed integers.
+    /// Panics if the string is longer than `u32::MAX` bytes, because the length prefix has 4 bytes.
+    /// No Arrow `utf8` value is that long, because its offsets are 32-bit signed integers, so a
+    /// value holds at most about 2 GiB. A `large_utf8` column has 64-bit offsets and can reach the
+    /// panic.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let namespace = "us-gaap";
+    ///
+    /// // marker 01 | length 00000007 | text us-gaap
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x07us-gaap";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.utf8(namespace).as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn utf8(&mut self, value: &str) -> &mut Self {
         self.text(|text| text.extend_from_slice(value.as_bytes()))
     }
 
     /// Appends a `bool` value as `true` or `false`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let is_custom = true;
+    ///
+    /// // marker 01 | length 00000004 | text true
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x04true";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.bool(is_custom).as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn bool(&mut self, value: bool) -> &mut Self {
         let text = if value { "true" } else { "false" };
         self.utf8(text)
@@ -89,6 +138,22 @@ impl ByteForm {
     /// Appends a value of any Arrow integer type in base 10, with `-` before a negative value.
     ///
     /// Every integer width gives the same text, so a column that widens keeps its digest.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let quarters: u16 = 4007;
+    ///
+    /// // marker 01 | length 00000004 | text 4007
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x044007";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.integer(quarters).as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn integer(&mut self, value: impl Into<i128>) -> &mut Self {
         let value: i128 = value.into();
         self.text(|text| {
@@ -102,6 +167,31 @@ impl ByteForm {
     /// The text has `0` before the point if the integer part is zero. It has a `.` and the fraction
     /// only if the fraction is not zero. So the scale of the column does not change the text:
     /// `100.00` prints as `100`, and `-0.250` as `-0.25`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the text is longer than `u32::MAX` bytes, because the length prefix has 4 bytes.
+    /// The text of a `decimal128` value has at most 38 digits, a sign, and a point, so it never is.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use std::str::FromStr;
+    ///
+    /// use bigdecimal::BigDecimal;
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let value = BigDecimal::from_str("100.00")
+    ///     .expect("Given a hardcoded decimal string, the parse should always succeed");
+    ///
+    /// // marker 01 | length 00000003 | text 100
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x03100";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.decimal(&value).as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn decimal(&mut self, value: &BigDecimal) -> &mut Self {
         let (unscaled, scale) = value.as_bigint_and_scale();
         let is_negative = unscaled.sign() == Sign::Minus;
@@ -110,6 +200,24 @@ impl ByteForm {
     }
 
     /// Appends a `date32` value as `YYYY-MM-DD`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use chrono::NaiveDate;
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let period_end = NaiveDate::from_ymd_opt(2026, 11, 6)
+    ///     .expect("Given a hardcoded valid date, the creation should always succeed");
+    ///
+    /// // marker 01 | length 0000000a | text 2026-11-06
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x0a2026-11-06";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.date(period_end).as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn date(&mut self, value: NaiveDate) -> &mut Self {
         self.text(|text| {
             // Deviation: the result is ignored. Writing to a `Vec<u8>` never fails.
@@ -126,6 +234,26 @@ impl ByteForm {
     /// Appends a `timestamp[ms, UTC]` value as `YYYY-MM-DDTHH:MM:SS.mmmZ`.
     ///
     /// The text drops the part of a second below one millisecond.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use chrono::{TimeZone, Utc};
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let accepted_at = Utc
+    ///     .with_ymd_and_hms(2026, 11, 6, 13, 5, 0)
+    ///     .single()
+    ///     .expect("Given a hardcoded valid UTC time, the creation should always succeed");
+    ///
+    /// // marker 01 | length 00000018 | text 2026-11-06T13:05:00.000Z
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x182026-11-06T13:05:00.000Z";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.timestamp(accepted_at).as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn timestamp(&mut self, value: DateTime<Utc>) -> &mut Self {
         self.text(|text| {
             // Deviation: the result is ignored. Writing to a `Vec<u8>` never fails.
@@ -149,8 +277,29 @@ impl ByteForm {
     ///
     /// # Panics
     ///
-    /// Panics if the count is greater than `u32::MAX`. No Arrow `list` value has such a count,
-    /// because its offsets are 32-bit signed integers.
+    /// Panics if the count is greater than `u32::MAX`, because the count has 4 bytes. No Arrow
+    /// `list` value has such a count, because its offsets are 32-bit signed integers. A
+    /// `large_list` column has 64-bit offsets and can reach the panic.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let members = ["a", "b"];
+    ///
+    /// // list head: 01 00000002 | element 1: 01 00000001 a | element 2: 01 00000001 b
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x02\x01\x00\x00\x00\x01a\x01\x00\x00\x00\x01b";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// byte_form.list(members.len());
+    /// for member in members {
+    ///     byte_form.utf8(member);
+    /// }
+    /// let result = byte_form.as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn list(&mut self, element_count: usize) -> &mut Self {
         self.bytes.push(VALUE_MARKER);
         self.bytes.extend_from_slice(&length_prefix(element_count));
@@ -163,7 +312,24 @@ impl ByteForm {
     ///
     /// # Panics
     ///
-    /// Panics if the count is greater than `u32::MAX`.
+    /// Panics if the count is greater than `u32::MAX`, because the count has 4 bytes. The count is
+    /// the number of fields in the schema of the struct, so it never is.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use sec::shared::row_digest::ByteForm;
+    ///
+    /// let axis = "a";
+    ///
+    /// // struct head: 01 00000002 | field 1: 01 00000001 a | field 2: null 00
+    /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x02\x01\x00\x00\x00\x01a\x00";
+    ///
+    /// let mut byte_form = ByteForm::new();
+    /// let result = byte_form.struct_(2).utf8(axis).null().as_bytes();
+    ///
+    /// assert_eq!(result, expected_result);
+    /// ```
     pub fn struct_(&mut self, field_count: usize) -> &mut Self {
         self.bytes.push(VALUE_MARKER);
         self.bytes.extend_from_slice(&length_prefix(field_count));
