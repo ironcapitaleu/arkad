@@ -190,8 +190,8 @@ After requesting the re-review, wait for it by the means the environment allows:
 Then:
 
 1. If new findings exist, return to Step 2.
-2. If a review returns nothing new, or only approvals, notify the human: "The review is clean, the
-   PR is ready to merge."
+2. If a review returns nothing new, only approvals, or only 🟣 findings that you answered as wrong,
+   notify the human: "The review is clean, the PR is ready to merge."
 
 If the session is interrupted, re-invoke `/pr-iterate` to resume. The skill fetches the latest
 findings and continues.
@@ -199,14 +199,16 @@ findings and continues.
 ### Exit Conditions
 
 Stop iterating when:
-- The review returns clean (no new comments). A review with only 🟣 findings is not clean: fix the
+- The review returns clean (no new comments). A round with only 🟣 findings is not clean: fix the
   correct ones, push, and request a review. The owner does not watch the loop, so nobody else fixes
   the nit. If no 🟣 finding is correct, reply to each with the reason. The review then counts as
   clean
 - All remaining comments are ambiguous/human-decision items (escalated)
 - The human says to stop
-- 3 iterations have passed without convergence (flag to human). A round whose findings were all
-  🟣 does not count toward this limit
+- 3 iterations have passed without convergence (flag to human). A round with only 🟣 findings
+  does not count toward this limit
+- 2 rounds in a row had only 🟣 findings. Stop, and report the PR as ready, with the open nits
+  listed
 
 ## Replying to Addressed Comments
 
@@ -227,7 +229,8 @@ human-escalated items.
 - **Never force-push** during iteration
 - **Never resolve a comment without implementing it** (or explicitly explaining why it was skipped)
 - **Max 3 autonomous iterations** before consulting the human. A round with only 🟣 findings does
-  not count
+  not count. After 2 such rounds in a row, stop and report the PR as ready, with the open nits
+  listed
 - **Never change the PR scope** — if feedback suggests new features or large refactors, flag
   to the human as a potential follow-up ticket
 - **Follow AGENTS.md** — all code changes must follow the project's development guidelines
