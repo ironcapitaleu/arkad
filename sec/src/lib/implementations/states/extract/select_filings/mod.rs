@@ -210,7 +210,7 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use bytes::Bytes;
-    use chrono::NaiveDate;
+    use jiff::civil::{Date, date};
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::filesystem::DocumentKey;
     use uuid::Uuid;
@@ -251,7 +251,7 @@ mod tests {
         cik: &str,
         accession_number: &str,
         parsed_form: ParsedForm,
-        filed_date: NaiveDate,
+        filed_date: Date,
     ) -> FilingRef {
         FilingRef::new(
             Cik::new(cik).expect("Given a hardcoded valid CIK, parsing should always succeed"),
@@ -259,11 +259,6 @@ mod tests {
             parsed_form,
             filed_date,
         )
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always build")
     }
 
     async fn computed_filings(state: &mut SelectFilings) -> Vec<FilingRef> {

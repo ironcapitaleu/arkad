@@ -23,8 +23,8 @@ use axum::http::{Request, StatusCode};
 use axum::middleware::from_fn;
 use axum::response::Response;
 use axum::routing::get;
-use chrono::{DateTime, Utc};
 use http_body_util::BodyExt;
+use jiff::Timestamp;
 use pretty_assertions::assert_eq;
 use serde_json::{Value, json};
 use storage::AccountId;
@@ -43,7 +43,7 @@ fn router() -> Router {
     let verified_token = VerifiedToken {
         account_id: AccountId::from_uuid(Uuid::from_u128(1)),
         session_id: "session-1".to_owned(),
-        expires_at: DateTime::<Utc>::MAX_UTC,
+        expires_at: Timestamp::MAX,
     };
     let verifier = FakeTokenVerifier::default().accepting(VALID_TOKEN, verified_token);
     Router::new()

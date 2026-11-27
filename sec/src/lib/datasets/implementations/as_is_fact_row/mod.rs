@@ -27,9 +27,9 @@ use self::constants::{
     VALUE_KIND_TEXT,
 };
 use crate::datasets::columns::{
-    BatchColumns, date_from_days, date32, failed_batch, list_array, list_item, list_type,
-    naive_date, nullable, string_list, string_struct_array, string_struct_list, timestamp_array,
-    timestamp_from_milliseconds, timestamp_type, unexpected_value, utc_time, utf8_or_null,
+    BatchColumns, date_from_days, date32, failed_batch, list_array, list_item, list_type, nullable,
+    string_list, string_struct_array, string_struct_list, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null,
 };
 use crate::datasets::{ArrowRow, ArrowRowError, Provenance};
 use crate::shared::row_digest::{ByteForm, DigestRow};
@@ -174,7 +174,7 @@ impl DigestRow for AsIsFactRow {
             fact.taxonomy_version.as_ref().map(TaxonomyVersion::as_str),
         );
         byte_form
-            .date(naive_date(fact.context.period.end()))
+            .date(fact.context.period.end())
             .integer(fact.context.period.quarters());
         utf8_or_null(
             byte_form,
@@ -196,9 +196,9 @@ impl DigestRow for AsIsFactRow {
             byte_form,
             fact.taxonomy_version.as_ref().map(TaxonomyVersion::as_str),
         );
-        byte_form.date(naive_date(fact.context.period.end()));
+        byte_form.date(fact.context.period.end());
         match fact.context.period.start() {
-            Some(start) => byte_form.date(naive_date(start)),
+            Some(start) => byte_form.date(start),
             None => byte_form.null(),
         };
         byte_form.integer(fact.context.period.quarters());
@@ -222,9 +222,9 @@ impl DigestRow for AsIsFactRow {
         for footnote in &fact.footnotes {
             byte_form.utf8(footnote);
         }
-        byte_form.date(naive_date(fact.source.filed));
+        byte_form.date(fact.source.filed);
         match fact.source.accepted {
-            Some(accepted) => byte_form.timestamp(utc_time(accepted)),
+            Some(accepted) => byte_form.timestamp(accepted),
             None => byte_form.null(),
         };
         self.provenance.write_digest(byte_form);

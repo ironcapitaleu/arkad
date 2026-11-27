@@ -2,7 +2,7 @@
 //!
 //! Provides the [`TokenError`] for a login token that fails its check.
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use storage::InvalidAccountId;
 use thiserror::Error;
 
@@ -34,7 +34,7 @@ pub enum TokenError {
     #[error("[ExpiredToken] Login token expired at '{expired_at}'")]
     ExpiredToken {
         /// The `exp` time of the token.
-        expired_at: DateTime<Utc>,
+        expired_at: Timestamp,
     },
 
     /// A claim of the token fails its check, for example an `aud` without `authenticated`.
@@ -64,7 +64,8 @@ pub enum TokenError {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use jiff::civil::date;
+    use jiff::tz::TimeZone;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -104,13 +105,12 @@ mod tests {
 
     #[test]
     fn should_name_the_expiry_when_displaying_expired_token() {
-        let expired_at = Utc
-            .with_ymd_and_hms(2026, 11, 15, 10, 0, 0)
-            .single()
+        let expired_at = TimeZone::UTC
+            .to_timestamp(date(2026, 11, 15).at(10, 0, 0, 0))
             .expect("Given a valid hardcoded UTC time, building it should always succeed");
         let error = TokenError::ExpiredToken { expired_at };
 
-        let expected_result = "[ExpiredToken] Login token expired at '2026-11-15 10:00:00 UTC'";
+        let expected_result = "[ExpiredToken] Login token expired at '2026-11-15T10:00:00Z'";
 
         let result = error.to_string();
 

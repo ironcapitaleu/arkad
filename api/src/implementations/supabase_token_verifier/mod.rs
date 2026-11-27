@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex, PoisonError, RwLock};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use chrono::Utc;
+use jiff::Timestamp;
 use jsonwebtoken::errors::{Error as JwtError, ErrorKind};
 use jsonwebtoken::jwk::{
     AlgorithmParameters, EllipticCurve, Jwk, JwkSet, KeyAlgorithm, PublicKeyUse,
@@ -214,7 +214,7 @@ impl SupabaseTokenVerifier {
             .ok_or(TokenError::UnknownSigningKey { kid })?
             .map_err(|error| invalid_signature_or_format(&error))?
             .claims;
-        claims.check(&self.issuer, Utc::now())
+        claims.check(&self.issuer, Timestamp::now())
     }
 }
 
@@ -328,7 +328,8 @@ mod tests {
 
     use base64::Engine;
     use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use chrono::{DateTime, TimeZone};
+    use jiff::civil::date;
+    use jiff::tz::TimeZone;
     use jsonwebtoken::{EncodingKey, Header};
     use pretty_assertions::assert_eq;
     use serde_json::{Value, json};
@@ -362,9 +363,8 @@ mod tests {
                 0x0193_b2c1_7d4e_7a2b_9c3d_4e5f_6a7b_8c9d,
             )),
             session_id: "session-1".to_owned(),
-            expires_at: Utc
-                .with_ymd_and_hms(2100, 1, 1, 0, 0, 0)
-                .single()
+            expires_at: TimeZone::UTC
+                .to_timestamp(date(2100, 1, 1).at(0, 0, 0, 0))
                 .expect("Given a valid hardcoded UTC time, building it should always succeed"),
         }
     }
@@ -460,7 +460,7 @@ mod tests {
         let token = key.sign(&token_claims);
 
         let expected_result = Err(TokenError::ExpiredToken {
-            expired_at: DateTime::from_timestamp(1_700_000_000, 0)
+            expired_at: Timestamp::from_second(1_700_000_000)
                 .expect("Given a hardcoded time in range, building it should always succeed"),
         });
 

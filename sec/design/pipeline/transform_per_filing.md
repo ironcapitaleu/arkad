@@ -210,7 +210,7 @@ pub struct InstanceFilingInput {
 pub struct StoredIndustry {
     pub code: IndustryCode,
     pub source: SourceDocument,
-    pub retrieved_at: DateTime<Utc>,
+    pub retrieved_at: jiff::Timestamp,
 }
 ```
 

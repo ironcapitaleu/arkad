@@ -86,12 +86,11 @@ impl StoredAs for FullIndex {
 /// # Examples
 ///
 /// ```
-/// use chrono::NaiveDate;
+/// use jiff::civil::date;
 /// use sec::implementations::states::extract::store_full_index::full_index_key;
 /// use sec::shared::quarter::Quarter;
 ///
-/// let date = NaiveDate::from_ymd_opt(2026, 10, 1)
-///     .expect("Given a hardcoded calendar date, the date should always build");
+/// let date = date(2026, 10, 1);
 ///
 /// let expected_result = "sec/full-index/2026/QTR4/form.idx";
 ///
@@ -114,7 +113,7 @@ mod tests {
     use std::{fmt::Debug, hash::Hash};
 
     use bytes::Bytes;
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use state_maschine::prelude::State as SMState;
     use storage::implementations::repository::filesystem::{
@@ -144,10 +143,7 @@ mod tests {
         "A document already exists under sec/full-index/2026/QTR4/form.idx";
 
     fn quarter() -> Quarter {
-        Quarter::of(
-            NaiveDate::from_ymd_opt(2026, 11, 13)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-        )
+        Quarter::of(date(2026, 11, 13))
     }
 
     fn sample_key() -> DocumentKey {
@@ -223,10 +219,7 @@ mod tests {
 
     #[test]
     fn should_return_the_key_of_the_first_quarter_when_the_quarter_starts_a_year() {
-        let quarter = Quarter::of(
-            NaiveDate::from_ymd_opt(2027, 1, 1)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-        );
+        let quarter = Quarter::of(date(2027, 1, 1));
 
         let expected_result = "sec/full-index/2027/QTR1/form.idx";
 

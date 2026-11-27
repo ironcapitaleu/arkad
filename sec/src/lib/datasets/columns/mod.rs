@@ -12,7 +12,6 @@ use arrow::array::{
 use arrow::buffer::OffsetBuffer;
 use arrow::datatypes::{DataType, Field, FieldRef, Fields, Schema, TimeUnit};
 use arrow::error::ArrowError;
-use chrono::{DateTime, NaiveDate, Utc};
 use jiff::civil::{Date, date};
 use jiff::{Span, Timestamp};
 
@@ -91,26 +90,6 @@ pub fn string_struct_array(item: &FieldRef, columns: Vec<StringArray>) -> ArrayR
 /// Returns the value of row `row`, or `None` if it is null.
 pub fn nullable<A: ArrayAccessor + Copy>(array: A, row: usize) -> Option<A::Item> {
     array.is_valid(row).then(|| array.value(row))
-}
-
-/// Returns the date as a `chrono` date, the type of [`ByteForm::date`](crate::shared::row_digest::ByteForm::date).
-pub fn naive_date(value: Date) -> NaiveDate {
-    // Deviation: `ByteForm` still takes `chrono` dates, because ADR 0047 moves `sec` in a later
-    // slice. Every `jiff` date lies in the range of `chrono`, so the conversion never fails.
-    NaiveDate::from_ymd_opt(
-        i32::from(value.year()),
-        u32::from(value.month().unsigned_abs()),
-        u32::from(value.day().unsigned_abs()),
-    )
-    .expect("Given a valid jiff date, the creation of the same chrono date should always succeed")
-}
-
-/// Returns the timestamp as a `chrono` time, the type of [`ByteForm::timestamp`](crate::shared::row_digest::ByteForm::timestamp).
-pub fn utc_time(value: Timestamp) -> DateTime<Utc> {
-    // Deviation: the reason of `naive_date` holds here too.
-    DateTime::from_timestamp_millis(value.as_millisecond()).expect(
-        "Given a valid jiff timestamp, the creation of the same chrono time should always succeed",
-    )
 }
 
 /// Reads the arrays of a batch whose fields match the schema of a version of `R`.

@@ -16,7 +16,9 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::{Datelike, NaiveDate, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 use serde::{Serialize, Serializer};
 
 use crate::shared::quarter::Quarter;
@@ -33,7 +35,7 @@ pub use index_date_error::{IndexDateError, InvalidIndexDateReason};
 /// Only [`IndexDate::new`] and the [`TryFrom`] impl create values. The date is never before
 /// [`FIRST_INDEX_DATE`], and never after the current UTC date at the time of validation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct IndexDate(NaiveDate);
+pub struct IndexDate(Date);
 
 impl IndexDate {
     /// Validates a string of the form `YYYY-MM-DD` into an [`IndexDate`].
@@ -61,7 +63,7 @@ impl IndexDate {
     /// assert_eq!(result, expected_result);
     /// ```
     pub fn new(date: &str) -> Result<Self, IndexDateError> {
-        validate(date, Utc::now().date_naive())
+        validate(date, today_in_utc())
     }
 
     /// Returns the year of the date, the `YYYY` part of the URL.
@@ -80,7 +82,7 @@ impl IndexDate {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub fn year(&self) -> i32 {
+    pub fn year(&self) -> i16 {
         self.0.year()
     }
 
@@ -121,12 +123,12 @@ impl IndexDate {
     /// ```
     #[must_use]
     pub fn basic_format(&self) -> String {
-        self.0.format("%Y%m%d").to_string()
+        self.0.strftime("%Y%m%d").to_string()
     }
 
-    /// Returns the date as a [`NaiveDate`].
+    /// Returns the date as a [`Date`].
     #[must_use]
-    pub const fn date(&self) -> NaiveDate {
+    pub const fn date(&self) -> Date {
         self.0
     }
 
@@ -134,12 +136,17 @@ impl IndexDate {
     /// date.
     #[must_use]
     pub fn first_day_of_next_quarter(&self) -> Option<Self> {
-        first_day_of_next_quarter(self.0, Utc::now().date_naive())
+        first_day_of_next_quarter(self.0, today_in_utc())
     }
 }
 
+/// Returns the current UTC date.
+fn today_in_utc() -> Date {
+    TimeZone::UTC.to_datetime(Timestamp::now()).date()
+}
+
 /// Validates a date string against `today`.
-fn validate(date: &str, today: NaiveDate) -> Result<IndexDate, IndexDateError> {
+fn validate(date: &str, today: Date) -> Result<IndexDate, IndexDateError> {
     let error = |reason| IndexDateError::new(reason, date);
     let parsed =
         parse(date.trim()).ok_or_else(|| error(InvalidIndexDateReason::InvalidIndexDateFormat))?;
@@ -155,8 +162,9 @@ fn validate(date: &str, today: NaiveDate) -> Result<IndexDate, IndexDateError> {
 /// Parses a trimmed `YYYY-MM-DD` string, or returns `None` if it has another form or names no
 /// calendar date.
 ///
-/// Checks the shape first, because chrono also accepts a sign or a single-digit month or day.
-fn parse(date: &str) -> Option<NaiveDate> {
+/// Checks the shape first, because the parser of [`Date`] also accepts other forms, such as a
+/// sign or the basic format `YYYYMMDD`.
+fn parse(date: &str) -> Option<Date> {
     let is_well_formed = date.len() == 10
         && date.bytes().enumerate().all(|(index, byte)| match index {
             4 | 7 => byte == b'-',
@@ -165,18 +173,18 @@ fn parse(date: &str) -> Option<NaiveDate> {
     if !is_well_formed {
         return None;
     }
-    NaiveDate::parse_from_str(date, "%Y-%m-%d").ok()
+    date.parse().ok()
 }
 
 /// Returns the first day of the quarter after `date`, or `None` if that day is after `today`.
-fn first_day_of_next_quarter(date: NaiveDate, today: NaiveDate) -> Option<IndexDate> {
+fn first_day_of_next_quarter(date: Date, today: Date) -> Option<IndexDate> {
     let next_quarter_start = Quarter::of(date).next().first_day()?;
     (next_quarter_start <= today).then_some(IndexDate(next_quarter_start))
 }
 
 impl Display for IndexDate {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", self.0.format("%Y-%m-%d"))
+        write!(f, "{}", self.0)
     }
 }
 
@@ -205,15 +213,15 @@ mod tests {
     use std::fmt::{Debug, Display};
     use std::hash::Hash;
 
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use serde::Serialize;
 
     use super::*;
 
     /// A fixed today, so that the tests do not depend on the clock.
-    fn today() -> NaiveDate {
-        NaiveDate::from_ymd_opt(2026, 10, 30)
-            .expect("Given a hardcoded valid date, construction should always succeed")
+    fn today() -> Date {
+        date(2026, 10, 30)
     }
 
     fn index_date(date: &str) -> IndexDate {
@@ -290,10 +298,7 @@ mod tests {
     fn should_parse_the_date_when_input_has_the_form_yyyy_mm_dd() {
         let date_string = "2026-10-27";
 
-        let expected_result = Ok(IndexDate(
-            NaiveDate::from_ymd_opt(2026, 10, 27)
-                .expect("Given a hardcoded valid date, construction should always succeed"),
-        ));
+        let expected_result = Ok(IndexDate(date(2026, 10, 27)));
 
         let result = validate(date_string, today());
 
@@ -516,6 +521,24 @@ mod tests {
         let expected_result = IndexDate::new(date_string);
 
         let result = IndexDate::try_from(date_string);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_parse_the_serialized_string_back_to_the_same_index_date() {
+        let date = index_date("2026-01-02");
+        let serialized: String = serde_json::from_value(
+            serde_json::to_value(date)
+                .expect("Serializing a date as a JSON string should always succeed"),
+        )
+        .expect(
+            "Given a date serialized as a JSON string, reading the string should always succeed",
+        );
+
+        let expected_result = Ok(date);
+
+        let result = validate(&serialized, today());
 
         assert_eq!(result, expected_result);
     }

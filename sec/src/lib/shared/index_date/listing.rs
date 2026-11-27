@@ -8,7 +8,7 @@
 //! name, for example `company.20261027.idx`. It also ignores the two-digit-year name
 //! `form.981027.idx`, which the SEC listings of 1998 show beside `form.19981027.idx`.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde_json::Value;
 
 /// Returns the dates of the daily indexes of the form `form.YYYYMMDD.idx` in a listing.
@@ -18,7 +18,7 @@ use serde_json::Value;
 /// # Examples
 ///
 /// ```
-/// use chrono::NaiveDate;
+/// use jiff::civil::date;
 /// use sec::shared::index_date::listing::listed_index_dates;
 ///
 /// let listing = serde_json::json!({ "directory": { "item": [
@@ -26,14 +26,14 @@ use serde_json::Value;
 ///     { "name": "form.20261027.idx" },
 /// ] } });
 ///
-/// let expected_result = vec![NaiveDate::from_ymd_opt(2026, 10, 27).expect("A hardcoded date should be valid")];
+/// let expected_result = vec![date(2026, 10, 27)];
 ///
 /// let result = listed_index_dates(&listing);
 ///
 /// assert_eq!(result, expected_result);
 /// ```
 #[must_use]
-pub fn listed_index_dates(listing: &Value) -> Vec<NaiveDate> {
+pub fn listed_index_dates(listing: &Value) -> Vec<Date> {
     listing["directory"]["item"]
         .as_array()
         .into_iter()
@@ -43,25 +43,21 @@ pub fn listed_index_dates(listing: &Value) -> Vec<NaiveDate> {
         .collect()
 }
 
-fn index_date_of_file_name(name: &str) -> Option<NaiveDate> {
+fn index_date_of_file_name(name: &str) -> Option<Date> {
     let date = name.strip_prefix("form.")?.strip_suffix(".idx")?;
     if date.len() != 8 || !date.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
-    NaiveDate::parse_from_str(date, "%Y%m%d").ok()
+    Date::strptime("%Y%m%d", date).ok()
 }
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
     use super::*;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded valid date, construction should always succeed")
-    }
 
     fn listing(names: &[&str]) -> Value {
         let items: Vec<Value> = names.iter().map(|name| json!({ "name": name })).collect();
@@ -88,7 +84,7 @@ mod tests {
             "sitemap.20261027.xml",
         ]);
 
-        let expected_result: Vec<NaiveDate> = Vec::new();
+        let expected_result: Vec<Date> = Vec::new();
 
         let result = listed_index_dates(&listing);
 
@@ -110,7 +106,7 @@ mod tests {
     fn should_ignore_the_name_when_its_date_has_seven_digits() {
         let listing = listing(&["form.2026102.idx"]);
 
-        let expected_result: Vec<NaiveDate> = Vec::new();
+        let expected_result: Vec<Date> = Vec::new();
 
         let result = listed_index_dates(&listing);
 
@@ -121,7 +117,7 @@ mod tests {
     fn should_ignore_the_name_when_its_date_has_a_space() {
         let listing = listing(&["form.202610 2.idx"]);
 
-        let expected_result: Vec<NaiveDate> = Vec::new();
+        let expected_result: Vec<Date> = Vec::new();
 
         let result = listed_index_dates(&listing);
 
@@ -132,7 +128,7 @@ mod tests {
     fn should_ignore_the_name_when_its_date_does_not_exist() {
         let listing = listing(&["form.20260230.idx"]);
 
-        let expected_result: Vec<NaiveDate> = Vec::new();
+        let expected_result: Vec<Date> = Vec::new();
 
         let result = listed_index_dates(&listing);
 
@@ -143,7 +139,7 @@ mod tests {
     fn should_return_no_dates_when_the_listing_has_no_item_array() {
         let listing = json!({ "directory": {} });
 
-        let expected_result: Vec<NaiveDate> = Vec::new();
+        let expected_result: Vec<Date> = Vec::new();
 
         let result = listed_index_dates(&listing);
 

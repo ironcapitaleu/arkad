@@ -9,7 +9,7 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use sec::implementations::extraction::{
     DailyFilingsRepositories, DailyRunSummary, Extraction, RunEvent, Unit,
@@ -29,8 +29,9 @@ const FULL_INDEX_URL_OF_2026_Q3: &str =
 const FULL_INDEX_URL_OF_2026_Q4: &str =
     "https://www.sec.gov/Archives/edgar/full-index/2026/QTR4/form.idx";
 
-fn date(value: &str) -> NaiveDate {
-    NaiveDate::parse_from_str(value, "%Y-%m-%d")
+fn date(value: &str) -> Date {
+    value
+        .parse()
         .expect("Given a hardcoded valid date, parsing should always succeed")
 }
 
@@ -93,8 +94,8 @@ const LOCK_EXPECT: &str = "Given an observer that never panics while it holds th
 /// Runs `dates` as `run_observed` does, without an observer.
 async fn run(
     root: &TempDir,
-    dates: &[NaiveDate],
-    as_of: NaiveDate,
+    dates: &[Date],
+    as_of: Date,
     sec_client: &RoutingSecClient,
 ) -> DailyRunSummary {
     run_observed(root, dates, as_of, sec_client, |_, _| {}).await
@@ -104,8 +105,8 @@ async fn run(
 /// and passes each event to `observer`.
 async fn run_observed(
     root: &TempDir,
-    dates: &[NaiveDate],
-    as_of: NaiveDate,
+    dates: &[Date],
+    as_of: Date,
     sec_client: &RoutingSecClient,
     observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
 ) -> DailyRunSummary {
@@ -226,11 +227,7 @@ async fn should_store_the_full_index_of_each_quarter_when_the_dates_span_two_qua
 }
 
 /// Runs `dates` as `run` does in a new temp dir, and returns the detection of each date.
-async fn detections(
-    dates: &[NaiveDate],
-    as_of: NaiveDate,
-    sec_client: &RoutingSecClient,
-) -> Vec<String> {
+async fn detections(dates: &[Date], as_of: Date, sec_client: &RoutingSecClient) -> Vec<String> {
     run(&temporary_root(), dates, as_of, sec_client)
         .await
         .entries()

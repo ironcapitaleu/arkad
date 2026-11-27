@@ -14,7 +14,7 @@ mod run_loop {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
     use pretty_assertions::assert_eq;
     use sec::implementations::extraction::{
         DailyFilingsRepositories, DailyRunSummary, Extraction, FailedDailyRun, RunEvent, Unit,
@@ -45,8 +45,9 @@ mod run_loop {
     const SUBMISSIONS_URL: &str = "https://data.sec.gov/submissions/CIK0000003545.json";
     const SUBMISSIONS: &[u8] = br#"{"cik":"3545","name":"ALCO STORES INC","filings":{"recent":{"accessionNumber":["0000003545-26-000047"],"filingDate":["2026-10-26"],"form":["10-Q"]}}}"#;
 
-    fn date(value: &str) -> NaiveDate {
-        NaiveDate::parse_from_str(value, "%Y-%m-%d")
+    fn date(value: &str) -> Date {
+        value
+            .parse()
             .expect("Given a hardcoded valid date, parsing should always succeed")
     }
 
@@ -130,7 +131,7 @@ mod run_loop {
     /// attempts, and passes each event to `observer`.
     async fn run_observed(
         root: &TempDir,
-        dates: &[NaiveDate],
+        dates: &[Date],
         sec_client: &RoutingSecClient,
         observer: impl Fn(&Unit, RunEvent<'_>) + Send + Sync + 'static,
     ) -> DailyRunSummary {
@@ -147,14 +148,14 @@ mod run_loop {
     }
 
     /// Runs `dates` as `run_observed` does, without an observer, in a new temp dir.
-    async fn run_offline(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> DailyRunSummary {
+    async fn run_offline(dates: &[Date], sec_client: &RoutingSecClient) -> DailyRunSummary {
         run_offline_in(&temporary_root(), dates, sec_client).await
     }
 
     /// Runs `dates` as `run_observed` does, without an observer.
     async fn run_offline_in(
         root: &TempDir,
-        dates: &[NaiveDate],
+        dates: &[Date],
         sec_client: &RoutingSecClient,
     ) -> DailyRunSummary {
         run_observed(root, dates, sec_client, |_, _| {}).await
@@ -173,14 +174,14 @@ mod run_loop {
     }
 
     /// Runs `dates` as `run_offline` does, and returns the unit and the kind of each error.
-    async fn reported_errors(dates: &[NaiveDate], sec_client: &RoutingSecClient) -> Vec<Value> {
+    async fn reported_errors(dates: &[Date], sec_client: &RoutingSecClient) -> Vec<Value> {
         run_reporting_errors(dates, sec_client).await.0
     }
 
     /// Runs `dates` as `run_offline` does, and returns the unit and the kind of each error, and
     /// the summary.
     async fn run_reporting_errors(
-        dates: &[NaiveDate],
+        dates: &[Date],
         sec_client: &RoutingSecClient,
     ) -> (Vec<Value>, DailyRunSummary) {
         let errors = Arc::new(Mutex::new(Vec::new()));
@@ -989,7 +990,7 @@ mod run_loop {
         let observer = move |unit: &Unit, _: RunEvent<'_>| {
             let unit_date = match unit {
                 Unit::Date(date) | Unit::Filing { date, .. } | Unit::Company { date, .. } => *date,
-                _ => NaiveDate::MIN,
+                _ => Date::MIN,
             };
             observed_dates.lock().expect(LOCK_EXPECT).push(unit_date);
         };
@@ -1057,7 +1058,7 @@ mod run_loop {
 
 /// Runs the facade for one past date against the live SEC, as the binary does.
 mod live {
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
     use pretty_assertions::assert_eq;
     use sec::implementations::extraction::{DailyFilingsRepositories, Extraction};
     use sec::shared::http_client::implementations::reqwest_client::ReqwestClient;
@@ -1104,7 +1105,8 @@ mod live {
         let root = TempDir::new().expect(
             "Given a writable system temp directory, creating a directory in it should always succeed",
         );
-        let date = NaiveDate::parse_from_str(DATE, "%Y-%m-%d")
+        let date: Date = DATE
+            .parse()
             .expect("Given a hardcoded valid date, parsing should always succeed");
 
         let expected_result = json!({

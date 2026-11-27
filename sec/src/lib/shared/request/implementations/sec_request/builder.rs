@@ -314,7 +314,7 @@ impl FilingIndexBuilder<FilingRef> {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_ref::FilingRef;
@@ -322,8 +322,7 @@ impl FilingIndexBuilder<FilingRef> {
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
     /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
-    /// let filed_date = NaiveDate::from_ymd_opt(2017, 11, 3)
-    ///     .expect("A hardcoded calendar date should always build");
+    /// let filed_date = date(2017, 11, 3);
     /// let filing = FilingRef::new(
     ///     cik,
     ///     AccessionNumber::new("0000320193-17-000070")
@@ -387,7 +386,7 @@ impl FilingDocumentBuilder<FilingRef, String> {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_ref::FilingRef;
@@ -395,8 +394,7 @@ impl FilingDocumentBuilder<FilingRef, String> {
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
     /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
-    /// let filed_date = NaiveDate::from_ymd_opt(2017, 11, 3)
-    ///     .expect("A hardcoded calendar date should always build");
+    /// let filed_date = date(2017, 11, 3);
     /// let filing = FilingRef::new(
     ///     cik,
     ///     AccessionNumber::new("0000320193-17-000070")
@@ -467,7 +465,7 @@ impl FilingDocumentSetBuilder<FilingRef, FilingDocuments> {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::accession_number::AccessionNumber;
     /// use sec::shared::cik::Cik;
     /// use sec::shared::filing_documents::FilingDocuments;
@@ -476,8 +474,7 @@ impl FilingDocumentSetBuilder<FilingRef, FilingDocuments> {
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
     /// let cik = Cik::new("320193").expect("A hardcoded valid CIK should always parse");
-    /// let filed_date = NaiveDate::from_ymd_opt(2017, 11, 3)
-    ///     .expect("A hardcoded calendar date should always build");
+    /// let filed_date = date(2017, 11, 3);
     /// let filing = FilingRef::new(
     ///     cik,
     ///     AccessionNumber::new("0000320193-17-000070")
@@ -625,12 +622,11 @@ impl FullIndexBuilder<Quarter> {
     /// # Examples
     ///
     /// ```
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::quarter::Quarter;
     /// use sec::shared::request::implementations::sec_request::SecRequest;
     ///
-    /// let date = NaiveDate::from_ymd_opt(2026, 10, 27)
-    ///     .expect("Given a hardcoded calendar date, the date should always build");
+    /// let date = date(2026, 10, 27);
     /// let request = SecRequest::builder()
     ///     .full_index()
     ///     .quarter(Quarter::of(date))
@@ -650,7 +646,7 @@ impl FullIndexBuilder<Quarter> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use reqwest::{Method, Url};
 
@@ -762,10 +758,7 @@ mod tests {
 
     #[test]
     fn should_produce_the_form_idx_url_of_the_quarter_for_a_full_index_request() {
-        let quarter = Quarter::of(
-            NaiveDate::from_ymd_opt(2026, 9, 30)
-                .expect("Given a hardcoded calendar date, the date should always build"),
-        );
+        let quarter = Quarter::of(date(2026, 9, 30));
 
         let expected_result = "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/form.idx";
 
@@ -823,8 +816,7 @@ mod tests {
                 .expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         );
 
         let expected_result = Url::parse(
@@ -850,8 +842,7 @@ mod tests {
                 .expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new("0001213900-26-112626").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(Form::TwentyF, false),
-            NaiveDate::from_ymd_opt(2026, 10, 27)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 10, 27),
         );
 
         let expected_result = Url::parse(
@@ -876,8 +867,7 @@ mod tests {
                 .expect("Given a hardcoded valid CIK, parsing should always succeed"),
             AccessionNumber::new("0000003545-26-000047").expect("Given a hardcoded accession number of the right shape, creation should always succeed"),
             ParsedForm::new(Form::TenQ, false),
-            NaiveDate::from_ymd_opt(2026, 9, 9)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 9),
         )
     }
 

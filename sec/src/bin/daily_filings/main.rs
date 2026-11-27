@@ -22,7 +22,7 @@ use std::error::Error;
 use std::process::ExitCode;
 use std::time::Instant;
 
-use chrono::Utc;
+use jiff::Timestamp;
 use sec::implementations::extraction::{DailyFilingsRepositories, Extraction, RunEvent};
 
 use batch_log::{
@@ -53,7 +53,7 @@ async fn main() -> ExitCode {
 ///
 /// Returns the first error that stops the batch.
 async fn run_batch() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let now = Utc::now();
+    let now = Timestamp::now();
     let dates = run_dates(env::var_os(FROM_ENV_VAR), env::var_os(TO_ENV_VAR), now).inspect_err(
         |error| {
             tracing::error!(

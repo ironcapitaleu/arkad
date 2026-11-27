@@ -7,8 +7,8 @@
 
 use std::collections::BTreeSet;
 
-use chrono::{Datelike, NaiveDate};
 use futures_util::StreamExt;
+use jiff::civil::Date;
 use storage::ReadError;
 use storage::implementations::repository::filesystem::{DocumentKey, KeyPrefix};
 use storage::traits::repository::ListRepository;
@@ -74,7 +74,7 @@ pub enum MissingStoredCutOverDate {
 ///
 /// Never panics: [`NOTES_KEY_PREFIX`] is a valid relative key, and every quarter and month the
 /// check builds comes from [`FIRST_YEAR`] on.
-pub async fn stored_cut_over_date<R>(notes_store: &R) -> Result<NaiveDate, MissingStoredCutOverDate>
+pub async fn stored_cut_over_date<R>(notes_store: &R) -> Result<Date, MissingStoredCutOverDate>
 where
     R: ListRepository<Key = DocumentKey, Filter = KeyPrefix> + ?Sized,
 {
@@ -143,14 +143,11 @@ fn period_of(key: &DocumentKey) -> Result<NotesPeriod, MissingStoredCutOverDate>
 
 /// Returns the first quarter from [`FIRST_YEAR`] through the month of `newest` that `stored` does
 /// not cover, or `None` if it covers all of them.
-fn first_uncovered_quarter(
-    stored: &BTreeSet<NotesPeriod>,
-    newest: NaiveDate,
-) -> Option<NotesPeriod> {
-    let newest_month = (newest.year(), newest.month());
-    for year in i32::from(FIRST_YEAR.number())..=newest.year() {
+fn first_uncovered_quarter(stored: &BTreeSet<NotesPeriod>, newest: Date) -> Option<NotesPeriod> {
+    let newest_month = (i32::from(newest.year()), i32::from(newest.month()));
+    for year in i32::from(FIRST_YEAR.number())..=i32::from(newest.year()) {
         for quarter in 1..=4 {
-            let months: Vec<u32> = (quarter * 3 - 2..=quarter * 3)
+            let months: Vec<i32> = (quarter * 3 - 2..=quarter * 3)
                 .filter(|month| (year, *month) <= newest_month)
                 .collect();
             if months.is_empty() {
@@ -179,6 +176,7 @@ fn period(period: &str) -> NotesPeriod {
 #[cfg(test)]
 mod tests {
     use futures_core::stream::BoxStream;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use storage::error::BackendError;
 
@@ -227,11 +225,6 @@ mod tests {
         fn list(&self, _filter: KeyPrefix) -> BoxStream<'_, Result<(), ReadError>> {
             Box::pin(futures_util::stream::empty())
         }
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the date should always be valid")
     }
 
     #[tokio::test]

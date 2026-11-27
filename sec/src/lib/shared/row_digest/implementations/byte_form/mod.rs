@@ -10,7 +10,9 @@ use std::io::Write;
 
 use bigdecimal::BigDecimal;
 use bigdecimal::num_bigint::Sign;
-use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
 
 use self::constants::{NULL_MARKER, VALUE_MARKER};
 
@@ -209,11 +211,10 @@ impl ByteForm {
     /// # Examples
     ///
     /// ```rust
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::date;
     /// use sec::shared::row_digest::ByteForm;
     ///
-    /// let period_end = NaiveDate::from_ymd_opt(2026, 11, 6)
-    ///     .expect("Given a hardcoded valid date, the creation should always succeed");
+    /// let period_end = date(2026, 11, 6);
     ///
     /// // marker 01 | length 0000000a | text 2026-11-06
     /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x0a2026-11-06";
@@ -223,7 +224,7 @@ impl ByteForm {
     ///
     /// assert_eq!(result, expected_result);
     /// ```
-    pub fn date(&mut self, value: NaiveDate) -> &mut Self {
+    pub fn date(&mut self, value: Date) -> &mut Self {
         self.text(|text| {
             // Deviation: the result is ignored. Writing to a `Vec<u8>` never fails.
             let _ = write!(
@@ -243,13 +244,13 @@ impl ByteForm {
     /// # Examples
     ///
     /// ```rust
-    /// use chrono::{TimeZone, Utc};
+    /// use jiff::civil::date;
+    /// use jiff::tz::TimeZone;
     /// use sec::shared::row_digest::ByteForm;
     ///
-    /// let accepted_at = Utc
-    ///     .with_ymd_and_hms(2026, 11, 6, 13, 5, 0)
-    ///     .single()
-    ///     .expect("Given a hardcoded valid UTC time, the creation should always succeed");
+    /// let accepted_at = TimeZone::UTC
+    ///     .to_timestamp(date(2026, 11, 6).at(13, 5, 0, 0))
+    ///     .expect("Given a hardcoded UTC time in the range of jiff, the conversion should always succeed");
     ///
     /// // marker 01 | length 00000018 | text 2026-11-06T13:05:00.000Z
     /// let expected_result: &[u8] = b"\x01\x00\x00\x00\x182026-11-06T13:05:00.000Z";
@@ -259,19 +260,20 @@ impl ByteForm {
     ///
     /// assert_eq!(result, expected_result);
     /// ```
-    pub fn timestamp(&mut self, value: DateTime<Utc>) -> &mut Self {
+    pub fn timestamp(&mut self, value: Timestamp) -> &mut Self {
+        let datetime = TimeZone::UTC.to_datetime(value);
         self.text(|text| {
             // Deviation: the result is ignored. Writing to a `Vec<u8>` never fails.
             let _ = write!(
                 text,
                 "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
-                value.year(),
-                value.month(),
-                value.day(),
-                value.hour(),
-                value.minute(),
-                value.second(),
-                value.timestamp_subsec_millis()
+                datetime.year(),
+                datetime.month(),
+                datetime.day(),
+                datetime.hour(),
+                datetime.minute(),
+                datetime.second(),
+                datetime.millisecond()
             );
         })
     }
@@ -405,7 +407,7 @@ mod tests {
     use std::hash::Hash;
     use std::str::FromStr;
 
-    use chrono::TimeZone;
+    use jiff::civil::date;
     use pretty_assertions::{assert_eq, assert_ne};
 
     use super::*;
@@ -761,8 +763,7 @@ mod tests {
 
     #[test]
     fn should_print_yyyy_mm_dd_when_the_value_is_a_date() {
-        let value = NaiveDate::from_ymd_opt(2026, 11, 6)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
+        let value = date(2026, 11, 6);
 
         let expected_result = scalar("2026-11-06");
 
@@ -775,8 +776,7 @@ mod tests {
 
     #[test]
     fn should_pad_the_year_to_four_digits_when_the_date_is_before_year_1000() {
-        let value = NaiveDate::from_ymd_opt(999, 1, 2)
-            .expect("Given a hardcoded valid date, the creation should always succeed");
+        let value = date(999, 1, 2);
 
         let expected_result = scalar("0999-01-02");
 
@@ -789,10 +789,9 @@ mod tests {
 
     #[test]
     fn should_print_milliseconds_and_z_when_the_value_is_a_timestamp() {
-        let value = Utc
-            .with_ymd_and_hms(2026, 11, 6, 13, 5, 0)
-            .single()
-            .expect("Given a hardcoded valid UTC time, the creation should always succeed");
+        let value = TimeZone::UTC
+            .to_timestamp(date(2026, 11, 6).at(13, 5, 0, 0))
+            .expect("Given a hardcoded UTC time in the range of jiff, the conversion should always succeed");
 
         let expected_result = scalar("2026-11-06T13:05:00.000Z");
 
@@ -805,10 +804,9 @@ mod tests {
 
     #[test]
     fn should_drop_the_part_below_one_millisecond_when_the_timestamp_has_microseconds() {
-        let value = Utc
-            .timestamp_opt(1_762_434_300, 123_456_789)
-            .single()
-            .expect("Given a hardcoded valid Unix time, the creation should always succeed");
+        let value = Timestamp::new(1_762_434_300, 123_456_789).expect(
+            "Given a hardcoded Unix time in the range of jiff, the creation should always succeed",
+        );
 
         let expected_result = scalar("2025-11-06T13:05:00.123Z");
 

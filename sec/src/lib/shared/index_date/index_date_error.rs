@@ -7,7 +7,7 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use thiserror::Error;
 
 use super::constants::FIRST_INDEX_DATE;
@@ -44,7 +44,7 @@ pub enum InvalidIndexDateReason {
     /// The date is after today, so the SEC has no daily index for it.
     FutureIndexDate {
         /// The current UTC date at the time of validation.
-        today: NaiveDate,
+        today: Date,
     },
 }
 
@@ -55,14 +55,13 @@ impl Display for InvalidIndexDateReason {
                 write!(f, "Expected a calendar date of the form YYYY-MM-DD")
             }
             Self::EarlyIndexDate => {
-                let first = FIRST_INDEX_DATE.format("%Y-%m-%d");
                 write!(
                     f,
-                    "The first daily index named form.YYYYMMDD.idx is {first}"
+                    "The first daily index named form.YYYYMMDD.idx is {FIRST_INDEX_DATE}"
                 )
             }
             Self::FutureIndexDate { today } => {
-                write!(f, "The date is after today, {}", today.format("%Y-%m-%d"))
+                write!(f, "The date is after today, {today}")
             }
         }
     }
@@ -70,6 +69,7 @@ impl Display for InvalidIndexDateReason {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -98,8 +98,7 @@ mod tests {
 
     #[test]
     fn should_format_display_with_today_when_reason_is_future_index_date() {
-        let today = NaiveDate::from_ymd_opt(2026, 1, 2)
-            .expect("Given a hardcoded valid date, construction should always succeed");
+        let today = date(2026, 1, 2);
         let reason = InvalidIndexDateReason::FutureIndexDate { today };
 
         let expected_result = "The date is after today, 2026-01-02";

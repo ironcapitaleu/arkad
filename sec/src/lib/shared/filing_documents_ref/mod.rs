@@ -96,7 +96,7 @@ impl Display for FilingDocumentsRef {
 /// # Examples
 ///
 /// ```
-/// use chrono::NaiveDate;
+/// use jiff::civil::date;
 /// use sec::shared::accession_number::AccessionNumber;
 /// use sec::shared::cik::Cik;
 /// use sec::shared::filing_documents_ref::instance_key;
@@ -108,7 +108,7 @@ impl Display for FilingDocumentsRef {
 ///     AccessionNumber::new("0000003545-26-000047")
 ///         .expect("A hardcoded accession number of the right shape should always parse"),
 ///     ParsedForm::new(Form::TenK, false),
-///     NaiveDate::from_ymd_opt(2026, 9, 8).expect("A hardcoded calendar date should always build"),
+///     date(2026, 9, 8),
 /// );
 ///
 /// let expected_result = "sec/filings/CIK0000003545/0000003545-26-000047/instance.xml";
@@ -161,7 +161,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use chrono::NaiveDate;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -176,8 +176,7 @@ mod tests {
                 "Given a hardcoded accession number of the right shape, creation should always succeed",
             ),
             ParsedForm::new(Form::TenK, false),
-            NaiveDate::from_ymd_opt(2026, 9, 8)
-                .expect("Given a hardcoded calendar date, the date should always build"),
+            date(2026, 9, 8),
         )
     }
 

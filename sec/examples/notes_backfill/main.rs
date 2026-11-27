@@ -27,7 +27,8 @@ use std::fmt::{self, Display, Formatter};
 use std::process::ExitCode;
 use std::time::Instant;
 
-use chrono::Utc;
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
 use sec::implementations::extraction::{ErrorKind, Extraction, FailedNotesProbe, RunEvent};
 use sec::shared::http_client::implementations::sec_client::SecClient;
 use sec::shared::http_client::implementations::sec_client::error::FailedSecRequest;
@@ -86,15 +87,19 @@ async fn notes_periods_of_run(sec_client: &SecClient) -> Result<Vec<String>, Fai
             context = %serde_json::json!({ "period": quarter.to_string() }),
         );
     };
-    notes_periods(sec_client, Utc::now().date_naive(), on_retry)
-        .await
-        .inspect_err(|error| {
-            tracing::error!(
-                event = %BatchEvent::StartupFailed,
-                message = %error,
-                context = %serde_json::json!({ "period": error.period.to_string() }),
-            );
-        })
+    notes_periods(
+        sec_client,
+        TimeZone::UTC.to_datetime(Timestamp::now()).date(),
+        on_retry,
+    )
+    .await
+    .inspect_err(|error| {
+        tracing::error!(
+            event = %BatchEvent::StartupFailed,
+            message = %error,
+            context = %serde_json::json!({ "period": error.period.to_string() }),
+        );
+    })
 }
 
 /// Runs the example, and logs each failure before it returns the error.

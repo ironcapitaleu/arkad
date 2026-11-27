@@ -8,7 +8,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::time::Duration;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use sec::implementations::extraction::{DailyRunSummary, ErrorKind, Unit};
 use sec::prelude::{StreamError, StreamItem};
 use sec::shared::http_client::implementations::sec_client::SecClient;
@@ -152,7 +152,7 @@ pub fn log_error(execution_id: Uuid, unit: &Unit, error: &StreamError, kind: Err
 /// Returns the message and the context of the summary log of a run of the new-filing path.
 pub fn daily_summary(
     execution_id: Uuid,
-    dates: &[NaiveDate],
+    dates: &[Date],
     summary: &DailyRunSummary,
     elapsed: Duration,
 ) -> (String, Value) {

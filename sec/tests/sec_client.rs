@@ -8,7 +8,9 @@
 //! - `data.sec.gov` — Live SEC EDGAR API (JSON company filings)
 //! - `www.sec.gov` — Live Notes files, asked for with `HEAD` requests
 
-use chrono::{Datelike, Months, NaiveDate, Utc};
+use jiff::civil::Date;
+use jiff::tz::TimeZone;
+use jiff::{Timestamp, ToSpan};
 use pretty_assertions::assert_eq;
 use serde_json::json;
 
@@ -30,14 +32,14 @@ use sec::shared::user_agent::UserAgent;
 
 /// The age in months after which the SEC has merged the monthly Notes files of every quarter so
 /// far. The slowest merge measured took 458 days, about 15 months.
-const MERGED_AFTER_MONTHS: u32 = 16;
+const MERGED_AFTER_MONTHS: i32 = 16;
 
 // The probed quarter is up to 3 months older than `MERGED_AFTER_MONTHS`. It must stay younger than
 // the age at which `published_periods` stops asking, or the test gives no early warning.
 const _: () = assert!(MERGED_AFTER_MONTHS + 3 < MERGE_WAIT_MONTHS);
 
 /// Returns the last quarter that ended before the quarter of `date`.
-fn quarter_before(date: NaiveDate) -> NotesPeriod {
+fn quarter_before(date: Date) -> NotesPeriod {
     let quarter = (date.month() - 1) / 3;
     let (year, quarter) = if quarter == 0 {
         (date.year() - 1, 4)
@@ -94,10 +96,13 @@ async fn should_succeed_when_probing_a_published_notes_file() {
 #[tokio::test]
 async fn should_find_the_quarterly_file_of_the_last_quarter_that_ended_16_months_or_more_ago() {
     let client = sec_client();
-    let months_ago = Utc::now()
-        .date_naive()
-        .checked_sub_months(Months::new(MERGED_AFTER_MONTHS))
-        .expect("Given a date in this century, subtracting 16 months stays inside the range of NaiveDate");
+    let months_ago = TimeZone::UTC
+        .to_datetime(Timestamp::now())
+        .date()
+        .checked_sub(MERGED_AFTER_MONTHS.months())
+        .expect(
+            "Given a date in this century, subtracting 16 months stays inside the range of Date",
+        );
     let quarter = quarter_before(months_ago);
     let request = SecRequest::builder()
         .notes_file_probe()

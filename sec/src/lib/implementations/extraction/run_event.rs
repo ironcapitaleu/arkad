@@ -8,8 +8,8 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::NaiveDate;
 use futures_util::StreamExt;
+use jiff::civil::Date;
 use serde::{Serialize, Serializer};
 
 use crate::prelude::{StateMachineStream, StreamError, StreamItem};
@@ -72,7 +72,7 @@ pub enum Unit {
     /// A raw CIK of the Company Facts or the `submissions` source, for example `320193`.
     Cik(String),
     /// A date of the new-filing path, and the detection of its filings.
-    Date(NaiveDate),
+    Date(Date),
     /// A quarter of the catch-up, and the detection of its filings in the full index, for
     /// example `2026/QTR4`.
     Quarter(Quarter),
@@ -80,7 +80,7 @@ pub enum Unit {
     #[serde(untagged)]
     Filing {
         /// The date of the daily index that lists the filing.
-        date: NaiveDate,
+        date: Date,
         /// The accession number of the filing.
         accession_number: AccessionNumber,
     },
@@ -88,7 +88,7 @@ pub enum Unit {
     #[serde(untagged)]
     Company {
         /// The date of the daily index that lists the filing of the company.
-        date: NaiveDate,
+        date: Date,
         /// The CIK of the company.
         #[serde(serialize_with = "serialize_display")]
         cik: Cik,
@@ -175,9 +175,8 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn date() -> NaiveDate {
-        NaiveDate::from_ymd_opt(2026, 10, 26)
-            .expect("Given a hardcoded calendar date, the date should always build")
+    fn date() -> Date {
+        jiff::civil::date(2026, 10, 26)
     }
 
     fn filing() -> Unit {

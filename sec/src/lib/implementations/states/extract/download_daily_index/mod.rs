@@ -26,7 +26,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 
@@ -119,7 +119,7 @@ where
 
     /// Returns the dates in the listing of the quarter of `quarter`, or `None` if the SEC answers
     /// 403 or 404.
-    async fn listed_dates(&self, quarter: IndexDate) -> Result<Option<Vec<NaiveDate>>, StateError> {
+    async fn listed_dates(&self, quarter: IndexDate) -> Result<Option<Vec<Date>>, StateError> {
         let request = SecRequest::builder()
             .daily_index_listing()
             .date(quarter)

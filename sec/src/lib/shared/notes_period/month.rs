@@ -8,7 +8,7 @@ use super::is_ascii_digits;
 
 /// A month of a calendar year, written as two digits (`01` to `12`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Month(pub(super) chrono::Month);
+pub struct Month(pub(super) i8);
 
 impl Month {
     /// Parses a [`Month`] from its two-digit number, `"01"` to `"12"`, or returns `None`.
@@ -28,16 +28,16 @@ impl Month {
     /// ```
     #[must_use]
     pub fn from_number_str(number: &str) -> Option<Self> {
-        let number: u8 = is_ascii_digits(number, 2)
+        let number: i8 = is_ascii_digits(number, 2)
             .then(|| number.parse().ok())
             .flatten()?;
-        chrono::Month::try_from(number).ok().map(Self)
+        (1..=12).contains(&number).then_some(Self(number))
     }
 }
 
 impl Display for Month {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{:02}", self.0.number_from_month())
+        write!(f, "{:02}", self.0)
     }
 }
 
@@ -101,8 +101,8 @@ mod tests {
 
     #[test]
     fn should_order_january_before_december_for_months() {
-        let january = Month(chrono::Month::January);
-        let december = Month(chrono::Month::December);
+        let january = Month(1);
+        let december = Month(12);
 
         let expected_result = true;
 

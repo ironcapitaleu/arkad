@@ -11,7 +11,8 @@
 
 use std::time::Duration;
 
-use chrono::{Datelike, Months, NaiveDate};
+use jiff::ToSpan;
+use jiff::civil::Date;
 use thiserror::Error;
 
 use super::super::retry::retry_while;
@@ -32,7 +33,7 @@ pub const LAST_MERGED_QUARTER: &str = "2025q3";
 ///
 /// The longest measured wait for a merge was 458 days, about 15 months. So at most 8 quarters need
 /// a request.
-pub const MERGE_WAIT_MONTHS: u32 = 24;
+pub const MERGE_WAIT_MONTHS: i32 = 24;
 
 /// Error indicating that the run could not tell whether the quarterly Notes file of a period exists.
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
@@ -66,16 +67,16 @@ pub struct FailedNotesProbe {
 /// not count as a missing file.
 pub async fn published_periods<C>(
     sec_client: &C,
-    through: NaiveDate,
+    through: Date,
     retry_delays: &[Duration],
     on_retry: impl Fn(NotesPeriod, &FailedSecRequest) + Send + Sync,
 ) -> Result<Vec<NotesPeriod>, FailedNotesProbe>
 where
     C: SecClientTrait<Response<ZipHeadBody> = SecResponse<ZipHeadBody>, Error = FailedSecRequest>,
 {
-    let through_month = (through.year(), through.month());
+    let through_month = (i32::from(through.year()), i32::from(through.month()));
     let mut periods = Vec::new();
-    for year in i32::from(FIRST_YEAR.number())..=through.year() {
+    for year in i32::from(FIRST_YEAR.number())..=i32::from(through.year()) {
         for quarter in 1..=4 {
             let months = (quarter * 3 - 2..=quarter * 3).map(|month| (year, month));
             if (year, quarter * 3) > through_month {
@@ -100,12 +101,12 @@ where
 }
 
 /// Returns whether the run counts `quarter` as merged without a request.
-fn is_merged(quarter: NotesPeriod, through: NaiveDate) -> bool {
+fn is_merged(quarter: NotesPeriod, through: Date) -> bool {
     quarter <= period(LAST_MERGED_QUARTER)
         || quarter
             .last_day()
-            .checked_add_months(Months::new(MERGE_WAIT_MONTHS))
-            .is_some_and(|merged| merged <= through)
+            .checked_add(MERGE_WAIT_MONTHS.months())
+            .is_ok_and(|merged| merged <= through)
 }
 
 /// Asks the SEC whether the Notes file of `quarter` exists. A request that fails with a transient
@@ -155,6 +156,7 @@ fn period(period: &str) -> NotesPeriod {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -162,11 +164,6 @@ mod tests {
 
     const NOTES_URL: &str =
         "https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/";
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, building it should always succeed")
-    }
 
     /// Returns a client that answers 200 for the quarterly file of each of `quarters`, and 404 for
     /// every other file.
@@ -186,7 +183,7 @@ mod tests {
     /// No wait between two attempts, so a test with a retry takes no time.
     const NO_WAIT: [Duration; 1] = [Duration::ZERO];
 
-    async fn periods_from(sec_client: &RoutingSecClient, through: NaiveDate) -> Vec<String> {
+    async fn periods_from(sec_client: &RoutingSecClient, through: Date) -> Vec<String> {
         published_periods(sec_client, through, &NO_WAIT, |_, _| {})
             .await
             .expect("Given a client that answers only 200 or 404, the list should always build")

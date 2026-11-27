@@ -463,7 +463,7 @@ classDiagram
         %% Why a string failed index date validation
         +InvalidIndexDateFormat
         +EarlyIndexDate
-        +FutureIndexDate(today: NaiveDate)
+        +FutureIndexDate(today: Date)
     }
 
     class FormIndexError{
