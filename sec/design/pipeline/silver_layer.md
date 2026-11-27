@@ -786,17 +786,17 @@ A Cloud Run task has a limit of one hour. One task transforms one Notes file, so
 largest Notes file, not the length of the history. More history adds tasks, and the tasks run in
 parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of the slowest task.
 
-- Not measured: the time of parse, map, and write for one Notes file. The silver prototype measures
-  it on `2024q1`, the largest file, with C and with B.
+- Measured on `2024q1`, the largest file, on one thread: split, parse, map, and write take 45.6 s
+  with C and 97.3 s with B. C that stops on the last row, then B, takes about 2.4 minutes. Not
+  measured: the standardize filing step and the reads from GCS.
 - Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
   target applies to C and B together, because C can stop on the last row of an unsorted file.
 - Units differ in size: `2009q1` holds no filings, and `2024q1` holds 2.7 GB of text. The time of
   the largest file bounds the job, not the mean. `silver_files` records `bytes` and `row_count` per
   unit, so the integrity report can list units far above the median, and the job can start the
   largest files first.
-- One task transforms one whole Notes file
-  ([ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md)). The ADR names the fallback if a
-  file breaks the target.
+- [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) holds the choice of one task per
+  Notes file, and names the fallback if a file breaks the target.
 
 ### Where the State Machine Fits
 
