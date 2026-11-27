@@ -3,7 +3,7 @@
 //! Provides the [`list_concepts`] handler of `GET /v1/concepts`.
 
 use axum::Json;
-use chrono::{DateTime, SecondsFormat, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use serde_json::json;
 use utoipa::ToSchema;
@@ -56,7 +56,7 @@ pub struct ConceptList {
 }
 
 impl ConceptList {
-    fn new(as_of: DateTime<Utc>) -> Result<Self, InvalidPascalCase> {
+    fn new(as_of: Timestamp) -> Result<Self, InvalidPascalCase> {
         Ok(Self {
             data: REQUIRED_CONCEPTS
                 .iter()
@@ -64,7 +64,8 @@ impl ConceptList {
                 .map(|definition| Concept::from_element(definition.canonical_element()))
                 .collect::<Result<_, _>>()?,
             next_cursor: None,
-            as_of: as_of.to_rfc3339_opts(SecondsFormat::Secs, true),
+            // `.0` writes whole seconds, as `2026-10-30T06:00:00Z`.
+            as_of: format!("{as_of:.0}"),
         })
     }
 }
@@ -88,7 +89,7 @@ impl ConceptList {
 // axum requires an async handler. This one has nothing to await.
 #[allow(clippy::unused_async)]
 pub async fn list_concepts() -> Result<Json<ConceptList>, ApiError> {
-    let list = ConceptList::new(Utc::now()).inspect_err(|error| {
+    let list = ConceptList::new(Timestamp::now()).inspect_err(|error| {
         tracing::error!(
             event = %ApiEvent::RequestFailed,
             message = %format!("[FailedConceptList] Failed to build the concept list, Caused by: {error}"),
@@ -100,7 +101,8 @@ pub async fn list_concepts() -> Result<Json<ConceptList>, ApiError> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use jiff::civil::date;
+    use jiff::tz::TimeZone;
     use pretty_assertions::assert_eq;
     use xbrl::core::elements::IncomeStatementConcept;
 
@@ -135,9 +137,21 @@ mod tests {
 
     #[test]
     fn should_format_as_of_as_rfc_3339_in_utc_for_concept_list() {
-        let as_of = Utc
-            .with_ymd_and_hms(2026, 10, 30, 6, 0, 0)
-            .single()
+        let as_of = TimeZone::UTC
+            .to_timestamp(date(2026, 10, 30).at(6, 0, 0, 0))
+            .expect("Given a valid hardcoded UTC time, building it should always succeed");
+
+        let expected_result = Ok("2026-10-30T06:00:00Z".to_owned());
+
+        let result = ConceptList::new(as_of).map(|list| list.as_of);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_as_of_in_whole_seconds_when_the_time_has_nanoseconds() {
+        let as_of = TimeZone::UTC
+            .to_timestamp(date(2026, 10, 30).at(6, 0, 0, 987_654_321))
             .expect("Given a valid hardcoded UTC time, building it should always succeed");
 
         let expected_result = Ok("2026-10-30T06:00:00Z".to_owned());
