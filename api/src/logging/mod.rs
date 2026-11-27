@@ -14,7 +14,7 @@
 use std::fmt::{self, Display, Formatter};
 use std::io::stdout;
 
-use chrono::{SecondsFormat, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use tracing::field::{Field, Visit};
@@ -93,7 +93,7 @@ where
         event.record(&mut fields);
         let line = LogLine {
             level: event.metadata().level().as_str().to_ascii_lowercase(),
-            timestamp: Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+            timestamp: log_timestamp(Timestamp::now()),
             event: fields.event,
             message: fields.message,
             context: fields.context,
@@ -101,6 +101,12 @@ where
         let json = serde_json::to_string(&line).map_err(|_| fmt::Error)?;
         writeln!(writer, "{json}")
     }
+}
+
+/// Writes `time` in RFC 3339 in UTC, with the fraction truncated to six digits, as
+/// `2024-10-12T14:30:00.000000Z`.
+fn log_timestamp(time: Timestamp) -> String {
+    format!("{time:.6}")
 }
 
 /// One log line. Serde writes the fields in the order of their declaration.
@@ -191,9 +197,37 @@ impl Visit for LogFields {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
+    use jiff::tz::TimeZone;
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn should_write_six_fraction_digits_when_the_time_has_nanoseconds() {
+        let time = TimeZone::UTC
+            .to_timestamp(date(2024, 10, 12).at(14, 30, 0, 123_456_789))
+            .expect("Given a valid hardcoded UTC time, building it should always succeed");
+
+        let expected_result = "2024-10-12T14:30:00.123456Z";
+
+        let result = log_timestamp(time);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_six_zero_fraction_digits_when_the_time_is_a_whole_second() {
+        let time = TimeZone::UTC
+            .to_timestamp(date(2024, 10, 12).at(14, 30, 0, 0))
+            .expect("Given a valid hardcoded UTC time, building it should always succeed");
+
+        let expected_result = "2024-10-12T14:30:00.000000Z";
+
+        let result = log_timestamp(time);
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_write_snake_case_name_for_signing_key_refresh_failed_event() {

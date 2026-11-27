@@ -374,7 +374,7 @@ mod tests {
     #[test]
     fn should_become_invalid_credentials_when_converting_expired_token() {
         let error = TokenError::ExpiredToken {
-            expired_at: chrono::DateTime::UNIX_EPOCH,
+            expired_at: jiff::Timestamp::UNIX_EPOCH,
         };
 
         let expected_result = ApiError::InvalidCredentials;

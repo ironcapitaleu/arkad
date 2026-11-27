@@ -2,14 +2,14 @@
 //!
 //! Provides [`SupabaseClaims`], the claims of a Supabase login token, and their checks.
 
-use chrono::{DateTime, TimeDelta, Utc};
+use jiff::{SignedDuration, Timestamp};
 use serde::Deserialize;
 use storage::AccountId;
 
 use crate::traits::token_verifier::{TokenError, VerifiedToken};
 
 /// How long after its `exp` time a token still passes, to allow for clock skew.
-const EXPIRY_LEEWAY: TimeDelta = TimeDelta::seconds(30);
+const EXPIRY_LEEWAY: SignedDuration = SignedDuration::from_secs(30);
 
 /// The audience and the role of a token for a signed-in user.
 const AUTHENTICATED: &str = "authenticated";
@@ -63,7 +63,7 @@ impl SupabaseClaims {
     /// Returns [`TokenError::InvalidSubject`] if `sub` is not a UUID. Returns
     /// [`TokenError::InvalidClaim`] if a claim is missing, or if `iss` differs from `issuer`, `aud`
     /// lacks `authenticated`, `role` is not `authenticated`, or `is_anonymous` is not `false`.
-    pub fn check(self, issuer: &str, now: DateTime<Utc>) -> Result<VerifiedToken, TokenError> {
+    pub fn check(self, issuer: &str, now: Timestamp) -> Result<VerifiedToken, TokenError> {
         let expires_at = Self::check_expiry(self.exp, now)?;
         let iss = required("iss", self.iss)?;
         if iss != issuer {
@@ -93,13 +93,13 @@ impl SupabaseClaims {
         })
     }
 
-    fn check_expiry(exp: Option<i64>, now: DateTime<Utc>) -> Result<DateTime<Utc>, TokenError> {
+    fn check_expiry(exp: Option<i64>, now: Timestamp) -> Result<Timestamp, TokenError> {
         let exp = required("exp", exp)?;
-        let expires_at = DateTime::from_timestamp(exp, 0)
-            .ok_or_else(|| invalid_claim("exp", "the time is out of range"))?;
+        let expires_at = Timestamp::from_second(exp)
+            .map_err(|_| invalid_claim("exp", "the time is out of range"))?;
         let deadline = expires_at
-            .checked_add_signed(EXPIRY_LEEWAY)
-            .ok_or_else(|| invalid_claim("exp", "the time is out of range"))?;
+            .checked_add(EXPIRY_LEEWAY)
+            .map_err(|_| invalid_claim("exp", "the time is out of range"))?;
         if now > deadline {
             return Err(TokenError::ExpiredToken {
                 expired_at: expires_at,
@@ -122,7 +122,8 @@ fn invalid_claim(claim: &str, reason: impl Into<String>) -> TokenError {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone;
+    use jiff::civil::date;
+    use jiff::tz::TimeZone;
     use pretty_assertions::assert_eq;
     use storage::InvalidAccountId;
     use uuid::Uuid;
@@ -134,9 +135,9 @@ mod tests {
     /// 2026-11-15 10:00:00 UTC.
     const EXP: i64 = 1_794_736_800;
 
-    fn time(hour: u32, minute: u32, second: u32) -> DateTime<Utc> {
-        Utc.with_ymd_and_hms(2026, 11, 15, hour, minute, second)
-            .single()
+    fn time(hour: i8, minute: i8, second: i8) -> Timestamp {
+        TimeZone::UTC
+            .to_timestamp(date(2026, 11, 15).at(hour, minute, second, 0))
             .expect("Given a valid hardcoded UTC time, building it should always succeed")
     }
 
@@ -351,9 +352,27 @@ mod tests {
     }
 
     #[test]
-    fn should_return_invalid_claim_when_the_expiry_plus_the_leeway_is_out_of_range() {
+    fn should_return_invalid_claim_when_the_expiry_is_out_of_range() {
         let claims = SupabaseClaims {
             exp: Some(8_210_266_876_799),
+            ..valid_claims()
+        };
+        let now = time(9, 30, 0);
+
+        let expected_result = Err(TokenError::InvalidClaim {
+            claim: "exp".to_owned(),
+            reason: "the time is out of range".to_owned(),
+        });
+
+        let result = claims.check(ISSUER, now);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_claim_when_the_expiry_plus_the_leeway_is_out_of_range() {
+        let claims = SupabaseClaims {
+            exp: Some(Timestamp::MAX.as_second()),
             ..valid_claims()
         };
         let now = time(9, 30, 0);
