@@ -68,5 +68,5 @@ This choice binds the filing step, the layout of `candidates`, and the series st
   `main` at `7e2c83e`: the functions of standardize filing, each on the facts of one filing.
 - [Linear document "STA-425 Findings: Data Model and Processing of the Silver Layer"](https://linear.app/state-machine/document/sta-425-findings-data-model-and-processing-of-the-silver-layer-2cfdecb2c70a),
   accessed 2026-11-21, section 6, 2026-11-07: silver keeps both sources of one filing.
-- `xbrl/tests/parser_comparison.rs` on `main` at `da46144`: the comparison of both sources on one
+- `xbrl/tests/parser_comparison.rs` on `main` at `20fc99a`: the comparison of both sources on one
   filing, and the losses of Notes it allows.
