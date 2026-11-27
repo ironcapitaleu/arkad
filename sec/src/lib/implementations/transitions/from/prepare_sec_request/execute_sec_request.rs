@@ -96,16 +96,17 @@ mod tests {
             .compute_output_data_async()
             .await
             .expect("Valid state should always compute output data");
-        let company_facts_request_for_0001234567 = SecRequest::builder()
-            .all_company_facts()
-            .cik(
-                Cik::new("0001234567")
-                    .expect("Hardcoded valid CIK string should always parse successfully"),
-            )
-            .build();
 
-        let expected_result =
-            ExecuteSecRequestInput::new(SecClient::default(), company_facts_request_for_0001234567);
+        let expected_result = ExecuteSecRequestInput::new(
+            SecClient::default(),
+            SecRequest::builder()
+                .all_company_facts()
+                .cik(
+                    Cik::new("0001234567")
+                        .expect("Hardcoded valid CIK string should always parse successfully"),
+                )
+                .build(),
+        );
 
         let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")
@@ -151,7 +152,8 @@ mod tests {
             .await
             .expect("Valid state should always compute output data");
 
-        let expected_result = input_cik;
+        let expected_result = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
 
         let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")

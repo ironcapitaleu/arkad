@@ -84,8 +84,11 @@ mod tests {
         };
 
         let expected_result = InvalidCikFormat {
-            state_name: state_name.to_string(),
-            cik_error: cik_error.clone(),
+            state_name: "TestState".to_string(),
+            cik_error: CikError {
+                reason: InvalidCikReason::ContainsNonNumericCharacters,
+                invalid_cik: "12345".to_string(),
+            },
         };
 
         let result = InvalidCikFormat::new(state_name, cik_error);
@@ -102,8 +105,11 @@ mod tests {
         let state_name = "ParsingState";
 
         let expected_result = InvalidCikFormat {
-            state_name: state_name.to_string(),
-            cik_error: cik_error.clone(),
+            state_name: "ParsingState".to_string(),
+            cik_error: CikError {
+                reason: InvalidCikReason::ContainsNonNumericCharacters,
+                invalid_cik: "abc".to_string(),
+            },
         };
 
         let result = InvalidCikFormat::from_domain_error(state_name, cik_error);

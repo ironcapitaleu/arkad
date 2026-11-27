@@ -321,7 +321,7 @@ mod tests {
             sec_client,
             execution_id,
             ingestion_mode,
-            repository.clone(),
+            FakeDailyIndexRepository::rejecting(WriteError::conflicting_write("Sample conflict")),
         );
 
         let result = builder.repository(repository).build();

@@ -176,8 +176,14 @@ mod tests {
             .expect("Given a hardcoded valid CIK, Cik creation should always succeed");
 
         let expected_result = PrepareSecRequest::new(
-            PrepareSecRequestInput::new(cik.clone()),
-            PrepareSecRequestContext::new(cik.clone()),
+            PrepareSecRequestInput::new(
+                Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+                    .expect("Given a hardcoded valid CIK, Cik creation should always succeed"),
+            ),
+            PrepareSecRequestContext::new(
+                Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+                    .expect("Given a hardcoded valid CIK, Cik creation should always succeed"),
+            ),
         );
 
         let result = PrepareSecRequest::builder()

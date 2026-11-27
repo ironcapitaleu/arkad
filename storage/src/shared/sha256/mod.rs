@@ -250,7 +250,7 @@ mod tests {
         let json = serde_json::to_string(&digest)
             .expect("Given a digest of one string field, serialization should always succeed");
 
-        let expected_result = digest;
+        let expected_result = Sha256Digest::of(b"abc");
 
         let result: Sha256Digest = serde_json::from_str(&json)
             .expect("Given JSON that a digest serialized, deserialization should always succeed");

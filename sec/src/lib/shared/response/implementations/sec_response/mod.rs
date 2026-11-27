@@ -538,7 +538,7 @@ mod tests {
         let raw_body = RAW_BODY.to_vec();
 
         let expected_result = Err(InvalidSecResponse::new(ErrorReason::InvalidContentType {
-            content_type: content_type.clone(),
+            content_type: ContentType::Html,
         }));
 
         let result = SecResponse::<JsonBody>::from_parts(
@@ -979,7 +979,7 @@ mod zip_tests {
         let body = BODY.to_vec();
 
         let expected_result = Some(InvalidSecResponse::new(ErrorReason::InvalidContentType {
-            content_type: content_type.clone(),
+            content_type: ContentType::Unknown,
         }));
 
         let result =
