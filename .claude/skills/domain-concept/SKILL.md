@@ -40,6 +40,10 @@ siblings are:
 If the layout of the crate differs from "Layout by Part", the crate wins. Do not move code that
 exists to match.
 
+[`references/crate_layouts.md`](references/crate_layouts.md) shows these steps applied to the crates
+of the workspace, and gives an example of each part of "Layout by Part". The examples are not a full
+list. If a crate is missing there or differs from its row, read the crate and follow the steps.
+
 ## Layout by Part
 
 Where a crate uses `traits/` and `implementations/` folders, or step 4 of "Where a Concept Lives"
