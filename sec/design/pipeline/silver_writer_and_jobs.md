@@ -89,7 +89,8 @@ flowchart TB
 | Silver backend | `storage` | `SilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects. Filesystem by default |
 | Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
 | GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
-| Silver code | `sec`, module `silver` | `SilverRecord`, `DigestRow`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
+| Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
+| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
 Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
@@ -210,18 +211,21 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 
 ## Byte Form of `content_digest`
 
-[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) sets the form. In the code:
+[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) sets the form. The code lives in
+`sec::shared::row_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
 - Each `DigestRow` writes its columns in schema order and skips `execution_id`, `loaded_at`, and
   `computed_at`.
 - The writer hashes one digest group when the group is whole. The filing step hands over one whole
-  filing, and the series step one whole entity. So the writer sorts the rows of one group, hashes
-  them, and keeps the group ID and the hash. At the end of the unit, it sorts the pairs and computes
-  `content_digest`.
-- The golden test holds one fixture unit per dataset and a table of `transform_version` to
-  expected digest.
+  filing, and the series step one whole entity. So the writer calls `group_hashes` on the rows of
+  one group, and keeps the `GroupHash`: the group ID and the hash. At the end of the unit,
+  `content_digest` sorts the pairs and computes the digest. If two pairs have one group ID, it
+  returns `DuplicateDigestGroup`, because the digest would then depend on the split.
+- The golden test holds one fixture unit and a table of `transform_version` to expected digest.
+  Each dataset adds its own fixture unit when its `DigestRow` type exists. `TRANSFORM_VERSION`
+  holds the version of the build.
 
 ## The Series Step
 
@@ -504,7 +508,10 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 
 [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
-prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread.
+prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print,
+sort, and hash of `content_digest` add about 11 seconds per largest Notes file.
+[ADR 0033, Amendment 1](../../../docs/adr/0033-byte-form-of-content-digest.md#amendment-1-the-cost-of-the-print-and-the-hash)
+holds the measurement.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.
