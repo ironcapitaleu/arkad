@@ -46,6 +46,10 @@ pub struct PartAliases {
     /// The other parts of the standard concept. If a filing reports one of them in the period, no
     /// part stands for the whole. A part never blocks itself.
     pub other_parts: Vec<ConceptName>,
+    /// The totals of other parts. A filer can report such a total in place of its other parts. A
+    /// total blocks the part only if the filing reports none of
+    /// [`PartAliases::other_parts`] in the period, with any value, zero included.
+    pub other_part_totals: Vec<ConceptName>,
 }
 
 /// One arc of a calculation linkbase: within one role, the parent sums its children, each times its

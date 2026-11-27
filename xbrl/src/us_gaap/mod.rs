@@ -417,6 +417,7 @@ fn part_aliases(definition: &mappings::PartDefinition, tree: &CalculationTree) -
             .expect("Given a rule ID of the definitions, the parse should always succeed"),
         parts: concepts(definition.parts()),
         other_parts,
+        other_part_totals: concepts(definition.other_part_totals()),
     }
 }
 
@@ -1147,6 +1148,7 @@ mod tests {
                         "RevenueFromContractWithCustomerIncludingAssessedTax",
                     ),
                 ],
+                other_part_totals: vec![],
                 other_parts: vec![
                     concept(
                         "us-gaap",
@@ -1201,6 +1203,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/net-income@1"),
                 parts: vec![concept("us-gaap", "NetIncomeLoss")],
+                other_part_totals: vec![],
                 other_parts: vec![
                     concept("us-gaap", "ProfitLoss"),
                     concept(
@@ -1281,6 +1284,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/equity@1"),
                 parts: vec![concept("us-gaap", "StockholdersEquity")],
+                other_part_totals: vec![],
                 other_parts: vec![
                     concept(
                         "us-gaap",
@@ -1430,6 +1434,7 @@ mod tests {
         let expected_result = Some(PartAliases {
             rule: rule("us-gaap/part/depreciation-amortization@1"),
             parts: vec![concept("us-gaap", "Depreciation")],
+            other_part_totals: vec![],
             other_parts: vec![
                 concept("us-gaap", "AdjustmentForAmortization"),
                 concept(
@@ -1488,6 +1493,7 @@ mod tests {
                         "us-gaap",
                         "PaymentsToAcquirePropertyPlantAndEquipment",
                     )],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "PaymentForAcquisitionCryptoAsset"),
                         concept("us-gaap", "PaymentsForDelayedTaxExemptExchange"),
@@ -1504,6 +1510,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/dividends-paid@1"),
                     parts: vec![concept("us-gaap", "PaymentsOfDividendsCommonStock")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "PaymentsOfCapitalDistribution"),
                         concept("us-gaap", "PaymentsOfDividendsMinorityInterest"),
@@ -1519,6 +1526,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/share-repurchases@1"),
                     parts: vec![concept("us-gaap", "PaymentsForRepurchaseOfCommonStock")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept(
                             "us-gaap",
@@ -1570,6 +1578,7 @@ mod tests {
                         "us-gaap",
                         "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect",
                     )],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept(
                             "us-gaap",
@@ -1594,6 +1603,7 @@ mod tests {
                         "us-gaap",
                         "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
                     )],
+                    other_part_totals: vec![],
                     other_parts: vec![concept(
                         "us-gaap",
                         "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
@@ -1629,6 +1639,7 @@ mod tests {
                     "us-gaap",
                     "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
                 )],
+                other_part_totals: vec![],
                 other_parts: vec![
                     concept("us-gaap", "OtherComprehensiveIncomeLossNetOfTax"),
                     concept(
@@ -1778,6 +1789,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/comprehensive-income@1"),
                 parts: vec![concept("us-gaap", "ComprehensiveIncomeNetOfTax")],
+                other_part_totals: vec![],
                 other_parts: vec![
                     concept(
                         "us-gaap",
@@ -2296,6 +2308,7 @@ mod tests {
         let expected_result = Some(PartAliases {
             rule: rule("us-gaap/part/interest-expense@1"),
             parts: vec![concept("us-gaap", "InterestExpenseNonoperating")],
+            other_part_totals: vec![],
             other_parts: vec![
                 concept("us-gaap", "InterestExpenseOperating"),
                 concept(
@@ -2344,6 +2357,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/cost-of-revenue@1"),
                     parts: vec![concept("us-gaap", "CostOfGoodsAndServicesSold")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "AmortizationOfMortgageServicingRightsMSRs"),
                         concept("us-gaap", "AmortizationOfValueOfBusinessAcquiredVOBA"),
@@ -2370,6 +2384,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/selling-general-admin@1"),
                     parts: vec![concept("us-gaap", "GeneralAndAdministrativeExpense")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "MarketingExpense"),
                         concept("us-gaap", "OtherSellingGeneralAndAdministrativeExpense"),
@@ -2386,6 +2401,7 @@ mod tests {
                         "us-gaap",
                         "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
                     )],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept(
                             "us-gaap",
@@ -2406,6 +2422,7 @@ mod tests {
                         "us-gaap",
                         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
                     )],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "IncomeLossFromEquityMethodInvestments"),
                         concept(
@@ -2585,6 +2602,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/cash-and-equivalents@1"),
                     parts: vec![concept("us-gaap", "Cash")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "DueFromBanks"),
                         concept("us-gaap", "InterestBearingDepositsInBanks"),
@@ -2607,6 +2625,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/short-term-investments@1"),
                     parts: vec![concept("us-gaap", "MarketableSecuritiesCurrent")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "EquitySecuritiesFvNi"),
                         concept("us-gaap", "OtherShortTermInvestments"),
@@ -2630,6 +2649,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/intangible-assets@1"),
                     parts: vec![concept("us-gaap", "FiniteLivedIntangibleAssetsNet")],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept(
                             "us-gaap",
@@ -2658,6 +2678,7 @@ mod tests {
                             "RedeemableNoncontrollingInterestEquityCarryingAmount",
                         ),
                     ],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept(
                             "us-gaap",
@@ -2678,6 +2699,7 @@ mod tests {
                         concept("us-gaap", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
                         concept("us-gaap", "ShortTermBorrowings"),
                     ],
+                    other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
                         concept("us-gaap", "ShortTermBorrowings"),
@@ -2689,6 +2711,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/additional-paid-in-capital@1"),
                     parts: vec![concept("us-gaap", "AdditionalPaidInCapitalCommonStock")],
+                    other_part_totals: vec![],
                     other_parts: vec![concept("us-gaap", "AdditionalPaidInCapitalPreferredStock")],
                 },
             ),
@@ -2697,6 +2720,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/treasury-stock@1"),
                     parts: vec![concept("us-gaap", "TreasuryStockCommonValue")],
+                    other_part_totals: vec![],
                     other_parts: vec![concept("us-gaap", "TreasuryStockPreferredValue")],
                 },
             ),
@@ -2960,6 +2984,10 @@ mod tests {
                         "us-gaap",
                         "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
                     )],
+                    other_part_totals: vec![concept(
+                        "us-gaap",
+                        "NetCashProvidedByUsedInDiscontinuedOperations",
+                    )],
                 },
             ),
             (
@@ -2974,6 +3002,10 @@ mod tests {
                         "us-gaap",
                         "CashProvidedByUsedInInvestingActivitiesDiscontinuedOperations",
                     )],
+                    other_part_totals: vec![concept(
+                        "us-gaap",
+                        "NetCashProvidedByUsedInDiscontinuedOperations",
+                    )],
                 },
             ),
             (
@@ -2987,6 +3019,10 @@ mod tests {
                     other_parts: vec![concept(
                         "us-gaap",
                         "CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations",
+                    )],
+                    other_part_totals: vec![concept(
+                        "us-gaap",
+                        "NetCashProvidedByUsedInDiscontinuedOperations",
                     )],
                 },
             ),
@@ -3176,6 +3212,69 @@ mod tests {
         ];
 
         let expected_result = vec![];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_operating_cash_flow_when_the_filing_reports_discontinued_operations_only_as_one_line()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                "118000000",
+            ),
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInDiscontinuedOperations",
+                "13000000",
+            ),
+        ];
+
+        let expected_result = vec![];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_financing_cash_flow_part_when_the_filing_reports_the_one_line_total_next_to_a_financing_flow_of_zero()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations",
+                "115400000",
+            ),
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInDiscontinuedOperations",
+                "13100000",
+            ),
+            fact(
+                &filing,
+                "CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations",
+                "0",
+            ),
+        ];
+
+        let expected_result = vec![(
+            CashFlowConcept::FinancingCashFlow.element(),
+            rule("us-gaap/part/financing-cash-flow@1"),
+            Some(Confidence::Synonym),
+        )];
 
         let result = resolve(&facts, &registry);
 

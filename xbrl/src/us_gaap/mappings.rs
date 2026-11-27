@@ -96,6 +96,8 @@ pub struct PartDefinition {
     other_parts: &'static [&'static str],
     /// The other parts that also count with each concept below them in the 2026 calculation tree.
     other_part_trees: &'static [&'static str],
+    /// The totals of other parts that block only if the filing reports none of the other parts.
+    other_part_totals: &'static [&'static str],
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     part_rule: &'static str,
 }
@@ -115,7 +117,18 @@ impl PartDefinition {
             parts,
             other_parts,
             other_part_trees,
+            other_part_totals: &[],
             part_rule,
+        }
+    }
+
+    /// Returns the definition with `other_part_totals`, the totals of other parts. A total blocks
+    /// the part only if the filing reports none of the other parts in the period.
+    #[must_use]
+    pub const fn with_other_part_totals(self, other_part_totals: &'static [&'static str]) -> Self {
+        Self {
+            other_part_totals,
+            ..self
         }
     }
 
@@ -142,6 +155,13 @@ impl PartDefinition {
     #[must_use]
     pub const fn other_part_trees(&self) -> &'static [&'static str] {
         self.other_part_trees
+    }
+
+    /// Returns the totals of other parts that block only if the filing reports none of the other
+    /// parts.
+    #[must_use]
+    pub const fn other_part_totals(&self) -> &'static [&'static str] {
+        self.other_part_totals
     }
 
     /// Returns the ID of the part rule, for example `us-gaap/part/equity@1`.
@@ -1028,28 +1048,35 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         PRETAX_INCOME_PART_RULE,
     ),
     // The total of continuing operations is the part of each cash flow total. The flow of
-    // discontinued operations is its other part. Neither carries a scope.
+    // discontinued operations is its other part. Neither carries a scope. A filer can report the
+    // discontinued operations of all activities as one line,
+    // `NetCashProvidedByUsedInDiscontinuedOperations`. It blocks the part only if the filing
+    // reports no flow of discontinued operations for the activity, because a filer that reports
+    // the flows reports the line as their sum.
     PartDefinition::new(
         CashFlowConcept::OperatingCashFlow.element(),
         &["NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"],
         &["CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations"],
         &[],
         OPERATING_CASH_FLOW_PART_RULE,
-    ),
+    )
+    .with_other_part_totals(&["NetCashProvidedByUsedInDiscontinuedOperations"]),
     PartDefinition::new(
         CashFlowConcept::InvestingCashFlow.element(),
         &["NetCashProvidedByUsedInInvestingActivitiesContinuingOperations"],
         &["CashProvidedByUsedInInvestingActivitiesDiscontinuedOperations"],
         &[],
         INVESTING_CASH_FLOW_PART_RULE,
-    ),
+    )
+    .with_other_part_totals(&["NetCashProvidedByUsedInDiscontinuedOperations"]),
     PartDefinition::new(
         CashFlowConcept::FinancingCashFlow.element(),
         &["NetCashProvidedByUsedInFinancingActivitiesContinuingOperations"],
         &["CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations"],
         &[],
         FINANCING_CASH_FLOW_PART_RULE,
-    ),
+    )
+    .with_other_part_totals(&["NetCashProvidedByUsedInDiscontinuedOperations"]),
     PartDefinition::new(
         CashFlowConcept::DepreciationAmortization.element(),
         &["Depreciation"],
