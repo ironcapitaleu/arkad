@@ -188,7 +188,7 @@ impl<'a> BatchColumns<'a> {
     }
 }
 
-/// Returns a [`ArrowRowError::FailedBatchCreation`] for an Arrow error.
+/// Returns an [`ArrowRowError::FailedBatchCreation`] for an Arrow error.
 pub fn failed_batch(dataset: &'static str, error: &ArrowError) -> ArrowRowError {
     ArrowRowError::FailedBatchCreation {
         dataset,
@@ -204,7 +204,7 @@ pub fn utf8_or_null(byte_form: &mut ByteForm, value: Option<&str>) {
     };
 }
 
-/// Returns a [`ArrowRowError::UnexpectedColumnValue`] for a value of a row.
+/// Returns an [`ArrowRowError::UnexpectedColumnValue`] for a value of a row.
 pub const fn unexpected_value(
     dataset: &'static str,
     column: &'static str,
