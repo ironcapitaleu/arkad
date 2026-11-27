@@ -1,6 +1,6 @@
-//! # Silver Error
+//! # Arrow Row Error
 //!
-//! Provides [`SilverError`], the error of an [`ArrowRow`](crate::silver::ArrowRow) that
+//! Provides [`ArrowRowError`], the error of an [`ArrowRow`](crate::datasets::ArrowRow) that
 //! fails to turn rows into a record batch, or a record batch into rows.
 
 use thiserror::Error;
@@ -9,7 +9,7 @@ use xbrl::core::invalid_value::InvalidValue;
 /// Error indicating that rows of a silver dataset and their record batch do not match.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum SilverError {
+pub enum ArrowRowError {
     /// The dataset has no schema of this version.
     #[error("[UnknownSchemaVersion] Dataset '{dataset}' has no schema version '{version}'")]
     UnknownSchemaVersion {
@@ -29,7 +29,7 @@ pub enum SilverError {
         /// The schema version of the unit.
         version: u16,
         /// The first field that differs, in the form of
-        /// [`schema_text`](crate::silver::schema_text()).
+        /// [`schema_text`](crate::datasets::schema_text()).
         reason: String,
     },
 
@@ -88,8 +88,8 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_silver_error() {
-        implements_auto_traits::<SilverError>();
+    const fn should_implement_auto_traits_for_arrow_row_error() {
+        implements_auto_traits::<ArrowRowError>();
     }
 
     const fn implements_value_traits<
@@ -97,13 +97,13 @@ mod tests {
     >() {
     }
     #[test]
-    const fn should_implement_value_traits_for_silver_error() {
-        implements_value_traits::<SilverError>();
+    const fn should_implement_value_traits_for_arrow_row_error() {
+        implements_value_traits::<ArrowRowError>();
     }
 
     #[test]
     fn should_chain_the_rule_when_a_column_value_is_invalid() {
-        let error = SilverError::InvalidColumnValue {
+        let error = ArrowRowError::InvalidColumnValue {
             dataset: "as_is_facts",
             column: "unit",
             row: 3,

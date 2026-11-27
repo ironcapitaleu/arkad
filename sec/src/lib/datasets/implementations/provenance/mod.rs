@@ -14,11 +14,11 @@ use storage::implementations::repository::filesystem::IngestionMode;
 use storage::shared::Sha256Digest;
 use uuid::Uuid;
 
-use crate::shared::row_digest::ByteForm;
-use crate::silver::SilverError;
-use crate::silver::columns::{
+use crate::datasets::ArrowRowError;
+use crate::datasets::columns::{
     BatchColumns, timestamp_array, timestamp_from_milliseconds, timestamp_type, unexpected_value,
 };
+use crate::shared::row_digest::ByteForm;
 
 /// The kind of the raw document that a silver row comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -117,8 +117,8 @@ impl Provenance {
     ///
     /// # Errors
     ///
-    /// Returns [`SilverError::UnexpectedColumnValue`] if a value does not parse.
-    pub(crate) fn read(columns: &BatchColumns<'_>) -> Result<Vec<Self>, SilverError> {
+    /// Returns [`ArrowRowError::UnexpectedColumnValue`] if a value does not parse.
+    pub(crate) fn read(columns: &BatchColumns<'_>) -> Result<Vec<Self>, ArrowRowError> {
         let [kind, key, sha256, mode, version, execution, loaded] = Self::COLUMNS;
         let kinds = columns.get::<StringArray>(kind)?;
         let keys = columns.get::<StringArray>(key)?;

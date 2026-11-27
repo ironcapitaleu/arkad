@@ -26,13 +26,13 @@ use self::constants::{
     DECIMAL_LIMIT, DECIMAL_PRECISION, DECIMAL_SCALE, VALUE_KIND_NIL, VALUE_KIND_NUMERIC,
     VALUE_KIND_TEXT,
 };
-use crate::shared::row_digest::{ByteForm, DigestRow};
-use crate::silver::columns::{
+use crate::datasets::columns::{
     BatchColumns, date_from_days, date32, failed_batch, list_array, list_item, list_type,
     naive_date, nullable, string_list, string_struct_array, string_struct_list, timestamp_array,
     timestamp_from_milliseconds, timestamp_type, unexpected_value, utc_time, utf8_or_null,
 };
-use crate::silver::{ArrowRow, Provenance, SilverError};
+use crate::datasets::{ArrowRow, ArrowRowError, Provenance};
+use crate::shared::row_digest::{ByteForm, DigestRow};
 
 pub mod constants;
 
@@ -55,7 +55,7 @@ impl ArrowRow for AsIsFactRow {
         (version == 1).then(schema_v1)
     }
 
-    fn to_batch(rows: &[Self]) -> Result<RecordBatch, SilverError> {
+    fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError> {
         let schema = schema_v1();
         let facts = || rows.iter().map(|row| &row.fact);
         let text = |value: fn(&AsIsFact) -> Option<String>| -> ArrayRef {
@@ -139,7 +139,7 @@ impl ArrowRow for AsIsFactRow {
         RecordBatch::try_new(schema, columns).map_err(|error| failed_batch(Self::DATASET, &error))
     }
 
-    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, SilverError> {
+    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, ArrowRowError> {
         let columns = BatchColumns::check::<Self>(batch, version)?;
         let provenances = Provenance::read(&columns)?;
         let reader = FactColumns::new(&columns)?;
@@ -293,7 +293,7 @@ struct FactColumns<'a> {
 
 impl<'a> FactColumns<'a> {
     /// Takes the arrays of the fact columns from a batch that passed the schema check.
-    fn new(columns: &BatchColumns<'a>) -> Result<Self, SilverError> {
+    fn new(columns: &BatchColumns<'a>) -> Result<Self, ArrowRowError> {
         Ok(Self {
             dataset: columns.dataset(),
             filing_ids: columns.get("filing_id")?,
@@ -320,9 +320,9 @@ impl<'a> FactColumns<'a> {
     }
 
     /// Reads the fact of one row.
-    fn fact(&self, row: usize) -> Result<AsIsFact, SilverError> {
+    fn fact(&self, row: usize) -> Result<AsIsFact, ArrowRowError> {
         let invalid = |column: &'static str| {
-            move |source: InvalidValue| SilverError::InvalidColumnValue {
+            move |source: InvalidValue| ArrowRowError::InvalidColumnValue {
                 dataset: self.dataset,
                 column,
                 row,
@@ -407,7 +407,7 @@ impl<'a> FactColumns<'a> {
     }
 
     /// Reads the value of one row from `value_kind` and the value column of its kind.
-    fn value(&self, row: usize) -> Result<FactValue, SilverError> {
+    fn value(&self, row: usize) -> Result<FactValue, ArrowRowError> {
         let kind = self.value_kinds.value(row);
         let unexpected = |reason| unexpected_value(self.dataset, "value_kind", row, reason);
         let value = match kind {
@@ -483,8 +483,8 @@ mod tests {
     use xbrl::core::invalid_value::InvalidValueReason;
 
     use super::*;
-    use crate::silver::implementations::provenance::sample_provenance;
-    use crate::silver::{FOLDER_LABELS, UTC_TIME_ZONE, schema_text};
+    use crate::datasets::implementations::provenance::sample_provenance;
+    use crate::datasets::{FOLDER_LABELS, UTC_TIME_ZONE, schema_text};
 
     /// A fact of the filing `sec:0000320193-26-000001` with the given value and precision.
     fn fact(value: FactValue, decimals: Option<Decimals>) -> AsIsFact {
@@ -641,7 +641,7 @@ mod tests {
         let batch = AsIsFactRow::to_batch(&sample_rows())
             .expect("Given rows whose values fit their columns, the batch should always build");
 
-        let expected_result = Err(SilverError::UnknownSchemaVersion {
+        let expected_result = Err(ArrowRowError::UnknownSchemaVersion {
             dataset: "as_is_facts",
             version: 2,
         });
@@ -662,7 +662,7 @@ mod tests {
         let batch = RecordBatch::try_new(schema, vec![column])
             .expect("Given one utf8 column for one utf8 field, the batch should always build");
 
-        let expected_result = Err(SilverError::UnexpectedSchema {
+        let expected_result = Err(ArrowRowError::UnexpectedSchema {
             dataset: "as_is_facts",
             version: 1,
             reason: "expected field 'entity_scheme: utf8', found 'none'".to_owned(),
@@ -680,7 +680,7 @@ mod tests {
             provenance: sample_provenance(),
         }];
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "value_numeric",
             row: 0,
@@ -699,7 +699,7 @@ mod tests {
             provenance: sample_provenance(),
         }];
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "value_numeric",
             row: 0,
@@ -771,7 +771,7 @@ mod tests {
             Arc::new(BooleanArray::from(vec![true])),
         );
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "decimals",
             row: 0,
@@ -787,7 +787,7 @@ mod tests {
     fn should_fail_when_the_value_kind_is_unknown() {
         let batch = batch_with("value_kind", Arc::new(StringArray::from(vec!["ratio"])));
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "value_kind",
             row: 0,
@@ -803,7 +803,7 @@ mod tests {
     fn should_fail_when_quarters_differ_from_the_period_dates() {
         let batch = batch_with("quarters", Arc::new(UInt16Array::from(vec![5])));
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "quarters",
             row: 0,
@@ -819,7 +819,7 @@ mod tests {
     fn should_fail_with_the_rule_when_a_unit_is_empty() {
         let batch = batch_with("unit", Arc::new(StringArray::from(vec![""])));
 
-        let expected_result = Err(SilverError::InvalidColumnValue {
+        let expected_result = Err(ArrowRowError::InvalidColumnValue {
             dataset: "as_is_facts",
             column: "unit",
             row: 0,
@@ -835,7 +835,7 @@ mod tests {
     fn should_fail_when_the_source_kind_is_unknown() {
         let batch = batch_with("source_kind", Arc::new(StringArray::from(vec!["zip"])));
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "source_kind",
             row: 0,
@@ -907,7 +907,7 @@ mod tests {
             ),
         );
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "value_kind",
             row: 0,
@@ -924,7 +924,7 @@ mod tests {
         // 2026-12-31, after the end 2026-09-26.
         let batch = batch_with("period_start", Arc::new(Date32Array::from(vec![20_818])));
 
-        let expected_result = Err(SilverError::InvalidColumnValue {
+        let expected_result = Err(ArrowRowError::InvalidColumnValue {
             dataset: "as_is_facts",
             column: "period_start",
             row: 0,
@@ -944,7 +944,7 @@ mod tests {
     fn should_fail_when_the_ingestion_mode_is_unknown() {
         let batch = batch_with("ingestion_mode", Arc::new(StringArray::from(vec!["daily"])));
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "ingestion_mode",
             row: 0,
@@ -960,7 +960,7 @@ mod tests {
     fn should_fail_when_the_transform_version_is_not_a_number() {
         let batch = batch_with("transform_version", Arc::new(StringArray::from(vec!["v1"])));
 
-        let expected_result = Err(SilverError::UnexpectedColumnValue {
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "as_is_facts",
             column: "transform_version",
             row: 0,
@@ -979,7 +979,7 @@ mod tests {
         let expected_result = Some("execution_id");
 
         let result = match AsIsFactRow::from_batch(&batch, 1) {
-            Err(SilverError::UnexpectedColumnValue { column, .. }) => Some(column),
+            Err(ArrowRowError::UnexpectedColumnValue { column, .. }) => Some(column),
             _ => None,
         };
 
@@ -993,7 +993,7 @@ mod tests {
         let expected_result = Some("source_sha256");
 
         let result = match AsIsFactRow::from_batch(&batch, 1) {
-            Err(SilverError::UnexpectedColumnValue { column, .. }) => Some(column),
+            Err(ArrowRowError::UnexpectedColumnValue { column, .. }) => Some(column),
             _ => None,
         };
 
@@ -1007,7 +1007,7 @@ mod tests {
         let columns = BatchColumns::check::<AsIsFactRow>(&batch, 1)
             .expect("Given a batch that `to_batch` built, the schema check should always pass");
 
-        let expected_result = Err(SilverError::UnexpectedSchema {
+        let expected_result = Err(ArrowRowError::UnexpectedSchema {
             dataset: "as_is_facts",
             version: 1,
             reason: "column 'filing_id' holds another array type".to_owned(),
@@ -1028,7 +1028,7 @@ mod tests {
         let expected_result = Some("loaded_at");
 
         let result = match AsIsFactRow::from_batch(&batch, 1) {
-            Err(SilverError::UnexpectedColumnValue { column, .. }) => Some(column),
+            Err(ArrowRowError::UnexpectedColumnValue { column, .. }) => Some(column),
             _ => None,
         };
 

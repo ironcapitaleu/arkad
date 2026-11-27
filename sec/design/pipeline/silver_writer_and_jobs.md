@@ -90,7 +90,8 @@ flowchart TB
 | Lease port | `storage` | `LeaseRepository`, a standalone trait, with `FakeLeaseRepository` and `FilesystemLeaseRepository` |
 | GCS backend | `storage`, behind the cargo feature `gcs` | A write-once repository and a `LeaseRepository` backend on the GCS JSON API, beside the filesystem backends |
 | Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
-| Silver code | `sec`, module `silver` | `ArrowRow`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
+| Datasets | `sec`, module `datasets` | `ArrowRow`, the row types, the writer, and the reader |
+| Transform jobs | `sec`, in a module that its first ticket names | The plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
 Only one trait of `storage` is new, `LeaseRepository`. No existing trait changes (`AGENTS.md`,
@@ -127,8 +128,8 @@ pub trait ArrowRow: Sized {
     const DATASET: &'static str;
     const SCHEMA_VERSION: u16;
     fn schema(version: u16) -> Option<SchemaRef>;
-    fn to_batch(rows: &[Self]) -> Result<RecordBatch, SilverError>;
-    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, SilverError>;
+    fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError>;
+    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, ArrowRowError>;
 }
 
 /// A row that enters `content_digest`.
@@ -161,7 +162,7 @@ Each dataset has three tests:
    38 digits, text with non-ASCII characters, `Infinite` decimals, and a row with every nullable
    field empty.
 2. **Snapshot.** The schema prints as text, one line per field: name, type, and nullability. The
-   printer belongs to `sec::silver`, not to the `Display` of Arrow, which changes between releases.
+   printer belongs to `sec::datasets`, not to the `Display` of Arrow, which changes between releases.
    The text is checked in. A change of the text needs a new `SCHEMA_VERSION`.
 3. **Folder labels.** No field name equals a folder label of the path of the dataset: `source` and
    `unit_key`, or `execution` and `task` for `silver_files`.
@@ -414,7 +415,7 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 ### Where Units Come From
 
 The transform plan step takes its units through one port, `RawDocumentSource`, in
-`sec::silver`. A source hands out references to stored raw documents: a `NotesArchiveRef` for each
+`sec`. A source hands out references to stored raw documents: a `NotesArchiveRef` for each
 Notes file, and a `FilingDocumentsRef` for each filing. The workflow only starts a run
 ([ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md)).
 

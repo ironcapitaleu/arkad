@@ -16,7 +16,7 @@ use arrow::datatypes::{DataType, Field, Fields, Schema, TimeUnit};
 ///
 /// ```rust
 /// use arrow::datatypes::{DataType, Field, Schema};
-/// use sec::silver::schema_text;
+/// use sec::datasets::schema_text;
 ///
 /// let schema = Schema::new(vec![
 ///     Field::new("filing_id", DataType::Utf8, false),

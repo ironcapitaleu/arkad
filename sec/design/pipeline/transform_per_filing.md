@@ -238,7 +238,7 @@ shared part.
 | `ParseNotesFiling` | `NotesFilingInput` | `ParsedFiling` | `xbrl::adapter::edgar::notes::parse` |
 | `ParseInstanceFiling` | `InstanceFilingInput` | `ParsedFiling` | UTF-8 decode, then `xbrl::adapter::edgar::instance::parse` |
 | `StandardizeFiling` | `ParsedFiling` | `StandardizedFiling` | `core::dedup::more_precise`, `core::alias::resolve_aliases`, `core::cadence_filter::keep_by_cadence` |
-| `BuildFilingRows` | `StandardizedFiling` | `FilingRows` | The row types of `sec::silver` |
+| `BuildFilingRows` | `StandardizedFiling` | `FilingRows` | The row types of `sec::datasets` |
 
 ### Data Between the States
 
@@ -359,7 +359,7 @@ Each state error follows `AGENTS.md`, "Error Display Format". The leaf is the er
 | `ParseInstanceFiling` | `InvalidInstanceText`, with `Reason:` | The bytes are not UTF-8 |
 | `ParseInstanceFiling` | `FailedInstanceParse`, `Caused by:` the `ParseErrorKind` | The text is not XML, or a cover fact is missing or breaks a rule |
 | `StandardizeFiling` | None | The functions it calls return no error |
-| `BuildFilingRows` | `FailedRowBuild`, `Caused by:` the `SilverError` | A value does not fit its Arrow type, for example a decimal with more than 28 digits before the point |
+| `BuildFilingRows` | `FailedRowBuild`, `Caused by:` the `ArrowRowError` | A value does not fit its Arrow type, for example a decimal with more than 28 digits before the point |
 
 `TransformFilingError` is the error of the super-state. It passes each state error through, as
 `#[error(transparent)]`, and adds no segment.

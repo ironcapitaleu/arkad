@@ -28,7 +28,7 @@ has the advisory RUSTSEC-2026-0555.
 ## Decision
 
 1. **Every timestamp column of silver has the Arrow time zone `+00:00`.** The type is
-   `timestamp[ms, +00:00]`. The constant `sec::silver::UTC_TIME_ZONE` holds the string.
+   `timestamp[ms, +00:00]`. The constant `sec::datasets::UTC_TIME_ZONE` holds the string.
 2. **`arrow` builds without its feature `chrono-tz`.**
 
 ## Options Considered

@@ -16,8 +16,8 @@ use chrono::{DateTime, NaiveDate, Utc};
 use jiff::civil::{Date, date};
 use jiff::{Span, Timestamp};
 
+use crate::datasets::{ArrowRow, ArrowRowError, UTC_TIME_ZONE, schema_text};
 use crate::shared::row_digest::ByteForm;
-use crate::silver::{ArrowRow, SilverError, UTC_TIME_ZONE, schema_text};
 
 /// The date that `date32` counts its days from.
 const UNIX_EPOCH: Date = date(1970, 1, 1);
@@ -125,10 +125,10 @@ impl<'a> BatchColumns<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`SilverError::UnknownSchemaVersion`] if `R` has no schema of `version`, and
-    /// [`SilverError::UnexpectedSchema`] if a field of the batch differs from the schema.
-    pub fn check<R: ArrowRow>(batch: &'a RecordBatch, version: u16) -> Result<Self, SilverError> {
-        let schema = R::schema(version).ok_or(SilverError::UnknownSchemaVersion {
+    /// Returns [`ArrowRowError::UnknownSchemaVersion`] if `R` has no schema of `version`, and
+    /// [`ArrowRowError::UnexpectedSchema`] if a field of the batch differs from the schema.
+    pub fn check<R: ArrowRow>(batch: &'a RecordBatch, version: u16) -> Result<Self, ArrowRowError> {
+        let schema = R::schema(version).ok_or(ArrowRowError::UnknownSchemaVersion {
             dataset: R::DATASET,
             version,
         })?;
@@ -141,7 +141,7 @@ impl<'a> BatchColumns<'a> {
                 (None, None) => break,
                 (expected, found) if expected == found => {}
                 (expected, found) => {
-                    return Err(SilverError::UnexpectedSchema {
+                    return Err(ArrowRowError::UnexpectedSchema {
                         dataset: R::DATASET,
                         version,
                         reason: format!(
@@ -165,12 +165,12 @@ impl<'a> BatchColumns<'a> {
     ///
     /// # Errors
     ///
-    /// Returns [`SilverError::UnexpectedSchema`] if the column holds another array type.
-    pub fn get<A: Array + 'static>(&self, column: &str) -> Result<&'a A, SilverError> {
+    /// Returns [`ArrowRowError::UnexpectedSchema`] if the column holds another array type.
+    pub fn get<A: Array + 'static>(&self, column: &str) -> Result<&'a A, ArrowRowError> {
         self.batch
             .column_by_name(column)
             .and_then(|array| array.as_any().downcast_ref::<A>())
-            .ok_or_else(|| SilverError::UnexpectedSchema {
+            .ok_or_else(|| ArrowRowError::UnexpectedSchema {
                 dataset: self.dataset,
                 version: self.version,
                 reason: format!("column '{column}' holds another array type"),
@@ -188,9 +188,9 @@ impl<'a> BatchColumns<'a> {
     }
 }
 
-/// Returns a [`SilverError::FailedBatchCreation`] for an Arrow error.
-pub fn failed_batch(dataset: &'static str, error: &ArrowError) -> SilverError {
-    SilverError::FailedBatchCreation {
+/// Returns a [`ArrowRowError::FailedBatchCreation`] for an Arrow error.
+pub fn failed_batch(dataset: &'static str, error: &ArrowError) -> ArrowRowError {
+    ArrowRowError::FailedBatchCreation {
         dataset,
         reason: error.to_string(),
     }
@@ -204,14 +204,14 @@ pub fn utf8_or_null(byte_form: &mut ByteForm, value: Option<&str>) {
     };
 }
 
-/// Returns a [`SilverError::UnexpectedColumnValue`] for a value of a row.
+/// Returns a [`ArrowRowError::UnexpectedColumnValue`] for a value of a row.
 pub const fn unexpected_value(
     dataset: &'static str,
     column: &'static str,
     row: usize,
     reason: String,
-) -> SilverError {
-    SilverError::UnexpectedColumnValue {
+) -> ArrowRowError {
+    ArrowRowError::UnexpectedColumnValue {
         dataset,
         column,
         row,

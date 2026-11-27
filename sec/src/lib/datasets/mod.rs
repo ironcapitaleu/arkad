@@ -1,4 +1,4 @@
-//! # Silver
+//! # Datasets
 //!
 //! Provides [`ArrowRow`], the trait of a row type of one silver dataset and its Arrow form,
 //! and the row types of the datasets.
@@ -10,7 +10,7 @@
 //!
 //! - [`traits`]: The [`ArrowRow`] contract of a row type.
 //! - [`implementations`]: The row types, such as [`AsIsFactRow`], and their [`Provenance`].
-//! - [`silver_error`]: The [`SilverError`] of a row type.
+//! - [`arrow_row_error`]: The [`ArrowRowError`] of a row type.
 //! - [`schema_text`](mod@schema_text): The text form of a schema.
 //! - [`constants`]: The Arrow time zone and the folder labels of the silver paths.
 //!
@@ -20,15 +20,15 @@
 //! - `sec/design/pipeline/silver_writer_and_jobs.md`, "`ArrowRow` and `DigestRow`" and
 //!   "Schema Tests".
 
+pub mod arrow_row_error;
 mod columns;
 pub mod constants;
 pub mod implementations;
 pub mod schema_text;
-pub mod silver_error;
 pub mod traits;
 
+pub use arrow_row_error::ArrowRowError;
 pub use constants::{FOLDER_LABELS, UTC_TIME_ZONE};
 pub use implementations::{AsIsFactRow, Provenance, SourceKind};
 pub use schema_text::schema_text;
-pub use silver_error::SilverError;
 pub use traits::ArrowRow;

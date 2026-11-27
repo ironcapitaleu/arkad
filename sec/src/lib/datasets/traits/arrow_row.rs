@@ -5,7 +5,7 @@
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
 
-use crate::silver::SilverError;
+use crate::datasets::ArrowRowError;
 
 /// A row type of one silver dataset and its Arrow form.
 ///
@@ -21,7 +21,7 @@ pub trait ArrowRow: Sized {
 
     /// The schema version that [`Self::to_batch`] writes.
     ///
-    /// A change of the schema text that [`schema_text`](crate::silver::schema_text()) prints adds 1.
+    /// A change of the schema text that [`schema_text`](crate::datasets::schema_text()) prints adds 1.
     const SCHEMA_VERSION: u16;
 
     /// Returns the schema of a version, or `None` if the dataset has no such version.
@@ -33,9 +33,9 @@ pub trait ArrowRow: Sized {
     ///
     /// # Errors
     ///
-    /// Returns [`SilverError`] if a value has no form in its column, for example a decimal with
+    /// Returns [`ArrowRowError`] if a value has no form in its column, for example a decimal with
     /// more than 38 digits.
-    fn to_batch(rows: &[Self]) -> Result<RecordBatch, SilverError>;
+    fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError>;
 
     /// Reads the rows of a record batch that holds the schema of `version`.
     ///
@@ -44,7 +44,7 @@ pub trait ArrowRow: Sized {
     ///
     /// # Errors
     ///
-    /// Returns [`SilverError`] if the dataset has no schema of `version`, if the fields of the batch
+    /// Returns [`ArrowRowError`] if the dataset has no schema of `version`, if the fields of the batch
     /// differ from that schema, or if a value breaks a rule of its type.
-    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, SilverError>;
+    fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, ArrowRowError>;
 }
