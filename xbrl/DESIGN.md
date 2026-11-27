@@ -788,7 +788,7 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 | Concept | Alias list | Parts | Filers |
 | ------- | ---------- | ----- | ------ |
 | `LiabilitiesAndEquity` | `LiabilitiesAndStockholdersEquity` | | 6,090 |
-| `TemporaryEquity` | `TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests` | `TemporaryEquityCarryingAmountAttributableToParent` (448) and `RedeemableNoncontrollingInterestEquityCarryingAmount` (311). Each blocks the other | 130 |
+| `TemporaryEquity` | `TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests` | `TemporaryEquityCarryingAmountAttributableToParent` (448) and `RedeemableNoncontrollingInterestEquityCarryingAmount` (311). Each blocks the other. Then the three concepts below the second part, and last `RedeemableNoncontrollingInterestEquityOtherFairValue` (counts not measured). These four block nothing, so if two of them appear without the second part, the first counts alone | 130 |
 | `AccountsPayable` | `AccountsPayableCurrent` | | 3,615 |
 | `ShortTermDebt` | `DebtCurrent` | `LongTermDebtAndCapitalLeaseObligationsCurrent` (354) and `ShortTermBorrowings` (756). Each blocks the other | 365 |
 | `EquityAttributableToParent` | `StockholdersEquity` | | 5,810 |

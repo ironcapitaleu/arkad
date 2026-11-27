@@ -5,8 +5,8 @@
 //! a value for the fiscal year of the 10-K. The rules run as in A1 (`acceptance_roll_ups.rs`).
 //!
 //! - General Mills reports no liabilities and equity total for fiscal year 2013. The closed group
-//!   `liabilities-and-equity` derives it, but it leaves out the redeemable interest of 967.5 million
-//!   USD, so A3 reports the balance sheet identity.
+//!   `liabilities-and-equity` derives it with the redeemable interest of 967.5 million USD, which
+//!   the part rule of `TemporaryEquity` resolves.
 //! - APA reports revenue with `ExplorationAndProductionRevenue` in 2013 and with extension concepts
 //!   in 2025. KKR reports no revenue total in 2013.
 //! - The 2013 rows of `JPMorgan Chase`, Simon Property, and `ExxonMobil` carry `Revenues`, and the alias
@@ -120,7 +120,7 @@ fn should_derive_liabilities_and_equity_from_its_closed_group_for_general_mills_
     let expected_result = Some((
         Confidence::Derived,
         "core/roll-up/liabilities-and-equity@1".to_string(),
-        BigDecimal::from(21_690_500_000_i64),
+        BigDecimal::from(22_658_000_000_i64),
     ));
 
     let result = fiscal_year_value(

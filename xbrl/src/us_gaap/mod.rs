@@ -713,6 +713,17 @@ mod tests {
             .collect()
     }
 
+    /// Runs `core/dedup/more-precise@1` and tiers 1 and 2 on `facts`, and returns the value of
+    /// each candidate of [`BalanceSheetConcept::TemporaryEquity`].
+    fn temporary_equity_values(facts: &[AsIsFact], registry: &Registry<'_>) -> Vec<CandidateValue> {
+        resolve_aliases(&more_precise(facts), registry)
+            .candidates
+            .into_iter()
+            .filter(|candidate| candidate.concept == BalanceSheetConcept::TemporaryEquity.element())
+            .map(|candidate| candidate.value)
+            .collect()
+    }
+
     #[test]
     fn should_return_the_11_roll_ups_as_required_concepts_for_us_gaap() {
         let us_gaap = UsGaap::new();
@@ -2665,6 +2676,22 @@ mod tests {
                             "us-gaap",
                             "RedeemableNoncontrollingInterestEquityCarryingAmount",
                         ),
+                        concept(
+                            "us-gaap",
+                            "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "RedeemableNoncontrollingInterestEquityOtherCarryingAmount",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "RedeemableNoncontrollingInterestEquityOtherFairValue",
+                        ),
                     ],
                     other_parts: vec![
                         concept(
@@ -3542,6 +3569,292 @@ mod tests {
         let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_temporary_equity_part_rule_id_when_the_filing_reports_only_the_common_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+            "156000000",
+        )];
+
+        let expected_result = vec![(
+            BalanceSheetConcept::TemporaryEquity.element(),
+            rule("us-gaap/part/temporary-equity@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_temporary_equity_part_rule_id_when_the_filing_reports_only_the_other_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "RedeemableNoncontrollingInterestEquityOtherCarryingAmount",
+            "180000000",
+        )];
+
+        let expected_result = vec![(
+            BalanceSheetConcept::TemporaryEquity.element(),
+            rule("us-gaap/part/temporary-equity@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_temporary_equity_part_rule_id_when_the_filing_reports_only_the_preferred_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+            "50000000",
+        )];
+
+        let expected_result = vec![(
+            BalanceSheetConcept::TemporaryEquity.element(),
+            rule("us-gaap/part/temporary-equity@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_temporary_equity_part_rule_id_when_the_filing_reports_only_the_fair_value_of_the_other_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "RedeemableNoncontrollingInterestEquityOtherFairValue",
+            "967500000",
+        )];
+
+        let expected_result = vec![(
+            BalanceSheetConcept::TemporaryEquity.element(),
+            rule("us-gaap/part/temporary-equity@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_redeemable_noncontrolling_interest_when_the_filing_reports_it_next_to_the_common_part()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCarryingAmount",
+                "311000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+                "156000000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(311_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = temporary_equity_values(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_carrying_amount_when_the_filing_reports_it_next_to_the_fair_value_of_the_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCarryingAmount",
+                "311000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityOtherFairValue",
+                "967500000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(311_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = temporary_equity_values(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_carrying_amount_when_the_filing_reports_it_as_zero_next_to_the_fair_value_of_the_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCarryingAmount",
+                "0",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityOtherFairValue",
+                "967500000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(0),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = temporary_equity_values(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_temporary_equity_when_the_filing_reports_both_parts_of_temporary_equity_next_to_the_fair_value()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "TemporaryEquityCarryingAmountAttributableToParent",
+                "448000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCarryingAmount",
+                "311000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityOtherFairValue",
+                "967500000",
+            ),
+        ];
+
+        let expected_result: Vec<CandidateValue> = Vec::new();
+
+        let result = temporary_equity_values(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    // A known gap: a part after the first two is no other part, so it blocks nothing, and the value
+    // leaves out the redeemable noncontrolling interest.
+    #[test]
+    fn should_give_the_parent_part_alone_when_the_filing_reports_it_next_to_the_fair_value_of_the_redeemable_noncontrolling_interest()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "TemporaryEquityCarryingAmountAttributableToParent",
+                "448000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityOtherFairValue",
+                "967500000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(448_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = temporary_equity_values(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    // A known gap: the parts below the redeemable noncontrolling interest block nothing, so the
+    // first counts alone.
+    #[test]
+    fn should_give_the_common_part_alone_when_the_filing_reports_it_next_to_the_preferred_part() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+                "100000000",
+            ),
+            fact(
+                &filing,
+                "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+                "50000000",
+            ),
+        ];
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(100_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Synonym,
+        }];
+
+        let result = temporary_equity_values(&facts, &registry);
 
         assert_eq!(result, expected_result);
     }
