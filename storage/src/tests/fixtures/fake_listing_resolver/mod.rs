@@ -4,7 +4,7 @@
 //! listing identifier rows.
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::error::ReadError;
 use crate::shared::{ListingId, ListingIdentifier};
@@ -49,7 +49,7 @@ impl ListingResolver for FakeListingResolver {
     async fn resolve(
         &self,
         identifier: &ListingIdentifier,
-        at: NaiveDate,
+        at: Date,
     ) -> Result<Option<ListingId>, ReadError> {
         if let Some(failure) = self.failure.clone() {
             return Err(failure);

@@ -10,7 +10,7 @@
 
 use std::marker::PhantomData;
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use uuid::Uuid;
 
 use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
@@ -211,8 +211,8 @@ impl<D, M, B, R, I, C> DocumentMetadataBuilder<D, M, B, NoProducedAt, R, I, C> {
     #[must_use]
     pub fn produced_at(
         self,
-        produced_at: DateTime<Utc>,
-    ) -> DocumentMetadataBuilder<D, M, B, DateTime<Utc>, R, I, C> {
+        produced_at: Timestamp,
+    ) -> DocumentMetadataBuilder<D, M, B, Timestamp, R, I, C> {
         DocumentMetadataBuilder {
             document_type: self.document_type,
             media_type: self.media_type,
@@ -311,7 +311,7 @@ impl<D, M, B, P, R, I, C> DocumentMetadataBuilder<D, M, B, P, R, I, C> {
 }
 
 impl<D: Document>
-    DocumentMetadataBuilder<D, MediaType, Content, DateTime<Utc>, Run, IngestionMode, D::Context>
+    DocumentMetadataBuilder<D, MediaType, Content, Timestamp, Run, IngestionMode, D::Context>
 {
     /// Builds a [`DocumentMetadata`] with the fields this builder holds.
     ///
@@ -324,7 +324,7 @@ impl<D: Document>
     /// A builder without a document type has no `build` method, so this does not compile:
     ///
     /// ```compile_fail,E0599
-    /// use chrono::{DateTime, Utc};
+    /// use jiff::Timestamp;
     /// use storage::implementations::repository::filesystem::{
     ///     DocumentMetadata, IngestionMode, MediaType, Producer,
     /// };
@@ -334,7 +334,7 @@ impl<D: Document>
     /// let metadata = DocumentMetadata::builder()
     ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
-    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .produced_at(Timestamp::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(())
@@ -346,7 +346,7 @@ impl<D: Document>
     /// ```compile_fail,E0599
     /// # use std::fmt;
     /// #
-    /// # use chrono::{DateTime, Utc};
+    /// # use jiff::Timestamp;
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
     /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
@@ -397,7 +397,7 @@ impl<D: Document>
     ///     .document_type::<Summary>()
     ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
-    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .produced_at(Timestamp::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(())
@@ -409,7 +409,7 @@ impl<D: Document>
     /// ```compile_fail,E0599
     /// # use std::fmt;
     /// #
-    /// # use chrono::{DateTime, Utc};
+    /// # use jiff::Timestamp;
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
     /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
@@ -460,7 +460,7 @@ impl<D: Document>
     ///     .document_type::<Summary>()
     ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
-    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .produced_at(Timestamp::UNIX_EPOCH)
     ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
@@ -471,7 +471,7 @@ impl<D: Document>
     /// ```compile_fail,E0599
     /// # use std::fmt;
     /// #
-    /// # use chrono::{DateTime, Utc};
+    /// # use jiff::Timestamp;
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
     /// #     Document, DocumentKey, DocumentMetadata, MediaType, Producer,
@@ -522,7 +522,7 @@ impl<D: Document>
     ///     .document_type::<Summary>()
     ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
-    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .produced_at(Timestamp::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .context(SummaryContext { source: "a test".to_owned() })
     ///     .build();
@@ -558,9 +558,9 @@ mod tests {
         SampleContext, SampleDocument, sample_media_type, sample_metadata,
     };
 
-    fn produced_at() -> DateTime<Utc> {
+    fn produced_at() -> Timestamp {
         "2026-09-22T20:05:30Z"
-            .parse::<DateTime<Utc>>()
+            .parse::<Timestamp>()
             .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed")
     }
 

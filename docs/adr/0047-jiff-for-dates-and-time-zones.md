@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27). Amendment 1: accepted by the project owner on 2026-11-27 ([STA-593 comment `2b084ffa`](https://linear.app/state-machine/issue/STA-593#comment-2b084ffa), accessed 2026-11-27) |
 | Date | 2026-11-24 |
 | Deciders | The project owner |
 | Ticket | [STA-591](https://linear.app/state-machine/issue/STA-591), accessed 2026-11-27. First slice [STA-592](https://linear.app/state-machine/issue/STA-592), accessed 2026-11-27 |
@@ -49,6 +49,47 @@ and `jiff` both stay in the tree until the last slice merges.
 
 The features of the first slice are `std` and `static`. A later slice adds `serde` when it moves a
 serialized type.
+
+## Amendment 1: Stored Strings Can Change Before Version 1
+
+Date: 2026-11-27. Status: Accepted by the project owner on 2026-11-27.
+Ticket: [STA-593](https://linear.app/state-machine/issue/STA-593), accessed 2026-11-27.
+
+### Reason
+
+Decision 4 keeps every stored string byte for byte. Arkad is before version 1 and has no production
+data, so no stored file needs that guarantee.
+
+The guarantee has a cost. `chrono` writes the fraction of a second with 0, 3, 6, or 9 digits
+(`SecondsFormat::AutoSi`, `chrono` 0.4.45, `src/datetime/serde.rs`). `jiff` 1.0.3 writes the fewest
+digits: on 2026-11-27 it wrote `2026-09-22T20:05:30.5Z` where `chrono` writes
+`2026-09-22T20:05:30.500Z`. To keep the `chrono` form, each crate that stores a timestamp needs its
+own serde functions.
+
+Both forms are valid RFC 3339, which allows any number of fraction digits. A parser reads both as the
+same instant.
+
+### Decision
+
+1. **Decision 4 does not apply.** A slice may change a stored date or timestamp string. It needs no
+   round-trip test against a string that `chrono` wrote, and no migration.
+2. **A stored `jiff` value uses the serde form of `jiff`.** A crate that stores one builds `jiff`
+   with the feature `serde`.
+
+Options considered:
+
+| Option | Stored strings | Cost |
+| ------ | -------------- | ---- |
+| **A (chosen)**: plain `jiff` serde | `.500Z` becomes `.5Z`, `.123400Z` becomes `.1234Z` | None |
+| B: own serde functions that write the `chrono` form | Same bytes | About 170 lines with tests in each crate that stores a timestamp |
+
+### Consequences
+
+- A file written before the move and a file written after it can differ in their fraction digits
+  for the same instant. Code reads both.
+- Stored timestamps have no fixed width, so a text sort does not follow time order. No code in the
+  repository sorts them as text on 2026-11-27.
+- The amendment holds until version 1. A format change after version 1 needs a new ADR.
 
 ## Options Considered
 

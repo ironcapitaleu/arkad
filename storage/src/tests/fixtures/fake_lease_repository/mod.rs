@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 use crate::error::LeaseError;
 use crate::shared::{JobKind, Lease, LeaseGeneration};
@@ -27,14 +27,14 @@ impl LeaseRepository for FakeLeaseRepository {
         &self,
         kind: &JobKind,
         plan_id: &str,
-        expires_at: DateTime<Utc>,
+        expires_at: Timestamp,
     ) -> Result<LeaseGeneration, LeaseError> {
         let mut leases = self
             .leases
             .lock()
             .expect("Given no test panics while it holds the lock, the lock should never poison");
         let generation = match leases.get(kind) {
-            Some((lease, _)) if lease.expires_at > Utc::now() => {
+            Some((lease, _)) if lease.expires_at > Timestamp::now() => {
                 return Err(LeaseError::LeaseHeld {
                     kind: kind.clone(),
                     lease: lease.clone(),

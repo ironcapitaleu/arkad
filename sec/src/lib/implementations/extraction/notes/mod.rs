@@ -359,7 +359,8 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use chrono::{DateTime, NaiveDate, Utc};
+    use chrono::NaiveDate;
+    use jiff::Timestamp;
     use pretty_assertions::assert_eq;
     use serde_json::{Value, json};
     use storage::implementations::repository::filesystem::DocumentKey;
@@ -432,7 +433,7 @@ mod tests {
         let key = DocumentKey::new(STORED_KEY)
             .expect("Given a valid relative path, the key should always build");
         let run_fields = RunFields {
-            produced_at: DateTime::<Utc>::UNIX_EPOCH,
+            produced_at: Timestamp::UNIX_EPOCH,
             execution_id: Uuid::nil(),
             producer: producer("Store Notes Archive"),
             ingestion_mode: IngestionMode::Backfill,

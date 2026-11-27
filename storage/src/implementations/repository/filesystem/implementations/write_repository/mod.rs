@@ -9,7 +9,7 @@ use std::process;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::Deserialize;
 use serde_json::Value;
 use tokio::fs::{self, File, OpenOptions};
@@ -180,7 +180,7 @@ struct StoredRun {
         dead_code,
         reason = "parsed only to check that the stored value is valid"
     )]
-    produced_at: DateTime<Utc>,
+    produced_at: Timestamp,
     #[expect(
         dead_code,
         reason = "parsed only to check that the stored value is valid"

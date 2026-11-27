@@ -12,7 +12,7 @@
 //! - [`media_type`]: The [`MediaType`] of the document bytes.
 //! - [`producer`]: The [`Producer`] naming the code that wrote a document.
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -59,7 +59,7 @@ pub struct DocumentMetadata<C> {
     #[serde(rename = "bytes")]
     size_in_bytes: u64,
     sha256: Sha256Digest,
-    produced_at: DateTime<Utc>,
+    produced_at: Timestamp,
     execution_id: Uuid,
     ingestion_mode: IngestionMode,
     producer: Producer,
@@ -78,7 +78,7 @@ impl DocumentMetadata<NoContext> {
     /// ```rust
     /// # use std::fmt;
     /// #
-    /// # use chrono::{DateTime, Utc};
+    /// # use jiff::Timestamp;
     /// # use serde::{Deserialize, Serialize};
     /// # use storage::implementations::repository::filesystem::{
     /// #     Document, DocumentKey, DocumentMetadata, IngestionMode, MediaType, Producer,
@@ -129,7 +129,7 @@ impl DocumentMetadata<NoContext> {
     ///     .document_type::<Summary>()
     ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
     ///     .content(bytes)
-    ///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+    ///     .produced_at(Timestamp::UNIX_EPOCH)
     ///     .run(Uuid::nil(), Producer::new("Summarize", "0.1.0", "63c1f59"))
     ///     .ingestion_mode(IngestionMode::Backfill)
     ///     .context(SummaryContext { source: "a test".to_owned() })
@@ -194,7 +194,7 @@ impl<C> DocumentMetadata<C> {
 
     /// Returns when the producing state made the document bytes.
     #[must_use]
-    pub const fn produced_at(&self) -> DateTime<Utc> {
+    pub const fn produced_at(&self) -> Timestamp {
         self.produced_at
     }
 
@@ -244,7 +244,6 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use chrono::NaiveDate;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -426,10 +425,10 @@ mod tests {
     }
 
     #[test]
-    fn should_pad_the_fraction_to_whole_microseconds_when_the_produced_at_has_trailing_zeros() {
-        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.1234Z");
+    fn should_write_the_fewest_fraction_digits_when_the_produced_at_has_trailing_zeros() {
+        let metadata = sample_metadata_of(b"{}", "2026-09-22T20:05:30.123400Z");
 
-        let expected_result = serde_json::json!("2026-09-22T20:05:30.123400Z");
+        let expected_result = serde_json::json!("2026-09-22T20:05:30.1234Z");
 
         let result = serde_json::to_value(metadata)
             .expect("Given metadata of owned fields, serialization should always succeed")
@@ -445,10 +444,24 @@ mod tests {
             .expect("Given metadata of owned fields, serialization should always succeed");
         stored["produced_at"] = "2026-09-22T20:05:30.123456789Z".into();
 
-        let expected_result = NaiveDate::from_ymd_opt(2026, 9, 22)
-            .and_then(|date| date.and_hms_nano_opt(20, 5, 30, 123_456_789))
-            .expect("Given a hardcoded valid date and time, creating it should always succeed")
-            .and_utc();
+        let expected_result = Timestamp::new(1_790_107_530, 123_456_789)
+            .expect("Given a hardcoded timestamp in range, the time should always build");
+
+        let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
+            .expect("Given stored metadata with every field, deserialization should always succeed")
+            .produced_at();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_instant_when_the_stored_produced_at_has_padded_milliseconds() {
+        let mut stored = serde_json::to_value(sample_metadata())
+            .expect("Given metadata of owned fields, serialization should always succeed");
+        stored["produced_at"] = "2026-09-22T20:05:30.500Z".into();
+
+        let expected_result = Timestamp::new(1_790_107_530, 500_000_000)
+            .expect("Given a hardcoded timestamp in range, the time should always build");
 
         let result = serde_json::from_value::<DocumentMetadata<SampleContext>>(stored)
             .expect("Given stored metadata with every field, deserialization should always succeed")

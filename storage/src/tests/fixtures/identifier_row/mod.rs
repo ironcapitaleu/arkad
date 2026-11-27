@@ -3,7 +3,7 @@
 //! Provides [`IdentifierRow`], one dated identifier row of any level of identity. The fake
 //! resolvers hold such rows.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 /// One dated identifier row: the identifier names the subject with the key `key` from
 /// `valid_from` to `valid_to`.
@@ -14,8 +14,8 @@ use chrono::NaiveDate;
 pub struct IdentifierRow<I, K> {
     identifier: I,
     key: K,
-    valid_from: Option<NaiveDate>,
-    valid_to: Option<NaiveDate>,
+    valid_from: Option<Date>,
+    valid_to: Option<Date>,
 }
 
 impl<I: PartialEq, K: Copy> IdentifierRow<I, K> {
@@ -24,8 +24,8 @@ impl<I: PartialEq, K: Copy> IdentifierRow<I, K> {
     pub const fn new(
         identifier: I,
         key: K,
-        valid_from: Option<NaiveDate>,
-        valid_to: Option<NaiveDate>,
+        valid_from: Option<Date>,
+        valid_to: Option<Date>,
     ) -> Self {
         Self {
             identifier,
@@ -43,7 +43,7 @@ impl<I: PartialEq, K: Copy> IdentifierRow<I, K> {
     /// Returns whether the row names the identifier on the date, with `valid_to` as its last day.
     ///
     /// The CIK range table of the SEC adapter covers both ends.
-    pub fn covers_through_valid_to(&self, identifier: &I, at: NaiveDate) -> bool {
+    pub fn covers_through_valid_to(&self, identifier: &I, at: Date) -> bool {
         self.starts_by(identifier, at) && self.valid_to.is_none_or(|to| at <= to)
     }
 
@@ -52,25 +52,21 @@ impl<I: PartialEq, K: Copy> IdentifierRow<I, K> {
     ///
     /// The identifier rows of the metadata store cover their first day and end before `valid_to`:
     /// the day the next record starts, or the end that an end rule sets.
-    pub fn covers_before_valid_to(&self, identifier: &I, at: NaiveDate) -> bool {
+    pub fn covers_before_valid_to(&self, identifier: &I, at: Date) -> bool {
         self.starts_by(identifier, at) && self.valid_to.is_none_or(|to| at < to)
     }
 
-    fn starts_by(&self, identifier: &I, at: NaiveDate) -> bool {
+    fn starts_by(&self, identifier: &I, at: Date) -> bool {
         self.identifier == *identifier && self.valid_from.is_none_or(|from| from <= at)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the creation of a date should always succeed")
-    }
 
     fn row_of_2020() -> IdentifierRow<&'static str, u8> {
         IdentifierRow::new(

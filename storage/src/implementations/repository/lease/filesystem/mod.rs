@@ -6,7 +6,7 @@
 //! ## Usage
 //!
 //! ```rust
-//! use chrono::{TimeDelta, Utc};
+//! use jiff::{SignedDuration, Timestamp};
 //! use storage::implementations::repository::lease::filesystem::FilesystemLeaseRepository;
 //! use storage::{JobKind, LeaseGeneration, LeaseRepository};
 //!
@@ -16,7 +16,7 @@
 //! let repository = FilesystemLeaseRepository::new(root.path());
 //! let kind = JobKind::new("transform-notes")
 //!     .expect("Given a valid hardcoded job kind, the creation should always succeed");
-//! let expires_at = Utc::now() + TimeDelta::hours(16);
+//! let expires_at = Timestamp::now() + SignedDuration::from_hours(16);
 //!
 //! let expected_result = LeaseGeneration(1);
 //!
@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use tokio::fs;
 use tokio::io::AsyncWriteExt;
 
@@ -170,7 +170,7 @@ impl LeaseRepository for FilesystemLeaseRepository {
         &self,
         kind: &JobKind,
         plan_id: &str,
-        expires_at: DateTime<Utc>,
+        expires_at: Timestamp,
     ) -> Result<LeaseGeneration, LeaseError> {
         let lease = Lease {
             plan_id: plan_id.to_owned(),
@@ -178,7 +178,7 @@ impl LeaseRepository for FilesystemLeaseRepository {
         };
         loop {
             let generation = match self.read_current(kind).await.map_err(backend_error)? {
-                Some((held, _)) if held.expires_at > Utc::now() => {
+                Some((held, _)) if held.expires_at > Timestamp::now() => {
                     return Err(LeaseError::LeaseHeld {
                         kind: kind.clone(),
                         lease: held,
@@ -278,7 +278,7 @@ fn backend_error(error: FailedFilesystemOperation) -> LeaseError {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeDelta;
+    use jiff::SignedDuration;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
 
@@ -295,14 +295,14 @@ mod tests {
             .expect("Given a valid hardcoded job kind, the creation should always succeed")
     }
 
-    fn in_hours(hours: i64) -> DateTime<Utc> {
-        Utc::now() + TimeDelta::hours(hours)
+    fn in_hours(hours: i64) -> Timestamp {
+        Timestamp::now() + SignedDuration::from_hours(hours)
     }
 
     async fn acquired(
         repository: &FilesystemLeaseRepository,
         plan_id: &str,
-        expires_at: DateTime<Utc>,
+        expires_at: Timestamp,
     ) {
         repository
             .acquire(&transform_notes(), plan_id, expires_at)

@@ -5,7 +5,7 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 /// The record that names the one run of a job kind that can write: its plan, and the time the
@@ -18,7 +18,7 @@ pub struct Lease {
     /// The ID of the plan that holds the lease.
     pub plan_id: String,
     /// The time the lease expires.
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
 }
 
 /// The number a [`LeaseRepository`](crate::LeaseRepository) gives each lease it writes for a job

@@ -17,7 +17,7 @@ pub enum LeaseError {
     #[error(
         "[LeaseHeld] Lease of job kind '{kind}' is held by plan '{}' until '{}'",
         .lease.plan_id,
-        .lease.expires_at.to_rfc3339()
+        .lease.expires_at
     )]
     LeaseHeld {
         /// The job kind of the lease.
@@ -58,7 +58,7 @@ impl TryFrom<LeaseError> for BackendError {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, Utc};
+    use jiff::Timestamp;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -76,12 +76,31 @@ mod tests {
                 .expect("Given a valid hardcoded job kind, the creation should always succeed"),
             lease: Lease {
                 plan_id: "2026-11-21T180000.000Z".to_owned(),
-                expires_at: DateTime::<Utc>::from_timestamp(1_795_341_600, 0)
+                expires_at: Timestamp::from_second(1_795_341_600)
                     .expect("Given a hardcoded timestamp in range, the time should always build"),
             },
         };
 
-        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan '2026-11-21T180000.000Z' until '2026-11-22T10:00:00+00:00'";
+        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan '2026-11-21T180000.000Z' until '2026-11-22T10:00:00Z'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_the_fraction_of_the_expiry_when_the_expiry_has_a_fraction() {
+        let error = LeaseError::LeaseHeld {
+            kind: JobKind::new("transform-notes")
+                .expect("Given a valid hardcoded job kind, the creation should always succeed"),
+            lease: Lease {
+                plan_id: "plan-a".to_owned(),
+                expires_at: Timestamp::new(1_795_341_600, 500_000_000)
+                    .expect("Given a hardcoded timestamp in range, the time should always build"),
+            },
+        };
+
+        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan 'plan-a' until '2026-11-22T10:00:00.5Z'";
 
         let result = error.to_string();
 
@@ -107,7 +126,7 @@ mod tests {
                 .expect("Given a valid hardcoded job kind, the creation should always succeed"),
             lease: Lease {
                 plan_id: "2026-11-21T180000.000Z".to_owned(),
-                expires_at: DateTime::<Utc>::UNIX_EPOCH,
+                expires_at: Timestamp::UNIX_EPOCH,
             },
         };
 

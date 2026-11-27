@@ -6,7 +6,7 @@
 use std::fmt;
 
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -107,7 +107,7 @@ pub fn sample_metadata() -> DocumentMetadata<SampleContext> {
 #[must_use]
 pub fn sample_metadata_of(bytes: &[u8], produced_at: &str) -> DocumentMetadata<SampleContext> {
     let produced_at = produced_at
-        .parse::<DateTime<Utc>>()
+        .parse::<Timestamp>()
         .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
     let input_key = DocumentKey::new("sec/companyfacts/CIK0000320193.json")
         .expect("Given a valid relative path, the key should always build");
