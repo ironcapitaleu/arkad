@@ -11,11 +11,11 @@
 //! use storage::{JobKind, LeaseError, LeaseRepository};
 //!
 //! async fn holds_the_lease<S: LeaseRepository>(
-//!     store: &S,
+//!     repository: &S,
 //!     kind: &JobKind,
 //!     plan_id: &str,
 //! ) -> Result<bool, LeaseError> {
-//!     let current = store.current(kind).await?;
+//!     let current = repository.current(kind).await?;
 //!     Ok(current.is_some_and(|(lease, _generation)| lease.plan_id == plan_id))
 //! }
 //! ```
@@ -84,10 +84,10 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_lease_held_from_the_fake_when_the_lease_has_not_expired() {
-        let store = FakeLeaseRepository::default();
+        let repository = FakeLeaseRepository::default();
         let kind = transform_notes();
         let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
-        store
+        repository
             .acquire(&kind, "plan-a", expires_at)
             .await
             .expect("Given a job kind without a lease, the acquire should always succeed");
@@ -101,16 +101,16 @@ mod tests {
             },
         });
 
-        let result = store.acquire(&kind, plan_id, expires_at).await;
+        let result = repository.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_the_next_generation_from_the_fake_when_the_lease_expired() {
-        let store = FakeLeaseRepository::default();
+        let repository = FakeLeaseRepository::default();
         let kind = transform_notes();
-        store
+        repository
             .acquire(&kind, "plan-a", DateTime::<Utc>::UNIX_EPOCH)
             .await
             .expect("Given a job kind without a lease, the acquire should always succeed");
@@ -119,17 +119,17 @@ mod tests {
 
         let expected_result = Ok(LeaseGeneration(2));
 
-        let result = store.acquire(&kind, plan_id, expires_at).await;
+        let result = repository.acquire(&kind, plan_id, expires_at).await;
 
         assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
     async fn should_return_the_lease_when_reading_through_a_trait_object() {
-        let store: Box<dyn LeaseRepository> = Box::new(FakeLeaseRepository::default());
+        let repository: Box<dyn LeaseRepository> = Box::new(FakeLeaseRepository::default());
         let kind = transform_notes();
         let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
-        store
+        repository
             .acquire(&kind, "plan-a", expires_at)
             .await
             .expect("Given a job kind without a lease, the acquire should always succeed");
@@ -142,7 +142,7 @@ mod tests {
             LeaseGeneration(1),
         ));
 
-        let result = store
+        let result = repository
             .current(&kind)
             .await
             .expect("Given the fake, the read should always succeed");

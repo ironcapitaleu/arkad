@@ -1,6 +1,7 @@
 //! # Repository
 //!
-//! Provides the traits through which code reads and writes records, and lists documents.
+//! Provides the traits through which code reads and writes records, lists documents, and takes
+//! the lease of a job kind.
 //!
 //! [`ReadRepository`] gives a caller [`get`](ReadRepository::get) and nothing else.
 //! [`WriteRepository`] gives it [`persist`](WriteRepository::persist) and nothing else. A caller
