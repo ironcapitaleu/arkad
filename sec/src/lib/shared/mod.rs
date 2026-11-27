@@ -26,8 +26,10 @@
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
+//! - [`row_digest`]: Provides [`content_digest`](row_digest::content_digest), the SHA-256 of the rows of a silver unit, and [`ByteForm`](row_digest::ByteForm), the byte form of the values it hashes.
 //! - [`run_fields`]: Provides [`RunFields`](run_fields::RunFields), the metadata fields that name the run that produced a stored document.
 //! - [`stored_form_index`]: Provides [`StoredFormIndex`](stored_form_index::StoredFormIndex), the key, the SHA-256, and the text of one stored daily index or full index.
+//! - [`transform_version`]: Provides [`TRANSFORM_VERSION`](transform_version::TRANSFORM_VERSION), the version of the silver output that this build writes.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
 //!
 //! ## Usage
@@ -62,8 +64,10 @@ pub mod raw_repository;
 pub mod raw_source;
 pub mod request;
 pub mod response;
+pub mod row_digest;
 pub mod run_fields;
 pub mod status_code;
 pub mod stored_form_index;
+pub mod transform_version;
 pub mod url;
 pub mod user_agent;

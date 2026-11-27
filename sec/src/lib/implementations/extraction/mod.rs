@@ -641,7 +641,7 @@ mod tests {
         let filing = filing_ref();
 
         let expected_result = ExtractFilingSuperState::builder()
-            .filing_ref(filing.clone())
+            .filing_ref(filing_ref())
             .sec_client(SecClient::default())
             .execution_id(Uuid::from_u128(7))
             .ingestion_mode(IngestionMode::Incremental)

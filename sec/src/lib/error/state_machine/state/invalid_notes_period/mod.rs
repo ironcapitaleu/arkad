@@ -50,9 +50,10 @@ impl InvalidNotesPeriod {
     ///
     /// let notes_period_error =
     ///     NotesPeriodError::new(InvalidNotesPeriodReason::InvalidNotesPeriodFormat, "2025q5");
-    /// let state_error = InvalidNotesPeriod::new("Validate Notes Period", notes_period_error.clone());
+    /// let state_error = InvalidNotesPeriod::new("Validate Notes Period", notes_period_error);
     ///
-    /// let expected_result = notes_period_error;
+    /// let expected_result =
+    ///     NotesPeriodError::new(InvalidNotesPeriodReason::InvalidNotesPeriodFormat, "2025q5");
     ///
     /// let result = state_error.notes_period_error;
     ///
@@ -99,7 +100,13 @@ mod tests {
         let invalid_notes_period =
             InvalidNotesPeriod::from_domain_error("TestState", sample_notes_period_error());
 
-        let expected_result = StateError::InvalidNotesPeriod(invalid_notes_period.clone());
+        let expected_result = StateError::InvalidNotesPeriod(InvalidNotesPeriod {
+            state_name: "TestState".to_owned(),
+            notes_period_error: NotesPeriodError {
+                reason: InvalidNotesPeriodReason::InvalidNotesPeriodFormat,
+                invalid_period: "2024".to_owned(),
+            },
+        });
 
         let result: StateError = invalid_notes_period.into();
 

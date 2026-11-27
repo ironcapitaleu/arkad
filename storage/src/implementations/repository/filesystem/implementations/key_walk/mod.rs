@@ -1,7 +1,7 @@
 //! # Key Walk
 //!
 //! Provides the sorted walk over the directories under a [`KeyPrefix`], which yields each key that
-//! has a metadata file.
+//! the [`KeyFiles`] rule finds.
 
 use std::collections::HashSet;
 use std::io;
@@ -24,57 +24,78 @@ use crate::implementations::repository::filesystem::shared::document_key::{
 use crate::implementations::repository::filesystem::shared::key_prefix::KeyPrefix;
 use crate::implementations::repository::filesystem::{FilesystemRepository, check_root};
 
-/// One key the walk found: a metadata file, and whether the document file is beside it.
+/// One key the walk found, and whether its document file exists.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalkedKey {
-    /// The key the metadata file belongs to.
+    /// The key the walk found.
     pub key: DocumentKey,
-    /// Whether a document file sits beside the metadata file.
+    /// Whether the document file of the key exists.
     pub has_document: bool,
+}
+
+/// The rule that turns the files of a directory into keys.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KeyFiles {
+    /// A key comes from a file whose name ends in [`METADATA_SUFFIX`]. The walk skips a document
+    /// without metadata and a hidden `.tmp` file of a write.
+    MetadataFiles,
+    /// Each regular file is a key. The file is also the document of the key.
+    EveryFile,
 }
 
 impl<A, D> FilesystemRepository<A, D> {
     /// Walks the directories under the prefix and yields each key that has a metadata file.
     ///
-    /// The walk goes depth first and reads one directory at a time. It sorts the names of each
-    /// directory by their UTF-8 bytes, and compares a directory name as the name plus `/`. So the
-    /// keys come out sorted by the bytes of the key text, each key once. The walk reads no file.
-    ///
-    /// A key comes from a file whose name ends in [`METADATA_SUFFIX`]. So the walk skips a document
-    /// without metadata and a hidden `.tmp` file of a write. It skips a symbolic link under the
-    /// prefix, a name that disappears while the walk reads its directory, and a name that no
-    /// [`DocumentKey`] can hold, such as a name that is not valid UTF-8. The walk follows a
-    /// symbolic link in the path of the prefix itself.
-    ///
-    /// If the prefix carries a cursor, the walk yields only the keys that sort after it. Below the
-    /// prefix, it does not read a directory whose keys all sort before the cursor.
-    ///
-    /// # Errors
-    ///
-    /// Yields a [`ReadError::Backend`] item that holds a [`FailedFilesystemOperation`] if:
-    /// - the root does not exist or is not a directory. The stream ends after this item.
-    /// - the filesystem cannot list the directory the prefix names, or inspect a name in it. The
-    ///   stream ends after this item.
-    /// - the filesystem cannot list a directory below it, or inspect a name in it. The walk skips
-    ///   that directory and continues with the next name of its parent.
-    ///
-    /// A prefix that names no directory under an existing root yields no item.
+    /// It is [`walk_keys`] with [`KeyFiles::MetadataFiles`].
     pub(crate) fn walk_keys(
         &self,
         prefix: &KeyPrefix,
     ) -> BoxStream<'static, Result<WalkedKey, ReadError>> {
-        let walk = KeyWalk {
-            root: self.root().to_path_buf(),
-            prefix: prefix.as_path().to_path_buf(),
-            start_after: prefix.start_after().map(|key| key_text(key.as_path())),
-            open_directories: Vec::new(),
-            started: false,
-        };
-        Box::pin(Unfold {
-            step: |walk: KeyWalk| Box::pin(walk.next()),
-            pending: Some(Box::pin(walk.next())),
-        })
+        walk_keys(self.root(), prefix, KeyFiles::MetadataFiles)
     }
+}
+
+/// Walks the directories under the prefix and yields each key that the rule finds.
+///
+/// The walk goes depth first and reads one directory at a time. It sorts the names of each
+/// directory by their UTF-8 bytes, and compares a directory name as the name plus `/`. So the
+/// keys come out sorted by the bytes of the key text, each key once. The walk reads no file.
+///
+/// The [`KeyFiles`] rule says which files are keys. The walk skips a symbolic link under the
+/// prefix, a name that disappears while the walk reads its directory, and a name that no
+/// [`DocumentKey`] can hold, such as a name that is not valid UTF-8. The walk follows a
+/// symbolic link in the path of the prefix itself.
+///
+/// If the prefix carries a cursor, the walk yields only the keys that sort after it. Below the
+/// prefix, it does not read a directory whose keys all sort before the cursor.
+///
+/// # Errors
+///
+/// Yields a [`ReadError::Backend`] item that holds a [`FailedFilesystemOperation`] if:
+/// - the root does not exist or is not a directory. The stream ends after this item.
+/// - the filesystem cannot list the directory the prefix names, or inspect a name in it. The
+///   stream ends after this item.
+/// - the filesystem cannot list a directory below it, or inspect a name in it. The walk skips
+///   that directory and continues with the next name of its parent.
+///
+/// A prefix that names no directory under an existing root yields no item.
+pub fn walk_keys(
+    root: &Path,
+    prefix: &KeyPrefix,
+    key_files: KeyFiles,
+) -> BoxStream<'static, Result<WalkedKey, ReadError>> {
+    let walk = KeyWalk {
+        root: root.to_path_buf(),
+        prefix: prefix.as_path().to_path_buf(),
+        start_after: prefix.start_after().map(|key| key_text(key.as_path())),
+        key_files,
+        open_directories: Vec::new(),
+        started: false,
+    };
+    Box::pin(Unfold {
+        step: |walk: KeyWalk| Box::pin(walk.next()),
+        pending: Some(Box::pin(walk.next())),
+    })
 }
 
 /// The state of one walk: the directories on the path to the current one, each with the names it
@@ -84,6 +105,7 @@ struct KeyWalk {
     prefix: PathBuf,
     /// The text of the cursor key, until the walk passes it.
     start_after: Option<String>,
+    key_files: KeyFiles,
     open_directories: Vec<OpenDirectory>,
     started: bool,
 }
@@ -175,7 +197,7 @@ impl KeyWalk {
 
     /// Reads and sorts the names of a directory, and puts it on top of the open directories.
     async fn open(&mut self, relative_path: PathBuf) -> Result<(), FailedFilesystemOperation> {
-        let names = read_sorted_names(self.root.join(&relative_path)).await?;
+        let names = read_sorted_names(self.root.join(&relative_path), self.key_files).await?;
         self.open_directories.push(OpenDirectory {
             key_text: key_text(&relative_path),
             relative_path,
@@ -222,7 +244,7 @@ fn cursor_position(cursor: &str, name: &Name, directory_text: &str) -> CursorPos
 }
 
 /// Returns the text of a relative path as a key writes it, with `/` between its components.
-fn key_text(path: &Path) -> String {
+pub fn key_text(path: &Path) -> String {
     path.components()
         .map(|component| component.as_os_str().to_string_lossy())
         .collect::<Vec<_>>()
@@ -242,7 +264,10 @@ const fn names_no_directory(error: &FailedFilesystemOperation) -> bool {
 }
 
 /// Reads the names of a directory and returns its subdirectories and keys, sorted.
-async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesystemOperation> {
+async fn read_sorted_names(
+    directory: PathBuf,
+    key_files: KeyFiles,
+) -> Result<Vec<Name>, FailedFilesystemOperation> {
     let list_error = |error: io::Error| {
         FailedFilesystemOperation::from_io(FilesystemOperation::ListDirectory, &directory, &error)
     };
@@ -275,17 +300,26 @@ async fn read_sorted_names(directory: PathBuf) -> Result<Vec<Name>, FailedFilesy
             files.insert(name);
         }
     }
-    Ok(sorted_names(directories, &files))
+    Ok(sorted_names(directories, &files, key_files))
 }
 
 /// Names that refer to a directory, not to a document: the current directory and its parent. No
 /// key can hold them.
 const DIRECTORY_REFERENCES: [&str; 2] = [".", ".."];
 
-/// Pairs each metadata file with its document file, and sorts the keys with the subdirectories.
-fn sorted_names(directories: Vec<String>, files: &HashSet<String>) -> Vec<Name> {
+/// Turns the files into keys by the rule, and sorts the keys with the subdirectories.
+///
+/// [`KeyFiles::MetadataFiles`] pairs each metadata file with its document file.
+fn sorted_names(
+    directories: Vec<String>,
+    files: &HashSet<String>,
+    key_files: KeyFiles,
+) -> Vec<Name> {
     let keys = files.iter().filter_map(|file| {
-        let name = file.strip_suffix(METADATA_SUFFIX)?;
+        let name = match key_files {
+            KeyFiles::MetadataFiles => file.strip_suffix(METADATA_SUFFIX)?,
+            KeyFiles::EveryFile => file,
+        };
         let holds_a_key = !name.is_empty() && !DIRECTORY_REFERENCES.contains(&name);
         holds_a_key.then(|| Name::Key {
             name: name.to_owned(),
@@ -390,6 +424,22 @@ mod tests {
             DocumentKey::new(path)
                 .expect("Given a valid hardcoded relative path, the key should always build"),
         )
+    }
+
+    #[tokio::test]
+    async fn should_yield_each_file_as_a_key_when_the_rule_is_every_file() {
+        let root = temporary_root();
+        create_files(root.path(), &["sec/a.parquet", "sec/b/c.parquet"]);
+        let prefix = KeyPrefix::root();
+
+        let expected_result = vec![
+            Ok(walked("sec/a.parquet", true)),
+            Ok(walked("sec/b/c.parquet", true)),
+        ];
+
+        let result = collect(walk_keys(root.path(), &prefix, KeyFiles::EveryFile)).await;
+
+        assert_eq!(result, expected_result);
     }
 
     #[tokio::test]
@@ -664,7 +714,7 @@ mod tests {
 
         let expected_result: Vec<Name> = vec![];
 
-        let result = sorted_names(vec![], &files);
+        let result = sorted_names(vec![], &files, KeyFiles::MetadataFiles);
 
         assert_eq!(result, expected_result);
     }

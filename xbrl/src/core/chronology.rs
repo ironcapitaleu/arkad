@@ -484,7 +484,7 @@ mod tests {
     use crate::core::finding::PeriodSignal;
     use crate::core::standardized::StandardizedFact;
     use crate::tests::fixtures::sample_fact::{
-        date, fact, filing, in_cloud_segment, source, standardized,
+        apple, date, fact, filing, in_cloud_segment, source, standardized,
     };
 
     /// Returns a value of `quarters` quarters to `end`. It starts `quarters` times 91.3125 days
@@ -925,7 +925,7 @@ mod tests {
                 key: restated.series_key(),
             },
             Finding::SuspiciousPeriod {
-                entity: suspicious.entity.clone(),
+                entity: apple(),
                 key: suspicious.inputs[0].clone(),
                 standard_concept: IncomeStatementConcept::Revenue.element(),
                 signals: vec![PeriodSignal::StartBeforeEarliestYear],

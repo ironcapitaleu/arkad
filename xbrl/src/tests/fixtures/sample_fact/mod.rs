@@ -5,12 +5,12 @@
 //!
 //! ## Modules
 //!
-//! - [`builders`]: The helpers that build a filing source, an as-is fact, a candidate, a
+//! - [`builders`]: The helpers that build a filing source, an entity ID, an as-is fact, a candidate, a
 //!   standardized fact, a value of the `Cloud` segment, and a filing.
 
 pub mod builders;
 
 pub use builders::{
-    candidate, date, fact, filing, in_cloud_segment, revenue_aliases, source, standardized,
+    apple, candidate, date, fact, filing, in_cloud_segment, revenue_aliases, source, standardized,
     us_gaap_plugin,
 };

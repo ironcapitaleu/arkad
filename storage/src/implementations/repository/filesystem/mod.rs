@@ -408,7 +408,7 @@ impl<A: Access, D> FilesystemRepository<A, D> {
 ///   in its path.
 /// - [`FailedFilesystemOperationReason::RootIsNotADirectory`] if the root is a file.
 /// - [`FailedFilesystemOperationReason::FailedIo`] if the filesystem cannot inspect the root.
-async fn check_root(root: &Path) -> Result<(), FailedFilesystemOperation> {
+pub(crate) async fn check_root(root: &Path) -> Result<(), FailedFilesystemOperation> {
     match tokio::fs::metadata(root).await {
         Ok(metadata) if metadata.is_dir() => Ok(()),
         Ok(_) => Err(FailedFilesystemOperation::new(
@@ -460,6 +460,7 @@ impl From<FailedFilesystemOperation> for BackendError {
             | FailedFilesystemOperationReason::UnserializableMetadata
             | FailedFilesystemOperationReason::UnexpectedDocumentSize { .. }
             | FailedFilesystemOperationReason::UnexpectedDocumentDigest { .. }
+            | FailedFilesystemOperationReason::InvalidLease { .. }
             | FailedFilesystemOperationReason::InvalidKeySuffix
             | FailedFilesystemOperationReason::FailedIo { .. } => {
                 |cause| Self::FailedOperation { cause }

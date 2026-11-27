@@ -130,14 +130,14 @@ mod tests {
     #[tokio::test]
     async fn should_join_the_filing_and_the_selected_documents_when_source_has_output() {
         let state = select_with_output().await;
-        let filing = filing(ACCESSION_NUMBER);
+        let filing_ref = filing(ACCESSION_NUMBER);
 
         let expected_result = &FilingDocumentSetRef::new(
-            filing.clone(),
+            filing(ACCESSION_NUMBER),
             FilingDocuments::new(INSTANCE, Some(LABEL_FILE.to_string())),
         );
 
-        let prepare = PrepareFilingDocumentsRequest::try_from((state, filing))
+        let prepare = PrepareFilingDocumentsRequest::try_from((state, filing_ref))
             .expect("Given a source state with output for the same filing, the transition should always succeed");
         let result = prepare.input_data().request_input();
 
@@ -147,14 +147,14 @@ mod tests {
     #[tokio::test]
     async fn should_put_the_same_request_input_into_the_context_when_source_has_output() {
         let state = select_with_output().await;
-        let filing = filing(ACCESSION_NUMBER);
+        let filing_ref = filing(ACCESSION_NUMBER);
 
         let expected_result = &FilingDocumentSetRef::new(
-            filing.clone(),
+            filing(ACCESSION_NUMBER),
             FilingDocuments::new(INSTANCE, Some(LABEL_FILE.to_string())),
         );
 
-        let prepare = PrepareFilingDocumentsRequest::try_from((state, filing))
+        let prepare = PrepareFilingDocumentsRequest::try_from((state, filing_ref))
             .expect("Given a source state with output for the same filing, the transition should always succeed");
         let result = prepare.context_data().request_input();
 

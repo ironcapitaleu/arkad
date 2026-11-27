@@ -4,7 +4,7 @@
 
 ## Related
 
-<!-- Link to tickets, issues, or prior PRs -->
+<!-- Link to tickets, issues, or prior PRs, each with the date you read it: ([STA-123](https://…), accessed YYYY-MM-DD) -->
 
 ## Type of change
 

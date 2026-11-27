@@ -692,7 +692,9 @@ mod tests {
             });
 
         let expected_result = ErrorReason::InvalidResponse {
-            source: sec_response_error.clone(),
+            source: InvalidSecResponse::new(SecResponseErrorReason::InvalidContentType {
+                content_type: ContentType::Html,
+            }),
         };
 
         let result = FailedSecRequest::from(sec_response_error).reason;
