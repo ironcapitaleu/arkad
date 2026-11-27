@@ -50,7 +50,7 @@ mod tests {
         let url = Url::parse("https://example.com").expect("Hardcoded URL should always be valid");
 
         let expected_result =
-            Url::parse("https://example.com").expect("Hardcoded URL should always be valid");
+            Url::parse("https://example.com/").expect("Hardcoded URL should always be valid");
 
         let result = <Request as InnerRequest>::new(method, url).url().clone();
 

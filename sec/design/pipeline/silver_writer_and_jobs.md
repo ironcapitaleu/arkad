@@ -87,14 +87,14 @@ flowchart TB
 | Part | Crate | Holds |
 | ---- | ----- | ----- |
 | Silver backend | `storage`, module `write_once` | `Blob`, `ListedBlob`, and `WriteOnceFilesystemRepository`, a write-once backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository`. Silver stores its Parquet parts and control objects as blobs |
-| Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
-| GCS backend | `storage`, behind the cargo feature `gcs` | A write-once repository and a `LeaseStore` on the GCS JSON API, beside the filesystem backends |
+| Lease port | `storage` | `LeaseRepository`, a standalone trait, with `FakeLeaseRepository` and `FilesystemLeaseRepository` |
+| GCS backend | `storage`, behind the cargo feature `gcs` | A write-once repository and a `LeaseRepository` backend on the GCS JSON API, beside the filesystem backends |
 | Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
 | Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
-Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
-Principle"):
+Only one trait of `storage` is new, `LeaseRepository`. No existing trait changes (`AGENTS.md`,
+"Open-Closed Principle"):
 
 - **Writes go through `WriteRepository::persist`.** Each write-once repository writes each blob once.
   If the blob exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
@@ -106,7 +106,7 @@ Principle"):
 - **Reads take whole objects** through `ReadRepository`. A part holds about 25 to 60 MB. GCS can
   read a byte range of an object, so a range read can come later without a change to this
   design.
-- **`LeaseStore`** has `acquire` and `current`. The workflow deletes a lease through the GCS API.
+- **`LeaseRepository`** has `acquire` and `current`. The workflow deletes a lease through the GCS API.
   See [One Writer per Unit Key](#one-writer-per-unit-key).
 
 The GCS backend sets `ifGenerationMatch=0` on each object write, and `ifGenerationMatch=<generation>`
@@ -367,14 +367,14 @@ of that run read the list. A rule by time alone misses such a unit.
 [ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) sets the rule. The parts in
 the code:
 
-- `LeaseStore::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
+- `LeaseRepository::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
   if absent. It replaces the object if its expiry passed. Otherwise it returns `LeaseHeld` with
   the plan that holds it.
 - The plan step computes `expires_at`: the time of `acquire`, plus `ceil(units / parallel tasks)`
   times the task timeout times the attempts per task, plus 20 minutes. The 20 minutes cover the
   rest of the plan step, at most 10 minutes, and the start of the worker step. For 80 Notes files,
   10 parallel tasks, a timeout of 1 hour, and 2 attempts, that is 16 hours and 20 minutes.
-- Each worker task calls `LeaseStore::current(kind)` before its first write. It fails with
+- Each worker task calls `LeaseRepository::current(kind)` before its first write. It fails with
   `LeaseLost` if the lease names another plan, or if less than one task timeout plus 1 minute
   remains before the expiry. Cloud Run stops an attempt at its timeout, so the task ends before
   the expiry. The minute covers clock skew between the task and the next plan step.
@@ -574,10 +574,10 @@ error if a unit failed. The workflow ends as failed if a step failed.
 Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The list gives the order.
 
 1. FEATURE: `WriteOnceFilesystemRepository`, a create-only filesystem backend of `WriteRepository`,
-   `ReadRepository`, and `ListRepository`, and the port `LeaseStore` with a fake and a filesystem
-   backend.
-2. FEATURE: the GCS backends of the write-once repository and `LeaseStore`, behind the cargo feature
-   `gcs`.
+   `ReadRepository`, and `ListRepository`, and the port `LeaseRepository` with a fake and a
+   filesystem backend.
+2. FEATURE: the GCS backends of the write-once repository and `LeaseRepository`, behind the cargo
+   feature `gcs`.
 3. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
 4. FEATURE: `SilverRecord` for `as_is_facts` and `filings`, with the schema tests.
 5. FEATURE: `SilverRecord` for `candidates`, `findings`, and `silver_files`.
@@ -615,7 +615,7 @@ jobs, and are not in this list.
 - **The mount for silver.** Not tested: whether the GCS bucket mount honors "create only if
   absent". An upload through the mount also carries no CRC32C, so GCS cannot reject a damaged
   upload, and only integrity check 1 finds it. If both are acceptable,
-  `WriteOnceFilesystemRepository` can write through the mount, and only `LeaseStore` needs the
+  `WriteOnceFilesystemRepository` can write through the mount, and only `LeaseRepository` needs the
   GCS client.
 - **A signal for a rule change.** The design of the replay of the standardized layer adds a signal
   that starts a base run. The plan step reads it next to the conditions of [Mode](#mode).

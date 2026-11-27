@@ -207,9 +207,11 @@ mod tests {
 
     #[test]
     fn should_return_invalid_sha256_digest_when_the_string_has_63_characters() {
-        let short = &DIGEST_OF_ABC[..63];
+        let short = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015a";
 
-        let expected_result = Err(InvalidSha256Digest::new(short));
+        let expected_result = Err(InvalidSha256Digest::new(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015a",
+        ));
 
         let result = short.parse::<Sha256Digest>();
 
@@ -220,9 +222,9 @@ mod tests {
     fn should_return_invalid_sha256_digest_when_the_string_is_uppercase() {
         let uppercase = "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD";
 
-        let expected_result = Err(InvalidSha256Digest {
-            value: "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD".to_owned(),
-        });
+        let expected_result = Err(InvalidSha256Digest::new(
+            "BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD",
+        ));
 
         let result = uppercase.parse::<Sha256Digest>();
 
@@ -233,9 +235,9 @@ mod tests {
     fn should_return_invalid_sha256_digest_when_the_string_holds_a_non_hex_character() {
         let non_hex = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ag";
 
-        let expected_result = Err(InvalidSha256Digest {
-            value: "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ag".to_owned(),
-        });
+        let expected_result = Err(InvalidSha256Digest::new(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ag",
+        ));
 
         let result = non_hex.parse::<Sha256Digest>();
 
@@ -260,7 +262,8 @@ mod tests {
     fn should_serialize_the_digest_as_its_hex_string() {
         let digest = Sha256Digest::of(b"abc");
 
-        let expected_result = format!("\"{DIGEST_OF_ABC}\"");
+        let expected_result =
+            "\"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\"".to_string();
 
         let result = serde_json::to_string(&digest)
             .expect("Given a digest of one string field, serialization should always succeed");
@@ -270,12 +273,12 @@ mod tests {
 
     #[test]
     fn should_reject_an_uppercase_digest_when_deserializing() {
-        let json = format!("\"{}\"", DIGEST_OF_ABC.to_uppercase());
+        let json = "\"BA7816BF8F01CFEA414140DE5DAE2223B00361A396177A9CB410FF61F20015AD\"";
 
         let expected_result = true;
 
         // `serde_json` appends the line and column after the message, so the test checks the start.
-        let result = serde_json::from_str::<Sha256Digest>(&json)
+        let result = serde_json::from_str::<Sha256Digest>(json)
             .is_err_and(|error| error.to_string().starts_with("[InvalidSha256Digest]"));
 
         assert_eq!(result, expected_result);
