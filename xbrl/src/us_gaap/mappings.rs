@@ -822,9 +822,9 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         // The 2026 release does not hold `SalesRevenueGoodsNet` and `SalesRevenueServicesNet`.
         // ADR 0049 makes each an other part of the other. The other parts are one list,
-        // so each also blocks the contract revenue parts. Known gap: goods next to a third line,
-        // such as `OtherSalesRevenueNet` or contract revenue, resolves to the goods line with no
-        // finding.
+        // so each also blocks the contract revenue parts. Known gaps: goods next to a third line,
+        // such as `OtherSalesRevenueNet`, or next to contract revenue, resolves to the goods line
+        // with no finding.
         //
         // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
         // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
