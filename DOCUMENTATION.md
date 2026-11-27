@@ -783,7 +783,8 @@ without notice. The date lets a reader tell a later change of the page from an e
 - If a link names its date as "read on YYYY-MM-DD", change it to the form above when you read the
   page again.
 - In an accepted or a superseded ADR, never change a link, its date, or the text that relies on it.
-  If the page changed, add an amendment, as the `adr` skill says.
+  If the page changed and the ADR is accepted, add an amendment, as the `adr` skill says. If the ADR
+  is superseded, change nothing.
 - A bare ID with no link, such as `STA-550`, needs no date.
 - A relative link to a file in this repository needs no date. The commit that holds the link pins
   the version of the file.
