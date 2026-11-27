@@ -50,9 +50,10 @@ impl InvalidNotesPeriod {
     ///
     /// let notes_period_error =
     ///     NotesPeriodError::new(InvalidNotesPeriodReason::InvalidNotesPeriodFormat, "2025q5");
-    /// let state_error = InvalidNotesPeriod::new("Validate Notes Period", notes_period_error.clone());
+    /// let state_error = InvalidNotesPeriod::new("Validate Notes Period", notes_period_error);
     ///
-    /// let expected_result = notes_period_error;
+    /// let expected_result =
+    ///     NotesPeriodError::new(InvalidNotesPeriodReason::InvalidNotesPeriodFormat, "2025q5");
     ///
     /// let result = state_error.notes_period_error;
     ///

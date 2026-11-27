@@ -48,9 +48,10 @@ impl InvalidIndexDate {
     ///
     /// let index_date_error =
     ///     IndexDateError::new(InvalidIndexDateReason::InvalidIndexDateFormat, "2026-13-01");
-    /// let state_error = InvalidIndexDate::new("Validate Index Date", index_date_error.clone());
+    /// let state_error = InvalidIndexDate::new("Validate Index Date", index_date_error);
     ///
-    /// let expected_result = index_date_error;
+    /// let expected_result =
+    ///     IndexDateError::new(InvalidIndexDateReason::InvalidIndexDateFormat, "2026-13-01");
     ///
     /// let result = state_error.index_date_error;
     ///
