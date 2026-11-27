@@ -1,10 +1,9 @@
 # Transform per Filing
 
-> **Status:** proposed, for review by the owner.
-> [ADR 0041](../../../docs/adr/0041-one-value-per-filing-between-transform-states.md),
-> [ADR 0042](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md), and
-> [ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md) hold the decisions of
-> this document.
+> **Status:** proposed, for review by the owner. The decisions of this document live in
+> [ADR 0041](../../../docs/adr/0041-one-value-per-filing-between-transform-states.md) and
+> [ADR 0042](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md), both proposed, and
+> [ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md), accepted by the owner.
 >
 > **Marks:** "Measured" means checked on 2026-11-07, 2026-11-08, or 2026-11-09 against a downloaded
 > SEC file, as the Linear documents "STA-425 Findings: Data Model and Processing of the Silver
