@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27). Amendment 1: accepted by the project owner on 2026-11-27 ([STA-593 comment `91a3878f`](https://linear.app/state-machine/issue/STA-593#comment-91a3878f), accessed 2026-11-27) |
 | Date | 2026-11-24 |
 | Deciders | The project owner |
 | Ticket | [STA-591](https://linear.app/state-machine/issue/STA-591), accessed 2026-11-27. First slice [STA-592](https://linear.app/state-machine/issue/STA-592), accessed 2026-11-27 |
@@ -49,6 +49,52 @@ and `jiff` both stay in the tree until the last slice merges.
 
 The features of the first slice are `std` and `static`. A later slice adds `serde` when it moves a
 serialized type.
+
+## Amendment 1: Fraction Digits of a Stored Timestamp
+
+Date: 2026-11-27. Status: Accepted by the project owner on 2026-11-27.
+Ticket: [STA-593](https://linear.app/state-machine/issue/STA-593), accessed 2026-11-27.
+
+### Reason
+
+Decision 4 keeps every stored string. The open question asked how many fraction digits a stored
+timestamp has. Two writers differ:
+
+- `chrono` serde writes a `DateTime<Utc>` with `SecondsFormat::AutoSi` and `Z`: no fraction for a
+  whole second, else 3, 6, or 9 digits. Source: `chrono` 0.4.45, `src/datetime/serde.rs`.
+- `jiff` 1.0.3 writes a `Timestamp` with the fewest digits. On 2026-11-27 it printed
+  `2026-09-22T20:05:30.5Z`, where `chrono` writes `2026-09-22T20:05:30.500Z`.
+
+`storage` stores two timestamps: `produced_at` in the metadata of each document, and `expires_at`
+in each lease. A run sets both from the clock, so most stored values have a fraction. The plain
+`jiff` serde would change these strings.
+
+### Decision
+
+1. **A stored timestamp keeps the form that `chrono` writes.** The form is RFC 3339 in UTC with
+   `Z`. The fraction has no digits for a whole second, else 3, 6, or 9 digits: the fewest of these
+   that hold the nanoseconds.
+2. **`storage` writes and reads the form with its own serde functions.** Each stored `Timestamp`
+   field names them with `#[serde(with = ...)]`. They read any RFC 3339 timestamp with an offset,
+   as `chrono` does.
+3. **`storage` builds `jiff` without the feature `serde`.** It stores no `jiff` value through the
+   plain `jiff` serde.
+
+Options considered:
+
+| Option | Stored strings | Cost |
+| ------ | -------------- | ---- |
+| **A (chosen)**: serde functions in `storage` | Same bytes | One module of about 50 lines |
+| B: plain `jiff` serde | `.500Z` becomes `.5Z`, `.123400Z` becomes `.1234Z` | A migration and a new ADR |
+
+### Consequences
+
+- Round-trip tests read the JSON that `chrono` wrote and compare the written bytes. They cover no
+  fraction, 3, 6, and 9 digits, for both the metadata and the lease.
+- A later slice that stores a `jiff` timestamp outside `storage` checks its own form against
+  decision 4. This amendment covers the fields of `storage` only.
+- `storage` stores no date. The form of a stored `jiff::civil::Date` stays open for the slices
+  that store one.
 
 ## Options Considered
 

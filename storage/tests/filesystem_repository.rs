@@ -11,7 +11,7 @@
 use std::fmt;
 
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use pretty_assertions::assert_eq;
 use tempfile::TempDir;
 use uuid::Uuid;
@@ -84,7 +84,7 @@ fn sample_document() -> SampleDocument {
                 .expect("Given a hardcoded valid media type, creation should always succeed"),
         )
         .content(bytes)
-        .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+        .produced_at(Timestamp::UNIX_EPOCH)
         .run(
             Uuid::nil(),
             Producer::new("Sample State", "0.1.0", "63c1f59"),

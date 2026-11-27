@@ -169,7 +169,7 @@ pub struct KeyPrefix {
 pub struct ListedDocument<C> {
     key: DocumentKey,
     metadata: DocumentMetadata<C>,
-    metadata_modified_at: DateTime<Utc>,
+    metadata_modified_at: Timestamp,
     document: StoredDocument,
 }
 
@@ -264,7 +264,7 @@ pub enum InventoryItem {
     Pair { key: DocumentKey, size_in_bytes: u64 },
     MetadataWithoutDocument { key: DocumentKey },
     DocumentWithoutMetadata { key: DocumentKey, size_in_bytes: u64 },
-    TemporaryFile { path: PathBuf, modified_at: DateTime<Utc> },
+    TemporaryFile { path: PathBuf, modified_at: Timestamp },
 }
 ```
 

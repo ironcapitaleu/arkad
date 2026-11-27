@@ -2182,9 +2182,9 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "bytes",
- "chrono",
  "dhat",
  "futures-core",
+ "jiff",
  "pretty_assertions",
  "serde",
  "serde_json",

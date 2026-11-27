@@ -8,9 +8,9 @@ use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use chrono::{DateTime, Utc};
 use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
+use jiff::Timestamp;
 use tokio::fs;
 
 use crate::error::{BackendError, ReadError};
@@ -260,13 +260,17 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
 }
 
 /// Returns the time a file was last modified.
-async fn modified_at(path: &Path) -> Result<DateTime<Utc>, FailedFilesystemOperation> {
+///
+/// A modified time outside the range of [`Timestamp`], the years -9999 to 9999, fails with the
+/// I/O error kind [`io::ErrorKind::InvalidData`].
+async fn modified_at(path: &Path) -> Result<Timestamp, FailedFilesystemOperation> {
     let inspect_error = |error: io::Error| {
         FailedFilesystemOperation::from_io(FilesystemOperation::Inspect, path, &error)
     };
     let metadata = fs::metadata(path).await.map_err(inspect_error)?;
     let modified = metadata.modified().map_err(inspect_error)?;
-    Ok(DateTime::<Utc>::from(modified))
+    Timestamp::try_from(modified)
+        .map_err(|error| inspect_error(io::Error::new(io::ErrorKind::InvalidData, error)))
 }
 
 #[cfg(test)]
@@ -654,19 +658,18 @@ mod tests {
         let root = temporary_root();
         let repository = repository_at(root.path());
         persist_at(&repository, "sec/x.json").await;
-        let modified_at = DateTime::<Utc>::from_timestamp(1_700_000_000, 0)
-            .expect("Given a hardcoded timestamp in range, the time should always build");
+        let modified_at = std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_700_000_000);
         std::fs::File::options()
             .write(true)
             .open(root.path().join(format!("sec/x.json{METADATA_SUFFIX}")))
-            .and_then(|file| file.set_modified(modified_at.into()))
+            .and_then(|file| file.set_modified(modified_at))
             .expect(
                 "Given a persisted metadata file, setting its modified time should always succeed",
             );
         let prefix = KeyPrefix::root();
 
         let expected_result = vec![Some(
-            DateTime::<Utc>::from_timestamp(1_700_000_000, 0)
+            Timestamp::from_second(1_700_000_000)
                 .expect("Given a hardcoded timestamp in range, the time should always build"),
         )];
 

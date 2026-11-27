@@ -3,10 +3,12 @@
 //! Provides [`LeaseError`], the error raised when a [`LeaseRepository`](crate::LeaseRepository)
 //! cannot take or read a lease.
 
+use jiff::tz::Offset;
 use thiserror::Error;
 
 use super::ErrorKind;
 use super::backend_error::BackendError;
+use crate::shared::stored_timestamp::fraction_digits;
 use crate::shared::{JobKind, Lease};
 
 #[non_exhaustive]
@@ -15,9 +17,10 @@ use crate::shared::{JobKind, Lease};
 pub enum LeaseError {
     /// A plan holds the lease of the job kind, and the lease has not expired.
     #[error(
-        "[LeaseHeld] Lease of job kind '{kind}' is held by plan '{}' until '{}'",
+        "[LeaseHeld] Lease of job kind '{kind}' is held by plan '{}' until '{:.*}'",
         .lease.plan_id,
-        .lease.expires_at.to_rfc3339()
+        fraction_digits(.lease.expires_at),
+        .lease.expires_at.display_with_offset(Offset::UTC)
     )]
     LeaseHeld {
         /// The job kind of the lease.
@@ -58,7 +61,7 @@ impl TryFrom<LeaseError> for BackendError {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, Utc};
+    use jiff::Timestamp;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -76,7 +79,7 @@ mod tests {
                 .expect("Given a valid hardcoded job kind, the creation should always succeed"),
             lease: Lease {
                 plan_id: "2026-11-21T180000.000Z".to_owned(),
-                expires_at: DateTime::<Utc>::from_timestamp(1_795_341_600, 0)
+                expires_at: Timestamp::from_second(1_795_341_600)
                     .expect("Given a hardcoded timestamp in range, the time should always build"),
             },
         };
@@ -107,7 +110,7 @@ mod tests {
                 .expect("Given a valid hardcoded job kind, the creation should always succeed"),
             lease: Lease {
                 plan_id: "2026-11-21T180000.000Z".to_owned(),
-                expires_at: DateTime::<Utc>::UNIX_EPOCH,
+                expires_at: Timestamp::UNIX_EPOCH,
             },
         };
 

@@ -4,7 +4,7 @@
 //! [`FilesystemRepository`](crate::implementations::repository::filesystem::FilesystemRepository)
 //! yields.
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 use crate::implementations::repository::filesystem::shared::document_key::DocumentKey;
 use crate::implementations::repository::filesystem::shared::document_metadata::DocumentMetadata;
@@ -25,7 +25,7 @@ use crate::implementations::repository::filesystem::shared::stored_document::Sto
 pub struct ListedDocument<C> {
     key: DocumentKey,
     metadata: DocumentMetadata<C>,
-    metadata_modified_at: DateTime<Utc>,
+    metadata_modified_at: Timestamp,
     document: StoredDocument,
 }
 
@@ -34,7 +34,7 @@ impl<C> ListedDocument<C> {
     pub(crate) const fn new(
         key: DocumentKey,
         metadata: DocumentMetadata<C>,
-        metadata_modified_at: DateTime<Utc>,
+        metadata_modified_at: Timestamp,
         document: StoredDocument,
     ) -> Self {
         Self {
@@ -64,7 +64,7 @@ impl<C> ListedDocument<C> {
     /// [`StoredDocument::Missing`], or a size that differs from the metadata, waits a grace period
     /// from this time before it counts the entry as a fault.
     #[must_use]
-    pub const fn metadata_modified_at(&self) -> DateTime<Utc> {
+    pub const fn metadata_modified_at(&self) -> Timestamp {
         self.metadata_modified_at
     }
 

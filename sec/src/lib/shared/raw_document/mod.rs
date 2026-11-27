@@ -41,7 +41,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 /// # Examples
 ///
 /// ```rust
-/// use chrono::{DateTime, Utc};
+/// use jiff::Timestamp;
 /// use sec::shared::raw_document::{RawDocument, RawDocumentMetadataContext};
 /// use sec::shared::raw_source::RawCompanyFacts;
 /// use sec::shared::status_code::StatusCode;
@@ -58,7 +58,7 @@ pub use raw_document_metadata_context::RawDocumentMetadataContext;
 ///     .document_type::<RawDocument<RawCompanyFacts>>()
 ///     .media_type(MediaType::new("application/json").expect("Given a hardcoded valid media type, creation should always succeed"))
 ///     .content(bytes)
-///     .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+///     .produced_at(Timestamp::UNIX_EPOCH)
 ///     .run(Uuid::nil(), Producer::new("Store Company Facts", "0.1.0", "63c1f59"))
 ///     .ingestion_mode(IngestionMode::Backfill)
 ///     .context(RawDocumentMetadataContext {
@@ -104,7 +104,7 @@ impl<S: RawSource> RawDocument<S> {
     /// ```rust
     /// use std::collections::HashMap;
     ///
-    /// use chrono::{DateTime, Utc};
+    /// use jiff::Timestamp;
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
@@ -140,7 +140,7 @@ impl<S: RawSource> RawDocument<S> {
     ///     &url,
     ///     &user_agent,
     ///     RunFields {
-    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         produced_at: Timestamp::UNIX_EPOCH,
     ///         execution_id: Uuid::nil(),
     ///         producer: producer("Store Company Facts"),
     ///         ingestion_mode: IngestionMode::Backfill,
@@ -175,7 +175,8 @@ impl<S: RawSource> RawDocument<S> {
     /// ```rust
     /// use std::collections::HashMap;
     ///
-    /// use chrono::{DateTime, NaiveDate, Utc};
+    /// use chrono::NaiveDate;
+    /// use jiff::Timestamp;
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
@@ -217,7 +218,7 @@ impl<S: RawSource> RawDocument<S> {
     ///     &url,
     ///     &user_agent,
     ///     RunFields {
-    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         produced_at: Timestamp::UNIX_EPOCH,
     ///         execution_id: Uuid::nil(),
     ///         producer: producer("Store Filing Index"),
     ///         ingestion_mode: IngestionMode::Incremental,
@@ -291,7 +292,7 @@ impl<S: RawFileSource> RawDocument<S> {
     /// ```rust
     /// use std::collections::HashMap;
     ///
-    /// use chrono::{DateTime, Utc};
+    /// use jiff::Timestamp;
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
@@ -331,7 +332,7 @@ impl<S: RawFileSource> RawDocument<S> {
     ///     &url,
     ///     &user_agent,
     ///     RunFields {
-    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         produced_at: Timestamp::UNIX_EPOCH,
     ///         execution_id: Uuid::nil(),
     ///         producer: producer("Store Notes Archive"),
     ///         ingestion_mode: IngestionMode::Backfill,
@@ -375,7 +376,8 @@ impl<S: RawFileSource> RawDocument<S> {
     /// ```rust
     /// use std::collections::HashMap;
     ///
-    /// use chrono::{DateTime, NaiveDate, Utc};
+    /// use chrono::NaiveDate;
+    /// use jiff::Timestamp;
     /// use sec::shared::build_info::producer;
     /// use sec::shared::content_type::ContentType;
     /// use sec::shared::headers::Headers;
@@ -421,7 +423,7 @@ impl<S: RawFileSource> RawDocument<S> {
     ///     &url,
     ///     &user_agent,
     ///     RunFields {
-    ///         produced_at: DateTime::<Utc>::UNIX_EPOCH,
+    ///         produced_at: Timestamp::UNIX_EPOCH,
     ///         execution_id: Uuid::nil(),
     ///         producer: producer("Store Filing Documents"),
     ///         ingestion_mode: IngestionMode::Incremental,
@@ -521,7 +523,7 @@ mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
-    use chrono::{DateTime, Utc};
+    use jiff::Timestamp;
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::filesystem::{
         FilesystemRepository, IngestionMode, Producer, ReadWrite,
@@ -567,7 +569,7 @@ mod tests {
             &sample_url(),
             &sample_user_agent(),
             RunFields {
-                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                produced_at: Timestamp::UNIX_EPOCH,
                 execution_id: Uuid::nil(),
                 producer: Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
                 ingestion_mode: IngestionMode::Backfill,
@@ -596,7 +598,7 @@ mod tests {
                     .expect("Given a hardcoded valid media type, creation should always succeed"),
             )
             .content(b"{}")
-            .produced_at(DateTime::<Utc>::UNIX_EPOCH)
+            .produced_at(Timestamp::UNIX_EPOCH)
             .run(
                 Uuid::nil(),
                 Producer::new("Store Company Facts", "0.1.0", "63c1f59"),
@@ -696,7 +698,7 @@ mod tests {
     #[test]
     fn should_serialize_the_metadata_in_the_stored_format_for_raw_company_facts() {
         let produced_at = "2026-09-22T20:05:30Z"
-            .parse::<DateTime<Utc>>()
+            .parse::<Timestamp>()
             .expect("Given a hardcoded RFC 3339 timestamp, parsing it should always succeed");
         let metadata = DocumentMetadata::builder()
             .document_type::<RawDocument<RawCompanyFacts>>()
@@ -902,7 +904,7 @@ mod tests {
             &sample_notes_url(),
             &sample_user_agent(),
             RunFields {
-                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                produced_at: Timestamp::UNIX_EPOCH,
                 execution_id: Uuid::nil(),
                 producer: Producer::new("Store Notes Archive", "0.1.0", "63c1f59"),
                 ingestion_mode: IngestionMode::Incremental,
@@ -1028,7 +1030,7 @@ mod tests {
             &sample_notes_url(),
             &sample_user_agent(),
             RunFields {
-                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                produced_at: Timestamp::UNIX_EPOCH,
                 execution_id: Uuid::nil(),
                 producer: Producer::new("Store Daily Index", "0.1.0", "63c1f59"),
                 ingestion_mode: IngestionMode::Incremental,
@@ -1074,7 +1076,7 @@ mod tests {
             &sample_instance_url(),
             &sample_user_agent(),
             RunFields {
-                produced_at: DateTime::<Utc>::UNIX_EPOCH,
+                produced_at: Timestamp::UNIX_EPOCH,
                 execution_id: Uuid::nil(),
                 producer: Producer::new("Store Filing Documents", "0.1.0", "63c1f59"),
                 ingestion_mode: IngestionMode::Incremental,

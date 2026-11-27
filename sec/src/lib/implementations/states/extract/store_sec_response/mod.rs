@@ -57,7 +57,7 @@
 use std::fmt;
 
 use async_trait::async_trait;
-use chrono::Utc;
+use jiff::Timestamp;
 use serde::Serialize;
 use state_maschine::prelude::State as SMState;
 use storage::implementations::repository::filesystem::InputDocument;
@@ -143,7 +143,7 @@ impl<E: StoredAs, R: RawRepository<E::Source>> State for StoreSecResponse<E, R> 
             &self.input.requested_url,
             &self.input.user_agent,
             RunFields {
-                produced_at: Utc::now(),
+                produced_at: Timestamp::now(),
                 execution_id: self.context.execution_id,
                 producer: producer(E::STATE_NAME),
                 ingestion_mode: self.context.ingestion_mode,

@@ -4,7 +4,7 @@
 //! company identifier rows.
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::error::ReadError;
 use crate::shared::{CompanyId, CompanyIdentifier};
@@ -50,7 +50,7 @@ impl EntityResolver for FakeEntityResolver {
     async fn resolve(
         &self,
         identifier: &CompanyIdentifier,
-        at: NaiveDate,
+        at: Date,
     ) -> Result<Option<CompanyId>, ReadError> {
         if let Some(failure) = self.failure.clone() {
             return Err(failure);

@@ -21,7 +21,7 @@
 //! ```
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 
 use crate::error::LeaseError;
 use crate::shared::{JobKind, Lease, LeaseGeneration};
@@ -49,7 +49,7 @@ pub trait LeaseRepository: Send + Sync {
         &self,
         kind: &JobKind,
         plan_id: &str,
-        expires_at: DateTime<Utc>,
+        expires_at: Timestamp,
     ) -> Result<LeaseGeneration, LeaseError>;
 
     /// Returns the lease of the job kind and its generation, or `None` if the job kind has none.
@@ -65,7 +65,7 @@ pub trait LeaseRepository: Send + Sync {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeDelta;
+    use jiff::SignedDuration;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -86,7 +86,7 @@ mod tests {
     async fn should_return_lease_held_from_the_fake_when_the_lease_has_not_expired() {
         let repository = FakeLeaseRepository::default();
         let kind = transform_notes();
-        let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
+        let expires_at = Timestamp::MAX - SignedDuration::from_hours(24);
         repository
             .acquire(&kind, "plan-a", expires_at)
             .await
@@ -111,11 +111,11 @@ mod tests {
         let repository = FakeLeaseRepository::default();
         let kind = transform_notes();
         repository
-            .acquire(&kind, "plan-a", DateTime::<Utc>::UNIX_EPOCH)
+            .acquire(&kind, "plan-a", Timestamp::UNIX_EPOCH)
             .await
             .expect("Given a job kind without a lease, the acquire should always succeed");
         let plan_id = "plan-b";
-        let expires_at = DateTime::<Utc>::MAX_UTC;
+        let expires_at = Timestamp::MAX;
 
         let expected_result = Ok(LeaseGeneration(2));
 
@@ -128,7 +128,7 @@ mod tests {
     async fn should_return_the_lease_when_reading_through_a_trait_object() {
         let repository: Box<dyn LeaseRepository> = Box::new(FakeLeaseRepository::default());
         let kind = transform_notes();
-        let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
+        let expires_at = Timestamp::MAX - SignedDuration::from_hours(24);
         repository
             .acquire(&kind, "plan-a", expires_at)
             .await

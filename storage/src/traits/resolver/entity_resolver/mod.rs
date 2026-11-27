@@ -8,20 +8,20 @@
 //! A load step takes the port and never names the engine behind it:
 //!
 //! ```rust
-//! use chrono::NaiveDate;
+//! use jiff::civil::Date;
 //! use storage::{CompanyId, CompanyIdentifier, EntityResolver, ReadError};
 //!
 //! async fn company_of_filing<R: EntityResolver>(
 //!     resolver: &R,
 //!     identifier: &CompanyIdentifier,
-//!     period_end: NaiveDate,
+//!     period_end: Date,
 //! ) -> Result<Option<CompanyId>, ReadError> {
 //!     resolver.resolve(identifier, period_end).await
 //! }
 //! ```
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::error::ReadError;
 use crate::shared::{CompanyId, CompanyIdentifier};
@@ -54,12 +54,13 @@ pub trait EntityResolver: Send + Sync {
     async fn resolve(
         &self,
         identifier: &CompanyIdentifier,
-        at: NaiveDate,
+        at: Date,
     ) -> Result<Option<CompanyId>, ReadError>;
 }
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -76,11 +77,6 @@ mod tests {
 
     fn alphabet() -> CompanyId {
         CompanyId::from_uuid(Uuid::from_u128(1))
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the creation of a date should always succeed")
     }
 
     fn cik(value: &str) -> CompanyIdentifier {

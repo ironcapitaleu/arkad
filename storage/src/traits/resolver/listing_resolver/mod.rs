@@ -8,20 +8,20 @@
 //! A load step takes the port and never names the engine behind it:
 //!
 //! ```rust
-//! use chrono::NaiveDate;
+//! use jiff::civil::Date;
 //! use storage::{ListingId, ListingIdentifier, ListingResolver, ReadError};
 //!
 //! async fn listing_of_price<R: ListingResolver>(
 //!     resolver: &R,
 //!     identifier: &ListingIdentifier,
-//!     trading_day: NaiveDate,
+//!     trading_day: Date,
 //! ) -> Result<Option<ListingId>, ReadError> {
 //!     resolver.resolve(identifier, trading_day).await
 //! }
 //! ```
 
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::error::ReadError;
 use crate::shared::{ListingId, ListingIdentifier};
@@ -51,12 +51,13 @@ pub trait ListingResolver: Send + Sync {
     async fn resolve(
         &self,
         identifier: &ListingIdentifier,
-        at: NaiveDate,
+        at: Date,
     ) -> Result<Option<ListingId>, ReadError>;
 }
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -83,11 +84,6 @@ mod tests {
 
     fn meta_listing() -> ListingId {
         ListingId::from_uuid(Uuid::from_u128(2))
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded calendar date, the creation of a date should always succeed")
     }
 
     fn ticker(value: &str) -> ListingIdentifier {

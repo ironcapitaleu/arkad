@@ -2,7 +2,7 @@
 //!
 //! Provides [`RunFields`], the metadata fields that name the run that produced a stored document.
 
-use chrono::{DateTime, Utc};
+use jiff::Timestamp;
 use storage::implementations::repository::filesystem::{IngestionMode, Producer};
 use uuid::Uuid;
 
@@ -12,7 +12,7 @@ use uuid::Uuid;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RunFields {
     /// When the producing state made the document bytes.
-    pub produced_at: DateTime<Utc>,
+    pub produced_at: Timestamp,
     /// The id of the run that produced the document bytes.
     pub execution_id: Uuid,
     /// The code that wrote the document.
