@@ -1,9 +1,10 @@
 # Glossary
 
-This file defines the business terms of the data pipeline: the SEC data, the layers of storage, and
-the transform. Each entry says what the term means in this repository, and links the document that
-owns it. The owning document holds the full rules. If an entry and its owning document disagree,
-the owning document decides, and the entry needs a fix.
+This file defines the business terms of this repository, for every crate. Each entry says what the
+term means here, and links the document that owns it. The owning document holds the full rules. If
+an entry and its owning document disagree, the owning document decides, and the entry needs a fix.
+
+If this file grows too large to read, it splits into one `GLOSSARY.md` per crate.
 
 Two words have two meanings each: [unit](#unit) and [value](#value). Their entries say which
 meaning each document uses.
@@ -34,7 +35,8 @@ the series step reads them. Owner:
 
 ## Copy Rank
 
-The number that tells apart two [as-is facts](#as-is-fact) of one filing with the same key. Rank 0
+The number that tells apart two [as-is facts](#as-is-fact) of one filing with the same
+[value key](#value-key) except the copy rank. Rank 0
 is the first copy. The parser assigns it, so the [value key](#value-key) stays unique. Owner:
 [`xbrl/DESIGN.md`](xbrl/DESIGN.md#value-key).
 
@@ -59,8 +61,9 @@ Owner: [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.
 ## Entity
 
 The company that files, as its regulator names it: a scheme and an ID, for example the SEC and a
-CIK. A later step maps an entity to a company of the product. Owner:
-[`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
+CIK. Load maps an entity to a company with `resolve`
+([`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#where-resolve-and-the-checks-sit)).
+Owner: [`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
 
 ## Entity Bucket
 
@@ -72,7 +75,8 @@ per set of buckets, and `candidates` sorts its rows by bucket. Owner:
 
 One report that a company submits to its regulator, for example one 10-Q. A filing has one
 [accession number](#accession-number), one [form](#form), and the facts of that report. Silver
-holds one row per filing and [source](#source) in `filings`. Owner:
+holds one row per filing in each [unit](#unit) that holds it, in `filings`. A read keeps one, by
+the rules of "Current Facts". Owner:
 [`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
 
 ## Filing Day
@@ -139,7 +143,8 @@ parser fix. A replay adds a new [unit](#unit) next to the old one, and overwrite
 ## Silver
 
 The processed layer between [bronze](#bronze) and [gold](#gold): Parquet datasets of as-is facts,
-filings, candidates, standardized facts, and findings. Owner:
+filings, candidates, standardized facts, findings, and reference data, and the list of written
+units, `silver_files`. Owner:
 [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md).
 
 ## Source
@@ -165,7 +170,8 @@ period, after dedup across filings. The series step writes them to `standardized
 This word has two meanings:
 
 1. **Write unit.** The set of silver rows that one write adds, and one [replay](#replay) writes
-   again: one [Notes file](#notes-file), one [filing day](#filing-day), or one part of a series run.
+   again: one [Notes file](#notes-file), one [filing day](#filing-day), one part of a series run,
+   or one taxonomy release.
    The silver and transform documents use "unit" in this meaning. Owner:
    [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#the-write-unit).
 2. **Unit of measure.** The measure of a numeric fact, for example `USD` or `USD/shares`. Documents
@@ -174,8 +180,9 @@ This word has two meanings:
 
 ## Unit Key
 
-The name of a write [unit](#unit) within its dataset and [source](#source), for example the Notes
-period `2024q1` or the date `2026-11-06`. Owner:
+The dataset, the [source](#source), the unit kind, and the column `unit_key` of a write
+[unit](#unit). The column holds a name such as the Notes period `2024q1` or the date `2026-11-06`.
+Owner:
 [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#the-write-unit).
 
 ## Value
@@ -183,10 +190,12 @@ period `2024q1` or the date `2026-11-06`. Owner:
 This word has two meanings:
 
 1. **Fact value.** The number or text that a fact reports, such as `value_numeric` in
-   `as_is_facts`. The silver and `xbrl` documents use "value" in this meaning.
+   `as_is_facts`. The silver and `xbrl` documents use "value" in this meaning. Owner:
+   [`xbrl/DESIGN.md`](xbrl/DESIGN.md#asisfact).
 2. **Rust value.** One value of a Rust type that a state takes or outputs. The state machine
-   documents and [ADR 0041](docs/adr/0041-one-value-per-filing-between-transform-states.md) use
-   "value" in this meaning: one value per filing holds all the facts of that filing.
+   documents use "value" in this meaning: one value per filing holds all the facts of that filing.
+   Owner:
+   [`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#one-value-per-filing).
 
 ## Value Key
 
