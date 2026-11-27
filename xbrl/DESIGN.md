@@ -907,7 +907,8 @@ parses it.
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - `RollForwardMismatch` is a value of `findings.kind`. `concepts` holds the balance concept, such
   as `CashAndRestrictedCash`, then `NetChangeInCash`. `periods` holds the period end and length of
-  the change. The opening day follows from the exact start of the change in `standardized_facts`. `reason` holds the name of the roll forward, `cash`. `confidence` holds the weakest
+  the change. The opening balance sits at the day before the exact start of the change in
+  `standardized_facts`. `reason` holds the name of the roll forward, `cash`. `confidence` holds the weakest
   confidence of the three inputs
   ([ADR 0052](../docs/adr/0052-change-in-cash-against-two-balances.md)).
 - `MissingRequired` is a value of `findings.kind`. `concepts` holds the required concept. `periods`
