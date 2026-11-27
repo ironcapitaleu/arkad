@@ -41,6 +41,8 @@ pub enum ApiEvent {
     Stopped,
     /// The server failed to answer a request, and the client got a `500`.
     RequestFailed,
+    /// A refresh of the signing keys for login tokens failed, so the old keys stay in use.
+    SigningKeyRefreshFailed,
 }
 
 impl Display for ApiEvent {
@@ -51,6 +53,7 @@ impl Display for ApiEvent {
             Self::Failed => write!(f, "api_failed"),
             Self::Stopped => write!(f, "api_stopped"),
             Self::RequestFailed => write!(f, "api_request_failed"),
+            Self::SigningKeyRefreshFailed => write!(f, "api_signing_key_refresh_failed"),
         }
     }
 }
@@ -191,6 +194,17 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn should_write_snake_case_name_for_signing_key_refresh_failed_event() {
+        let event = ApiEvent::SigningKeyRefreshFailed;
+
+        let expected_result = "api_signing_key_refresh_failed";
+
+        let result = event.to_string();
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_write_snake_case_name_for_started_event() {

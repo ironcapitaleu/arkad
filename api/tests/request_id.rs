@@ -1,4 +1,5 @@
 use api::config::InternalDocs;
+use api::tests::fixtures::fake_app_state::fake_app_state;
 use axum::body::Body;
 use axum::http::Request;
 use axum::response::Response;
@@ -8,7 +9,7 @@ use tower::ServiceExt;
 const CLIENT_REQUEST_ID: &str = "client-chosen-id";
 
 async fn get_health(request: Request<Body>) -> Response {
-    api::router(InternalDocs::Disabled)
+    api::router(InternalDocs::Disabled, fake_app_state())
         .oneshot(request)
         .await
         .expect("Given the router's infallible service, calling it should always succeed")

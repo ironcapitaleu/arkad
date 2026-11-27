@@ -10,6 +10,7 @@
 //!
 //! - [`config`]: The configuration read from environment variables.
 //! - [`error`]: The errors that a client sees, sent as RFC 9457 problem bodies.
+//! - [`implementations`]: The adapters of the ports in [`traits`].
 //! - [`logging`]: The JSON logger and the events of the binary.
 //! - [`middleware`]: The middleware that the router runs on every request.
 //! - [`routes`]: The router of the crate, with `GET /health` and the versioned routes.
@@ -22,20 +23,21 @@ use crate::config::InternalDocs;
 
 pub mod config;
 pub mod error;
+pub mod implementations;
 pub mod logging;
 pub mod middleware;
 pub mod routes;
 pub mod shared;
 pub mod traits;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-fixtures"))]
 pub mod tests;
 
-pub use routes::INTERNAL_DOCS_PATH;
+pub use routes::{AppState, INTERNAL_DOCS_PATH};
 
 /// Builds the router of the crate. See [`routes::router`].
-pub fn router(internal_docs: InternalDocs) -> Router {
-    routes::router(internal_docs)
+pub fn router(internal_docs: InternalDocs, state: AppState) -> Router {
+    routes::router(internal_docs, state)
 }
 
 /// Returns the spec of every `/v1` route.
