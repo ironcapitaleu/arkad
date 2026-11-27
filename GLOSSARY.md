@@ -4,7 +4,7 @@ This file defines the business terms of this repository, for every crate. Each e
 term means here, and links the document that owns it. The owning document holds the full rules. If
 an entry and its owning document disagree, the owning document decides, and the entry needs a fix.
 
-If this file grows too large to read, it splits into one `GLOSSARY.md` per crate.
+If this file passes 100 entries, the team splits it into one `GLOSSARY.md` per crate.
 
 Two words have two meanings each: [unit](#unit) and [value](#value). Their entries say which
 meaning each document uses.
@@ -43,7 +43,8 @@ is the first copy. The parser assigns it, so the [value key](#value-key) stays u
 ## Current Unit
 
 For one [unit key](#unit-key), the [unit](#unit) with the latest `written_at` in `silver_files`.
-A default read of silver takes only current units. Owner:
+A default read of silver takes only current units. The series datasets have no current unit: a
+read takes every `series_delta` after the newest `series_base`. Owner:
 [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#replays).
 
 ## Digest Group
@@ -61,7 +62,7 @@ Owner: [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.
 ## Entity
 
 The company that files, as its regulator names it: a scheme and an ID, for example the SEC and a
-CIK. Load maps an entity to a company with `resolve`
+CIK. Load maps an entity and a period end to a company of [gold](#gold) with `resolve`
 ([`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#where-resolve-and-the-checks-sit)).
 Owner: [`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
 
@@ -76,7 +77,7 @@ per set of buckets, and `candidates` sorts its rows by bucket. Owner:
 One report that a company submits to its regulator, for example one 10-Q. A filing has one
 [accession number](#accession-number), one [form](#form), and the facts of that report. Silver
 holds one row per filing in each [unit](#unit) that holds it, in `filings`. A read keeps one, by
-the rules of "Current Facts". Owner:
+the rules of [Current Facts](sec/design/pipeline/silver_layer.md#current-facts). Owner:
 [`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
 
 ## Filing Day
@@ -189,12 +190,13 @@ Owner:
 
 This word has two meanings:
 
-1. **Fact value.** The number or text that a fact reports, such as `value_numeric` in
-   `as_is_facts`. The silver and `xbrl` documents use "value" in this meaning. Owner:
-   [`xbrl/DESIGN.md`](xbrl/DESIGN.md#asisfact).
-2. **Rust value.** One value of a Rust type that a state takes or outputs. The state machine
-   documents use "value" in this meaning: one value per filing holds all the facts of that filing.
+1. **Fact value.** The number or text that a fact or a company attribute reports, such as
+   `value_numeric` in `as_is_facts`. The silver and `xbrl` documents use "value" in this meaning.
    Owner:
+   [`xbrl/DESIGN.md`](xbrl/DESIGN.md#asisfact).
+2. **Rust value.** One value of a Rust type that a state takes or outputs. `transform_per_filing.md`
+   uses this meaning for "one value per filing", which holds all the facts of that filing, and
+   meaning 1 elsewhere. Owner:
    [`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#one-value-per-filing).
 
 ## Value Key
