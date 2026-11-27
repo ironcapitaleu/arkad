@@ -1,11 +1,13 @@
 ---
 name: domain-concept
 description: >
-  This skill should be used when the user asks to "create a domain concept", "add a domain type",
-  "design a domain concept", "implement a shared type", "add dependency injection", or needs to
-  create a new domain struct, enum, or trait in the shared directory (e.g., Cik, SecClient, InnerClient)
-  with validation, errors, fakes, and tests.
-version: 0.1.0
+  Use when you add or move a type, trait, or constant that more than one state, job, or module
+  uses, in any crate of the workspace. This includes the work on a ticket, not only
+  a request. Also use when the user asks to "create a domain concept", "add a domain type",
+  "design a domain concept", "implement a shared type", or "add dependency injection". Covers
+  where the concept lives, its layout of traits, implementations, constants, and errors, its
+  fakes, and its tests.
+version: 0.2.0
 argument-hint: "[concept-name]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
@@ -14,9 +16,54 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 ## Purpose
 
-Design and implement a new domain concept — a standalone type that lives in `sec/src/lib/shared/`
-(or the equivalent shared directory), is independent of any specific state, and can be developed
-and tested in isolation.
+Design and implement a new domain concept — a standalone type that more than one state, job, or
+module uses. It is independent of any specific state, and can be developed and tested in isolation.
+"Where a Concept Lives" says how to find its place in a crate, and "Layout by Part" names its files.
+
+## Where a Concept Lives
+
+Each crate sets its own layout. Read it before you add a file, and put the new concept where its
+siblings are:
+
+1. **The shared folder.** Find the module that holds the types more than one module uses, such as
+   `shared/` or `core/`. A value type goes there, as a file or a folder like its siblings.
+2. **Traits and their implementations.** Find where the traits of the crate sit: in a `traits/`
+   folder per concept, in a `traits/` folder at the crate root, or in the module of their concept.
+   Find the matching place of the concrete types, often an `implementations/` folder. Put a new
+   trait and its types in the same kind of place.
+3. **Fakes.** Find the fixtures folder of the crate, often `tests/fixtures/`, and name a new fake
+   the way its siblings are named, such as `sample_{concept}` or `fake_{type}`. A fake that only the
+   tests of one module use can stay in the test module of that file.
+4. **No sibling to copy.** If the crate has no shared concepts yet, or no trait yet, use "Layout by
+   Part", per concept, in the shared folder of step 1: `{concept}/traits/` and
+   `{concept}/implementations/`.
+
+If the layout of the crate differs from "Layout by Part", the crate wins. Do not move code that
+exists to match.
+
+[`references/crate_layouts.md`](references/crate_layouts.md) shows these steps applied to the crates
+of the workspace, and gives an example of each part of "Layout by Part". The examples are not a full
+list. If a crate is missing there or differs from its row, read the crate and follow the steps.
+
+## Layout by Part
+
+Where a crate uses `traits/` and `implementations/` folders, or step 4 of "Where a Concept Lives"
+sends you here, the parts of a concept decide its files, not whether it wraps an external crate:
+
+- **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
+  `traits/mod.rs`. This holds for a trait that wraps no external crate too.
+- **A concrete type** that implements a trait of the concept, or that its implementors use to do
+  so, goes in `implementations/`, one module per type.
+- **Constants** go in a `constants.rs` next to the type that uses them.
+- **An error** sits next to the code that returns it. A value type uses a `{type}_error.rs` file or
+  a `{type}_error/` module. A trait uses a `{name}_error/` module next to the trait. A function at
+  the root of the concept uses a module named after its error. An implementation folder uses an
+  `error.rs`.
+- **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
+  of the concept and does not need to know its subfolders.
+
+A value type with no trait, such as `Cik`, needs no `traits/` or `implementations/` folder. If it has
+constants, they go in a `constants.rs` next to it.
 
 Domain concepts range from simple value types (like `Cik`) to trait-based abstractions with
 dependency injection (like `SecClient` / `InnerClient`).
@@ -30,10 +77,10 @@ Not everything needs to be known upfront. It's fine to leave some answers as "do
 and discover them together during implementation. The questionnaire is a starting point, not
 a gate.
 
-If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`)
-or the conversation already established what the concept is, skip questions you can already
-answer. Do not guess names from existing codebase concepts — either infer from context or
-let the user provide the name via "Other".
+If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`),
+or the conversation, the ticket, or a design document already established what the concept is,
+skip the questions they answer. Do not guess a name from an existing concept. Infer it from the
+context, or let the user give it via "Other".
 
 **First prompt:**
 
@@ -60,6 +107,9 @@ let the user provide the name via "Other".
 
 - If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
 - If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
+- If it defines a trait that several types implement, such as `DigestRow` → Path B layout, with a
+  fake implementor in the tests. If the crate keeps its traits in the module of their concept, put
+  the trait there
 - Otherwise → Path A (value type with optional validation)
 - If answers are "don't know yet" → start with what's known, discover the rest together
 
@@ -69,7 +119,8 @@ let the user provide the name via "Other".
 
 #### Phase 1: Type Definition
 
-Create in `sec/src/lib/shared/{concept_name}/mod.rs`:
+Create in the shared folder of the crate ("Where a Concept Lives"), for example
+`shared/{concept_name}/mod.rs`:
 
 ```rust
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
@@ -147,8 +198,8 @@ wraps it and adds no fact, that type passes it through. See `AGENTS.md` ("Error 
 
 ### Path B: Trait-Based Abstraction with Dependency Injection
 
-Use this path when the concept wraps an external dependency (HTTP client, file system, etc.)
-that needs to be decoupled for testability.
+Use this path when the concept has a trait: it wraps an external dependency (HTTP client, file
+system, etc.) that needs to be decoupled for testability, or several types implement its trait.
 
 #### Directory Structure
 
@@ -164,8 +215,12 @@ that needs to be decoupled for testability.
     ├── {library}.rs          # Real implementation (e.g., reqwest_client.rs)
     └── {domain_impl}/
         ├── mod.rs            # Domain implementation struct
+        ├── constants.rs      # Constants of the implementation
         └── error.rs          # Implementation-specific errors
 ```
+
+This tree is the per-concept form. A crate can put `traits/` and `implementations/` at its root
+instead, or keep a trait in the module of its concept. Follow the crate ("Where a Concept Lives").
 
 #### Phase 1: Define the Trait(s)
 
@@ -226,7 +281,8 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
 
 #### Phase 2: Fake Implementation(s) + Trait Unit Tests
 
-Create Fakes in `sec/src/lib/tests/fixtures/sample_{concept_name}/` and write unit tests
+Create Fakes in the fixtures folder of the crate ("Where a Concept Lives"), for example
+`tests/fixtures/sample_{concept_name}/`, and write unit tests
 against the trait using those Fakes. This validates the trait design before touching any
 3rd-party dependency.
 
@@ -537,11 +593,14 @@ impl Display for EntityName {
 - [ ] Display impl
 - [ ] Getter/accessor method(s)
 - [ ] Real implementation (if trait-based)
-- [ ] Fake implementation in `tests/fixtures/` (if trait-based)
+- [ ] Fake implementation in the fixtures folder of the crate, or in the test module if only that
+      module uses it (if trait-based)
 - [ ] Auto-trait tests
 - [ ] Happy path test(s)
 - [ ] Error path test(s)
 - [ ] Module registered in parent `mod.rs`
+- [ ] Files follow the layout of the crate ("Where a Concept Lives"), and "Layout by Part" where
+      the crate uses `traits/` and `implementations/` folders
 - [ ] Compiles and tests pass
 
 ## Self-Improvement
