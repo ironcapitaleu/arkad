@@ -73,17 +73,17 @@ attempt at its task timeout. Decisions 3 and 5 rest on both. The Cloud Run docum
 
 - On the timeout: "If your job has retries enabled, the timeout setting applies to each attempt
   of a task. If the task attempt does not complete within this time, it will be stopped."
-  ([Set task timeout](https://docs.cloud.google.com/run/docs/configuring/task-timeout))
+  ([Set task timeout](https://docs.cloud.google.com/run/docs/configuring/task-timeout), accessed 2026-11-21)
 - On the stop: "If a task exceeds the task timeout, Cloud Run sends a SIGTERM signal indicating
   the start of a 10 second period before the actual shutdown occurs, at which point Cloud Run
   sends a SIGKILL signal, shutting down the container instance."
-  ([Container runtime contract](https://docs.cloud.google.com/run/docs/container-contract))
+  ([Container runtime contract](https://docs.cloud.google.com/run/docs/container-contract), accessed 2026-11-21)
 - On a task: "Task represents a single run of a container to completion." "Tasks are retried when
   they fail up to the maxRetries limit."
-  ([REST v2, `jobs.executions.tasks`](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions.tasks))
+  ([REST v2, `jobs.executions.tasks`](https://docs.cloud.google.com/run/docs/reference/rest/v2/projects.locations.jobs.executions.tasks), accessed 2026-11-21)
 - On a retry: "The maximum retries setting specifies the number of times a task is allowed to
   restart in case of failure before being failed permanently."
-  ([Set maximum retries](https://docs.cloud.google.com/run/docs/configuring/max-retries))
+  ([Set maximum retries](https://docs.cloud.google.com/run/docs/configuring/max-retries), accessed 2026-11-21)
 
 No sentence says in words that two attempts of one task never run at the same time. It follows
 from the quotes: Cloud Run marks an attempt as failed only when its container exits, or when Cloud
