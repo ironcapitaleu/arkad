@@ -114,6 +114,10 @@ before you write or amend an ADR.
   record it in an ADR, and link the ADR from the document. To learn why the code is as it is,
   read the current docs and the ADRs.
   [`DOCUMENTATION.md`](DOCUMENTATION.md), "Temporal references", gives examples.
+- **Date each external link.** A link to a page outside the repository, and a reference to a
+  ticket or a pull request, names the date you read it:
+  `([Title](https://…), accessed YYYY-MM-DD)`. [`DOCUMENTATION.md`](DOCUMENTATION.md), "External
+  Links and References", holds the rule.
 - **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 
 ### Writing Style

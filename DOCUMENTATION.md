@@ -770,6 +770,22 @@ Rule of thumb: if removing the link would leave the reader guessing what somethi
 - Use renamed links when the fully-qualified path would hurt readability in prose.
 - All intra-doc links **must resolve**. Broken links are treated as errors in CI.
 
+### External Links and References
+
+Every link to a page outside this repository names the date you read the page. So does every
+reference to an item outside the repository, such as a ticket, a ticket comment, or a pull request.
+A page outside the repository changes without notice. The date lets a reader tell a later change of
+the page from an error in the text.
+
+- Write the date after the link: `([Set task timeout](https://…), accessed 2026-11-21)`.
+- Use the date you read the page, not the date you write the text.
+- If you read the page again and it still says the same, change the date to the new one.
+- A relative link to a file in this repository needs no date. The commit that holds the link fixes
+  the file it points to.
+
+The rule holds for every kind of documentation: rustdoc, comments, design documents, ADRs, READMEs,
+skills, and pull request descriptions.
+
 ### Doc-Test Mechanics
 
 Doc-tests answer the *Wie?* (How?) question concretely — they show a consumer how to use the item. These are the formatting rules for writing them.
