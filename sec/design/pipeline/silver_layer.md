@@ -175,7 +175,7 @@ fields of the as-is fact model.
 | `copy_rank` | `uint16` | 0 for the first copy in one filing |
 | `footnotes` | `list<utf8>` | |
 | `filed` | `date32` | Filing date |
-| `accepted` | `timestamp[ms, UTC]`, nullable | Acceptance time |
+| `accepted` | `timestamp[ms, +00:00]`, nullable | Acceptance time |
 
 Ingestion provenance, on every row (see [Provenance](#provenance)):
 
@@ -186,7 +186,7 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 | `ingestion_mode` | `utf8` | `backfill` or `incremental`, from the raw metadata |
 | `transform_version` | `utf8` | Version of the parser output, see [Units, Paths, and Replays](#units-paths-and-replays) |
 | `execution_id` | `utf8` | The run that wrote the row |
-| `loaded_at` | `timestamp[ms, UTC]` | The time of the write |
+| `loaded_at` | `timestamp[ms, +00:00]` | The time of the write |
 
 - The value key is `filing_id`, `concept_family`, `concept_name`, `taxonomy_version`, `period_end`,
   `quarters`, `unit`, `dimensions`, and `copy_rank`. The key is unique within one filing and one
@@ -208,7 +208,7 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 | ------ | ---------- | ---- |
 | `filing_id`, `entity_scheme`, `entity_id` | `utf8` | `Filing` |
 | `form`, `is_amendment` | `utf8`, `bool` | `10-K/A`, true |
-| `filed`, `accepted` | `date32`, `timestamp[ms, UTC]` nullable | |
+| `filed`, `accepted` | `date32`, `timestamp[ms, +00:00]` nullable | |
 | `period_of_report` | `date32`, nullable | `Filing::period_of_report`: `sub.tsv` `period`, or `dei:DocumentPeriodEndDate`. Null if the source gives no value |
 | `fiscal_year`, `fiscal_period` | `int16`, `utf8`, both nullable | As filed. Filled for 10-K, 10-Q, 20-F, and 40-F, mostly empty for other forms, see [Company Attributes Over Time](#company-attributes-over-time) |
 | `company_name` | `utf8`, nullable | `Filing::company.name`: `sub.tsv` `name`, or `dei:EntityRegistrantName` |
@@ -216,7 +216,7 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 | `tickers` | `list<struct<symbol: utf8, exchange: utf8 nullable>>` | `dei:TradingSymbol` and `dei:SecurityExchangeName`, one entry per share class |
 | `fiscal_year_end_raw` | `utf8`, nullable | `0930` from `sub.tsv`, or `--09-27` from the instance |
 | `fiscal_year_end_month` | `uint8`, nullable | The month of the nearest month end, see below |
-| `sic_source_key`, `sic_source_sha256`, `sic_retrieved_at` | `utf8`, `utf8`, `timestamp[ms, UTC]`, nullable | The `submissions` file of a new filing. Null for a Notes filing |
+| `sic_source_key`, `sic_source_sha256`, `sic_retrieved_at` | `utf8`, `utf8`, `timestamp[ms, +00:00]`, nullable | The `submissions` file of a new filing. Null for a Notes filing |
 | Ingestion provenance | as in `as_is_facts` | The raw document of the filing |
 
 - Every attribute names its raw document. The name, the ticker, and the fiscal year end come from
@@ -260,7 +260,7 @@ bucket, by their statistics.
 | `inputs` | `list<struct<FactKey>>` | The value keys of the as-is facts, with every key field |
 | `restated` | `bool` | |
 | `change` | `utf8` | `new`, `changed`, or `removed` against the current value of the key |
-| `computed_at` | `timestamp[ms, UTC]` | The start time of the series run that computed the row |
+| `computed_at` | `timestamp[ms, +00:00]` | The start time of the series run that computed the row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
 `concept` holds the name of the innermost variant of `CanonicalElementKind`, from
@@ -294,7 +294,7 @@ reconciliation.
 | `confidence` | `utf8`, nullable | For `RollUpMismatch`, `NegativeOther`, and `SumMismatch`: the weakest confidence of the inputs of the check, for example `Synonym`. Null for the other kinds |
 | `step` | `utf8` | `filing` or `series` |
 | `change` | `utf8`, nullable | `new`, `changed`, or `resolved` for a series row. Null for a filing row |
-| `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run. Null for a filing row |
+| `computed_at` | `timestamp[ms, +00:00]`, nullable | The start time of the series run. Null for a filing row |
 | Run columns | `transform_version`, `execution_id`, `loaded_at` | |
 
 The key of a finding is `kind`, the entity, `concepts`, `periods`, `filing_id`, and `subject`, for a
@@ -343,9 +343,9 @@ The list of written units. Readers find the current files through it, and it hol
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
 | `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason, for example exact duplicates. The reason `UnmappedRow` counts the rows that gave an `UnmappedRow` finding |
 | `content_digest` | `utf8` | SHA-256 over the list of digest group IDs and digest group hashes, sorted by digest group ID. A digest group is one filing, or the key that the list below names for rows without `filing_id`. A digest group hash is the SHA-256 over the rows of the digest group, sorted by the row key below. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the split, the bucket count, and the parts do not change the digest. The transform code prints the values, not the Arrow crate. An Arrow upgrade then leaves the digest as it is. [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the exact form, and a golden test pins it to `transform_version` |
-| `computed_at` | `timestamp[ms, UTC]`, nullable | The start time of the series run, for a series unit. Null otherwise |
+| `computed_at` | `timestamp[ms, +00:00]`, nullable | The start time of the series run, for a series unit. Null otherwise |
 | `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
-| `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, UTC]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
+| `execution_id`, `ingestion_mode`, `written_at` | `utf8`, `utf8`, `timestamp[ms, +00:00]` | The job that wrote the unit. `ingestion_mode` here is the mode of the job. The `ingestion_mode` column of a data row is the mode of its raw document |
 
 The row key of `content_digest`, by dataset:
 
@@ -863,9 +863,9 @@ step:
 
 Two notes for the writer:
 
-- **Time zone.** The Arrow time zone `UTC` of the timestamp columns needs the `chrono-tz` feature
-  of `arrow`. Without it, `arrow` reads only offsets such as `+00:00`, and fails on `UTC`. The
-  writer turns on the feature. `sec` already compiles `chrono-tz`.
+- **Time zone.** Every timestamp column holds a UTC instant with the Arrow time zone `+00:00`.
+  `arrow` reads this offset without its `chrono-tz` feature, and `sec` builds `arrow` without it
+  ([ADR 0049](../../../docs/adr/0049-utc-offset-as-arrow-time-zone.md)).
 - **`serde_json` precision.** The `arbitrary_precision` feature of `serde_json` breaks the Arrow
   JSON decoder, so the writer builds the Arrow arrays directly, see
   [`silver_writer_and_jobs.md`](silver_writer_and_jobs.md#silverrecord-and-digestrow).
