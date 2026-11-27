@@ -8,6 +8,8 @@
 //!   company identifier rows.
 //! - [`fake_listing_resolver`]: A fake [`ListingResolver`](crate::ListingResolver) that holds
 //!   dated listing identifier rows.
+//! - [`fake_lease_repository`]: A fake [`LeaseRepository`](crate::LeaseRepository) that keeps its
+//!   leases in memory.
 //! - [`fake_list_repository`]: A fake that lists and reads its seeded entries, in byte order of
 //!   the key text.
 //! - [`fake_read_repository`]: A fake [`ReadRepository`](crate::ReadRepository) initialized
@@ -23,6 +25,7 @@
 //! - [`ticker`]: A future that counts how often the task polls it while another future runs.
 
 pub mod fake_entity_resolver;
+pub mod fake_lease_repository;
 pub mod fake_list_repository;
 pub mod fake_listing_resolver;
 pub mod fake_read_repository;
