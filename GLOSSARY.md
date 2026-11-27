@@ -1,206 +1,301 @@
 # Glossary
 
-This file defines the business terms of this repository, for every crate. Each entry says what the
-term means here, and links the document that owns it. The owning document holds the full rules. If
-an entry and its owning document disagree, the owning document decides, and the entry needs a fix.
+This file defines the business terms of this repository. A definition says what a thing is. It
+does not say how the code stores, computes, or names it. Those details belong in the design
+documents.
 
-If this file passes 100 entries, the team splits it into one `GLOSSARY.md` per crate.
+## How to Read an Entry
 
-Two words have two meanings each: [unit](#unit) and [value](#value). Their entries say which
-meaning each document uses.
+Each entry has a definition, and can add these lines:
 
-## Accession Number
+- **Example:** one real case of the term.
+- **Synonyms:** other words that mean the same thing. Use the entry name in new text.
+- **Not to confuse with:** a term that a reader can take for this one.
+- **Related:** other entries of this file.
 
-The ID that the SEC gives to one [filing](#filing), for example `0000320193-26-000001`. The Notes
-data set names it `adsh`. Silver holds it inside `filing_id`, as `sec:<accession number>`.
-Owner: [`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
+The sections are contexts. A term means the same thing everywhere inside its section. If one word
+means two things in two sections, each section has its own entry, with a qualifier in the name.
 
-## As-Is Fact
+## How to Change This File
 
-One reported fact of one [filing](#filing), as filed, with no dedup and no mapping to a standard
-concept. Both parsers of `xbrl::adapter::edgar` give as-is facts, and silver stores them in
-`as_is_facts`. Owner: [`xbrl/DESIGN.md`](xbrl/DESIGN.md#asisfact).
+- If a document gives a term a new meaning, or adds a term that a reader can misread, change this
+  file in the same PR.
+- If a term leaves use, delete its entry.
+- If this file passes 100 entries, the team splits it into one `GLOSSARY.md` per crate.
 
-## Bronze
+## SEC Filings
 
-The raw store: the SEC files as extract stored them, unchanged, each with a JSON metadata file.
-Owner: [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#layers).
+### Accession Number
 
-## Candidate
+The ID that the SEC gives to one filing.
 
-The value of one standard concept from one [filing](#filing), after steps 1 and 2 of the dedup
-order and before "newest filing wins". Standardize filing writes candidates to `candidates`, and
-the series step reads them. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#candidates).
+- **Example:** `0000320193-26-000001`.
+- **Synonyms:** `adsh`, the name of the column in the Notes data set.
+- **Related:** Filing.
 
-## Copy Rank
+### Amendment
 
-The number that tells apart two [as-is facts](#as-is-fact) of one filing with the same
-[value key](#value-key) except the copy rank. Rank 0
-is the first copy. The parser assigns it, so the [value key](#value-key) stays unique. Owner:
-[`xbrl/DESIGN.md`](xbrl/DESIGN.md#value-key).
+A filing that corrects or adds to an earlier filing of the same entity. Its form ends in `/A`.
 
-## Current Unit
+- **Example:** a 10-K/A that restates the revenue of a 10-K.
+- **Related:** Filing, Form.
 
-For one [unit key](#unit-key), the [unit](#unit) with the latest `written_at` in `silver_files`.
-A default read of silver takes only current units. The series datasets have no current unit: a
-read takes every `series_delta` after the newest `series_base`. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#replays).
+### Company
 
-## Digest Group
+A business that the product shows to its users. One company can file under several entities over
+time, for example after a merger that creates a new parent.
 
-The rows that `content_digest` hashes together: the rows of one [filing](#filing), or, for rows
-without a filing, the rows of one [entity](#entity) or one taxonomy release. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#silver_files).
+- **Not to confuse with:** Entity.
+- **Related:** Entity.
 
-## Dropped Row
+### Concept
 
-A source row that the transform leaves out of silver on purpose. `dropped_rows` of `silver_files`
-counts them per [unit](#unit) by reason, for example `form_not_selected` or `rejected_filing`.
-Owner: [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#silver_files).
+The name of what a fact measures, as a taxonomy defines it.
 
-## Entity
+- **Example:** `us-gaap:Revenues`.
+- **Not to confuse with:** Standard Concept.
+- **Related:** Fact, Standard Concept.
 
-The company that files, as its regulator names it: a scheme and an ID, for example the SEC and a
-CIK. Load maps an entity and a period end to a company of [gold](#gold) with `resolve`
-([`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#where-resolve-and-the-checks-sit)).
-Owner: [`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
+### Entity
 
-## Entity Bucket
+The legal body that files with a regulator, as the regulator identifies it. The SEC identifies an
+entity by its CIK.
 
-One of 64 groups of [entities](#entity), by a hash of the scheme and the ID. The series step runs
-per set of buckets, and `candidates` sorts its rows by bucket. Owner:
-[`sec/design/pipeline/silver_writer_and_jobs.md`](sec/design/pipeline/silver_writer_and_jobs.md#entity-buckets).
+- **Example:** CIK `0000320193`, Apple Inc.
+- **Not to confuse with:** Company.
+- **Related:** Company, Filing.
 
-## Filing
+### Fact
 
-One report that a company submits to its regulator, for example one 10-Q. A filing has one
-[accession number](#accession-number), one [form](#form), and the facts of that report. Silver
-holds one row per filing in each [unit](#unit) that holds it, in `filings`. A read keeps one, by
-the rules of [Current Facts](sec/design/pipeline/silver_layer.md#current-facts). Owner:
-[`xbrl/DESIGN.md`](xbrl/DESIGN.md#filing).
+One value that a filing reports for one concept, one period, one unit of measure, and one set of
+dimensions.
 
-## Filing Day
+- **Example:** the revenue of one company for one quarter, in USD.
+- **Related:** Concept, Fact Value, Filing, Unit of Measure.
 
-The [unit](#unit) kind `filing_day`: every selected [filing](#filing) of one filed date, read from
-the stored [instances](#instance). Its unit key is the date, for example `2026-11-06`. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#the-write-unit).
+### Fact Value
 
-## Filing Step
+The number or the text that a fact reports.
 
-The transform work on one [filing](#filing): parse, standardize filing, and build the silver rows.
-A state machine per filing runs it, with no I/O. Owner:
-[`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#the-filing-step).
+- **Not to confuse with:** State Value.
+- **Related:** Fact.
 
-## Finding
+### Filing
 
-A fact that a step reports without failing, for example a `Conflict` or a `Gap`. Silver stores the
-findings of the standardize steps in `findings`. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#findings).
+A report that one entity submits to a regulator at one time.
 
-## Form
+- **Example:** the quarterly report of a company for one quarter.
+- **Related:** Accession Number, Amendment, Entity, Form.
 
-The type of a [filing](#filing), for example 10-K or 10-Q. A form with `/A` is an amendment. Both
-paths keep the forms of `SELECTED_FORMS`: 10-K, 10-Q, 20-F, 40-F, and their amendments. Owner:
-[`sec/design/pipeline/extraction_overview.md`](sec/design/pipeline/extraction_overview.md#filings-we-select).
+### Form
 
-## Gold
+The type of a filing. It says what the filing reports.
 
-The serving layer in Postgres: the company brain that the screener and the API read. Load fills it
-from [silver](#silver). Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#layers).
+- **Example:** 10-K, the annual report of a US company. 10-Q, its quarterly report. 20-F and 40-F,
+  the annual reports of foreign companies.
+- **Related:** Amendment, Filing.
 
-## Instance
+### Instance
 
-The XBRL instance document of one [filing](#filing): an XML file with every fact of the filing.
-The new-filing path stores the main instance of each filing. Owner:
-[`sec/design/pipeline/extraction_overview.md`](sec/design/pipeline/extraction_overview.md#xbrl-instance-and-label-file).
+The XBRL document of one filing. It holds every fact that the filing reports.
 
-## Notes File
+- **Not to confuse with:** Notes File.
+- **Related:** Filing, Source.
 
-One ZIP of the SEC Financial Statement and Notes data set. It holds the [filings](#filing) of one
-month or one quarter, its Notes period, in tables such as `sub.tsv`, `num.tsv`, and `txt.tsv`.
-Owner: [`sec/design/pipeline/ingestion_paths.md`](sec/design/pipeline/ingestion_paths.md#backfill-extract).
+### Notes File
 
-## Raw Document
+One file of the SEC Financial Statement and Notes data set. It holds the facts of every filing of
+one month or one quarter, as tables.
 
-One file of [bronze](#bronze), such as a [Notes file](#notes-file), an [instance](#instance), or a
-`submissions` file. Each silver row names the raw document it came from. Owner:
-[`sec/design/pipeline/ingestion_paths.md`](sec/design/pipeline/ingestion_paths.md#raw-store).
+- **Example:** the file of the first quarter of 2024.
+- **Not to confuse with:** Instance.
+- **Related:** Source, Split.
 
-## Rejected Filing
+### Unit of Measure
 
-A [filing](#filing) whose [filing step](#filing-step) returns an error, for example a `sub` row with
-a broken fiscal year end. The filing leaves its [unit](#unit), and too many rejected filings fail
-the unit. Owner:
-[`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#rejected-filings).
+What the number of a fact counts.
 
-## Replay
+- **Example:** USD, shares, USD per share.
+- **Not to confuse with:** Write Unit.
+- **Related:** Fact.
 
-A run of the transform on the stored [raw documents](#raw-document) again, for example after a
-parser fix. A replay adds a new [unit](#unit) next to the old one, and overwrites no file. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#replays).
+## Storage Layers
 
-## Silver
+### Bronze
 
-The processed layer between [bronze](#bronze) and [gold](#gold): Parquet datasets of as-is facts,
-filings, candidates, standardized facts, findings, and reference data, and the list of written
-units, `silver_files`. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md).
+The layer that keeps the files of the SEC as they arrived, unchanged.
 
-## Source
+- **Synonyms:** raw store.
+- **Related:** Raw Document, Silver.
 
-The kind of [raw document](#raw-document) a silver row came from: `notes` or `instance`. A
-[filing](#filing) can reach silver from both sources, and a read takes the instance. Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#current-facts).
+### Gold
 
-## Split
+The layer that the screener and the API read: the companies and their facts, ready to serve.
 
-How the Notes reader cuts a [Notes file](#notes-file) into whole [filings](#filing): `stream`, one
-pass over sorted tables, or `buckets`, K passes over hash buckets of `adsh`. Owner:
-[`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#the-split).
+- **Related:** Silver.
 
-## Standardized Fact
+### Raw Document
 
-One value of one standard concept of our model, such as `Revenue`, for one [entity](#entity) and
-period, after dedup across filings. The series step writes them to `standardized_facts`. Owner:
-[`xbrl/DESIGN.md`](xbrl/DESIGN.md#standardizedfact).
+One file in bronze.
 
-## Unit
+- **Example:** one Notes file, one instance.
+- **Related:** Bronze, Source.
 
-This word has two meanings:
+### Silver
 
-1. **Write unit.** The set of silver rows that one write adds, and one [replay](#replay) writes
-   again: one [Notes file](#notes-file), one [filing day](#filing-day), one part of a series run,
-   or one taxonomy release.
-   The silver and transform documents use "unit" in this meaning. Owner:
-   [`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#the-write-unit).
-2. **Unit of measure.** The measure of a numeric fact, for example `USD` or `USD/shares`. Documents
-   write "unit of measure" or the column `unit`. Owner:
-   [`xbrl/DESIGN.md`](xbrl/DESIGN.md#asisfact).
+The layer between bronze and gold. It holds the facts of every filing as filed, the standardized
+facts, and the findings, in tables that a query can read.
 
-## Unit Key
+- **Related:** Bronze, Gold, Write Unit.
 
-The dataset, the [source](#source), the unit kind, and the column `unit_key` of a write
-[unit](#unit). The column holds a name such as the Notes period `2024q1` or the date `2026-11-06`.
-Owner:
-[`sec/design/pipeline/silver_layer.md`](sec/design/pipeline/silver_layer.md#the-write-unit).
+## Silver Data
 
-## Value
+### As-Is Fact
 
-This word has two meanings:
+A fact as the filing reports it, with no choice among copies and no mapping to a standard concept.
 
-1. **Fact value.** The number or text that a fact or a company attribute reports, such as
-   `value_numeric` in `as_is_facts`. The silver and `xbrl` documents use "value" in this meaning.
-   Owner:
-   [`xbrl/DESIGN.md`](xbrl/DESIGN.md#asisfact).
-2. **Rust value.** One value of a Rust type that a state takes or outputs. `transform_per_filing.md`
-   uses this meaning for "one value per filing", which holds all the facts of that filing, and
-   meaning 1 elsewhere. Owner:
-   [`sec/design/pipeline/transform_per_filing.md`](sec/design/pipeline/transform_per_filing.md#one-value-per-filing).
+- **Not to confuse with:** Standardized Fact.
+- **Related:** Candidate, Fact, Value Key.
 
-## Value Key
+### Candidate
 
-The fields that name one [as-is fact](#as-is-fact) within a [filing](#filing): the filing, the
-concept, the taxonomy version, the period end, the quarters, the unit of measure, the dimensions,
-and the [copy rank](#copy-rank). Owner: [`xbrl/DESIGN.md`](xbrl/DESIGN.md#value-key).
+The value of one standard concept that one filing gives, before the filings of an entity are
+compared with each other.
+
+- **Related:** As-Is Fact, Standardized Fact.
+
+### Copy Rank
+
+The number that tells apart two facts of one filing that agree in every other part of their value
+key. The first copy has rank 0.
+
+- **Example:** a filing reports one revenue twice, once rounded to millions. The two copies get
+  ranks 0 and 1.
+- **Related:** Value Key.
+
+### Current Unit
+
+The write unit of a unit key that silver wrote last. A normal read takes only current units. The
+results of the series step are the exception: a read builds them from the last full run and the
+changes after it.
+
+- **Related:** Replay, Unit Key, Write Unit.
+
+### Dropped Row
+
+A row of a raw document that the transform leaves out of silver on purpose, with a reason.
+
+- **Example:** a row of a form that the pipeline does not select.
+- **Related:** Rejected Filing.
+
+### Entity Bucket
+
+One of a fixed number of groups of entities. The series step works on one set of buckets at a time.
+
+- **Related:** Entity.
+
+### Filing Day
+
+The write unit of one filed date: every selected filing of that date, read from its instance.
+
+- **Example:** the filings of 2026-11-06.
+- **Related:** Write Unit.
+
+### Finding
+
+A problem or a remark that a step reports about the data without failing.
+
+- **Example:** a gap in the quarters of an entity. Two values of one concept that disagree in one
+  filing.
+- **Related:** Candidate, Standardized Fact.
+
+### Replay
+
+A new run of the transform on the raw documents that bronze already holds. It writes new write
+units next to the old ones, and deletes nothing.
+
+- **Example:** a run after a fix of a parser.
+- **Related:** Current Unit, Write Unit.
+
+### Source
+
+The kind of raw document that a fact came from: a Notes file or an instance. One filing can arrive
+from both.
+
+- **Related:** Instance, Notes File.
+
+### Standard Concept
+
+A concept of our own model. Several concepts of a taxonomy can map to one standard concept.
+
+- **Example:** `Revenue`, which `us-gaap:Revenues` and `us-gaap:SalesRevenueNet` map to.
+- **Not to confuse with:** Concept.
+- **Related:** Candidate, Standardized Fact.
+
+### Standardized Fact
+
+The value of one standard concept for one entity and one period, after the filings of the entity
+are compared and one value wins.
+
+- **Not to confuse with:** As-Is Fact.
+- **Related:** Candidate, Standard Concept.
+
+### Unit Key
+
+The name of a write unit, unique within its dataset, its source, and its kind.
+
+- **Example:** `2024q1` for a Notes file, `2026-11-06` for a filing day.
+- **Related:** Current Unit, Write Unit.
+
+### Value Key
+
+The parts that name one as-is fact within one filing: the concept, the period, the unit of
+measure, the dimensions, and the copy rank.
+
+- **Related:** As-Is Fact, Copy Rank.
+
+### Write Unit
+
+The set of rows that one write adds to silver, and that one replay writes again.
+
+- **Example:** every filing of one Notes file. Every filing of one filing day.
+- **Synonyms:** unit, in the silver and transform documents.
+- **Not to confuse with:** Unit of Measure.
+- **Related:** Current Unit, Filing Day, Unit Key.
+
+## Transform
+
+### Filing Step
+
+The work of the transform on one whole filing: read its facts, standardize them, and build its
+rows for silver.
+
+- **Related:** Rejected Filing, Whole Filing.
+
+### Rejected Filing
+
+A filing that the filing step cannot process as a whole, for example because its header is broken.
+The write unit goes on without it. Too many rejected filings fail the write unit.
+
+- **Related:** Dropped Row, Filing Step.
+
+### Split
+
+How the transform cuts a Notes file into whole filings: in one pass when the file is sorted by
+filing, or in several passes over groups of filings when it is not.
+
+- **Related:** Notes File, Whole Filing.
+
+### State Value
+
+The data that one state of a state machine takes, or hands to the next state. In the transform, one
+state value holds one whole filing.
+
+- **Not to confuse with:** Fact Value.
+- **Related:** Whole Filing.
+
+### Whole Filing
+
+Every fact and header of one filing, gathered in one place before any step reads it.
+
+- **Related:** Filing Step, Split.
