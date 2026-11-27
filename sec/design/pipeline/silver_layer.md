@@ -380,8 +380,8 @@ columns with one value per file add 0.39%. `txt.tsv` writes 954.6 MB of text to 
 
 | Option | Pro | Con |
 | ------ | --- | --- |
-| A. Plain Parquet files and the `silver_files` list (decided) | No new dependency next to Polars. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
-| B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and Polars must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
+| A. Plain Parquet files and the `silver_files` list (decided) | No new dependency. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
+| B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and the `arrow` crate of the writer must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
 | C. Apache Iceberg through `iceberg-rust` | Open standard, snapshots, hidden partitions, the Supabase Iceberg wrapper | Needs a catalog service. The Rust writer covers less than the Java one. The epic lists Iceberg as out of scope, and ADR 0001 adds Iceberg only next to Postgres, past about 50 GB |
 
 Decided by the owner on 2026-11-08: A. Two reasons:
@@ -774,8 +774,9 @@ one hour, and each replay of the backfill runs every Notes file again.
   run puts one `adsh` in the same bucket. A hasher with a random seed per instance, such as the
   default of `HashMap`, drops or doubles filings. Each pass groups its rows by `adsh` and hands one
   filing at a time to the parse state.
-- **Parts.** The write state writes a Parquet part per bucket in B, and per about 256 MB of input
-  text in C (`part-<n>.parquet`). It then drops the rows, so it never holds a whole Notes file.
+- **Parts.** The silver writer of the task runner writes a Parquet part per bucket in B, and per
+  about 256 MB of input text in C (`part-<n>.parquet`). It then drops the rows, so it never holds
+  a whole Notes file.
   Inside a part, rows sort by `filing_id`.
 - `candidates` sorts each part by `entity_bucket`, then by `filing_id`, and starts a new row group
   at each change of `entity_bucket`. A series task reads the row groups of its entity bucket from
@@ -791,16 +792,19 @@ A Cloud Run task has a limit of one hour. One task transforms one Notes file, so
 largest Notes file, not the length of the history. More history adds tasks, and the tasks run in
 parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of the slowest task.
 
-- Not measured: the time of parse, map, and write for one Notes file. The silver prototype measures
-  it on `2024q1`, the largest file, with C and with B.
+- Measured on `2024q1`, the largest file, on one thread: split, parse, map, and write take 45.6 s
+  with C and 97.3 s with B. C that stops on the last row, then B, takes about 2.4 minutes. The
+  Rust prototype of the silver layer measured these times on 2026-11-08 (Linear document "STA-424
+  Findings: Silver Parquet Layer and Polars for the Transform Step"). Not measured: the
+  standardize filing step and the reads from GCS.
 - Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
   target applies to C and B together, because C can stop on the last row of an unsorted file.
 - Units differ in size: `2009q1` holds no filings, and `2024q1` holds 2.7 GB of text. The time of
   the largest file bounds the job, not the mean. `silver_files` records `bytes` and `row_count` per
   unit, so the integrity report can list units far above the median, and the job can start the
   largest files first.
-- If a file breaks the target, the transform design splits it across tasks. It also defines how
-  the tasks of one unit write one `silver_files` row.
+- [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) holds the choice of one task per
+  Notes file, and names the fallback if a file breaks the target.
 
 ### Where the State Machine Fits
 
@@ -809,15 +813,19 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
 | A. A transform super-state per filing, run in batches through a facade, as `notes()` and `daily_filings()` run extract (proposed) | Typed states, typed errors per filing, the observer, the same tests as extract. Matches section "4a) Transform Integration" of `xbrl/DESIGN.md` | More code than a script. A filing is small, so the per-state overhead is a large share of the work |
 | B. One Polars or DuckDB batch job per Notes file | Little code, fast columnar work | No typed per-filing errors. SQL or a DataFrame expression takes the place of the `xbrl` rules, so the rules exist twice |
 
-Proposal: A, with Polars inside the states that move tables:
+Proposal: A. The states move rows as Rust types, and the writer writes them with `arrow` and
+`parquet`. No state uses a DataFrame library:
 
-- The split state streams the ZIP, with C first and B as the fallback, and cuts it into filings, as in
-  [Unit of Work and Memory](#unit-of-work-and-memory).
+- The Notes reader of the task runner streams the ZIP, with C first and B as the fallback, and
+  cuts it into filings, as in [Unit of Work and Memory](#unit-of-work-and-memory).
 - The parse and standardize states call the `xbrl` crate on Rust types. Only the Rust code applies
   the rules.
-- The write state turns the Rust rows of one bucket into Arrow batches and writes one Parquet part.
-- The series step is a super-state per entity bucket. Inside it, Polars reads the `candidates` of
-  the bucket, and the `xbrl` rules run per entity.
+- The silver writer of the task runner turns the Rust rows of one bucket into Arrow batches and
+  writes one Parquet part.
+- The series step is a super-state per entity bucket. Inside it, the silver reader reads the
+  `candidates` of the bucket, and the `xbrl` rules run per entity.
+
+[`transform_per_filing.md`](transform_per_filing.md) sets the states of the filing step.
 
 ### Per Unit or Over Many Units
 
@@ -891,18 +899,24 @@ source.
   `ON CONFLICT DO NOTHING`), the replay of a filing in gold, dedup for direct reads, and the
   write method of the fact tier. Silver writes units and never upserts rows. A later gold
   design decides these. They are in the fog of the epic MVP Data Pt. 2.
-- **The standardize filing step per filing or per source.** The transform design decides. Silver
-  accepts both. [Current Facts](#current-facts) picks one `candidates` unit per filing either way.
-- **The reload of a corrected Notes file.** Silver writes a new unit only if the transform runs
-  on the new bytes. The transform design decides whether a changed digest starts that run.
 - **The change to ADR 0001.** ADR 0001 writes from raw to Postgres. With silver, load reads silver.
   [Amendment 1](../../../docs/adr/0001-mvp-database.md#amendment-1-load-reads-silver) of ADR 0001
   makes this change.
-- **A filing that the parser rejects as a whole,** in a `filing_day` or a `notes_file` unit. The
-  parser rules of the transform design decide whether the unit fails or lists the filing in
-  `dropped_rows`.
-- **The parallel plan of the transform:** threads inside a task, tasks per unit, the split of one
-  Notes file across tasks, and the order of the jobs.
+
+Other designs set these points of the transform:
+
+- **The standardize filing step runs once per source**
+  ([ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md)).
+  [Current Facts](#current-facts) picks one `candidates` unit per filing.
+- **A corrected Notes file** has a new SHA-256. So rule 2 of a write finds a new `input_digest`,
+  and the task writes a new unit ([`transform_per_filing.md`](transform_per_filing.md), "Handover
+  to Silver and Gold").
+- **A filing that the parser rejects as a whole** leaves its unit and counts in `dropped_rows`.
+  The unit fails if too many of its filings are rejected
+  ([ADR 0042](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md),
+  [`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings").
+- **The parallel plan of the transform:** threads inside a task, tasks per unit, and the order of
+  the jobs ([`silver_writer_and_jobs.md`](silver_writer_and_jobs.md), "The Parallel Plan").
 
 ## Measurements
 

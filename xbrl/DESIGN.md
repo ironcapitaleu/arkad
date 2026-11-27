@@ -2385,6 +2385,7 @@ SEC gives the opposite sign.
 
 The `xbrl` crate holds the types and the rules. The transform runs them as states of the state
 machine. This section gives the proposed shape and lists what the transform design must decide.
+[`transform_per_filing.md`](../sec/design/pipeline/transform_per_filing.md) holds that design.
 
 ### Proposed Shape
 
@@ -2396,7 +2397,6 @@ flowchart LR
   PI -- "into(): AsIsFact, Filing" --> SF
   PN --> AS[(Silver: as-is)]
   PI --> AS
-  AS -. replay .-> SF
   SF -- "candidates, blocked ones included, Conflict findings" --> CS[(Silver: candidates)]
   CS --> SE[Standardize series]
   AS -- "Filing: forms, fiscal year end" --> SE
@@ -2411,8 +2411,9 @@ flowchart LR
   facts, as the existing transitions of the `sec` crate do. Parsing and resolution run in
   `compute_output_data` of their state, because they can fail and they return findings. `From`
   cannot fail.
-- **As-is is an output of its own.** The parse output goes to the as-is layer before
-  standardization starts. A replay of a rule starts from the as-is layer and needs no parse.
+- **As-is is an output of its own.** The parse output goes to the as-is layer, and the
+  standardize state takes the same output. A replay of a rule runs the parse again from the raw
+  store.
 - **The registry comes in through the context.** The context of the standardize state holds the
   registry. The state does not name a taxonomy, and a test can pass a fake registry. The
   transform design picks the lifetime.
@@ -2434,8 +2435,11 @@ rules, the drop of equal rows, and the copy ranks. The transform design decides 
 ticket of the instance parser adds the cross-source test.
 
 - How the split step cuts a Notes file into filings, and how it streams a file larger than the
-  memory of one task.
-- How the transform picks the main instance of a filing and skips the filing-fee exhibit.
+  memory of one task. [`transform_per_filing.md`](../sec/design/pipeline/transform_per_filing.md),
+  "The Split", sets it.
+- How the transform picks the main instance of a filing and skips the filing-fee exhibit. Extract
+  picks it, see [`transform_per_filing.md`](../sec/design/pipeline/transform_per_filing.md), "The
+  Filing Day Reader".
 - How each parser fills the value key: the exact end from `ddate` and `datp`, the copy rank from
   `iprx` or the SEC order, dimension pairs without prefixes, and the legal entity axis from `coreg`.
 - How the Notes parser restores `/shares` on per-share units and drops rows that are equal in value,
@@ -2447,6 +2451,7 @@ ticket of the instance parser adds the cross-source test.
 - Whether the standardize filing state runs once per filing or once per source. A read takes one
   source per filing, the instance over Notes ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "Current Facts"). The same rule picks one
   `candidates` unit per filing, so step 3 needs no tie-break inside one `FilingId`.
+  [ADR 0043](../docs/adr/0043-standardize-filing-once-per-source.md) runs it once per source.
 - A test that runs both parsers on filings in both sources and compares their as-is facts.
   `xbrl/tests/parser_comparison.rs` runs them on one 10-Q. Both give the same value keys, and the
   same content after the Notes losses that the test lists. The fixture set in
@@ -2507,12 +2512,14 @@ text, such as a nil fact, gives no value, as an empty Notes field does. The inst
 code. Its period of report
 is the exact date, where Notes `sub.period` is the month end.
 
-States and errors:
+States and errors, set in [`transform_per_filing.md`](../sec/design/pipeline/transform_per_filing.md),
+"The Filing Machine":
 
 - The names of the states, their inputs, outputs, and contexts, and the super-state around them.
 - The error types of each state, in the format of `AGENTS.md`, "Error Display Format".
 - Where the ingestion provenance joins each as-is fact.
-- The state that loads as-is facts from silver for a replay.
+- The state that loads as-is facts from silver for a replay. The MVP has none: a replay parses
+  again.
 
 Series step:
 

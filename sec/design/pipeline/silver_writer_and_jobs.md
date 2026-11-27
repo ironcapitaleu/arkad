@@ -12,8 +12,8 @@
 This document sets how the code meets the silver contract of [`silver_layer.md`](silver_layer.md).
 It covers how a unit reaches silver, how the series step runs, and how the jobs run and fail. It does not
 change the contract. The per-filing work of the transform, its states, parsers, standardize filing,
-and checks, belongs to the per-filing transform design. This document calls that work "the filing
-step".
+and checks, belongs to the per-filing transform design, [`transform_per_filing.md`](transform_per_filing.md).
+This document calls that work "the filing step".
 
 ## Reading Guide
 
@@ -481,7 +481,7 @@ flowchart LR
   whole filing to the channel. A `filing_day` unit has one reader, which reads the instances of the
   day one after the other.
 - **N filing workers.** Each worker runs the filing step on one filing: parse, standardize filing,
-  and the per-filing checks. N is the number of cores of the task, at least 1. Measured on one
+  and the rows of the filing. N is the number of cores of the task, at least 1. Measured on one
   thread, `2024q1` took 45.6 s, so N bounds cost, not the target.
 - **One writer.** It receives the rows of whole filings and writes the parts of every dataset of
   the unit. It hashes each filing when it arrives.
@@ -542,8 +542,8 @@ holds the measurement.
 | Lease held | Another run of the job kind is in progress | Not started | The plan step fails before any write. The workflow stops. The references stay with their source | The next run of the workflow |
 | Lease lost | A worker task finds another plan in the lease, or less than one task timeout plus 1 minute before its expiry | Not started | The task fails before any write | Cloud Run retries the task once, and it fails again |
 
-- The per-filing transform design decides which filing the parser rejects, and the share of
-  rejected filings that fails a unit.
+- [`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings", sets which filing the
+  parser rejects, and the share of rejected filings that fails a unit.
 - A series task that fails leaves its run without a count. The next series run compares against the
   run before it, so it recomputes every entity of the failed run.
 - A unit that fails stays in the next plan through the carry-over of
@@ -565,7 +565,8 @@ Each task logs one JSON event `task_summary` at its end, with these keys in `con
 | `slowest_unit`, `slowest_unit_seconds` | The unit with the longest time |
 | `series` | For a series task: `mode`, `entities`, rows `new`, `changed`, `removed`, findings `new`, `changed`, `resolved` |
 
-The task also logs `unit_written`, `unit_skipped`, `unit_failed`, and `unit_slow` for each unit.
+The task also logs `unit_written`, `unit_skipped`, `unit_failed`, and `unit_slow` for each unit,
+and `filing_rejected` for each rejected filing.
 The summary of a run is the set of `task_summary` events with its `plan_id`. A task exits with an
 error if a unit failed. The workflow ends as failed if a step failed.
 
