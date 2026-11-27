@@ -242,7 +242,7 @@ second hash enters the code. The count 64 comes from "Cloud Run Sizing" of the c
 rules of one entity in this order:
 
 1. `newest_filing(candidates)` gives the `Series`: step 3 of the dedup order.
-2. `derive_q4(&series, filings)` gives the fourth quarters.
+2. `derive_q4(&series)` gives the fourth quarters.
 3. `derive_from_closed_groups(&series, &fourth_quarters)` gives the roll-up values. Steps 2 and 3
    are step 4 of the dedup order.
 4. `added` is the fourth quarters, then the roll-up values.
