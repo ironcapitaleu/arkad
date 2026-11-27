@@ -203,8 +203,8 @@ findings and continues.
 Stop iterating when:
 - The review returns clean (no new comments). A round with only 🟣 findings is not clean: fix the
   correct ones, push, and request a review. Assume the owner does not watch the loop. Assume nobody
-  else fixes the nit. If no 🟣 finding is correct, reply to each with the reason. The round then counts as
-  clean
+  else fixes the nit. If no 🟣 finding is correct, reply to each with the reason. The round then
+  counts as clean
 - All remaining comments are ambiguous/human-decision items (escalated)
 - The human says to stop
 - 3 iterations have passed without convergence (flag to human). A round with only 🟣 findings
