@@ -1,11 +1,11 @@
-# ADR 0044: `jiff` for Dates, Timestamps, and Time Zones
+# ADR 0047: `jiff` for Dates, Timestamps, and Time Zones
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a)) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27) |
 | Date | 2026-11-24 |
 | Deciders | The project owner |
-| Ticket | [STA-591](https://linear.app/state-machine/issue/STA-591), first slice [STA-592](https://linear.app/state-machine/issue/STA-592) |
+| Ticket | [STA-591](https://linear.app/state-machine/issue/STA-591), accessed 2026-11-27. First slice [STA-592](https://linear.app/state-machine/issue/STA-592), accessed 2026-11-27 |
 
 ## Context
 
@@ -88,7 +88,7 @@ Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0
 ## Open Questions
 
 - `chrono` writes the fraction of a second with 3, 6, or 9 digits. `jiff` writes the fewest digits.
-  The `storage` slice ([STA-593](https://linear.app/state-machine/issue/STA-593)) checks whether a
+  The `storage` slice ([STA-593](https://linear.app/state-machine/issue/STA-593), accessed 2026-11-27) checks whether a
   stored timestamp has a fraction, and decision 4 holds it to the same string.
 
 ## Sources

@@ -1509,7 +1509,7 @@ or `yesterday-N`, the day `N` days before yesterday (`N` at least 1).
   it publishes a daily index in the evening of that day or later. At 02:00 UTC on 2 November it is still 1
   November in New York. So `yesterday` is the day before today in New York, never in UTC.
 - The dependency `jiff`, with the feature `static`, compiles the New York time zone and its
-  daylight-saving rules into the binary ([ADR 0044](../../../docs/adr/0044-jiff-for-dates-and-time-zones.md)).
+  daylight-saving rules into the binary ([ADR 0047](../../../docs/adr/0047-jiff-for-dates-and-time-zones.md)).
 - If `ARKAD_FROM` is unset, a value does not parse, `ARKAD_FROM` is after `ARKAD_TO`, or
   `ARKAD_TO` is today or later, startup fails. The error names the variables.
 - The binary reads no stored document to pick its dates. Resume from the store comes with the
