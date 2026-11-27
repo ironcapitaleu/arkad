@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-542 comment `94d0e5aa`](https://linear.app/state-machine/issue/STA-542#comment-94d0e5aa), accessed 2026-11-27). The consequence for IFRS filers confirmed on 2026-11-27 ([STA-542 comment `f0d34e74`](https://linear.app/state-machine/issue/STA-542#comment-f0d34e74), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-542 comment `94d0e5aa`](https://linear.app/state-machine/issue/STA-542#comment-94d0e5aa), accessed 2026-11-27). The project owner confirmed the consequence for IFRS filers on 2026-11-27 ([STA-542 comment `f0d34e74`](https://linear.app/state-machine/issue/STA-542#comment-f0d34e74), accessed 2026-11-27) |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-542](https://linear.app/state-machine/issue/STA-542), accessed 2026-11-27 |

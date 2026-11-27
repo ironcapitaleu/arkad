@@ -236,6 +236,8 @@ mod tests {
             Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
                 .expect("Given an end after the start, the creation should always succeed"),
         );
+        // `standardized` takes its value from accession `0000320193-24-000123`, not from
+        // `annual_report`.
         let series = Series {
             facts: vec![standardized(fiscal_year, "391")],
             blocked: Vec::new(),
