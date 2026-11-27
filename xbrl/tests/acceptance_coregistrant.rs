@@ -1,7 +1,7 @@
 //! # Acceptance Test A12: Coregistrant Values
 //!
 //! Runs the rules of the standardized layer on the Dow 10-K for fiscal year 2025: the rules of one
-//! filing with [`UsGaap`], `core/dedup/newest-filing@1`, `core/period/q4-from-fy@1`, and the
+//! filing with the US GAAP plug-in, `core/dedup/newest-filing@1`, `core/period/q4-from-fy@1`, and the
 //! derivation from a closed group. The Notes rows of the filing hold 331 `coreg` values of The Dow
 //! Chemical Company and Dow Inc. The parser puts each on the `LegalEntity` axis. With the values
 //! that the filer tags on that axis itself, the filing holds 373 numeric values on it. Tiers 1 and 2
