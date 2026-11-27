@@ -411,7 +411,8 @@ The other line of each open step has a name in the layout:
 
 #### Cash Flow Statement
 
-Duration values. The top line is `NetChangeInCash`.
+Duration values, except `CashAndRestrictedCash`, whose values are instants. The top line of the
+tree is `NetChangeInCash`.
 
 | Concept | Group | Kind | Parent | Start | Weight | Closed |
 | ------- | ----- | ---- | ------ | ----- | ------ | ------ |
@@ -432,9 +433,17 @@ Duration values. The top line is `NetChangeInCash`.
   the receipts and payments less net income.
 - `NetIncome` in the cash flow statement is the same standardized fact as in the income statement.
   So the cross-statement check of "5) Validation" on net income always holds and needs no code.
-- The cash balance at the start and the end of the period is not in the tree, and the design has
-  no check of `NetChangeInCash` against two balances. Such a check needs the balance at the day
-  before the exact start of the period.
+- **`CashAndRestrictedCash`** is a top line outside the table: it is the cash at the end of the
+  period that the statement reconciles, with cash equivalents and restricted cash. Its values are
+  instants, and it is in no group. A period
+  before ASU 2016-18 has no value. The balance sheet line stays `CashAndEquivalents`.
+- No rule derives `NetChangeInCash` from two balances. The design has no check of
+  `NetChangeInCash` against two balances. Such a check needs the balance at the day before the
+  exact start of the period.
+- Only `NetChangeInCash` and `ExchangeRateEffect` carry a scope (see "`StandardizedFact`"). A value
+  from a concept before ASU 2016-18 has the scope `ExcludesRestrictedCash`. The three cash flow
+  totals carry no scope, and they count with either scope. The reasons are in
+  [ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md).
 
 #### Disclosures
 
@@ -642,6 +651,8 @@ So the check of that group is skipped for that period.
   statement counts in it: the start of a step, the members that stand for a start with no value,
   and the children of a transparent parent that join the group. The other groups of the slot keep
   their checks ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
+- If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, `net-change-in-cash` gets no check
+  and reports a `MixedScopes` finding. The three totals carry no scope and count with either. `derive_from_closed_groups` skips the group and reports nothing.
 - `check_roll_ups` reports the `MixedStarts` finding. `derive_from_closed_groups` skips the group
   and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
@@ -668,10 +679,11 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
   profit, and its cost of revenue can leave out depreciation. The group can still derive
   `Revenue` or `CostOfRevenue`.
 - If `ExchangeRateEffect` has no value, `net-change-in-cash` derives nothing, and its check uses
-  zero. Filings before 2018 report the exchange rate effect under
-  `EffectOfExchangeRateOnCashAndCashEquivalents`. That concept leaves out restricted cash, so it is
-  no alias. If it counted as zero, the rule would derive a wrong `NetChangeInCash` for every
-  multinational before 2018.
+  zero. A filer that reports no exchange rate effect can still have one under a concept outside
+  the alias list. If it counted as zero, the rule would derive a wrong `NetChangeInCash`.
+- `net-change-in-cash` derives and checks only values of one scope. A derived value takes the scope
+  of the members that carry one. If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, the
+  group derives nothing (see "Checks the Tree Gives").
 - In each pass, the rule visits the groups in the order in which they first appear in the tables
   of "Roll-Up Tree". The first group that gives a value wins. The rule still checks every other
   group that holds the member, so a disagreement is a `RollUpMismatch` finding.
@@ -739,6 +751,7 @@ The concepts of `CanonicalElementKind` take these places in the trees and disclo
 | `NetIncomeAttributableToNoncontrollingInterest` | child of `net-income-attribution` |
 | `NetChangeInCash` | top of the cash flow statement |
 | `ExchangeRateEffect` | child of `net-change-in-cash` |
+| `CashAndRestrictedCash` | top of the cash flow statement |
 | `LongTermDebtIncludingCurrentMaturities` | disclosure `DebtMaturities`, total |
 | `DebtDueInYearOne` to `DebtDueInYearFive`, `DebtDueAfterYearFive` | disclosure `DebtMaturities`, parts |
 
@@ -772,6 +785,7 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 | `NetIncomeAttributableToNoncontrollingInterest` | `NetIncomeLossAttributableToNoncontrollingInterest` | | 1,471 |
 | `NetChangeInCash` | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect` | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect` (1,324), other part the alias list of `ExchangeRateEffect` | 4,511 |
 | `ExchangeRateEffect` | `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations` | `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` (1,747), other part `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations` | 857 |
+| `CashAndRestrictedCash` | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations` | `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`, other part `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations` | not counted |
 
 - Each list follows the rules of "`us_gaap`": it holds only concepts that equal the whole total.
   The FEATURE ticket of each statement checks the other parts against the 2026 calculation tree,
@@ -789,7 +803,9 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 - The rule IDs follow the existing form, for example `us-gaap/alias/accounts-payable@1` and
   `us-gaap/part/treasury-stock@1`.
 
-The count after the change: 39 − 3 + 16 = 52 standard concepts.
+The count after the change: 39 − 3 + 16 = 52 standard concepts. `CashAndRestrictedCash` makes 53.
+Its filers were not counted in the frames API. All 36 fixture 10-Ks of fiscal years 2018 and later
+report its alias or its part.
 
 #### Concepts Not Added
 
@@ -816,7 +832,11 @@ The changes are to comments and to the new lists.
 
 | List | Verdict |
 | ---- | ------- |
-| `Revenue`, `OperatingIncome`, `Assets`, `Liabilities`, `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays |
+| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an other part of the other. `RevenuesNetOfInterestExpense` gets no mapping |
+| `OperatingIncome`, `Assets`, `Liabilities` | stays |
+| `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part |
+| `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
+| `ExchangeRateEffect` | `EffectOfExchangeRateOnCashAndCashEquivalents` joins the list with the scope `ExcludesRestrictedCash`. `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` joins the parts with the same scope, and its other part is `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations` |
 | `NetIncome`, `Equity` | stays. The part rule stays. `NetIncomeLoss` and `StockholdersEquity` also start the new lists |
 | `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
 | `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
@@ -829,11 +849,15 @@ The flag `required` marks the 11 roll-ups of the MVP Decision Spike that map to 
 concept: `Assets`, `Liabilities`, `Equity`, `LiabilitiesAndEquity`, `Revenue`, `NetIncome`,
 `NetIncomeAttributableToParent`, `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow`, and
 `NetChangeInCash`. `OperatingIncome` has no flag: it is no roll-up of the spike. The cash at the
-end of the period has no standard concept, so it is not in the set. `UsGaap::required_concepts`
+end of the period, `CashAndRestrictedCash`, has no flag, because the code does not map it yet. `UsGaap::required_concepts`
 returns the set, and the completeness check of "5) Validation" reads it
 ([ADR 0050](../docs/adr/0050-missing-required-finding.md)). The flag does not follow the arrays
 `REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse of the `sec` crate reads
 `REQUIRED_CONCEPTS`.
+
+`CashAndDueFromBanks` and `DueFromBanks` get no mapping. A bank reports `InterestBearingDepositsInBanks`
+next to `CashAndDueFromBanks`, so neither is the whole of `CashAndEquivalents`. The concepts of
+filings before 2018 and the cash of banks follow [ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md).
 
 #### Names in Silver
 
@@ -852,6 +876,12 @@ parses it.
   of the tables of "Roll-Up Tree". It holds only the members with a value. `reason` holds the name of the group, such as `liabilities`. For the balance sheet identity, `concepts` holds `Assets`, then
   `LiabilitiesAndEquity`, and `reason` holds `balance-sheet`. `confidence` holds the weakest
   confidence of the inputs of the check (see "Layer 3").
+- `scope` is a nullable column of `standardized_facts`. It holds `ExcludesRestrictedCash`, or null
+  for the full scope of the concept.
+- `MixedScopes` is a value of `findings.kind`. `concepts` holds the members of
+  `net-change-in-cash` with a value, in the order of `RollUpMismatch`. Only `NetChangeInCash` and
+  `ExchangeRateEffect` carry a scope. `reason` holds
+  `net-change-in-cash`.
 - `MixedStarts` is a value of `findings.kind`. `concepts` holds the members of the group with a
   value, in the order of `RollUpMismatch`. The members that stand for a start with no value take
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
@@ -1948,9 +1978,13 @@ StandardizedFact {
     release:     TaxonomyRelease   // ID and checksum
     inputs:      Vec<FactKey>      // the value keys of the as-is facts it came from
     restated:    bool              // an earlier filing reported another value for this value or an input
+    scope:       Option<Scope>     // None: the full scope of the concept
 }
 ```
 
+- `Scope` is a `#[non_exhaustive]` enum. Its one variant, `ExcludesRestrictedCash`, marks a cash
+  value that leaves out restricted cash, from a concept before ASU 2016-18. An alias or a part
+  sets it, and a derived value takes it from the inputs that carry one ("Cash Flow Statement").
 - `rule` and `inputs` replace `resolution_path: Vec<String>`. The trace is typed and joins back to
   the as-is facts.
 - `inputs` replaces `sources: Vec<FilingSource>`. The input facts name their filings.
