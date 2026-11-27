@@ -18,9 +18,9 @@
 //!   listing, and its [`ListingScheme`].
 //! - [`mic`]: The [`Mic`] of ISO 10383 that names an exchange, and the [`InvalidMic`] for a string
 //!   that is not a MIC.
-//! - `stored_timestamp`: The serde functions that write a timestamp in the stored form.
 //! - [`sha256`]: The [`Sha256Digest`] of a byte slice, and the [`InvalidSha256Digest`] for a
 //!   string that is not a digest.
+//! - `stored_timestamp`: The serde functions that write a timestamp in the stored form.
 
 pub mod account_id;
 pub mod company_id;

@@ -92,6 +92,25 @@ mod tests {
     }
 
     #[test]
+    fn should_print_the_expiry_with_milliseconds_when_the_expiry_has_a_fraction() {
+        let error = LeaseError::LeaseHeld {
+            kind: JobKind::new("transform-notes")
+                .expect("Given a valid hardcoded job kind, the creation should always succeed"),
+            lease: Lease {
+                plan_id: "plan-a".to_owned(),
+                expires_at: Timestamp::new(1_795_341_600, 500_000_000)
+                    .expect("Given a hardcoded timestamp in range, the time should always build"),
+            },
+        };
+
+        let expected_result = "[LeaseHeld] Lease of job kind 'transform-notes' is held by plan 'plan-a' until '2026-11-22T10:00:00.500+00:00'";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_print_the_backend_error_as_it_is_when_the_backend_fails() {
         let error = LeaseError::Backend(BackendError::unreachable_storage("timeout"));
 

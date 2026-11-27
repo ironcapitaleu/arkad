@@ -5,8 +5,9 @@
 //! The stored form is RFC 3339 in UTC with the suffix `Z`. The fraction of a second has no digits
 //! for a whole second, else 3, 6, or 9 digits: the fewest of these that hold the nanoseconds. For
 //! example, `2026-09-22T20:05:30Z`, `2026-09-22T20:05:30.500Z`, and
-//! `2026-09-22T20:05:30.123400Z`. ADR 0047, decision 4 and amendment 1, fix this form for every
-//! stored timestamp.
+//! `2026-09-22T20:05:30.123400Z`.
+//! [ADR 0047](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0047-jiff-for-dates-and-time-zones.md),
+//! decision 4 and amendment 1, fix this form for every stored timestamp.
 //!
 //! A field uses the functions with `#[serde(with = "crate::shared::stored_timestamp")]`.
 
@@ -131,6 +132,28 @@ mod tests {
     }
 
     #[test]
+    fn should_keep_the_leading_zeros_when_the_timestamp_has_one_nanosecond() {
+        let text = "2026-09-22T20:05:30.000000001Z";
+
+        let expected_result = r#""2026-09-22T20:05:30.000000001Z""#;
+
+        let result = written(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_leading_zeros_when_the_timestamp_has_half_a_millisecond() {
+        let text = "2026-09-22T20:05:30.0005Z";
+
+        let expected_result = r#""2026-09-22T20:05:30.000500Z""#;
+
+        let result = written(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_pad_the_fraction_to_milliseconds_when_the_timestamp_is_before_the_unix_epoch() {
         let text = "1969-12-31T23:59:59.5Z";
 
@@ -157,9 +180,14 @@ mod tests {
     fn should_fail_to_read_when_the_stored_timestamp_has_no_offset() {
         let stored = r#""2026-09-22T20:05:30""#;
 
-        let expected_result = true;
+        let expected_result = Some(
+            "failed to find offset component, which is required for parsing a timestamp at line 1 column 21"
+                .to_owned(),
+        );
 
-        let result = serde_json::from_str::<Stored>(stored).is_err();
+        let result = serde_json::from_str::<Stored>(stored)
+            .err()
+            .map(|error| error.to_string());
 
         assert_eq!(result, expected_result);
     }

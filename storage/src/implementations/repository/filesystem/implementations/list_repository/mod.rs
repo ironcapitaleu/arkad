@@ -7,6 +7,7 @@ use std::io;
 use std::path::Path;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::SystemTime;
 
 use futures_core::future::BoxFuture;
 use futures_core::stream::{BoxStream, Stream};
@@ -260,17 +261,21 @@ impl<A: CanRead, D: Document> FilesystemRepository<A, D> {
 }
 
 /// Returns the time a file was last modified.
-///
-/// A modified time outside the range of [`Timestamp`], the years -9999 to 9999, fails with the
-/// I/O error kind [`io::ErrorKind::InvalidData`].
 async fn modified_at(path: &Path) -> Result<Timestamp, FailedFilesystemOperation> {
     let inspect_error = |error: io::Error| {
         FailedFilesystemOperation::from_io(FilesystemOperation::Inspect, path, &error)
     };
     let metadata = fs::metadata(path).await.map_err(inspect_error)?;
     let modified = metadata.modified().map_err(inspect_error)?;
-    Timestamp::try_from(modified)
-        .map_err(|error| inspect_error(io::Error::new(io::ErrorKind::InvalidData, error)))
+    timestamp_of(modified).map_err(inspect_error)
+}
+
+/// Converts a file time into a [`Timestamp`].
+///
+/// A time outside the range of [`Timestamp`], the years -9999 to 9999, fails with the I/O error
+/// kind [`io::ErrorKind::InvalidData`].
+fn timestamp_of(modified: SystemTime) -> Result<Timestamp, io::Error> {
+    Timestamp::try_from(modified).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))
 }
 
 #[cfg(test)]
@@ -529,6 +534,17 @@ mod tests {
         ];
 
         let result = list_key_and_document(&repository, prefix).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_data_when_the_modified_time_is_after_the_year_9999() {
+        let modified = std::time::UNIX_EPOCH + std::time::Duration::from_secs(400_000_000_000);
+
+        let expected_result = Some(io::ErrorKind::InvalidData);
+
+        let result = timestamp_of(modified).err().map(|error| error.kind());
 
         assert_eq!(result, expected_result);
     }
