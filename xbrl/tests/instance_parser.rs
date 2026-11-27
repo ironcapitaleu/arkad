@@ -11,7 +11,7 @@
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::date;
 use pretty_assertions::assert_eq;
 use xbrl::core::entity_name::EntityName;
 use xbrl::core::fact::FactValue;
@@ -46,7 +46,7 @@ fn should_map_the_cover_facts_into_the_filing_for_a_real_filing() {
         is_amendment: false,
         filed: filed(),
         accepted: None,
-        period_of_report: NaiveDate::from_ymd_opt(2026, 9, 30),
+        period_of_report: Some(date(2026, 9, 30)),
         fiscal_year: Some(FiscalYear::new(2026)),
         fiscal_period: Some(
             FiscalPeriod::new("Q3")

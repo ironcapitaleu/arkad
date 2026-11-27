@@ -1799,8 +1799,8 @@ resolved to standard concepts yet.
 AsIsFact {
     source: FilingSource {               // where the fact comes from
         filing:        FilingId          // "sec:0000320193-26-000001"
-        filed:         NaiveDate
-        accepted:      Option<DateTime<Utc>>
+        filed:         jiff::civil::Date
+        accepted:      Option<jiff::Timestamp>
     }
     context: Context {                   // what the fact is about, the XBRL context
         entity:        EntityId          // XBRL entity identifier: scheme and id (CIK, LEI)
@@ -2713,7 +2713,7 @@ pub enum StatementKind {
 pub struct Statement {
     kind: StatementKind,
     entity: EntityId,
-    period_end: NaiveDate,
+    period_end: jiff::civil::Date,
     quarters: u16, // 0 for the balance sheet
     lines: Vec<StatementLine>,
 }

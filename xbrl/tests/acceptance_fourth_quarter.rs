@@ -17,7 +17,7 @@
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::period_identity::derive_q4;
 use xbrl::core::standardized::StandardizedFact;
@@ -35,7 +35,7 @@ type Summary = (&'static str, String, BigDecimal, String);
 
 /// Returns the [`Summary`] of each fact of `derived` that ends at `year_end` and has a concept of
 /// [`CONCEPTS`].
-fn fourth_quarters(derived: &[StandardizedFact], year_end: NaiveDate) -> Vec<Summary> {
+fn fourth_quarters(derived: &[StandardizedFact], year_end: Date) -> Vec<Summary> {
     derived
         .iter()
         .filter(|fact| fact.period.end() == year_end && CONCEPTS.contains(&fact.concept.name()))
@@ -62,7 +62,7 @@ macro_rules! fourth_quarter_tests {
             #[test]
             fn $name() {
                 let series = resolve_fixture_filings(&[$($accession),+]).series();
-                let year_end: NaiveDate = $year_end;
+                let year_end: Date = $year_end;
 
                 let expected_result: Vec<Summary> = vec![
                     $(($concept, $period.to_string(), BigDecimal::from($value), Q4_RULE.to_string()),)*

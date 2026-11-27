@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::check_tolerance::{exceeds_tolerance, weakest};
 use super::dedup::Series;
@@ -57,7 +57,7 @@ pub fn sum_rule<S: Summed>() -> RuleId {
 
 /// The key of a [`Slot`]: the entity, the period end, the length in quarters, the period type, and
 /// the unit.
-type SlotKey<'a> = (&'a EntityId, NaiveDate, u16, PeriodType, &'a Unit);
+type SlotKey<'a> = (&'a EntityId, Date, u16, PeriodType, &'a Unit);
 
 /// The values without dimensions of the concepts of one sum for one entity, period, and unit.
 struct Slot<'a> {

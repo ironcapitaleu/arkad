@@ -15,7 +15,7 @@
 
 use std::collections::BTreeSet;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::finding::{Finding, RollUpCheck};
 use xbrl::core::roll_up_check::check_roll_ups;
@@ -29,7 +29,7 @@ const NOTES_PREFIX: &str = "notes/";
 
 /// Runs the rules of A1 and the checks of the roll-up tree on the fixture filing `accession`, and
 /// returns the accession and the period end of each failed balance sheet identity.
-fn balance_sheet_mismatches(accession: &str) -> Vec<(String, NaiveDate)> {
+fn balance_sheet_mismatches(accession: &str) -> Vec<(String, Date)> {
     let series = resolve_fixture_filings(&[accession]).series();
     let added = derived_values(&series);
     check_roll_ups(&series, &added)
@@ -60,7 +60,7 @@ fn should_fail_the_balance_sheet_identity_only_for_general_mills_10_k_2013_fy() 
         ("0001193125-13-282371".to_string(), date(2013, 5, 26)),
     ];
 
-    let result: Vec<(String, NaiveDate)> = accessions
+    let result: Vec<(String, Date)> = accessions
         .iter()
         .flat_map(|accession| balance_sheet_mismatches(accession))
         .collect();

@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::core::concept::{ConceptName, NamespaceFamily};
 use crate::core::entity_name::EntityName;
@@ -221,7 +221,7 @@ impl Parser {
                 .ok_or_else(|| invalid(concept, &format!("Field '{key}' is not a string")))
         };
         let date = |key: &str| {
-            NaiveDate::parse_from_str(text(key)?, DATE_FORMAT)
+            Date::strptime(DATE_FORMAT, text(key)?)
                 .map_err(|error| invalid(concept, &format!("Field '{key}' is not a date: {error}")))
         };
 
@@ -367,15 +367,11 @@ fn validate_top_level_structure(json: &serde_json::Value) -> Result<(), ParseErr
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use serde_json::json;
 
     use super::*;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded valid date, the creation should always succeed")
-    }
 
     fn data_point(start: Option<&str>, end: &str, val: &serde_json::Value) -> serde_json::Value {
         let mut point = json!({

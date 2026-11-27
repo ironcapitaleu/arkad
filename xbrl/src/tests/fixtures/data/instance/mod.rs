@@ -5,7 +5,7 @@
 //! directories of the five filings of the parser agreement set (AMD, Procter & Gamble, Walmart,
 //! Disney, and Apple) hold `.xml.gz` files, which [`parse_instance_fixture_filing`] parses.
 
-use chrono::NaiveDate;
+use jiff::civil::{Date, date};
 
 use super::manifest::manifest;
 use super::{fixture_content, fixture_taxonomy};
@@ -33,9 +33,8 @@ pub fn filing_id() -> FilingId {
 ///
 /// Never panics: the date is valid.
 #[must_use]
-pub const fn filed() -> NaiveDate {
-    NaiveDate::from_ymd_opt(2026, 10, 29)
-        .expect("Given a hardcoded valid date, the creation should always succeed")
+pub const fn filed() -> Date {
+    date(2026, 10, 29)
 }
 
 /// The prefix of the path of an instance fixture file in the manifest.
@@ -49,7 +48,7 @@ const INSTANCE_PREFIX: &str = "instance/";
 /// Panics if the manifest names no instance document for `accession`, if the document is not UTF-8,
 /// or if it is not a valid instance with a document type.
 #[must_use]
-pub fn parse_instance_fixture_filing(accession: &str, filed: NaiveDate) -> InstanceFacts {
+pub fn parse_instance_fixture_filing(accession: &str, filed: Date) -> InstanceFacts {
     let file = manifest()
         .into_iter()
         .find(|entry| entry.accession == accession && entry.file.starts_with(INSTANCE_PREFIX))

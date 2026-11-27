@@ -18,7 +18,7 @@
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::chronology::check_chronology;
 use xbrl::core::elements::{CanonicalElementKind, IncomeStatementConcept};
@@ -28,7 +28,7 @@ use xbrl::tests::fixtures::data::resolved::resolve_fixture_filings;
 use xbrl::tests::fixtures::sample_fact::date;
 
 /// The end, the fiscal period, the length in quarters, and the reason of a gap.
-type GapSummary = (NaiveDate, Option<String>, u16, Option<GapReason>);
+type GapSummary = (Date, Option<String>, u16, Option<GapReason>);
 
 /// Returns the [`GapSummary`] of each gap of `concept` in `findings`.
 fn gaps_of(findings: Vec<Finding>, concept: CanonicalElementKind) -> Vec<GapSummary> {

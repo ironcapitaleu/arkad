@@ -3,7 +3,7 @@
 //! Runs the rules of one filing on fixture Notes filings with the US GAAP plug-in:
 //! `core/dedup/more-precise@1`, then tiers 1 and 2. The acceptance tests start from the result.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::notes::parse_notes_fixture_filing;
 use crate::core::alias::resolve_aliases;
@@ -99,12 +99,12 @@ pub fn resolve_fixture_filings(accessions: &[&str]) -> ResolvedFilings {
 pub fn fiscal_year_value<'a>(
     facts: impl IntoIterator<Item = &'a StandardizedFact>,
     concept: CanonicalElementKind,
-    year_end: NaiveDate,
+    year_end: Date,
 ) -> Option<&'a StandardizedFact> {
     facts.into_iter().find(|fact| {
         fact.concept == concept
             && fact.dimensions.is_empty()
-            && (fact.period.end() - year_end).num_days().abs() <= YEAR_END_TOLERANCE_DAYS
+            && i64::from((fact.period.end() - year_end).get_days()).abs() <= YEAR_END_TOLERANCE_DAYS
             && (matches!(fact.period, Period::Instant { .. })
                 || fact.period.quarters() == YEAR_LENGTH)
     })

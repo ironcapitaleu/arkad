@@ -12,9 +12,9 @@ use std::fmt;
 use std::str::FromStr;
 
 use bigdecimal::{BigDecimal, RoundingMode, ToPrimitive, Zero};
-use chrono::{DateTime, NaiveDate, TimeDelta, Utc};
-use jiff::civil;
+use jiff::civil::{self, Date};
 use jiff::tz::{self, AmbiguousOffset, TimeZone};
+use jiff::{Span, Timestamp};
 
 use crate::adapter::edgar::company_facts::{CIK_SCHEME, SEC_FILING_SOURCE};
 use crate::core::entity_name::EntityName;
@@ -176,7 +176,7 @@ impl SubRow {
         })
     }
 
-    fn accepted_utc(text: &str) -> Result<DateTime<Utc>, InvalidValue> {
+    fn accepted_utc(text: &str) -> Result<Timestamp, InvalidValue> {
         let local = civil::DateTime::strptime(ACCEPTED_FORMAT, text).map_err(|_| {
             InvalidValue::new(
                 Self::TYPE_NAME,
@@ -193,9 +193,7 @@ impl SubRow {
             // The clock of New York shows this time twice when it moves to standard time.
             AmbiguousOffset::Fold { before, .. } => before,
         };
-        let utc = offset.to_timestamp(local).map_err(|_| out_of_range())?;
-        DateTime::from_timestamp(utc.as_second(), utc.subsec_nanosecond().unsigned_abs())
-            .ok_or_else(out_of_range)
+        offset.to_timestamp(local).map_err(|_| out_of_range())
     }
 }
 
@@ -532,8 +530,8 @@ fn period(
 ) -> Result<Period, InvalidValue> {
     let invalid = |reason, input: &str| InvalidValue::new(type_name, reason, input);
     let end = date(type_name, ddate)?
-        .checked_sub_signed(datp_days(type_name, datp)?)
-        .ok_or_else(|| invalid(InvalidValueReason::OutOfRange, datp))?;
+        .checked_sub(datp_days(type_name, datp)?)
+        .map_err(|_| invalid(InvalidValueReason::OutOfRange, datp))?;
     let quarters: u16 = qtrs
         .parse()
         .map_err(|_| invalid(InvalidValueReason::NotANumber, qtrs))?;
@@ -543,8 +541,8 @@ fn period(
         return Ok(Period::Instant { end });
     }
     let start = end
-        .checked_sub_signed(length_days(type_name, quarters, &durp_quarters, durp)?)
-        .ok_or_else(|| invalid(InvalidValueReason::OutOfRange, durp))?;
+        .checked_sub(length_days(type_name, quarters, &durp_quarters, durp)?)
+        .map_err(|_| invalid(InvalidValueReason::OutOfRange, durp))?;
     Duration::from_dates(start, end)
         .map(Period::Duration)
         .map_err(|error| invalid(error.reason, durp))
@@ -556,7 +554,7 @@ fn length_days(
     quarters: u16,
     durp_quarters: &BigDecimal,
     durp: &str,
-) -> Result<TimeDelta, InvalidValue> {
+) -> Result<Span, InvalidValue> {
     let invalid = |reason| InvalidValue::new(type_name, reason, durp);
     let quarter_days = BigDecimal::new(DURP_QUARTER_HUNDREDTHS.into(), HUNDREDTHS_SCALE);
     let days = ((BigDecimal::from(quarters) - durp_quarters) * quarter_days)
@@ -566,10 +564,12 @@ fn length_days(
     if days < 0 {
         return Err(invalid(InvalidValueReason::EndBeforeStart));
     }
-    TimeDelta::try_days(days).ok_or_else(|| invalid(InvalidValueReason::OutOfRange))
+    Span::new()
+        .try_days(days)
+        .map_err(|_| invalid(InvalidValueReason::OutOfRange))
 }
 
-fn datp_days(type_name: &'static str, datp: &str) -> Result<TimeDelta, InvalidValue> {
+fn datp_days(type_name: &'static str, datp: &str) -> Result<Span, InvalidValue> {
     let invalid = |reason| InvalidValue::new(type_name, reason, datp);
     let whole = match datp.split_once(DECIMAL_POINT) {
         Some((whole, fraction)) if fraction.trim_end_matches(ZERO_DIGIT).is_empty() => whole,
@@ -579,7 +579,9 @@ fn datp_days(type_name: &'static str, datp: &str) -> Result<TimeDelta, InvalidVa
     let days: i64 = whole
         .parse()
         .map_err(|_| invalid(InvalidValueReason::NotANumber))?;
-    TimeDelta::try_days(days).ok_or_else(|| invalid(InvalidValueReason::OutOfRange))
+    Span::new()
+        .try_days(days)
+        .map_err(|_| invalid(InvalidValueReason::OutOfRange))
 }
 
 fn copy_index(type_name: &'static str, iprx: &str) -> Result<u32, InvalidValue> {
@@ -616,8 +618,8 @@ fn dimensions(
     Dimensions::new(pairs)
 }
 
-fn date(type_name: &'static str, text: &str) -> Result<NaiveDate, InvalidValue> {
-    NaiveDate::parse_from_str(text, DATE_FORMAT)
+fn date(type_name: &'static str, text: &str) -> Result<Date, InvalidValue> {
+    Date::strptime(DATE_FORMAT, text)
         .map_err(|_| InvalidValue::new(type_name, InvalidValueReason::NotADate(DATE_FORMAT), text))
 }
 
@@ -661,10 +663,15 @@ fn is_local_name(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use chrono::TimeZone as _;
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    fn timestamp(text: &str) -> Timestamp {
+        text.parse()
+            .expect("Given a hardcoded RFC 3339 timestamp, the parse should always succeed")
+    }
 
     fn num_row() -> NumRow {
         NumRow {
@@ -689,11 +696,6 @@ mod tests {
             segments: segments.to_owned(),
             segt: "0".to_owned(),
         }
-    }
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded valid date, the creation should always succeed")
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -1159,7 +1161,7 @@ mod tests {
             ..SubRow::default()
         };
 
-        let expected_result = Some(Utc.with_ymd_and_hms(2026, 1, 15, 21, 15, 0).single());
+        let expected_result = Some(Some(timestamp("2026-01-15T21:15:00Z")));
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
 
@@ -1177,7 +1179,7 @@ mod tests {
             ..SubRow::default()
         };
 
-        let expected_result = Some(Utc.with_ymd_and_hms(2026, 7, 29, 20, 15, 0).single());
+        let expected_result = Some(Some(timestamp("2026-07-29T20:15:00Z")));
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
 
@@ -1195,7 +1197,7 @@ mod tests {
             ..SubRow::default()
         };
 
-        let expected_result = Some(Utc.with_ymd_and_hms(2026, 1, 15, 21, 15, 0).single());
+        let expected_result = Some(Some(timestamp("2026-01-15T21:15:00Z")));
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
 
@@ -1213,11 +1215,7 @@ mod tests {
             ..SubRow::default()
         };
 
-        let expected_result = Some(
-            NaiveDate::from_ymd_opt(2026, 1, 15)
-                .and_then(|date| date.and_hms_milli_opt(21, 15, 0, 123))
-                .map(|time| time.and_utc()),
-        );
+        let expected_result = Some(Some(timestamp("2026-01-15T21:15:00.123Z")));
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
 
@@ -1236,7 +1234,7 @@ mod tests {
             ..SubRow::default()
         };
 
-        let expected_result = Some(Utc.with_ymd_and_hms(2026, 11, 1, 5, 30, 0).single());
+        let expected_result = Some(Some(timestamp("2026-11-01T05:30:00Z")));
 
         let result = sub.filing().ok().map(|filing| filing.accepted);
 

@@ -11,7 +11,7 @@
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::resolve_aliases;
 use xbrl::core::dedup::{more_precise, newest_filing};
@@ -48,7 +48,7 @@ fn standardized(facts: &[AsIsFact]) -> Vec<StandardizedFact> {
 /// concept that `keep` accepts.
 fn facts_of(
     facts: &[StandardizedFact],
-    end: NaiveDate,
+    end: Date,
     quarters: u16,
     keep: fn(CanonicalElementKind) -> bool,
 ) -> Vec<&StandardizedFact> {

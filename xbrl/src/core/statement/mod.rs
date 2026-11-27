@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 
 use bigdecimal::{BigDecimal, Zero};
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use thiserror::Error;
 
 use super::elements::statement as trees;
@@ -252,7 +252,7 @@ impl StatementLine {
 pub struct Statement {
     kind: StatementKind,
     entity: EntityId,
-    period_end: NaiveDate,
+    period_end: Date,
     quarters: u16,
     lines: Vec<StatementLine>,
 }
@@ -358,7 +358,7 @@ impl Statement {
 
     /// Returns the end of the period: the date of a balance sheet, or the last day of a duration.
     #[must_use]
-    pub const fn period_end(&self) -> NaiveDate {
+    pub const fn period_end(&self) -> Date {
         self.period_end
     }
 
@@ -615,7 +615,7 @@ fn has_two_starts(facts: &[&StandardizedFact]) -> bool {
 }
 
 /// Returns the period end and the length in quarters of `fact`.
-const fn span(fact: &StandardizedFact) -> (NaiveDate, u16) {
+const fn span(fact: &StandardizedFact) -> (Date, u16) {
     (fact.period.end(), fact.period.quarters())
 }
 
@@ -1176,7 +1176,7 @@ mod tests {
     }
 
     /// Returns `fact` with the duration from `start` to 2026-09-30.
-    fn since(mut fact: StandardizedFact, start: NaiveDate) -> StandardizedFact {
+    fn since(mut fact: StandardizedFact, start: Date) -> StandardizedFact {
         fact.period = Period::Duration(
             Duration::from_dates(start, date(2026, 9, 30))
                 .expect("Given a start before the end, the creation should always succeed"),

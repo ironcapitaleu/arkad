@@ -24,7 +24,7 @@
 
 use std::collections::BTreeSet;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use pretty_assertions::assert_eq;
 use xbrl::core::dedup::Series;
 use xbrl::core::standardized::StandardizedFact;
@@ -42,11 +42,7 @@ const ANNUAL_FORM: &str = "10-K";
 
 /// Returns one line per roll-up of [`SPIKE_ROLL_UPS`]: its name, then the confidence, the rule, and
 /// the value of the fiscal year that ends at `year_end`, or `open`.
-fn roll_up_lines(
-    series: &Series,
-    derived: &[StandardizedFact],
-    year_end: NaiveDate,
-) -> Vec<String> {
+fn roll_up_lines(series: &Series, derived: &[StandardizedFact], year_end: Date) -> Vec<String> {
     SPIKE_ROLL_UPS
         .iter()
         .map(|concept| {

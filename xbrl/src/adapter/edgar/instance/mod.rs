@@ -16,7 +16,7 @@ use std::cmp::Reverse;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use roxmltree::Node;
 
 use self::document::{Document, PREFIX_SEPARATOR, XML_TRUE, name as xml_name};
@@ -58,7 +58,7 @@ pub struct InstanceFiling<'a> {
     /// The ID of the filing, for example `sec:0001628280-26-068246`.
     pub id: FilingId,
     /// The filing date of the daily index.
-    pub filed: NaiveDate,
+    pub filed: Date,
 }
 
 impl InstanceFiling<'_> {
@@ -288,6 +288,7 @@ impl CopyOrder {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -339,8 +340,7 @@ mod tests {
         let input = InstanceFiling {
             document: &text,
             id: filing_id(),
-            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
+            filed: date(2026, 10, 29),
         };
         parse(&input, &registry)
     }
@@ -390,8 +390,7 @@ mod tests {
             <us-gaap:Assets contextRef="i" unitRef="usd" decimals="-6">100</us-gaap:Assets>"#;
 
         let expected_result = vec![Period::Instant {
-            end: NaiveDate::from_ymd_opt(2026, 9, 30)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
+            end: date(2026, 9, 30),
         }];
 
         let result: Vec<Period> = facts(body).iter().map(|fact| fact.context.period).collect();
@@ -867,8 +866,7 @@ mod tests {
         let input = InstanceFiling {
             document: &text,
             id: filing_id(),
-            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
+            filed: date(2026, 10, 29),
         };
 
         let expected_result = Form::new("10-K")
@@ -897,8 +895,7 @@ mod tests {
         let input = InstanceFiling {
             document: &text,
             id: filing_id(),
-            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
+            filed: date(2026, 10, 29),
         };
 
         let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'Form', Reason: 'The value is empty', Input: ''";
@@ -933,8 +930,7 @@ mod tests {
         let input = InstanceFiling {
             document: text,
             id: filing_id(),
-            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
+            filed: date(2026, 10, 29),
         };
 
         let expected_result = "[InvalidXml] Failed to parse the instance document of the filing 'sec:0000000001-26-000001', Reason: 'the root node was opened but never closed'";
@@ -961,8 +957,7 @@ mod tests {
         let input = InstanceFiling {
             document: &text,
             id: filing_id(),
-            filed: NaiveDate::from_ymd_opt(2026, 10, 29)
-                .expect("Given a hardcoded valid date, the creation should always succeed"),
+            filed: date(2026, 10, 29),
         };
 
         let expected_result = "[InvalidInstanceFiling] Invalid cover facts in the instance document of the filing 'sec:0000000001-26-000001', Caused by: [InvalidValue] Invalid 'InstanceFiling', Reason: 'The value lacks a dei:DocumentType', Input: 'xbrl'";

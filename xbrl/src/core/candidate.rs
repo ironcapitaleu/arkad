@@ -4,7 +4,7 @@
 //! `core/dedup/newest-filing@1` picks one value across filings.
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::confidence::Confidence;
 use super::elements::CanonicalElementKind;
@@ -87,7 +87,7 @@ pub struct SeriesKey {
     /// The standard concept.
     pub concept: CanonicalElementKind,
     /// The exact end of the period.
-    pub period_end: NaiveDate,
+    pub period_end: Date,
     /// The length in quarters.
     pub quarters: u16,
     /// The unit.

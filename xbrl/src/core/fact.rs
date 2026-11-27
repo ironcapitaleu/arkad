@@ -8,7 +8,8 @@ use std::fmt;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, NaiveDate, Utc};
+use jiff::Timestamp;
+use jiff::civil::Date;
 
 use super::concept::ConceptName;
 use super::filing::{EntityId, FilingId};
@@ -195,9 +196,9 @@ pub struct FilingSource {
     /// The filing, for example `sec:0000320193-26-000001`.
     pub filing: FilingId,
     /// The filing date.
-    pub filed: NaiveDate,
+    pub filed: Date,
     /// The acceptance time, if the source gives it.
-    pub accepted: Option<DateTime<Utc>>,
+    pub accepted: Option<Timestamp>,
 }
 
 /// What a fact is about: the entity, the period, and the axis and member pairs.
@@ -279,7 +280,7 @@ pub struct FactKey {
     /// The release of the family.
     pub taxonomy_version: Option<TaxonomyVersion>,
     /// The exact end of the period.
-    pub period_end: NaiveDate,
+    pub period_end: Date,
     /// The length in quarters. 0 for an instant or a duration under about 45 days.
     pub quarters: u16,
     /// The unit.
@@ -292,16 +293,12 @@ pub struct FactKey {
 
 #[cfg(test)]
 mod tests {
+    use jiff::civil::date;
     use pretty_assertions::assert_eq;
 
     use super::*;
     use crate::core::concept::NamespaceFamily;
     use crate::core::period::Duration;
-
-    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(year, month, day)
-            .expect("Given a hardcoded valid date, the creation should always succeed")
-    }
 
     fn filing_id() -> FilingId {
         FilingId::new("sec", "0000320193-24-000123")

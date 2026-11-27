@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::candidate::{Candidate, CandidateValue};
 use super::elements::CanonicalElementKind;
@@ -42,7 +42,7 @@ pub struct Reconciliation {
     /// The standard concept.
     pub concept: CanonicalElementKind,
     /// The exact end of the period.
-    pub period_end: NaiveDate,
+    pub period_end: Date,
     /// The length in quarters.
     pub quarters: u16,
     /// The unit.
@@ -132,7 +132,7 @@ struct GroupKey {
     filing: FilingId,
     entity: EntityId,
     concept: CanonicalElementKind,
-    period_end: NaiveDate,
+    period_end: Date,
     quarters: u16,
     unit: Unit,
 }
@@ -317,7 +317,7 @@ mod tests {
     }
 
     /// Returns `candidate` for the year that starts on `start` and ends on 2024-09-28.
-    fn with_start(candidate: Candidate, start: NaiveDate) -> Candidate {
+    fn with_start(candidate: Candidate, start: Date) -> Candidate {
         let year = Duration::from_dates(start, date(2024, 9, 28))
             .expect("Given a start before the end, the creation should always succeed");
         Candidate {

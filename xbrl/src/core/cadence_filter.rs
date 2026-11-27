@@ -84,7 +84,7 @@ fn is_fiscal_year_end_of(period: &Period, filing: &Filing) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -99,14 +99,14 @@ mod tests {
     use crate::us_gaap::UsGaap;
 
     /// The fiscal year end of the filer in these tests, 2024-09-28.
-    const YEAR_END: NaiveDate = date(2024, 9, 28);
+    const YEAR_END: Date = date(2024, 9, 28);
 
     /// The end of the third quarter of the filer in these tests, 2024-06-29.
-    const QUARTER_END: NaiveDate = date(2024, 6, 29);
+    const QUARTER_END: Date = date(2024, 6, 29);
 
     /// Returns the filing of `form` with the fiscal period `fiscal_period` for the period that
     /// ends on `period_of_report`.
-    fn report(form: &str, period_of_report: NaiveDate, fiscal_period: &str) -> Filing {
+    fn report(form: &str, period_of_report: Date, fiscal_period: &str) -> Filing {
         let mut report = filing(form, period_of_report, "0930");
         report.fiscal_period = Some(FiscalPeriod::new(fiscal_period).expect(
             "Given a hardcoded period without whitespace, the creation should always succeed",
@@ -115,7 +115,7 @@ mod tests {
     }
 
     /// Returns the as-is fact `us-gaap:<local_name>` = `value` of `filing` at the instant `end`.
-    fn instant_fact(filing: &Filing, local_name: &str, end: NaiveDate) -> AsIsFact {
+    fn instant_fact(filing: &Filing, local_name: &str, end: Date) -> AsIsFact {
         let mut instant = fact(
             &source(filing.id.id(), filing.filed),
             local_name,
@@ -139,11 +139,7 @@ mod tests {
     }
 
     /// Returns a candidate of `concept` from `filing` at the instant `end`.
-    fn instant_candidate(
-        concept: DebtMaturityConcept,
-        filing: &Filing,
-        end: NaiveDate,
-    ) -> Candidate {
+    fn instant_candidate(concept: DebtMaturityConcept, filing: &Filing, end: Date) -> Candidate {
         let mut instant = candidate(&source(filing.id.id(), filing.filed), "500000000");
         instant.concept = concept.element();
         instant.period = Period::Instant { end };

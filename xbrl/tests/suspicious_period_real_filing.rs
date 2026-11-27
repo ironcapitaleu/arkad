@@ -13,7 +13,6 @@
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
 
-use chrono::Datelike;
 use pretty_assertions::assert_eq;
 use xbrl::core::alias::resolve_aliases;
 use xbrl::core::dedup::{Series, more_precise, newest_filing};
@@ -25,7 +24,7 @@ use xbrl::tests::fixtures::data::notes::parse_notes_fixture;
 use xbrl::tests::fixtures::sample_fact::revenue_aliases;
 
 /// The year of the comparatives in the fixture filing.
-const COMPARATIVE_YEAR: i32 = 2025;
+const COMPARATIVE_YEAR: i16 = 2025;
 
 /// Returns the revenue series of the Notes facts of the fixture filing.
 fn revenue_series() -> Series {

@@ -6,7 +6,8 @@
 
 use std::cmp::Ordering;
 
-use chrono::{Datelike, Months, NaiveDate};
+use jiff::Span;
+use jiff::civil::Date;
 
 use super::dedup::Series;
 use super::filing::{Filing, FilingId};
@@ -16,7 +17,7 @@ use super::standardized::StandardizedFact;
 
 /// No period starts before 1 January of this year. In the Notes files of 2023 to 2026, every
 /// earlier date is a typo or a date the filer tagged by mistake.
-const EARLIEST_YEAR: i32 = 1900;
+const EARLIEST_YEAR: i16 = 1900;
 
 /// The months by which the end of a period can lie away from the period of report of its filing:
 /// 100 years. Ends 10 to 100 years ahead are real, such as debt terms or carbon price assumptions.
@@ -26,7 +27,7 @@ const MONTHS_FROM_REPORT: u32 = 1200;
 /// report of the flagged filing. A 10-K compares 3 years, and every confirmation in the
 /// measurement ends within 2 years. The limit keeps a common value, such as 0, of another year
 /// from confirming by chance.
-const CONFIRMATION_YEARS: i32 = 3;
+const CONFIRMATION_YEARS: i16 = 3;
 
 /// Checks the period of each value without dimensions in `series`, and returns one
 /// [`Finding::SuspiciousPeriod`] per value that hits a signal.
@@ -103,14 +104,10 @@ fn starts_before_earliest_year(period: &Period) -> bool {
     start.year() < EARLIEST_YEAR
 }
 
-fn is_far_from(end: NaiveDate, report: NaiveDate) -> bool {
-    let months = Months::new(MONTHS_FROM_REPORT);
-    let too_late = report
-        .checked_add_months(months)
-        .is_some_and(|limit| end > limit);
-    let too_early = report
-        .checked_sub_months(months)
-        .is_some_and(|limit| end < limit);
+fn is_far_from(end: Date, report: Date) -> bool {
+    let months = Span::new().months(MONTHS_FROM_REPORT);
+    let too_late = report.checked_add(months).is_ok_and(|limit| end > limit);
+    let too_early = report.checked_sub(months).is_ok_and(|limit| end < limit);
     too_late || too_early
 }
 
@@ -144,7 +141,7 @@ fn confirmation(
 }
 
 /// Returns the period of report of the filing of the first input of `fact`.
-fn report_of(fact: &StandardizedFact, filings: &[Filing]) -> Option<NaiveDate> {
+fn report_of(fact: &StandardizedFact, filings: &[Filing]) -> Option<Date> {
     fact.inputs
         .first()
         .and_then(|key| filing(filings, &key.filing))
@@ -176,8 +173,8 @@ mod tests {
 
     /// Returns the value `value` of the period that ends on `end` and lasts `quarters`, reported
     /// in `filing`. The period starts `quarters` times 91.3125 days before `end`, rounded down.
-    fn value_in(filing: &Filing, end: NaiveDate, quarters: u16, value: &str) -> StandardizedFact {
-        let start = end - chrono::TimeDelta::days(days_of_quarters(quarters));
+    fn value_in(filing: &Filing, end: Date, quarters: u16, value: &str) -> StandardizedFact {
+        let start = end - Span::new().days(days_of_quarters(quarters));
         let period = Duration::from_dates(start, end)
             .expect("Given a start before the end, the creation should always succeed");
         let mut fact = standardized(Period::Duration(period), value);
@@ -193,7 +190,7 @@ mod tests {
     }
 
     /// Returns the instant value `value` on `end`, reported in `filing`.
-    fn instant_in(filing: &Filing, end: NaiveDate, value: &str) -> StandardizedFact {
+    fn instant_in(filing: &Filing, end: Date, value: &str) -> StandardizedFact {
         let mut fact = standardized(Period::Instant { end }, value);
         fact.inputs[0].filing = filing.id.clone();
         fact

@@ -11,13 +11,12 @@ readme = "../README.md"
 
 [dependencies]
 thiserror = "2"
-chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["arbitrary_precision"] }
 bigdecimal = { version = "0.4", features = ["serde"] }
 # No default features: `jiff` reads no zone file of the system. `static` compiles each zone that
 # `tz::get!` names into the binary (ADR 0047).
-jiff = { version = "1", default-features = false, features = ["std", "static"] }
+jiff = { version = "1", default-features = false, features = ["serde", "std", "static"] }
 roxmltree = "0.21"
 sha2 = "0.11.1"
 flate2 = { version = "1", optional = true }

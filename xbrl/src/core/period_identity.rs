@@ -6,7 +6,7 @@
 use std::collections::BTreeSet;
 use std::str::FromStr;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::candidate::SeriesKey;
 use super::confidence::Confidence;
@@ -93,8 +93,8 @@ fn is_short_year(year: &StandardizedFact) -> bool {
 }
 
 /// Returns `true` if the span from `start` to `end` lasts under 357 days.
-fn is_short_span(start: NaiveDate, end: NaiveDate) -> bool {
-    (end - start).num_days() < SHORT_YEAR_DAYS
+fn is_short_span(start: Date, end: Date) -> bool {
+    i64::from((end - start).get_days()) < SHORT_YEAR_DAYS
 }
 
 /// Returns the fourth quarter between `nine_months` and `year`, or `None` if `nine_months` is not
@@ -116,7 +116,7 @@ fn fourth_quarter<'a>(
     if !same_series || !same_start || nine_months_period.quarters() != NINE_MONTHS_LENGTH {
         return None;
     }
-    let start = nine_months_period.end().succ_opt()?;
+    let start = nine_months_period.end().tomorrow().ok()?;
     let quarter = Duration::from_dates(start, year_period.end()).ok()?;
     (quarter.quarters() == QUARTER_LENGTH).then_some((quarter, nine_months))
 }
@@ -154,7 +154,7 @@ fn q4_rule() -> RuleId {
 #[cfg(test)]
 mod tests {
     use bigdecimal::BigDecimal;
-    use chrono::NaiveDate;
+    use jiff::civil::Date;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -163,7 +163,7 @@ mod tests {
     use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
 
-    fn span(start: NaiveDate, end: NaiveDate) -> Period {
+    fn span(start: Date, end: Date) -> Period {
         Period::Duration(
             Duration::from_dates(start, end)
                 .expect("Given an end after the start, the creation should always succeed"),

@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::candidate::SeriesKey;
 use super::concept::NamespaceFamily;
@@ -66,7 +66,7 @@ pub enum Finding {
         /// The axis and member pairs of the series.
         dimensions: Dimensions,
         /// The end of the expected period.
-        period_end: NaiveDate,
+        period_end: Date,
         /// The expected fiscal period, for example `Q2`, if it is known.
         fiscal_period: Option<FiscalPeriod>,
         /// The length of the expected period in quarters, as in the value key. A gap of a timeline

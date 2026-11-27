@@ -6,7 +6,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use bigdecimal::{BigDecimal, Signed};
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::check_tolerance::{exceeds_tolerance, weakest};
 use super::closed_group::{members, roll_up_rule, signed};
@@ -89,7 +89,7 @@ pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Findin
 /// unit, and the dimensions, which are always empty.
 type SlotKey<'a> = (
     &'a EntityId,
-    NaiveDate,
+    Date,
     u16,
     PeriodType,
     &'a Unit,
@@ -355,7 +355,7 @@ mod tests {
     }
 
     /// Returns the duration from `start` to 2026-09-30.
-    fn since(start: NaiveDate) -> Period {
+    fn since(start: Date) -> Period {
         Period::Duration(
             Duration::from_dates(start, date(2026, 9, 30))
                 .expect("Given a start before the end, the creation should always succeed"),

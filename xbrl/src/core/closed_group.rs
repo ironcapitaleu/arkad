@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use super::candidate::SeriesKey;
 use super::confidence::Confidence;
@@ -168,7 +168,7 @@ pub(super) fn signed(sign: Weight, value: &BigDecimal) -> BigDecimal {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Slot {
     entity: EntityId,
-    period_end: NaiveDate,
+    period_end: Date,
     quarters: u16,
     dimensions: Dimensions,
 }
@@ -328,7 +328,7 @@ mod tests {
     }
 
     /// Returns the duration from `start` to 2026-09-30.
-    fn since(start: NaiveDate) -> Period {
+    fn since(start: Date) -> Period {
         Period::Duration(
             Duration::from_dates(start, date(2026, 9, 30))
                 .expect("Given a start before the end, the creation should always succeed"),
