@@ -1,6 +1,6 @@
 //! # Fixture Data
 //!
-//! Real SEC files of 103 filings, and helpers that read and parse them. The 10-Q
+//! Real SEC files of 106 filings, and helpers that read and parse them. The 10-Q
 //! `0001628280-26-068246` of FEDEX FREIGHT HOLDING COMPANY, INC. is compiled in with
 //! `include_str!`, in both sources. The other filings are gzip files that the helpers read at run
 //! time. `docs/adr/0039-gzip-fixture-set.md` records why they are gzip files.
@@ -10,6 +10,7 @@
 //! - [`instance`]: The instance documents of the filings, as EDGAR serves them.
 //! - [`manifest`]: The list of the fixture files, with the source and the SHA-256 of each file.
 //! - [`notes`]: The rows of the filings in the Notes files.
+//! - [`resolved`]: Parses Notes fixture filings and runs the rules of one filing on them.
 
 use std::fs;
 use std::io::Read;
@@ -23,6 +24,7 @@ use crate::core::taxonomy::reference::ConceptAliases;
 pub mod instance;
 pub mod manifest;
 pub mod notes;
+pub mod resolved;
 
 /// The directory that holds the fixture files, at the paths the manifest names.
 const DATA_DIRECTORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/src/tests/fixtures/data");
