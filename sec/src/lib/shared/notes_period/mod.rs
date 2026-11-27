@@ -520,7 +520,16 @@ mod tests {
             "Given periods serialized as JSON strings, reading the strings should always succeed",
         );
 
-        let expected_result = periods.map(Ok);
+        let expected_result = [
+            Ok(NotesPeriod {
+                year: Year(2024),
+                part: PeriodPart::Quarter(Quarter::Q1),
+            }),
+            Ok(NotesPeriod {
+                year: Year(2025),
+                part: PeriodPart::Month(Month(10)),
+            }),
+        ];
 
         let result = [
             NotesPeriod::new(&serialized[0]),

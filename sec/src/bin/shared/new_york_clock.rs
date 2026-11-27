@@ -26,7 +26,7 @@ pub fn today_in_new_york(now: Timestamp) -> Date {
 /// # Panics
 ///
 /// Panics if today in New York is the first day that [`Date`] holds. A reading of the clock never
-/// is.
+/// gives that day.
 pub fn previous_day_in_new_york(now: Timestamp) -> Date {
     today_in_new_york(now)
         .checked_sub(1.day())
