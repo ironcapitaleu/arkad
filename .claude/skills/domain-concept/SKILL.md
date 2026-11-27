@@ -2,7 +2,7 @@
 name: domain-concept
 description: >
   Use when you add or move a type, trait, or constant that more than one state, job, or module
-  uses, in any crate (sec, storage, api, xbrl). This includes the work on a ticket, not only
+  uses, in any crate of the workspace. This includes the work on a ticket, not only
   a request. Also use when the user asks to "create a domain concept", "add a domain type",
   "design a domain concept", "implement a shared type", or "add dependency injection". Covers
   where the concept lives, its layout of traits, implementations, constants, and errors, its
@@ -18,43 +18,44 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 Design and implement a new domain concept — a standalone type that more than one state, job, or
 module uses. It is independent of any specific state, and can be developed and tested in isolation.
-"Where a Concept Lives" names its place in each crate, and "Layout by Part" names its files.
+"Where a Concept Lives" says how to find its place in a crate, and "Layout by Part" names its files.
 
 ## Where a Concept Lives
 
-| Crate | Value type | Trait and its implementations | Fakes |
-| ----- | ---------- | ----------------------------- | ----- |
-| `sec` | `src/lib/shared/{concept}/` | `src/lib/shared/{concept}/traits/` and `src/lib/shared/{concept}/implementations/`, per concept, as in `http_client`, `rate_limiter`, and `row_digest` | `src/lib/tests/fixtures/sample_{concept}/` |
-| `storage` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, at the crate root, as in `repository` | `src/tests/fixtures/fake_{type}/` |
-| `api` | `src/shared/{concept}/` | `src/traits/{trait}/` and `src/implementations/{type}/`, at the crate root, one folder per concrete type, as in `token_verifier` and `supabase_token_verifier` | `src/tests/fixtures/fake_{type}/` |
-| `xbrl` | `src/core/{concept}.rs`, or `src/core/{concept}/` with a `mod.rs` | In the module of the concept, as `Taxonomy` in `src/core/taxonomy/mod.rs`. `xbrl` has no `traits/` folder | `src/tests/fixtures/sample_{concept}/` |
+Each crate sets its own layout. Read it before you add a file, and put the new concept where its
+siblings are:
 
-Follow the layout of the crate you work in. "Layout by Part" holds in the crates with `traits/`
-and `implementations/` folders: `sec`, `storage`, and `api`. Where the layout of a crate differs, as
-in `xbrl`, the crate wins. Do not move the code of another crate to match.
+1. **The shared folder.** Find the module that holds the types more than one module uses, such as
+   `shared/` or `core/`. A value type goes there, as a file or a folder like its siblings.
+2. **Traits and their implementations.** Find where the traits of the crate sit: in a `traits/`
+   folder per concept, in a `traits/` folder at the crate root, or in the module of their concept.
+   Find the matching place of the concrete types, often an `implementations/` folder. Put a new
+   trait and its types in the same kind of place.
+3. **Fakes.** Find the fixtures folder of the crate, often `tests/fixtures/`, and name a new fake
+   the way its siblings are named, such as `sample_{concept}` or `fake_{type}`.
+4. **A crate with no shared concepts yet.** Use "Layout by Part", per concept:
+   `shared/{concept}/traits/` and `shared/{concept}/implementations/`.
+
+If the layout of the crate differs from "Layout by Part", the crate wins. Do not move code that
+exists to match.
 
 ## Layout by Part
 
-In `sec`, `storage`, and `api`, the parts of a concept decide its files, not whether it wraps an
-external crate:
+Where a crate uses `traits/` and `implementations/` folders, the parts of a concept decide its
+files, not whether it wraps an external crate:
 
 - **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
-  `traits/mod.rs`. Examples: `sec::shared::rate_limiter::traits::rate_limiter`, and
-  `sec::shared::row_digest::traits::digest_row`, a trait that wraps no external crate.
+  `traits/mod.rs`. This holds for a trait that wraps no external crate too.
 - **A concrete type** that implements a trait, or that the concept provides next to its trait, goes
-  in `implementations/`, one module per type. Examples:
-  `sec::shared::rate_limiter::implementations::sec_rate_limiter` and
-  `sec::shared::row_digest::implementations::byte_form`.
-- **Constants** go in a `constants.rs` next to the type that uses them. Examples:
-  `sec/src/lib/shared/rate_limiter/implementations/sec_rate_limiter/constants.rs` and
-  `sec/src/lib/shared/row_digest/implementations/byte_form/constants.rs`.
+  in `implementations/`, one module per type.
+- **Constants** go in a `constants.rs` next to the type that uses them.
 - **An error** sits next to the code that returns it, in a `{type}_error.rs` file or a
-  `{type}_error/` module, as `cik/cik_error.rs` and `token_verifier/token_error/`.
+  `{type}_error/` module.
 - **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
   of the concept and does not need to know its subfolders.
 
 A value type with no trait, such as `Cik`, needs no `traits/` or `implementations/` folder. If it has
-constants, they go in a `constants.rs` next to it, as in `cik/constants.rs`.
+constants, they go in a `constants.rs` next to it.
 
 Domain concepts range from simple value types (like `Cik`) to trait-based abstractions with
 dependency injection (like `SecClient` / `InnerClient`).
@@ -99,7 +100,7 @@ context, or let the user give it via "Other".
 - If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
 - If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
 - If it defines a trait that several types implement, such as `DigestRow` → Path B layout, with a
-  fake implementor in the tests. In `xbrl`, the trait stays in the module of its concept
+  fake implementor in the tests, unless the crate keeps its traits in the module of their concept
 - Otherwise → Path A (value type with optional validation)
 - If answers are "don't know yet" → start with what's known, discover the rest together
 
@@ -109,8 +110,8 @@ context, or let the user give it via "Other".
 
 #### Phase 1: Type Definition
 
-Create in the value-type folder of the crate ("Where a Concept Lives"), for example
-`sec/src/lib/shared/{concept_name}/mod.rs`:
+Create in the shared folder of the crate ("Where a Concept Lives"), for example
+`shared/{concept_name}/mod.rs`:
 
 ```rust
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
@@ -209,9 +210,8 @@ system, etc.) that needs to be decoupled for testability, or several types imple
         └── error.rs          # Implementation-specific errors
 ```
 
-This tree is the per-concept layout of `sec`. In `storage` and `api`, `traits/` and
-`implementations/` sit at the crate root. `xbrl` keeps a trait in the module of its concept ("Where
-a Concept Lives").
+This tree is the per-concept form. A crate can put `traits/` and `implementations/` at its root
+instead, or keep a trait in the module of its concept. Follow the crate ("Where a Concept Lives").
 
 #### Phase 1: Define the Trait(s)
 
@@ -273,7 +273,7 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
 #### Phase 2: Fake Implementation(s) + Trait Unit Tests
 
 Create Fakes in the fixtures folder of the crate ("Where a Concept Lives"), for example
-`sec/src/lib/tests/fixtures/sample_{concept_name}/`, and write unit tests
+`tests/fixtures/sample_{concept_name}/`, and write unit tests
 against the trait using those Fakes. This validates the trait design before touching any
 3rd-party dependency.
 
