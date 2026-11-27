@@ -1002,10 +1002,8 @@ mod tests {
 
     #[test]
     fn should_fail_when_a_column_is_read_as_another_array_type() {
-        let batch = batch_with(
-            "filing_id",
-            Arc::new(StringArray::from(vec!["sec:0000320193-26-000001"])),
-        );
+        let batch = AsIsFactRow::to_batch(&sample_rows()[..1])
+            .expect("Given rows whose values fit their columns, the batch should always build");
         let columns = BatchColumns::check::<AsIsFactRow>(&batch, 1)
             .expect("Given a batch that `to_batch` built, the schema check should always pass");
 
@@ -1016,6 +1014,23 @@ mod tests {
         });
 
         let result = columns.get::<Int32Array>("filing_id").map(|_| ());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_loaded_at_lies_past_the_times_of_jiff() {
+        let batch = batch_with(
+            "loaded_at",
+            Arc::new(TimestampMillisecondArray::from(vec![i64::MAX]).with_timezone("+00:00")),
+        );
+
+        let expected_result = Some("loaded_at");
+
+        let result = match AsIsFactRow::from_batch(&batch, 1) {
+            Err(SilverError::UnexpectedColumnValue { column, .. }) => Some(column),
+            _ => None,
+        };
 
         assert_eq!(result, expected_result);
     }
