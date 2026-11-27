@@ -108,7 +108,7 @@ One file of the SEC Financial Statement and Notes data set. It holds the facts o
 one month or one quarter, as tables.
 
 - **Example:** the file of the first quarter of 2024.
-- **Not to confuse with:** Instance.
+- **Not to confuse with:** Dataset, Instance.
 - **Related:** Source, Split.
 
 ### Unit of Measure
@@ -147,7 +147,7 @@ The layer between bronze and gold. It holds the facts of every filing as filed, 
 facts, the findings, the company attributes as filed, and reference data such as taxonomy
 releases, in tables that a query can read.
 
-- **Related:** Bronze, Gold, Write Unit.
+- **Related:** Bronze, Dataset, Gold, Write Unit.
 
 ## Silver Data
 
@@ -254,7 +254,7 @@ The dataset, the source, and the kind of a write unit, together with its name. T
 repeats across datasets.
 
 - **Example:** the Notes file `2024q1` of the as-is facts.
-- **Related:** Current Unit, Write Unit.
+- **Related:** Current Unit, Dataset, Write Unit.
 
 ### Value Key
 
