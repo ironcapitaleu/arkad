@@ -1,6 +1,10 @@
 //! # Byte Form
 //!
 //! Provides [`ByteForm`], the byte form of the values of a silver row that `content_digest` hashes.
+//!
+//! ## Modules
+//!
+//! - [`constants`]: The marker bytes of a null value and of a value.
 
 use std::io::Write;
 
@@ -8,17 +12,16 @@ use bigdecimal::BigDecimal;
 use bigdecimal::num_bigint::Sign;
 use chrono::{DateTime, Datelike, NaiveDate, Timelike, Utc};
 
-/// The marker byte of a null value.
-const NULL_MARKER: u8 = 0x00;
+use self::constants::{NULL_MARKER, VALUE_MARKER};
 
-/// The marker byte of a value that is not null.
-const VALUE_MARKER: u8 = 0x01;
+pub mod constants;
 
 /// A byte buffer that holds values in the byte form of `content_digest`.
 ///
 /// The transform code prints each value, and the Arrow crate prints none. So the digest of the same
-/// rows stays equal across Arrow releases and integer widths. Each method appends one value. A value starts with a marker byte: `0x00` for null, `0x01` for a value. A scalar then
-/// enters as a 4-byte big-endian length and its UTF-8 text. A list or a struct enters as a 4-byte
+/// rows stays equal across Arrow releases and integer widths. Each method appends one value. A
+/// value starts with a marker byte: `0x00` for null, `0x01` for a value. A scalar then enters as a
+/// 4-byte big-endian length and its UTF-8 text. A list or a struct enters as a 4-byte
 /// big-endian count, and its elements or fields follow in their own byte form.
 ///
 /// [ADR 0033](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0033-byte-form-of-content-digest.md)

@@ -2,7 +2,7 @@
 //!
 //! Provides [`DigestRow`], the trait of a silver row that enters `content_digest`.
 
-use super::byte_form::ByteForm;
+use crate::shared::row_digest::ByteForm;
 
 /// A silver row that writes its digest group ID, its row key, and itself in the byte form.
 ///
@@ -13,8 +13,8 @@ use super::byte_form::ByteForm;
 /// The digest group and the row key of each dataset are in `sec/design/pipeline/silver_layer.md`,
 /// `silver_files`, column `content_digest`.
 ///
-/// [`content_digest`]: super::content_digest()
-/// [`group_hashes`]: super::group_hashes
+/// [`content_digest`]: crate::shared::row_digest::content_digest()
+/// [`group_hashes`]: crate::shared::row_digest::group_hashes
 pub trait DigestRow {
     /// Appends the key columns of the digest group of the row.
     ///

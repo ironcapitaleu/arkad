@@ -11,8 +11,8 @@
 //!
 //! ## Modules
 //!
-//! - [`byte_form`]: The [`ByteForm`] of the values of a row.
-//! - [`digest_row`]: The [`DigestRow`] trait of a row that enters the digest.
+//! - [`traits`]: The [`DigestRow`] contract of a row that enters the digest.
+//! - [`implementations`]: The [`ByteForm`] of the values of a row.
 //! - [`duplicate_digest_group`]: The [`DuplicateDigestGroup`] for two group hashes with one ID.
 //!
 //! ## See Also
@@ -27,13 +27,13 @@ use std::collections::BTreeMap;
 use sha2::{Digest, Sha256};
 use storage::shared::Sha256Digest;
 
-pub mod byte_form;
-pub mod digest_row;
 pub mod duplicate_digest_group;
+pub mod implementations;
+pub mod traits;
 
-pub use byte_form::ByteForm;
-pub use digest_row::DigestRow;
 pub use duplicate_digest_group::DuplicateDigestGroup;
+pub use implementations::ByteForm;
+pub use traits::DigestRow;
 
 /// The ID and the hash of one digest group of a silver unit.
 ///
