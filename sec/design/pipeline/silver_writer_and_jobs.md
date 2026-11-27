@@ -76,8 +76,8 @@ flowchart TB
 - The workflow deletes each lease after the worker step of its job kind ends. The diagram leaves
   these edges out.
 - `silver-daily` runs after the extract job `daily_filings`, with the kind `transform-daily`.
-  `silver-backfill` runs by hand, with the kind `transform-notes`. A unit source holds the work of
-  both, see [Where Units Come From](#where-units-come-from).
+  `silver-backfill` runs by hand, with the kind `transform-notes`. A `RawDocumentSource` holds the
+  work of both, see [Where Units Come From](#where-units-come-from).
 - The checks and load have their own designs. This document sets only their place in the chain.
 
 ## The Silver Writer
@@ -90,7 +90,7 @@ flowchart TB
 | Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
 | GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
 | Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
-| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `UnitSource` and its listing backend, and the task runner |
+| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
 Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
@@ -211,7 +211,7 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 
 ## Byte Form of `content_digest`
 
-[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. The code lives in
+[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) sets the form. The code lives in
 `sec::shared::row_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
@@ -364,7 +364,7 @@ of that run read the list. A rule by time alone misses such a unit.
 
 ## One Writer per Unit Key
 
-[ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) fixes the rule. The parts in
+[ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) sets the rule. The parts in
 the code:
 
 - `LeaseStore::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
@@ -387,7 +387,7 @@ unread silver files never meets a control object.
 
 ### Jobs and Steps
 
-[ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md) fixes the chain. Three
+[ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md) sets the chain. Three
 binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002-static-binaries.md)):
 
 | Binary | Step | Plan | Tasks of the worker step |
@@ -399,31 +399,37 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 | `checks` | One step. It writes no silver unit, so it takes no lease | | Set by the design of the checks |
 
 - The plan of `transform-notes` sorts the Notes files by size, largest first, so the largest files
-  get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
-  feature of the plans checks the assumption.
-- The worker step reads `ARKAD_PLAN`, the plan ID that the workflow passes.
+  get the lowest task indexes. With more than one parallel task, Cloud Run does not keep the index
+  order ([ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md), Amendment 1). So the order
+  is a hint, and the job does not rely on it.
+- The workflow passes `ARKAD_PLAN`, the plan ID, to the worker step.
+- `transform` and `series` read `CLOUD_RUN_TASK_INDEX`, `CLOUD_RUN_TASK_COUNT`, and
+  `ARKAD_JOB_STEP`. In the worker step, the binary also reads `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`,
+  and `series` also reads `ARKAD_SERIES_MODE`. The design of the checks names the variables of
+  `checks`. Each binary passes the values to the runner and to the source as arguments. The runner,
+  the source, and the states read no environment variable.
 - The task runner sits outside the state machine, as the facade of extract does. It starts one
   machine per filing and runs them on its threads. No machine forks or joins.
 
 ### Where Units Come From
 
-The transform plan step takes its units through one port, `UnitSource`, in `sec::silver`. A
-source hands out references to stored raw documents: a `NotesArchiveRef` for each Notes file, and
-a `FilingDocumentsRef` for each filing. The workflow only starts a run
+The transform plan step takes its units through one port, `RawDocumentSource`, in
+`sec::silver`. A source hands out references to stored raw documents: a `NotesArchiveRef` for each
+Notes file, and a `FilingDocumentsRef` for each filing. The workflow only starts a run
 ([ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md)).
 
 | Backend | Hands out | Used for |
 | ------- | --------- | -------- |
 | Raw store listing | Each stored Notes file, or each filing of the filed dates of the window of `daily_filings`, the last four days. With `ARKAD_UNITS=all`, every stored document | Runs until the queue exists, and a full replay |
-| Raw write log | The entries of the write log of the raw store: from a checkpoint, or from the start | Normal runs and a full replay |
+| Raw write log | The entries of the write log of the raw store: from a checkpoint or, with `ARKAD_UNITS=all`, from the start | Normal runs and a full replay |
 | Queue | The messages that extract publishes for each stored document | Normal runs |
 
 The write log keeps every write, so a replay reads it. The queue keeps a message only until a
 consumer acknowledges it, so it hands out new work and holds no history. This design sets the
 port, not the format of the log. The log then becomes one more backend.
 
-A replay always builds its units from the raw store as it is now. A read "as silver held it at
-T" of the contract is the tool for the past.
+A replay always builds its units from the raw store as it is now. To read the past, use the read that
+the contract defines: silver as it held the data at time T.
 
 The checkpoint of the write log is a control object `checkpoints/<job kind>` in the control
 bucket. Only a normal run moves it, under the lease of its job kind. A full replay does not move
@@ -578,8 +584,8 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
 6. FEATURE: `SilverRecord` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
-8. FEATURE: the transform plan step and task runner: `UnitSource` with the raw store listing,
-   one unit per task, threads, and the lease check. Tests: the listing hands out the four days of
+8. FEATURE: the transform plan step and task runner: `RawDocumentSource` with the raw store
+   listing, one unit per task, threads, and the lease check. Tests: the listing hands out the four days of
    the window, and every stored document with `ARKAD_UNITS=all`. A skipped unit leaves the next
    plan, and a unit whose task failed before rule 4 stays in it.
 9. FEATURE: failure handling and the run summary of the transform task.
