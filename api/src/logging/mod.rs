@@ -103,7 +103,8 @@ where
     }
 }
 
-/// Writes `time` in RFC 3339 with six fraction digits, as `2024-10-12T14:30:00.000000Z`.
+/// Writes `time` in RFC 3339 in UTC, with the fraction truncated to six digits, as
+/// `2024-10-12T14:30:00.000000Z`.
 fn log_timestamp(time: Timestamp) -> String {
     format!("{time:.6}")
 }
