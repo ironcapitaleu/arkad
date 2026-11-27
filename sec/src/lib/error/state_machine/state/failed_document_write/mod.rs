@@ -107,7 +107,10 @@ mod tests {
     fn should_convert_to_state_error_when_from_is_called() {
         let error = FailedDocumentWrite::new(STATE_NAME, sample_domain_error());
 
-        let expected_result = StateError::FailedDocumentWrite(error.clone());
+        let expected_result = StateError::FailedDocumentWrite(FailedDocumentWrite {
+            state_name: "Store Company Facts".to_owned(),
+            domain_error: sample_domain_error(),
+        });
 
         let result: StateError = error.into();
 

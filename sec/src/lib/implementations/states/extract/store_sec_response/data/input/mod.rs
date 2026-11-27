@@ -277,7 +277,7 @@ mod tests {
     fn should_return_reference_to_self_when_accessing_state() {
         let input = sample_input();
 
-        let expected_result = &input.clone();
+        let expected_result = &sample_input();
 
         let result = input.state();
 

@@ -90,8 +90,10 @@ mod tests {
         let failed_document_selection =
             FailedDocumentSelection::from_domain_error("TestState", missing_xbrl_instance());
 
-        let expected_result =
-            StateError::FailedDocumentSelection(failed_document_selection.clone());
+        let expected_result = StateError::FailedDocumentSelection(FailedDocumentSelection {
+            state_name: "TestState".to_owned(),
+            filing_documents_error: missing_xbrl_instance(),
+        });
 
         let result: StateError = failed_document_selection.into();
 

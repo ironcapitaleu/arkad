@@ -39,12 +39,7 @@ mod tests {
         let method = FakeMethod::GET;
         let url = String::from("https://example.com");
 
-        let expected_result = FakeInnerRequest {
-            method: FakeMethod::GET,
-            url: String::from("https://example.com"),
-        }
-        .method()
-        .clone();
+        let expected_result = FakeMethod::GET;
 
         let result = FakeInnerRequest::new(method, url).method().clone();
 
