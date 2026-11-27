@@ -10,7 +10,7 @@
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 
 use crate::shared::{AccountId, Channel};
 
@@ -26,7 +26,7 @@ pub use invalid_usage_key::{InvalidUsageKey, InvalidUsageKeyReason};
 pub struct UsageKey {
     account_id: AccountId,
     channel: Channel,
-    day: NaiveDate,
+    day: Date,
 }
 
 impl UsageKey {
@@ -35,12 +35,12 @@ impl UsageKey {
     /// # Examples
     ///
     /// ```rust
-    /// use chrono::NaiveDate;
+    /// use jiff::civil::Date;
     /// use storage::{AccountId, Channel, UsageKey};
     /// use uuid::Uuid;
     ///
     /// let account_id = AccountId::from_uuid(Uuid::from_u128(1));
-    /// let day = NaiveDate::from_ymd_opt(2026, 11, 26)
+    /// let day = Date::new(2026, 11, 26)
     ///     .expect("Given a real calendar date, the creation of a date should always succeed");
     ///
     /// let expected_result = "00000000-0000-0000-0000-000000000001:api_key:2026-11-26";
@@ -50,7 +50,7 @@ impl UsageKey {
     /// assert_eq!(result, expected_result);
     /// ```
     #[must_use]
-    pub const fn new(account_id: AccountId, channel: Channel, day: NaiveDate) -> Self {
+    pub const fn new(account_id: AccountId, channel: Channel, day: Date) -> Self {
         Self {
             account_id,
             channel,
@@ -72,7 +72,7 @@ impl UsageKey {
 
     /// Returns the UTC day.
     #[must_use]
-    pub const fn day(&self) -> NaiveDate {
+    pub const fn day(&self) -> Date {
         self.day
     }
 }
@@ -138,7 +138,7 @@ impl FromStr for UsageKey {
             .parse::<Channel>()
             .map_err(|_| reject(InvalidUsageKeyReason::InvalidChannel))?;
         let day = day
-            .parse::<NaiveDate>()
+            .parse::<Date>()
             .ok()
             .filter(|parsed| parsed.to_string() == day)
             .ok_or_else(|| reject(InvalidUsageKeyReason::InvalidDay))?;
@@ -159,7 +159,7 @@ mod tests {
     fn sample_usage_key(channel: Channel) -> UsageKey {
         let account_id =
             AccountId::from_uuid(Uuid::from_u128(0x0193_b2c1_7d4e_7a2b_9c3d_4e5f_6a7b_8c9d));
-        let day = NaiveDate::from_ymd_opt(2026, 11, 26)
+        let day = Date::new(2026, 11, 26)
             .expect("Given a real calendar date, the creation of a date should always succeed");
         UsageKey::new(account_id, channel, day)
     }
