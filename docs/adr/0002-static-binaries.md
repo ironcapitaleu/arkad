@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead: the build and the base on 2026-11-01, one image per binary on 2026-11-03 |
+| Status | Accepted by the project lead: the build and the base on 2026-11-01, one image per binary on 2026-11-03. Amendment 1: accepted by the project owner on 2026-11-24 ([STA-592 comment `a0f8a014`](https://linear.app/state-machine/issue/STA-592#comment-a0f8a014), accessed 2026-11-24) |
 | Date | 2026-11-03 |
 | Deciders | The project lead |
 | Ticket | [STA-437](https://linear.app/state-machine/issue/STA-437). Decisions recorded on [STA-422](https://linear.app/state-machine/issue/STA-422) and [STA-431](https://linear.app/state-machine/issue/STA-431) |
@@ -47,6 +47,20 @@ binary removes this coupling.
 
 The pinned tool versions of the first build are zig 0.17.0 and `cargo-zigbuild` 0.24.0, on
 `rust:1.97-trixie`. Later builds use the Rust version of `rust-toolchain.toml`.
+
+## Amendment 1: Zone Data from `jiff`
+
+Date: 2026-11-24. Ticket: [STA-592](https://linear.app/state-machine/issue/STA-592), accessed 2026-11-24.
+
+**Reason.** `cargo audit` reports `chrono-tz` 0.10.4 as unmaintained (RUSTSEC-2026-0555). The
+second fact of "Context" names `chrono-tz` as the source of the New York zone data.
+
+**Decision.** The New York zone data comes from `jiff` with the feature `static`. The macro
+`jiff::tz::get!` compiles the zone into the binary at build time. `jiff` builds without its default
+features, so it reads no zone file of the system. No binary reads `/usr/share/zoneinfo`, as before.
+ADR 0047 records the choice of `jiff`.
+
+**Consequences.** `chrono-tz` leaves `Cargo.lock`. Decisions 1 to 5 stay as they are.
 
 ## Options Considered
 

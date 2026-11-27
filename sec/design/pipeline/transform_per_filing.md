@@ -1,7 +1,7 @@
 # Transform per Filing
 
 > **Status:** proposed, for review by the owner.
-> [ADR 0041](../../../docs/adr/0041-one-value-per-filing-between-transform-states.md),
+> [ADR 0048](../../../docs/adr/0048-one-value-per-filing-between-transform-states.md),
 > [ADR 0042](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md), and
 > [ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md) hold the decisions of
 > this document.
@@ -85,7 +85,7 @@ filing step that the runner takes as a function.
 The states of the filing machine pass one value: the rows, the facts, or the candidates of one
 whole filing. No state outputs a stream of records. Only the unit reader streams, and it streams
 whole filings through the bounded channel of the runner
-([ADR 0041](../../../docs/adr/0041-one-value-per-filing-between-transform-states.md)).
+([ADR 0048](../../../docs/adr/0048-one-value-per-filing-between-transform-states.md)).
 
 - The largest filing has 27,529 rows in `num.tsv` of `2025q3` (measured). Its facts, candidates,
   and rows fit in memory many times over.
@@ -282,10 +282,10 @@ pub struct FilingRows {
 - `BuildFilingRows` adds the ingestion provenance and the run columns to each row, and computes
   `entity_bucket` as "Entity Buckets" of the job design gives it. The provenance joins each row
   here, not in the parser, because `xbrl` knows no raw document.
-- The `Conflict` findings go to `findings` with `step = filing`. `UnmappedRow` and
-  `UndeclaredFamily` have no kind in `findings` today. `dropped_rows` counts the rows of
-  `UnmappedRow` with the reason `unmapped_row`. The open design of the silver columns decides
-  whether they get a kind.
+- The `Conflict` findings and the parser findings `UnmappedRow` and `UndeclaredFamily` go to
+  `findings` with `step = filing`
+  ([ADR 0041](../../../docs/adr/0041-parser-findings-in-silver.md)). `dropped_rows` counts the
+  row of each `UnmappedRow` under the reason `UnmappedRow`.
 
 ### The Filing Step
 
@@ -373,7 +373,7 @@ The extraction design sets four layers of validation, each in the state that fir
 | ----- | ----- | ---------- |
 | 2. Container | The Notes reader, step 1: the ZIP signature, the ZIP index, the eight tables and one metadata member, deflate only, no path separator in a member name, the size limits | Bad unit |
 | 3. Table format | The table readers of the Notes reader: UTF-8, quote-aware tab-separated fields, the header equal to the columns of the metadata member, one field count per table, the CRC-32 of each member | Bad unit |
-| 4. Row content, one row | The parsers. A row that breaks a rule of a core type gives an `UnmappedRow` finding | The row: `dropped_rows`, reason `unmapped_row` |
+| 4. Row content, one row | The parsers. A row that breaks a rule of a core type gives an `UnmappedRow` finding | The row: an `UnmappedRow` finding, and `dropped_rows`, reason `UnmappedRow` |
 | 4. Row content, one filing | The parse states. A `sub` row or a cover fact that breaks a rule, an instance that is not XML | The filing: a rejected filing |
 | 4. Row content, the unit | The Notes reader. Two `sub` rows with one `adsh` | Bad unit |
 | 4. Row content, references | The Notes reader. A `num` or `txt` row with no `sub` row | The row: `dropped_rows`, reason `no_sub_row` |
@@ -486,9 +486,6 @@ Proposed for the project, in this order:
 
 ## Open Points
 
-- **Parser findings in silver.** `UnmappedRow` and `UndeclaredFamily` have no home in `findings`.
-  The open design of the silver columns decides it. Until then, `dropped_rows` counts the rows of
-  `UnmappedRow`, and `UndeclaredFamily` keeps its fact with no other record.
 - **IFRS.** A filer in IFRS gets as-is facts but no candidates until an IFRS plug-in exists.
 - **The share of 5% and the floor of 3** rest on no measurement of rejected filings. The
   prototype findings report no rejected filing for 167 instances and the Notes files `2024q1`,
