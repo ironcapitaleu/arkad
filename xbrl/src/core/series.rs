@@ -5,8 +5,9 @@
 //!
 //! The rules run in the dedup order of `xbrl/DESIGN.md`, "Dedup Rules": step 3, step 4, the checks,
 //! the check of the required concepts, then chronology. Values with dimensions pass step 3 and
-//! reach the output. The later rules read only values without dimensions. No rule here builds the segment reconciliation, so the output
-//! holds no line of it (`docs/adr/0030-segment-reconciliation-per-report.md`).
+//! reach the output. The later rules read only values without dimensions. No rule here builds the
+//! segment reconciliation, so the output holds no line of it
+//! (`docs/adr/0030-segment-reconciliation-per-report.md`).
 
 use super::candidate::Candidate;
 use super::chronology::check_chronology;
@@ -459,8 +460,7 @@ mod tests {
     }
 
     #[test]
-    fn should_give_the_missing_required_concepts_before_the_findings_of_chronology_when_a_required_concept_has_no_value()
-     {
+    fn should_give_missing_required_before_chronology_when_a_required_concept_has_no_value() {
         let candidates: Vec<Candidate> = Vec::new();
         let filings = vec![filing("10-K", date(2024, 9, 28), "0928")];
         let conflicts = vec![revenue_conflict()];

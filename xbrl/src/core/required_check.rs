@@ -1,7 +1,8 @@
 //! # Required Check
 //!
-//! Provides [`check_required`], which reports each required standard concept that a filing leaves
-//! without a value as a [`Finding::MissingRequired`]. The check never removes or derives a value.
+//! Provides [`check_required`], which reports each required standard concept without a value at
+//! the period of report of a filing as a [`Finding::MissingRequired`]. The check never removes or
+//! derives a value.
 
 use jiff::civil::Date;
 
@@ -225,6 +226,26 @@ mod tests {
         let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_required(&no_series(), &added, &[], &filings, &required);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_finding_when_a_value_of_another_filing_fills_the_period_of_report() {
+        let fiscal_year = Period::Duration(
+            Duration::from_dates(date(2023, 10, 1), date(2024, 9, 28))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
+        let series = Series {
+            facts: vec![standardized(fiscal_year, "391")],
+            blocked: Vec::new(),
+        };
+        let filings = vec![annual_report()];
+        let required = [IncomeStatementConcept::Revenue.element()];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_required(&series, &[], &[], &filings, &required);
 
         assert_eq!(result, expected_result);
     }

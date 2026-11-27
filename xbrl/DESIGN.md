@@ -831,8 +831,9 @@ concept: `Assets`, `Liabilities`, `Equity`, `LiabilitiesAndEquity`, `Revenue`, `
 `NetChangeInCash`. `OperatingIncome` has no flag: it is no roll-up of the spike. The cash at the
 end of the period has no standard concept, so it is not in the set. `UsGaap::required_concepts`
 returns the set, and the completeness check of "5) Validation" reads it
-([ADR 0050](../docs/adr/0050-missing-required-finding.md)). The flag does not follow the arrays `REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse
-of the `sec` crate reads `REQUIRED_CONCEPTS`.
+([ADR 0050](../docs/adr/0050-missing-required-finding.md)). The flag does not follow the arrays
+`REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse of the `sec` crate reads
+`REQUIRED_CONCEPTS`.
 
 #### Names in Silver
 
@@ -2240,9 +2241,9 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 - **A change of fiscal year** shows as a new fiscal year end in `Filing`. A gap or a short period
   next to it gets the reason `FiscalYearChange`.
 - **A finding** has a kind (`Gap`, `Overlap`, `Restatement`, `Conflict`, `SuspiciousPeriod`,
-  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`, `MissingRequired`), the entity, the
-  concept or concepts (see "Conflict"), the periods, and a reason if one is known. A finding is
-  not an error type.
+  `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `SumMismatch`, `MissingRequired`), the
+  entity, the concept or concepts (see "Conflict"), the periods, and a reason if one is known. A
+  finding is not an error type.
 - **Report:** chronology returns its own `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod` findings next to the
   series, together with the `Conflict` findings of `core/dedup/more-precise@1`. Chronology derives
   `Restatement` from the `restated` flag of `StandardizedFact`.
