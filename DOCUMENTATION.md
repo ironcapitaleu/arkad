@@ -780,10 +780,14 @@ without notice. The date lets a reader tell a later change of the page from an e
 - Use the date you read the page, not the date you write the text.
 - If you read the page again and it still says the same, change the date to the new one.
 - If the page changed, correct the text, then change the date.
+- If a link names its date as "read on YYYY-MM-DD", change it to the form above when you read the
+  page again.
 - A bare ID with no link, such as `STA-550`, needs no date.
 - A relative link to a file in this repository needs no date. The commit that holds the link fixes
   the file it points to.
 - A URL that code requests, or a URL in an example, is data, not a source. It needs no date.
+- A link that no text relies on, such as an attribution line or a link to open an issue, needs no
+  date.
 
 The rule holds for every kind of documentation: rustdoc, comments, design documents, ADRs, READMEs,
 skills, and pull request descriptions.
