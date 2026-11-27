@@ -1089,6 +1089,9 @@ mod tests {
             IncomeStatementConcept::Revenue.element(),
             IncomeStatementConcept::NetIncome.element(),
             BalanceSheetConcept::Equity.element(),
+            CashFlowConcept::OperatingCashFlow.element(),
+            CashFlowConcept::InvestingCashFlow.element(),
+            CashFlowConcept::FinancingCashFlow.element(),
             BalanceSheetConcept::CashAndEquivalents.element(),
             BalanceSheetConcept::ShortTermInvestments.element(),
             BalanceSheetConcept::IntangibleAssets.element(),
@@ -2929,6 +2932,198 @@ mod tests {
             rule("us-gaap/part/exchange-rate-effect@1"),
             Some(Confidence::Synonym),
         )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_parts_of_the_cash_flow_totals_in_priority_order_when_created() {
+        let us_gaap = UsGaap::new();
+        let totals = [
+            CashFlowConcept::OperatingCashFlow.element(),
+            CashFlowConcept::InvestingCashFlow.element(),
+            CashFlowConcept::FinancingCashFlow.element(),
+        ];
+
+        let expected_result = vec![
+            (
+                CashFlowConcept::OperatingCashFlow.element(),
+                PartAliases {
+                    rule: rule("us-gaap/part/operating-cash-flow@1"),
+                    parts: vec![concept(
+                        "us-gaap",
+                        "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                    )],
+                    other_parts: vec![concept(
+                        "us-gaap",
+                        "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
+                    )],
+                },
+            ),
+            (
+                CashFlowConcept::InvestingCashFlow.element(),
+                PartAliases {
+                    rule: rule("us-gaap/part/investing-cash-flow@1"),
+                    parts: vec![concept(
+                        "us-gaap",
+                        "NetCashProvidedByUsedInInvestingActivitiesContinuingOperations",
+                    )],
+                    other_parts: vec![concept(
+                        "us-gaap",
+                        "CashProvidedByUsedInInvestingActivitiesDiscontinuedOperations",
+                    )],
+                },
+            ),
+            (
+                CashFlowConcept::FinancingCashFlow.element(),
+                PartAliases {
+                    rule: rule("us-gaap/part/financing-cash-flow@1"),
+                    parts: vec![concept(
+                        "us-gaap",
+                        "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations",
+                    )],
+                    other_parts: vec![concept(
+                        "us-gaap",
+                        "CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations",
+                    )],
+                },
+            ),
+        ];
+
+        let result: Vec<(CanonicalElementKind, PartAliases)> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| totals.contains(&aliases.element))
+            .filter_map(|aliases| Some((aliases.element, aliases.parts.clone()?)))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_operating_cash_flow_part_rule_id_when_the_filing_reports_no_discontinued_operations_flow()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+            "118000000",
+        )];
+
+        let expected_result = vec![(
+            CashFlowConcept::OperatingCashFlow.element(),
+            rule("us-gaap/part/operating-cash-flow@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_investing_cash_flow_part_rule_id_when_the_filing_reports_no_discontinued_operations_flow()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "NetCashProvidedByUsedInInvestingActivitiesContinuingOperations",
+            "-46000000",
+        )];
+
+        let expected_result = vec![(
+            CashFlowConcept::InvestingCashFlow.element(),
+            rule("us-gaap/part/investing-cash-flow@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_synonym_with_financing_cash_flow_part_rule_id_when_the_filing_reports_no_discontinued_operations_flow()
+     {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(
+            &filing,
+            "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations",
+            "-61000000",
+        )];
+
+        let expected_result = vec![(
+            CashFlowConcept::FinancingCashFlow.element(),
+            rule("us-gaap/part/financing-cash-flow@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_operating_cash_flow_part_when_the_discontinued_operations_flow_is_zero() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                "118000000",
+            ),
+            fact(
+                &filing,
+                "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
+                "0",
+            ),
+        ];
+
+        let expected_result = vec![(
+            CashFlowConcept::OperatingCashFlow.element(),
+            rule("us-gaap/part/operating-cash-flow@1"),
+            Some(Confidence::Synonym),
+        )];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_operating_cash_flow_when_the_discontinued_operations_flow_is_not_zero() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                "118000000",
+            ),
+            fact(
+                &filing,
+                "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
+                "14000000",
+            ),
+        ];
+
+        let expected_result = vec![];
 
         let result = resolve(&facts, &registry);
 

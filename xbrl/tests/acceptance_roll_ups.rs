@@ -10,8 +10,8 @@
 //! The tests show the gain of each rule: an alias or a derivation that lands changes a line from
 //! `open` to its rule. The open lines come from five causes:
 //!
-//! - The filing reports the cash flow totals of continuing operations only, such as
-//!   `NetCashProvidedByUsedInOperatingActivitiesContinuingOperations`.
+//! - The filing reports a cash flow total of continuing operations next to a flow of discontinued
+//!   operations other than zero, as Air Products does for 2013. The flow blocks the part.
 //! - The filing reports a concept of the years before 2018, such as `SalesRevenueGoodsNet` or
 //!   `CashAndCashEquivalentsPeriodIncreaseDecrease`.
 //! - The filer is a bank, a utility, or an energy company, and reports its own revenue lines.
@@ -101,9 +101,9 @@ roll_up_tests! {
         "Revenue: Synonym us-gaap/alias/revenue@1 30871000000.0000",
         "NetIncome: Exact us-gaap/alias/net-income@1 4721000000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 4659000000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 5817000000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -856000000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -5246000000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_3m_10_k_2025_fy: "0000066740-26-000014" => [
@@ -127,9 +127,9 @@ roll_up_tests! {
         "Revenue: Synonym us-gaap/alias/revenue@1 18790000000.0000",
         "NetIncome: Derived core/roll-up/comprehensive-income@1 4128000000.0000",
         "NetIncomeAttributableToParent: Derived core/roll-up/net-income-attribution@1 4128000000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 6267000000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 879000000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -3442000000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_abbvie_10_k_2025_fy: "0001551152-26-000008" => [
@@ -181,7 +181,7 @@ roll_up_tests! {
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 994200000.0000",
         "OperatingCashFlow: open",
         "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 115400000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_air_products_10_k_2025_fy: "0000002969-25-000055" => [
@@ -192,9 +192,9 @@ roll_up_tests! {
         "Revenue: Exact us-gaap/alias/revenue@1 12037300000.0000",
         "NetIncome: Exact us-gaap/alias/net-income@1 -354400000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 -394500000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 3256800000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -7168700000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 2795200000.0000",
         "NetChangeInCash: Exact us-gaap/alias/net-change-in-cash@1 -1123700000.0000",
     ],
     should_resolve_the_roll_ups_for_alphabet_10_k_2013_fy: "0001288776-14-000020" => [
@@ -465,9 +465,9 @@ roll_up_tests! {
         "Revenue: open",
         "NetIncome: Exact us-gaap/alias/net-income@1 145689000.0000",
         "NetIncomeAttributableToParent: Derived core/roll-up/net-income-attribution@1 145689000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 262125000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -85197000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -50513000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_deckers_10_k_2025_fy: "0000910521-25-000017" => [
@@ -491,9 +491,9 @@ roll_up_tests! {
         "Revenue: Exact us-gaap/alias/revenue@1 1482259000.0000",
         "NetIncome: Exact us-gaap/alias/net-income@1 320449000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 314488000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 656390000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -1060609000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 404746000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_digital_realty_10_k_2025_fy: "0001104659-26-015365" => [
@@ -621,9 +621,9 @@ roll_up_tests! {
         "Revenue: Exact us-gaap/alias/revenue@1 420836000000.0000",
         "NetIncome: Exact us-gaap/alias/net-income@1 33448000000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 32580000000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 44914000000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -34201000000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -15476000000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [
@@ -725,9 +725,9 @@ roll_up_tests! {
         "Revenue: open",
         "NetIncome: Exact us-gaap/alias/net-income@1 7854228000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 691226000.0000",
-        "OperatingCashFlow: open",
-        "InvestingCashFlow: open",
-        "FinancingCashFlow: open",
+        "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 2577753000.0000",
+        "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 15456000.0000",
+        "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -2517290000.0000",
         "NetChangeInCash: open",
     ],
     should_resolve_the_roll_ups_for_kkr_10_k_2025_fy: "0001404912-26-000007" => [
