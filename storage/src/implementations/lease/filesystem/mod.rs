@@ -164,8 +164,8 @@ impl LeaseStore for FilesystemLeaseStore {
     /// - [`LeaseError::Backend`] that holds a [`FailedFilesystemOperation`] if the root does not
     ///   exist or is not a directory, the current lease file holds no valid lease, or the
     ///   filesystem cannot read, create, write, sync, or link a file.
-    /// - [`LeaseError::Backend`] that holds a [`BackendError::FailedOperation`] with a reason if the
-    ///   current generation is `u64::MAX`.
+    /// - [`LeaseError::Backend`] that holds a [`BackendError::FailedOperation`] with a reason if
+    ///   the current generation is `u64::MAX`.
     async fn acquire(
         &self,
         kind: &JobKind,
