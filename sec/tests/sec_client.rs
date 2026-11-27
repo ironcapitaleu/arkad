@@ -10,7 +10,7 @@
 
 use chrono::{Datelike, Months, NaiveDate, Utc};
 use pretty_assertions::assert_eq;
-use serde_json::{Value, json};
+use serde_json::json;
 
 use sec::implementations::extraction::notes::published_periods::MERGE_WAIT_MONTHS;
 use sec::shared::cik::Cik;
@@ -27,9 +27,6 @@ use sec::shared::response::implementations::sec_response::error::{
 };
 use sec::shared::status_code::StatusCode;
 use sec::shared::user_agent::UserAgent;
-
-const BERKSHIRE_FIXTURE: &str =
-    include_str!("../src/lib/tests/fixtures/data/raw_input/CIK0001067983.json");
 
 /// The age in months after which the SEC has merged the monthly Notes files of every quarter so
 /// far. The slowest merge measured took 458 days, about 15 months.
@@ -232,16 +229,8 @@ async fn should_return_expected_top_level_keys_when_retrieving_berkshire_company
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
-    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
-        .expect("The Berkshire Hathaway fixture should always be valid JSON");
-    let fixture_keys: Vec<&str> = fixture
-        .as_object()
-        .expect("The fixture should be a JSON object")
-        .keys()
-        .map(String::as_str)
-        .collect();
 
-    let expected_result = fixture_keys;
+    let expected_result = vec!["cik", "entityName", "facts"];
 
     let body = client
         .execute_sec_request(request)
@@ -263,16 +252,8 @@ async fn should_return_expected_facts_keys_when_retrieving_berkshire_company_fac
     let client = sec_client();
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
-    let fixture: Value = serde_json::from_str(BERKSHIRE_FIXTURE)
-        .expect("The Berkshire Hathaway fixture should always be valid JSON");
-    let fixture_keys: Vec<&str> = fixture["facts"]
-        .as_object()
-        .expect("The fixture 'facts' field should be a JSON object")
-        .keys()
-        .map(String::as_str)
-        .collect();
 
-    let expected_result = fixture_keys;
+    let expected_result = vec!["dei", "ffd", "rxp", "us-gaap"];
 
     let body = client
         .execute_sec_request(request)
