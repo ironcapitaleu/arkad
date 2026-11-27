@@ -86,7 +86,7 @@ flowchart TB
 
 | Part | Crate | Holds |
 | ---- | ----- | ----- |
-| Silver backend | `storage`, module `silver_object_store` | `SilverObject`, and `FilesystemSilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects |
+| Silver backend | `storage`, module `silver_object_store` | `SilverObject`, `ListedObject`, and `FilesystemSilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects |
 | Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
 | GCS backend | `storage`, behind the cargo feature `gcs` | A silver object store and a `LeaseStore` on the GCS JSON API, beside the filesystem backends |
 | Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
