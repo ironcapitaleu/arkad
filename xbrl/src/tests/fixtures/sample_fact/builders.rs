@@ -70,8 +70,8 @@ fn number(text: &str) -> BigDecimal {
         .expect("Given a hardcoded decimal text, the parse should always succeed")
 }
 
-/// Returns the entity ID of Apple, CIK `0000320193` under the scheme `cik`, that every builder
-/// uses.
+/// Returns the entity ID of Apple, CIK `0000320193` under the scheme `cik`. The builders
+/// [`fact`], [`candidate`], [`standardized`], and [`filing`] use it.
 ///
 /// # Panics
 ///

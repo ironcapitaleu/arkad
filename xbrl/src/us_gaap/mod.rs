@@ -3739,7 +3739,7 @@ mod tests {
         let child = concept("srt", "LifeInsuranceInForceCeded");
 
         let expected_result = Some(&CalculationArc {
-            role: role.to_string(),
+            role: "http://fasb.org/us-gaap/role/statement/StatementOfFinancialPositionClassifiedFirstAlternative".to_string(),
             parent: concept("srt", "LifeInsuranceInForceNet"),
             child: concept("srt", "LifeInsuranceInForceCeded"),
             weight: BigDecimal::from_str("-1.0")
