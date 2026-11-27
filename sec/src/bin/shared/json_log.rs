@@ -26,6 +26,13 @@ use tracing_subscriber::fmt::{
 };
 use tracing_subscriber::registry::LookupSpan;
 
+use log_timestamp::log_timestamp;
+
+// `#[path]` in a file module resolves from the directory of this file, so every binary that
+// includes this file also gets `log_timestamp.rs`.
+#[path = "log_timestamp.rs"]
+mod log_timestamp;
+
 /// Starts the JSON logger on stdout. The logger writes until the returned guard drops.
 pub fn init_logger() -> WorkerGuard {
     let (non_blocking, guard) = tracing_appender::non_blocking(stdout());
@@ -69,12 +76,6 @@ where
         let json = serde_json::to_string(&line).map_err(|_| fmt::Error)?;
         writeln!(writer, "{json}")
     }
-}
-
-/// Writes `time` in RFC 3339 in UTC, with the fraction truncated to six digits, as
-/// `2024-10-12T14:30:00.000000Z`.
-fn log_timestamp(time: Timestamp) -> String {
-    format!("{time:.6}")
 }
 
 /// One log line. Serde writes the fields in the order of their declaration.
@@ -160,40 +161,5 @@ impl Visit for LogFields {
         let value =
             u64::try_from(value).map_or_else(|_| Value::from(value.to_string()), Value::from);
         self.record_value(field, value);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use jiff::civil::date;
-    use jiff::tz::TimeZone;
-    use pretty_assertions::assert_eq;
-
-    use super::*;
-
-    #[test]
-    fn should_write_six_fraction_digits_when_the_time_has_nanoseconds() {
-        let time = TimeZone::UTC
-            .to_timestamp(date(2024, 10, 12).at(14, 30, 0, 123_456_789))
-            .expect("Given a valid hardcoded UTC time, building it should always succeed");
-
-        let expected_result = "2024-10-12T14:30:00.123456Z";
-
-        let result = log_timestamp(time);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_write_six_zero_fraction_digits_when_the_time_is_a_whole_second() {
-        let time = TimeZone::UTC
-            .to_timestamp(date(2024, 10, 12).at(14, 30, 0, 0))
-            .expect("Given a valid hardcoded UTC time, building it should always succeed");
-
-        let expected_result = "2024-10-12T14:30:00.000000Z";
-
-        let result = log_timestamp(time);
-
-        assert_eq!(result, expected_result);
     }
 }

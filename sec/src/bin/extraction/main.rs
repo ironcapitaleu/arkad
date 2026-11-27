@@ -13,12 +13,15 @@ use uuid::Uuid;
 
 use sec::prelude::*;
 
+use log_timestamp::log_timestamp;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_company_facts_writer};
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
 // client and the store the same way.
+#[path = "../shared/log_timestamp.rs"]
+mod log_timestamp;
 #[path = "../shared/sec_client.rs"]
 mod sec_client;
 #[path = "../shared/storage_root.rs"]
@@ -224,15 +227,6 @@ fn log_line(level: &str, event: &str, message: &str, context: &serde_json::Value
     );
 }
 
-/// Writes `time` in RFC 3339 in UTC, with the fraction truncated to six digits, as
-/// `2024-10-12T14:30:00.000000Z`.
-///
-/// `shared/json_log.rs` holds the same function. This binary builds without `tracing`, so it
-/// cannot include that file.
-fn log_timestamp(time: Timestamp) -> String {
-    format!("{time:.6}")
-}
-
 /// Returns one log line as JSON text, with its fields in the order of the other binaries.
 fn format_line(
     level: &str,
@@ -264,8 +258,6 @@ struct LogLine<'line> {
 
 #[cfg(test)]
 mod tests {
-    use jiff::civil::date;
-    use jiff::tz::TimeZone;
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -283,19 +275,6 @@ mod tests {
             "[FailedStorageRootCreation] Failed",
             &context,
         );
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_write_six_fraction_digits_when_the_time_has_nanoseconds() {
-        let time = TimeZone::UTC
-            .to_timestamp(date(2024, 10, 12).at(14, 30, 0, 123_456_789))
-            .expect("Given a valid hardcoded UTC time, building it should always succeed");
-
-        let expected_result = "2024-10-12T14:30:00.123456Z";
-
-        let result = log_timestamp(time);
 
         assert_eq!(result, expected_result);
     }
