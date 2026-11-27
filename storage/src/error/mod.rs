@@ -242,7 +242,10 @@ mod tests {
     #[test]
     fn should_wrap_read_error_into_read_variant_when_converting_from_read_error() {
         let read_error = ReadError::missing_record("0000320193-24-000123");
-        let expected_result = ErrorKind::Read(read_error.clone());
+
+        let expected_result = ErrorKind::Read(ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        });
 
         let result = ErrorKind::from(read_error);
 
@@ -252,7 +255,10 @@ mod tests {
     #[test]
     fn should_wrap_write_error_into_write_variant_when_converting_from_write_error() {
         let write_error = WriteError::conflicting_write("duplicate accession");
-        let expected_result = ErrorKind::Write(write_error.clone());
+
+        let expected_result = ErrorKind::Write(WriteError::ConflictingWrite {
+            reason: "duplicate accession".to_owned(),
+        });
 
         let result = ErrorKind::from(write_error);
 

@@ -397,13 +397,15 @@ mod tests {
         let root = temporary_root();
         let store = FilesystemLeaseStore::new(root.path());
         let kind = transform_notes();
+        let first_plan_id = "plan-a";
+        let second_plan_id = "plan-b";
         let expires_at = in_hours(16);
 
         let expected_result = 1;
 
         let (first, second) = tokio::join!(
-            store.acquire(&kind, "plan-a", expires_at),
-            store.acquire(&kind, "plan-b", expires_at),
+            store.acquire(&kind, first_plan_id, expires_at),
+            store.acquire(&kind, second_plan_id, expires_at),
         );
         let result = usize::from(first.is_ok()) + usize::from(second.is_ok());
 
@@ -415,13 +417,15 @@ mod tests {
         let root = temporary_root();
         let store = FilesystemLeaseStore::new(root.path());
         let kind = transform_notes();
+        let first_plan_id = "plan-a";
+        let second_plan_id = "plan-b";
         let expires_at = in_hours(16);
 
         let expected_result = 1;
 
         let (first, second) = tokio::join!(
-            store.acquire(&kind, "plan-a", expires_at),
-            store.acquire(&kind, "plan-b", expires_at),
+            store.acquire(&kind, first_plan_id, expires_at),
+            store.acquire(&kind, second_plan_id, expires_at),
         );
         let result = usize::from(matches!(first, Err(LeaseError::LeaseHeld { .. })))
             + usize::from(matches!(second, Err(LeaseError::LeaseHeld { .. })));

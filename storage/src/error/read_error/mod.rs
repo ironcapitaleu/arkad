@@ -168,7 +168,10 @@ mod tests {
     #[test]
     fn should_wrap_backend_error_into_backend_variant_when_converting_from_backend_error() {
         let backend_error = BackendError::unreachable_storage("connection reset");
-        let expected_result = ReadError::Backend(backend_error.clone());
+
+        let expected_result = ReadError::Backend(BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("connection reset".to_owned()),
+        });
 
         let result = ReadError::from(backend_error);
 

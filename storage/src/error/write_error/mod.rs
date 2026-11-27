@@ -170,7 +170,10 @@ mod tests {
     #[test]
     fn should_wrap_backend_error_into_backend_variant_when_converting_from_backend_error() {
         let backend_error = BackendError::failed_operation("disk full");
-        let expected_result = WriteError::Backend(backend_error.clone());
+
+        let expected_result = WriteError::Backend(BackendError::FailedOperation {
+            cause: BackendCause::Reason("disk full".to_owned()),
+        });
 
         let result = WriteError::from(backend_error);
 
