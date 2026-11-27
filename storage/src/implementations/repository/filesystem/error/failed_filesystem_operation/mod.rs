@@ -146,6 +146,13 @@ pub enum FailedFilesystemOperationReason {
         /// The digest the metadata names.
         expected_digest: Sha256Digest,
     },
+    /// The lease file holds no valid lease.
+    InvalidLease {
+        /// Line of the first character the parser rejected.
+        line: usize,
+        /// Column of the first character the parser rejected.
+        column: usize,
+    },
     /// The key ends in the suffix of a metadata file, so it names the metadata file of another key.
     InvalidKeySuffix,
     /// An I/O operation failed.
@@ -192,6 +199,10 @@ impl fmt::Display for FailedFilesystemOperationReason {
                 f,
                 "Document has SHA-256 '{found_digest}', metadata names '{expected_digest}'"
             ),
+            Self::InvalidLease { line, column } => write!(
+                f,
+                "Lease file holds no valid lease at line {line}, column {column}"
+            ),
             Self::InvalidKeySuffix => write!(
                 f,
                 "Key ends in '{METADATA_SUFFIX}', the suffix of a metadata file"
@@ -219,6 +230,8 @@ pub enum FilesystemOperation {
     Sync,
     /// Renaming a file over another path.
     Replace,
+    /// Linking a file to a new path that must not exist.
+    Link,
     /// Reading the names a directory holds.
     ListDirectory,
 }
@@ -233,6 +246,7 @@ impl fmt::Display for FilesystemOperation {
             Self::Write => "write",
             Self::Sync => "sync",
             Self::Replace => "replace",
+            Self::Link => "link",
             Self::ListDirectory => "list directory",
         };
         write!(f, "{verb}")
@@ -366,6 +380,31 @@ mod tests {
         let reason = FailedFilesystemOperationReason::InvalidMetadata { line: 3, column: 7 };
 
         let expected_result = "Metadata file holds no valid metadata at line 3, column 7";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_the_lease_is_invalid() {
+        let reason = FailedFilesystemOperationReason::InvalidLease { line: 1, column: 1 };
+
+        let expected_result = "Lease file holds no valid lease at line 1, column 1";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_format_display_as_expected_when_a_link_fails() {
+        let reason = FailedFilesystemOperationReason::FailedIo {
+            operation: FilesystemOperation::Link,
+            kind: io::ErrorKind::PermissionDenied,
+        };
+
+        let expected_result = "Failed to link, permission denied";
 
         let result = reason.to_string();
 

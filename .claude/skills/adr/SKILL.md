@@ -8,7 +8,7 @@ description: >
   long-term trade-offs for the system or the team. Also use for one that a later engineer will
   question. Also use when you remove history or a past decision from a document, to check whether
   the decision needs an ADR first.
-version: 0.7.0
+version: 0.8.0
 allowed-tools: [AskUserQuestion]
 ---
 
@@ -86,7 +86,7 @@ Record the answer in the `Status` row of the ADR, as "Amend or Supersede" says.
 
 | Field | Value |
 | ----- | ----- |
-| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link) or [ironcapitaleu/arkad#NNN](link)) \| Superseded by ADR NNNN> |
+| Status | <Proposed. <Who> confirms \| Accepted by <who> on YYYY-MM-DD ([<TICKET> comment `<id>`](link), accessed YYYY-MM-DD, or [ironcapitaleu/arkad#NNN](link), accessed YYYY-MM-DD) \| Superseded by ADR NNNN> |
 | Date | YYYY-MM-DD |
 | Deciders | <who decides> |
 | Ticket | <[STA-123](link): the ticket that needs the decision, with its ID as the link text, or "None"> |
@@ -125,7 +125,9 @@ decision.>
 ## Sources
 
 <Each source of a fact above, with its date: a code or data file at a fixed commit, an accepted or
-a superseded ADR, a URL to a page that does not change, a ticket comment, or a command. Never a
+a superseded ADR, a URL to a page that does not change, a ticket comment, or a command. A link to a
+page or an item outside the repository names the date you read it, as
+`([Title](https://…), accessed YYYY-MM-DD)`. Never a
 design document, a guideline, a skill, or a Proposed ADR, even at a fixed commit. Never a link to a
 file on a branch.>
 ```
@@ -149,7 +151,8 @@ add sections, as `docs/adr/0001-mvp-database.md` does.
 - An agent sets the status "Proposed" and asks the decider. Only the decider named in the ADR
   accepts it, by their own answer to the question.
 - Never rewrite the decision of an accepted ADR. Amend it or supersede it.
-- Every count, size, and time has a date and a source.
+- Every count, size, and time has a date and a source. Every link to a page or an item outside the
+  repository names the date you read it (`DOCUMENTATION.md`, "External Links and References").
 - If an ADR links a Linear item, the link text names the item: a ticket by its ID, a comment by its
   ticket ID and comment ID, and a document by "Linear document" and its title. If the link breaks,
   the text still names the item.

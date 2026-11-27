@@ -76,8 +76,8 @@ flowchart TB
 - The workflow deletes each lease after the worker step of its job kind ends. The diagram leaves
   these edges out.
 - `silver-daily` runs after the extract job `daily_filings`, with the kind `transform-daily`.
-  `silver-backfill` runs by hand, with the kind `transform-notes`. A unit source holds the work of
-  both, see [Where Units Come From](#where-units-come-from).
+  `silver-backfill` runs by hand, with the kind `transform-notes`. A `RawDocumentSource` holds the
+  work of both, see [Where Units Come From](#where-units-come-from).
 - The checks and load have their own designs. This document sets only their place in the chain.
 
 ## The Silver Writer
@@ -86,17 +86,18 @@ flowchart TB
 
 | Part | Crate | Holds |
 | ---- | ----- | ----- |
-| Silver backend | `storage` | `SilverObjectStore`, a backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository` for Parquet parts and control objects. Filesystem by default |
-| Lease port | `storage` | `LeaseStore`, a standalone trait, with a fake and a filesystem backend |
-| GCS backend | `storage`, behind the cargo feature `gcs` | `SilverObjectStore` and `LeaseStore` on the GCS JSON API |
-| Silver code | `sec`, module `silver` | `SilverRecord`, `DigestRow`, the row types, the writer, the reader, the plans, `UnitSource` and its listing backend, and the task runner |
+| Silver backend | `storage`, module `write_once` | `Blob`, `ListedBlob`, and `WriteOnceFilesystemRepository`, a write-once backend of the existing `WriteRepository`, `ReadRepository`, and `ListRepository`. Silver stores its Parquet parts and control objects as blobs |
+| Lease port | `storage` | `LeaseRepository`, a standalone trait, with `FakeLeaseRepository` and `FilesystemLeaseRepository` |
+| GCS backend | `storage`, behind the cargo feature `gcs` | A write-once repository and a `LeaseRepository` backend on the GCS JSON API, beside the filesystem backends |
+| Row digest | `sec`, modules `shared::row_digest` and `shared::transform_version` | `ByteForm`, `DigestRow`, and `content_digest`, which the transform states, the writer, and the checks use, and `TRANSFORM_VERSION` |
+| Silver code | `sec`, module `silver` | `SilverRecord`, the row types, the writer, the reader, the plans, `RawDocumentSource` and its listing backend, and the task runner |
 | Series rules | `xbrl`, module `core::series` | `standardize_series`, the order of the rules per entity |
 
-Only one trait of `storage` is new, `LeaseStore`. No existing trait changes (`AGENTS.md`, "Open-Closed
-Principle"):
+Only one trait of `storage` is new, `LeaseRepository`. No existing trait changes (`AGENTS.md`,
+"Open-Closed Principle"):
 
-- **Writes go through `WriteRepository::persist`.** `SilverObjectStore` writes each object once.
-  If the object exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
+- **Writes go through `WriteRepository::persist`.** Each write-once repository writes each blob once.
+  If the blob exists, `persist` returns `WriteError::ConflictingWrite` and changes nothing. The
   raw store backend `FilesystemRepository` does not fit: it replaces a document whose bytes
   differ, and it writes a JSON metadata file next to each document.
 - **The writer computes the size and the CRC32C of each part from its bytes.** The GCS backend
@@ -105,7 +106,7 @@ Principle"):
 - **Reads take whole objects** through `ReadRepository`. A part holds about 25 to 60 MB. GCS can
   read a byte range of an object, so a range read can come later without a change to this
   design.
-- **`LeaseStore`** has `acquire` and `current`. The workflow deletes a lease through the GCS API.
+- **`LeaseRepository`** has `acquire` and `current`. The workflow deletes a lease through the GCS API.
   See [One Writer per Unit Key](#one-writer-per-unit-key).
 
 The GCS backend sets `ifGenerationMatch=0` on each object write, and `ifGenerationMatch=<generation>`
@@ -210,18 +211,21 @@ One reader serves every Rust caller. It reads `silver_files` and never lists a d
 
 ## Byte Form of `content_digest`
 
-[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the form. In the code:
+[ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) sets the form. The code lives in
+`sec::shared::row_digest`:
 
 - `ByteForm` is a byte buffer with one method per Arrow type of the contract, for example
   `decimal(&BigDecimal)` and `date(NaiveDate)`, plus `null()`, `list(len)`, and `struct_(fields)`.
 - Each `DigestRow` writes its columns in schema order and skips `execution_id`, `loaded_at`, and
   `computed_at`.
 - The writer hashes one digest group when the group is whole. The filing step hands over one whole
-  filing, and the series step one whole entity. So the writer sorts the rows of one group, hashes
-  them, and keeps the group ID and the hash. At the end of the unit, it sorts the pairs and computes
-  `content_digest`.
-- The golden test holds one fixture unit per dataset and a table of `transform_version` to
-  expected digest.
+  filing, and the series step one whole entity. So the writer calls `group_hashes` on the rows of
+  one group, and keeps the `GroupHash`: the group ID and the hash. At the end of the unit,
+  `content_digest` sorts the pairs and computes the digest. If two pairs have one group ID, it
+  returns `DuplicateDigestGroup`, because the digest would then depend on the split.
+- The golden test holds one fixture unit and a table of `transform_version` to expected digest.
+  Each dataset adds its own fixture unit when its `DigestRow` type exists. `TRANSFORM_VERSION`
+  holds the version of the build.
 
 ## The Series Step
 
@@ -360,17 +364,17 @@ of that run read the list. A rule by time alone misses such a unit.
 
 ## One Writer per Unit Key
 
-[ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) fixes the rule. The parts in
+[ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md) sets the rule. The parts in
 the code:
 
-- `LeaseStore::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
+- `LeaseRepository::acquire(kind, plan_id, expires_at)` creates `leases/<kind>` in the control bucket
   if absent. It replaces the object if its expiry passed. Otherwise it returns `LeaseHeld` with
   the plan that holds it.
 - The plan step computes `expires_at`: the time of `acquire`, plus `ceil(units / parallel tasks)`
   times the task timeout times the attempts per task, plus 20 minutes. The 20 minutes cover the
   rest of the plan step, at most 10 minutes, and the start of the worker step. For 80 Notes files,
   10 parallel tasks, a timeout of 1 hour, and 2 attempts, that is 16 hours and 20 minutes.
-- Each worker task calls `LeaseStore::current(kind)` before its first write. It fails with
+- Each worker task calls `LeaseRepository::current(kind)` before its first write. It fails with
   `LeaseLost` if the lease names another plan, or if less than one task timeout plus 1 minute
   remains before the expiry. Cloud Run stops an attempt at its timeout, so the task ends before
   the expiry. The minute covers clock skew between the task and the next plan step.
@@ -383,7 +387,7 @@ unread silver files never meets a control object.
 
 ### Jobs and Steps
 
-[ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md) fixes the chain. Three
+[ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md) sets the chain. Three
 binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002-static-binaries.md)):
 
 | Binary | Step | Plan | Tasks of the worker step |
@@ -395,31 +399,37 @@ binaries run the steps, each in its own image ([ADR 0002](../../../docs/adr/0002
 | `checks` | One step. It writes no silver unit, so it takes no lease | | Set by the design of the checks |
 
 - The plan of `transform-notes` sorts the Notes files by size, largest first, so the largest files
-  get the lowest task indexes. This assumes that Cloud Run starts tasks in index order. The
-  feature of the plans checks the assumption.
-- The worker step reads `ARKAD_PLAN`, the plan ID that the workflow passes.
+  get the lowest task indexes. With more than one parallel task, Cloud Run does not keep the index
+  order ([ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md), Amendment 1). So the order
+  is a hint, and the job does not rely on it.
+- The workflow passes `ARKAD_PLAN`, the plan ID, to the worker step.
+- `transform` and `series` read `CLOUD_RUN_TASK_INDEX`, `CLOUD_RUN_TASK_COUNT`, and
+  `ARKAD_JOB_STEP`. In the worker step, the binary also reads `ARKAD_PLAN`. `transform` also reads `ARKAD_UNITS`,
+  and `series` also reads `ARKAD_SERIES_MODE`. The design of the checks names the variables of
+  `checks`. Each binary passes the values to the runner and to the source as arguments. The runner,
+  the source, and the states read no environment variable.
 - The task runner sits outside the state machine, as the facade of extract does. It starts one
   machine per filing and runs them on its threads. No machine forks or joins.
 
 ### Where Units Come From
 
-The transform plan step takes its units through one port, `UnitSource`, in `sec::silver`. A
-source hands out references to stored raw documents: a `NotesArchiveRef` for each Notes file, and
-a `FilingDocumentsRef` for each filing. The workflow only starts a run
+The transform plan step takes its units through one port, `RawDocumentSource`, in
+`sec::silver`. A source hands out references to stored raw documents: a `NotesArchiveRef` for each
+Notes file, and a `FilingDocumentsRef` for each filing. The workflow only starts a run
 ([ADR 0034](../../../docs/adr/0034-transform-jobs-chained-by-a-workflow.md)).
 
 | Backend | Hands out | Used for |
 | ------- | --------- | -------- |
 | Raw store listing | Each stored Notes file, or each filing of the filed dates of the window of `daily_filings`, the last four days. With `ARKAD_UNITS=all`, every stored document | Runs until the queue exists, and a full replay |
-| Raw write log | The entries of the write log of the raw store: from a checkpoint, or from the start | Normal runs and a full replay |
+| Raw write log | The entries of the write log of the raw store: from a checkpoint or, with `ARKAD_UNITS=all`, from the start | Normal runs and a full replay |
 | Queue | The messages that extract publishes for each stored document | Normal runs |
 
 The write log keeps every write, so a replay reads it. The queue keeps a message only until a
 consumer acknowledges it, so it hands out new work and holds no history. This design sets the
 port, not the format of the log. The log then becomes one more backend.
 
-A replay always builds its units from the raw store as it is now. A read "as silver held it at
-T" of the contract is the tool for the past.
+A replay always builds its units from the raw store as it is now. To read the past, use the read that
+the contract defines: silver as it held the data at time T.
 
 The checkpoint of the write log is a control object `checkpoints/<job kind>` in the control
 bucket. Only a normal run moves it, under the lease of its job kind. A full replay does not move
@@ -498,7 +508,10 @@ A `series_base` run and a `series_delta` run never overlap, because both take th
 
 [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) keeps one task per Notes file. The
 target is 15 minutes per largest Notes file, within the task timeout of one hour. The
-prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread.
+prototype measured about 2.4 minutes for the worst case of `2024q1`, on one thread. The print,
+sort, and hash of `content_digest` add about 11 seconds per largest Notes file.
+[ADR 0033, Amendment 1](../../../docs/adr/0033-byte-form-of-content-digest.md#amendment-1-the-cost-of-the-print-and-the-hash)
+holds the measurement.
 
 - Each task logs `unit_slow` when one unit runs past 15 minutes.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.
@@ -561,19 +574,19 @@ error if a unit failed. The workflow ends as failed if a step failed.
 
 Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The list gives the order.
 
-1. FEATURE: `SilverObjectStore`, a create-only filesystem backend of `WriteRepository`,
-   `ReadRepository`, and `ListRepository`, and the port `LeaseStore` with a fake and a filesystem
-   backend.
-2. FEATURE: the GCS backend of `SilverObjectStore` and `LeaseStore`, behind the cargo feature
-   `gcs`.
+1. FEATURE: `WriteOnceFilesystemRepository`, a create-only filesystem backend of `WriteRepository`,
+   `ReadRepository`, and `ListRepository`, and the port `LeaseRepository` with a fake and a
+   filesystem backend.
+2. FEATURE: the GCS backends of the write-once repository and `LeaseRepository`, behind the cargo
+   feature `gcs`.
 3. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
 4. FEATURE: `SilverRecord` for `as_is_facts` and `filings`, with the schema tests.
 5. FEATURE: `SilverRecord` for `candidates`, `findings`, and `silver_files`.
 6. FEATURE: `SilverRecord` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.
-8. FEATURE: the transform plan step and task runner: `UnitSource` with the raw store listing,
-   one unit per task, threads, and the lease check. Tests: the listing hands out the four days of
+8. FEATURE: the transform plan step and task runner: `RawDocumentSource` with the raw store
+   listing, one unit per task, threads, and the lease check. Tests: the listing hands out the four days of
    the window, and every stored document with `ARKAD_UNITS=all`. A skipped unit leaves the next
    plan, and a unit whose task failed before rule 4 stays in it.
 9. FEATURE: failure handling and the run summary of the transform task.
@@ -602,8 +615,9 @@ jobs, and are not in this list.
 - **The startup of an execution.** Not measured. ADR 0034 names it.
 - **The mount for silver.** Not tested: whether the GCS bucket mount honors "create only if
   absent". An upload through the mount also carries no CRC32C, so GCS cannot reject a damaged
-  upload, and only integrity check 1 finds it. If both are acceptable, `SilverObjectStore` can
-  write through the mount, and only `LeaseStore` needs the GCS client.
+  upload, and only integrity check 1 finds it. If both are acceptable,
+  `WriteOnceFilesystemRepository` can write through the mount, and only `LeaseRepository` needs the
+  GCS client.
 - **A signal for a rule change.** The design of the replay of the standardized layer adds a signal
   that starts a base run. The plan step reads it next to the conditions of [Mode](#mode).
 - **Gold.** The load step and its ledger belong to the gold design.
