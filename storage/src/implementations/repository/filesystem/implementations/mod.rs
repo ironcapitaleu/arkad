@@ -19,7 +19,7 @@
 
 pub mod builder;
 pub mod constants;
-mod key_walk;
+pub(crate) mod key_walk;
 mod list_repository;
 mod read_repository;
 mod write_repository;
