@@ -156,12 +156,14 @@ pub enum StatementKind {
     BalanceSheet,
     /// The income statement, with comprehensive income at its end. Each value is a duration.
     IncomeStatement,
-    /// The cash flow statement. Each value is a duration.
+    /// The cash flow statement. Each value is a duration, except the cash at the end of the
+    /// period, which is an instant.
     CashFlow,
 }
 
 impl StatementKind {
-    /// Returns the period type of each value of the statement.
+    /// Returns the period type of the statement: the period type of each value, except the
+    /// values of [`CashFlowConcept::CashAndRestrictedCash`].
     ///
     /// The balance sheet takes [`PeriodType::Instant`]. The income statement and the cash flow
     /// statement take [`PeriodType::Duration`].
@@ -277,9 +279,10 @@ impl Statement {
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidStatementFacts`] if `facts` is empty, if a fact has no line in the
-    /// statement, if a fact has the wrong period type, if two facts differ in entity, period end,
-    /// length in quarters, unit, or dimensions, or if two facts have the same concept. Facts whose
+    /// Returns an [`InvalidStatementFacts`] if `facts` holds no fact of the period type of
+    /// `kind`, if a fact has no line in the statement, if a fact has the wrong period type, if two
+    /// facts differ in entity, period end, unit, or dimensions, if two facts of the period type of
+    /// `kind` differ in length in quarters, or if two facts have the same concept. Facts whose
     /// periods differ only in the exact start build one statement. It returns the first error in
     /// the order of `facts`.
     ///
@@ -317,7 +320,10 @@ impl Statement {
     ) -> Result<Self, InvalidStatementFacts> {
         let tree = Tree::of(kind);
         let facts = tree.check(facts)?;
-        let Some(first) = facts.values().next() else {
+        let Some(first) = facts
+            .values()
+            .find(|fact| fact.period.period_type() == kind.period_type())
+        else {
             return Err(InvalidStatementFacts::MissingFacts { kind });
         };
         let (entity, period_end, quarters) = (
@@ -389,7 +395,8 @@ impl Statement {
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq)]
 pub enum InvalidStatementFacts {
-    /// The input holds no fact, so the statement has no entity and no period.
+    /// The input holds no fact of the period type of the statement, so the statement has no
+    /// period.
     #[error("[MissingFacts] No standardized fact to build the {kind} from")]
     MissingFacts {
         /// The kind of the statement.
@@ -404,8 +411,8 @@ pub enum InvalidStatementFacts {
         /// The concept of the fact.
         concept: CanonicalElementKind,
     },
-    /// A fact covers a duration in a balance sheet, or an instant in another statement.
-    #[error("[UnexpectedPeriodType] Fact of '{}' covers '{period}', but the {kind} takes the period type '{}'", .concept.name(), .kind.period_type())]
+    /// A fact has another period type than the statement takes for its concept.
+    #[error("[UnexpectedPeriodType] Fact of '{}' covers '{period}', but the {kind} takes the period type '{expected}'", .concept.name())]
     UnexpectedPeriodType {
         /// The kind of the statement.
         kind: StatementKind,
@@ -413,9 +420,11 @@ pub enum InvalidStatementFacts {
         concept: CanonicalElementKind,
         /// The period of the fact.
         period: Period,
+        /// The period type that the statement takes for the concept.
+        expected: PeriodType,
     },
-    /// A fact differs from the first fact in entity, period end, length in quarters, unit, or
-    /// dimensions.
+    /// A fact differs from the first fact in entity, period end, unit, or dimensions, or from the
+    /// first fact of the period type of the statement in length in quarters.
     #[error("[MismatchedFact] Fact of '{}' differs from the fact of '{}' in entity, period end, length in quarters, unit, or dimensions", .concept.name(), .first.name())]
     MismatchedFact {
         /// The concept of the fact that differs.
@@ -475,6 +484,12 @@ impl Tree {
         self.placements.iter().any(|(placed, _)| *placed == concept)
     }
 
+    /// Returns the period type that the statement takes for `concept`.
+    fn period_type_of(&self, concept: CanonicalElementKind) -> PeriodType {
+        CashFlowConcept::try_from(concept)
+            .map_or_else(|_| self.kind.period_type(), CashFlowConcept::period_type)
+    }
+
     /// Returns `true` if `concept` belongs to the statement or starts one of its steps.
     fn holds(&self, concept: CanonicalElementKind) -> bool {
         self.places(concept)
@@ -492,25 +507,43 @@ impl Tree {
         let kind = self.kind;
         let mut checked: BTreeMap<CanonicalElementKind, &StandardizedFact> = BTreeMap::new();
         let mut first: Option<&StandardizedFact> = None;
+        let mut first_of_kind: Option<&StandardizedFact> = None;
         for fact in facts {
             let concept = fact.concept;
             if !self.holds(concept) {
                 return Err(InvalidStatementFacts::UnexpectedConcept { kind, concept });
             }
-            if fact.period.period_type() != kind.period_type() {
+            let expected = self.period_type_of(concept);
+            if fact.period.period_type() != expected {
                 let period = fact.period;
                 return Err(InvalidStatementFacts::UnexpectedPeriodType {
                     kind,
                     concept,
                     period,
+                    expected,
                 });
             }
             let first = *first.get_or_insert(fact);
-            if (&fact.entity, span(fact), &fact.unit, &fact.dimensions)
-                != (&first.entity, span(first), &first.unit, &first.dimensions)
-            {
+            if (
+                &fact.entity,
+                fact.period.end(),
+                &fact.unit,
+                &fact.dimensions,
+            ) != (
+                &first.entity,
+                first.period.end(),
+                &first.unit,
+                &first.dimensions,
+            ) {
                 let first = first.concept;
                 return Err(InvalidStatementFacts::MismatchedFact { concept, first });
+            }
+            if expected == kind.period_type() {
+                let first = *first_of_kind.get_or_insert(fact);
+                if fact.period.quarters() != first.period.quarters() {
+                    let first = first.concept;
+                    return Err(InvalidStatementFacts::MismatchedFact { concept, first });
+                }
             }
             if checked.insert(concept, fact).is_some() {
                 return Err(InvalidStatementFacts::DuplicateConcept { concept });
@@ -612,11 +645,6 @@ fn has_two_starts(facts: &[&StandardizedFact]) -> bool {
     starts
         .next()
         .is_some_and(|first| starts.any(|start| start != first))
-}
-
-/// Returns the period end and the length in quarters of `fact`.
-const fn span(fact: &StandardizedFact) -> (Date, u16) {
-    (fact.period.end(), fact.period.quarters())
 }
 
 /// The lines of a statement while [`Statement::build`] lays them out.
@@ -767,14 +795,15 @@ mod tests {
             .expect("Given a hardcoded decimal text, the parse should always succeed")
     }
 
-    /// Returns the period of the tests: the instant 2026-09-30 for a balance sheet concept, and
-    /// the quarter that ends on it for every other concept.
+    /// Returns the period of the tests: the instant 2026-09-30 for a balance sheet concept and for
+    /// the cash at the end of the period, and the quarter that ends on it for every other concept.
     fn period_of(concept: CanonicalElementKind) -> Period {
         let end = date(2026, 9, 30);
         match concept {
-            CanonicalElementKind::Statement(StatementConcept::BalanceSheet(_)) => {
-                Period::Instant { end }
-            }
+            CanonicalElementKind::Statement(
+                StatementConcept::BalanceSheet(_)
+                | StatementConcept::CashFlow(CashFlowConcept::CashAndRestrictedCash),
+            ) => Period::Instant { end },
             _ => Period::Duration(
                 Duration::from_dates(date(2026, 7, 1), end)
                     .expect("Given an end after the start, the creation should always succeed"),
@@ -843,6 +872,7 @@ mod tests {
             (standard(CashFlowConcept::ShareRepurchases), 2),
             (other(CashFlowGroup::FinancingCashFlow.name()), 2),
             (standard(CashFlowConcept::ExchangeRateEffect), 1),
+            (standard(CashFlowConcept::CashAndRestrictedCash), 0),
         ]);
 
         let result = Statement::build(StatementKind::CashFlow, &facts).map(|s| layout(&s));
@@ -1296,6 +1326,7 @@ mod tests {
             kind: StatementKind::BalanceSheet,
             concept: BalanceSheetConcept::Assets.element(),
             period: quarter,
+            expected: PeriodType::Instant,
         });
 
         let result = Statement::build(StatementKind::BalanceSheet, &facts).err();
@@ -1317,6 +1348,99 @@ mod tests {
         });
 
         let result = Statement::build(StatementKind::BalanceSheet, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_value_of_the_cash_at_the_end_when_the_cash_flow_statement_has_its_instant() {
+        let facts = [
+            fact(CashFlowConcept::NetChangeInCash, "137"),
+            fact(CashFlowConcept::CashAndRestrictedCash, "388"),
+        ];
+
+        let expected_result = Ok(Some(number("388")));
+
+        let result = Statement::build(StatementKind::CashFlow, &facts).map(|statement| {
+            statement
+                .standard_line(CashFlowConcept::CashAndRestrictedCash.element())
+                .and_then(StatementLine::value)
+                .cloned()
+        });
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_duration_of_the_cash_at_the_end_when_building_a_cash_flow_statement() {
+        let mut cash = fact(CashFlowConcept::CashAndRestrictedCash, "388");
+        let quarter = period_of(CashFlowConcept::NetChangeInCash.element());
+        cash.period = quarter;
+        let facts = [cash];
+
+        let expected_result = Some(InvalidStatementFacts::UnexpectedPeriodType {
+            kind: StatementKind::CashFlow,
+            concept: CashFlowConcept::CashAndRestrictedCash.element(),
+            period: quarter,
+            expected: PeriodType::Instant,
+        });
+
+        let result = Statement::build(StatementKind::CashFlow, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_cash_at_the_end_when_its_instant_differs_from_the_period_end() {
+        let mut cash = fact(CashFlowConcept::CashAndRestrictedCash, "251");
+        cash.period = Period::Instant {
+            end: date(2026, 5, 31),
+        };
+        let facts = [fact(CashFlowConcept::NetChangeInCash, "137"), cash];
+
+        let expected_result = Some(InvalidStatementFacts::MismatchedFact {
+            concept: CashFlowConcept::CashAndRestrictedCash.element(),
+            first: CashFlowConcept::NetChangeInCash.element(),
+        });
+
+        let result = Statement::build(StatementKind::CashFlow, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_a_duration_when_its_length_differs_from_the_first_duration_after_the_cash_at_the_end()
+     {
+        let mut operating_cash_flow = fact(CashFlowConcept::OperatingCashFlow, "1100");
+        operating_cash_flow.period = Period::Duration(
+            Duration::from_dates(date(2026, 1, 1), date(2026, 9, 30))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
+        let facts = [
+            fact(CashFlowConcept::CashAndRestrictedCash, "388"),
+            fact(CashFlowConcept::NetChangeInCash, "137"),
+            operating_cash_flow,
+        ];
+
+        let expected_result = Some(InvalidStatementFacts::MismatchedFact {
+            concept: CashFlowConcept::OperatingCashFlow.element(),
+            first: CashFlowConcept::NetChangeInCash.element(),
+        });
+
+        let result = Statement::build(StatementKind::CashFlow, &facts).err();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_facts_when_the_cash_flow_statement_has_only_the_cash_at_the_end() {
+        let facts = [fact(CashFlowConcept::CashAndRestrictedCash, "388")];
+
+        let expected_result = Some(InvalidStatementFacts::MissingFacts {
+            kind: StatementKind::CashFlow,
+        });
+
+        let result = Statement::build(StatementKind::CashFlow, &facts).err();
 
         assert_eq!(result, expected_result);
     }
@@ -1418,6 +1542,7 @@ mod tests {
             period: Period::Instant {
                 end: date(2026, 9, 30),
             },
+            expected: PeriodType::Duration,
         };
 
         let expected_result = "[UnexpectedPeriodType] Fact of 'Revenue' covers '2026-09-30', but the income statement takes the period type 'duration'";
