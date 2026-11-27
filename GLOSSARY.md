@@ -30,7 +30,7 @@ means two things in two sections, each section has its own entry, with a qualifi
 The ID that the SEC gives to one filing.
 
 - **Example:** `0000320193-26-000001`.
-- **Synonyms:** `adsh`, the name of the column in the Notes data set.
+- **Synonyms:** `adsh`, in the Notes data set.
 - **Related:** Filing.
 
 ### Amendment
@@ -70,7 +70,7 @@ entity by its CIK.
 One value that a filing reports for one concept, one period, one unit of measure, and one set of
 dimensions.
 
-- **Example:** the revenue of one company for one quarter, in USD.
+- **Example:** the revenue of one entity for one quarter, in USD.
 - **Related:** Concept, Fact Value, Filing, Unit of Measure.
 
 ### Fact Value
@@ -84,7 +84,7 @@ The number or the text that a fact reports.
 
 A report that one entity submits to a regulator at one time.
 
-- **Example:** the quarterly report of a company for one quarter.
+- **Example:** the quarterly report of one entity for one quarter.
 - **Related:** Accession Number, Amendment, Entity, Form.
 
 ### Form
@@ -144,7 +144,8 @@ One file in bronze.
 ### Silver
 
 The layer between bronze and gold. It holds the facts of every filing as filed, the standardized
-facts, and the findings, in tables that a query can read.
+facts, the findings, the company attributes as filed, and reference data such as taxonomy
+releases, in tables that a query can read.
 
 - **Related:** Bronze, Gold, Write Unit.
 
@@ -176,8 +177,8 @@ key. The first copy has rank 0.
 ### Current Unit
 
 The write unit of a unit key that silver wrote last. A normal read takes only current units. The
-results of the series step are the exception: a read builds them from the last full run and the
-changes after it.
+results of the series step are the exception: a read takes the last full run that finished, and
+the changes of each finished run after it.
 
 - **Related:** Replay, Unit Key, Write Unit.
 
@@ -242,15 +243,16 @@ are compared and one value wins.
 
 ### Unit Key
 
-The name of a write unit, unique within its dataset, its source, and its kind.
+The dataset, the source, and the kind of a write unit, together with its name. The name alone
+repeats across datasets.
 
-- **Example:** `2024q1` for a Notes file, `2026-11-06` for a filing day.
+- **Example:** the Notes file `2024q1` of the as-is facts.
 - **Related:** Current Unit, Write Unit.
 
 ### Value Key
 
-The parts that name one as-is fact within one filing: the concept, the period, the unit of
-measure, the dimensions, and the copy rank.
+The parts that name one as-is fact within one filing and one source: the concept, the period,
+the unit of measure, the dimensions, and the copy rank.
 
 - **Related:** As-Is Fact, Copy Rank.
 
@@ -270,6 +272,7 @@ The set of rows that one write adds to silver, and that one replay writes again.
 The work of the transform on one whole filing: read its facts, standardize them, and build its
 rows for silver.
 
+- **Not to confuse with:** Series Step.
 - **Related:** Rejected Filing, Whole Filing.
 
 ### Rejected Filing
@@ -278,6 +281,14 @@ A filing that the filing step cannot process as a whole, for example because its
 The write unit goes on without it. Too many rejected filings fail the write unit.
 
 - **Related:** Dropped Row, Filing Step.
+
+### Series Step
+
+The work of the transform that compares the candidates of every filing of one entity, and picks
+its standardized facts.
+
+- **Not to confuse with:** Filing Step.
+- **Related:** Candidate, Entity Bucket, Standardized Fact.
 
 ### Split
 
@@ -291,6 +302,8 @@ filing, or in several passes over groups of filings when it is not.
 The data that one state of a state machine takes, or hands to the next state. In the transform, one
 state value holds one whole filing.
 
+- **Example:** "one value per filing": each state of the filing step takes and returns the data of
+  one whole filing.
 - **Not to confuse with:** Fact Value.
 - **Related:** Whole Filing.
 
