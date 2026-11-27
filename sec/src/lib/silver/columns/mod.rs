@@ -289,7 +289,8 @@ mod tests {
     fn should_fail_when_a_day_count_lies_past_the_dates_of_jiff() {
         let days = i32::MAX;
 
-        // The text of the `jiff` error is not stable across releases, so the test checks the kind.
+        // The text of the `jiff` error is not stable across releases, so the test checks only
+        // that the call fails.
         let expected_result = true;
 
         let result = date_from_days(days).is_err();

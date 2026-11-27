@@ -409,6 +409,7 @@ impl<'a> FactColumns<'a> {
     /// Reads the value of one row from `value_kind` and the value column of its kind.
     fn value(&self, row: usize) -> Result<FactValue, SilverError> {
         let kind = self.value_kinds.value(row);
+        let unexpected = |reason| unexpected_value(self.dataset, "value_kind", row, reason);
         let value = match kind {
             VALUE_KIND_NUMERIC => nullable(self.value_numerics, row)
                 .map(|digits| FactValue::Numeric(number_from_decimal128(digits))),
@@ -416,16 +417,9 @@ impl<'a> FactColumns<'a> {
                 nullable(self.value_texts, row).map(|text| FactValue::Text(text.to_owned()))
             }
             VALUE_KIND_NIL => Some(FactValue::Nil),
-            _ => None,
+            _ => return Err(unexpected(format!("unknown kind '{kind}'"))),
         };
-        value.ok_or_else(|| {
-            unexpected_value(
-                self.dataset,
-                "value_kind",
-                row,
-                format!("kind '{kind}' without a value in its column"),
-            )
-        })
+        value.ok_or_else(|| unexpected(format!("kind '{kind}' without a value in its column")))
     }
 }
 
@@ -438,10 +432,10 @@ const fn value_kind(value: &FactValue) -> &'static str {
     }
 }
 
-/// Returns the number of the unscaled digits of a `decimal128(38, 10)` value.
+/// Returns the number that the unscaled digits of a `decimal128(38, 10)` value stand for.
 ///
-/// The number has no trailing zeros after the point, and no exponent: `-6.1100000000` reads as
-/// `-6.11`, and `100.0000000000` as `100`. So a filed `6.10` reads back as `6.1`, an equal number.
+/// The number has no trailing zeros after the point: `-6.1100000000` reads as `-6.11`, and
+/// `100.0000000000` as `100`. So a filed `6.10` reads back as `6.1`, an equal number.
 fn number_from_decimal128(digits: i128) -> BigDecimal {
     let number = BigDecimal::new(BigInt::from(digits), DECIMAL_SCALE.into()).normalized();
     if number.fractional_digit_count() < 0 {
@@ -797,7 +791,7 @@ mod tests {
             dataset: "as_is_facts",
             column: "value_kind",
             row: 0,
-            reason: "kind 'ratio' without a value in its column".to_owned(),
+            reason: "unknown kind 'ratio'".to_owned(),
         });
 
         let result = AsIsFactRow::from_batch(&batch, 1);
@@ -886,6 +880,142 @@ mod tests {
         let mut byte_form = ByteForm::new();
         row.write_row_key(&mut byte_form);
         let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_an_exponent_when_a_number_below_a_millionth_reads_back() {
+        let text = "0.0000001";
+
+        // `bigdecimal` prints the parsed filed number as `1E-7` too.
+        let expected_result = "1E-7";
+
+        let result = value_text_after_round_trip(text);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_numeric_kind_has_no_number() {
+        let batch = batch_with(
+            "value_numeric",
+            Arc::new(
+                Decimal128Array::from(vec![None::<i128>])
+                    .with_precision_and_scale(DECIMAL_PRECISION, DECIMAL_SCALE)
+                    .expect("Given the precision and scale of the column, the array should always build"),
+            ),
+        );
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "value_kind",
+            row: 0,
+            reason: "kind 'numeric' without a value in its column".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_the_rule_when_the_period_starts_after_its_end() {
+        // 2026-12-31, after the end 2026-09-26.
+        let batch = batch_with("period_start", Arc::new(Date32Array::from(vec![20_818])));
+
+        let expected_result = Err(SilverError::InvalidColumnValue {
+            dataset: "as_is_facts",
+            column: "period_start",
+            row: 0,
+            source: InvalidValue::new(
+                "Duration",
+                InvalidValueReason::EndBeforeStart,
+                "2026-12-31 to 2026-09-26",
+            ),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_ingestion_mode_is_unknown() {
+        let batch = batch_with("ingestion_mode", Arc::new(StringArray::from(vec!["daily"])));
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "ingestion_mode",
+            row: 0,
+            reason: "not 'backfill' or 'incremental'".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_transform_version_is_not_a_number() {
+        let batch = batch_with("transform_version", Arc::new(StringArray::from(vec!["v1"])));
+
+        let expected_result = Err(SilverError::UnexpectedColumnValue {
+            dataset: "as_is_facts",
+            column: "transform_version",
+            row: 0,
+            reason: "not a base-10 number".to_owned(),
+        });
+
+        let result = AsIsFactRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_execution_id_is_not_a_uuid() {
+        let batch = batch_with("execution_id", Arc::new(StringArray::from(vec!["run-1"])));
+
+        let expected_result = Some("execution_id");
+
+        let result = match AsIsFactRow::from_batch(&batch, 1) {
+            Err(SilverError::UnexpectedColumnValue { column, .. }) => Some(column),
+            _ => None,
+        };
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_source_sha256_is_not_a_digest() {
+        let batch = batch_with("source_sha256", Arc::new(StringArray::from(vec!["abc"])));
+
+        let expected_result = Some("source_sha256");
+
+        let result = match AsIsFactRow::from_batch(&batch, 1) {
+            Err(SilverError::UnexpectedColumnValue { column, .. }) => Some(column),
+            _ => None,
+        };
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_column_is_read_as_another_array_type() {
+        let batch = batch_with(
+            "filing_id",
+            Arc::new(StringArray::from(vec!["sec:0000320193-26-000001"])),
+        );
+        let columns = BatchColumns::check::<AsIsFactRow>(&batch, 1)
+            .expect("Given a batch that `to_batch` built, the schema check should always pass");
+
+        let expected_result = Err(SilverError::UnexpectedSchema {
+            dataset: "as_is_facts",
+            version: 1,
+            reason: "column 'filing_id' holds another array type".to_owned(),
+        });
+
+        let result = columns.get::<Int32Array>("filing_id").map(|_| ());
 
         assert_eq!(result, expected_result);
     }
