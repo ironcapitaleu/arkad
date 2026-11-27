@@ -33,6 +33,7 @@
 //! - [`period`]: Instants and durations.
 //! - [`period_identity`]: The derivation of the fourth quarter from the fiscal year.
 //! - [`release`]: The taxonomy release of a plug-in.
+//! - [`required_check`]: The check for required standard concepts without a value.
 //! - [`roll_up_check`]: The checks of the roll-up tree on a standardized series.
 //! - [`rule`]: The ID of a rule.
 //! - [`segment`]: The segment reconciliation of one filing.
@@ -69,6 +70,7 @@ pub mod invalid_value;
 pub mod period;
 pub mod period_identity;
 pub mod release;
+pub mod required_check;
 pub mod roll_up_check;
 pub mod rule;
 pub mod segment;

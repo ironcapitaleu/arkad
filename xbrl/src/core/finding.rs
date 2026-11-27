@@ -75,6 +75,20 @@ pub enum Finding {
         /// Why the value is missing, if the reason is known.
         reason: Option<GapReason>,
     },
+    /// A required standard concept has no value without dimensions for the period of report of an
+    /// annual or a quarterly report.
+    MissingRequired {
+        /// The entity the filing is about.
+        entity: EntityId,
+        /// The filing whose period of report has no value.
+        filing: FilingId,
+        /// The required standard concept.
+        concept: CanonicalElementKind,
+        /// The period of report of the filing.
+        period_end: Date,
+        /// Why the value is missing, if a rule can tell it.
+        reason: Option<MissingReason>,
+    },
     /// Two values of one series have the same length, and their periods overlap without being
     /// the same period.
     Overlap {
@@ -236,6 +250,18 @@ pub enum GapReason {
     FiscalYearChange,
 }
 
+/// The known reason of a [`Finding::MissingRequired`].
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MissingReason {
+    /// The copy ranks of the newest filing disagree, so dedup blocks the value. A
+    /// [`Finding::Conflict`] names the ranks.
+    Conflict,
+    /// The filing has no value of the concept without dimensions, on any alias or part, for any
+    /// period.
+    Untagged,
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
@@ -252,6 +278,11 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_gap_reason() {
         implements_auto_traits::<GapReason>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_missing_reason() {
+        implements_auto_traits::<MissingReason>();
     }
 
     #[test]

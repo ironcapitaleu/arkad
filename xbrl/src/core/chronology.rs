@@ -23,7 +23,7 @@ use super::suspicious_period::suspicious_periods;
 use super::unit::Unit;
 
 /// The forms of a quarterly report. A `10-QT` reports a transition period.
-const QUARTERLY_FORMS: [&str; 2] = ["10-Q", "10-QT"];
+pub(super) const QUARTERLY_FORMS: [&str; 2] = ["10-Q", "10-QT"];
 
 /// The forms of the annual report of a filer that also files quarterly reports.
 const DOMESTIC_ANNUAL_FORMS: [&str; 2] = ["10-K", "10-KT"];
