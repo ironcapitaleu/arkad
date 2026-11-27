@@ -56,9 +56,9 @@ sends you here, the parts of a concept decide its files, not whether it wraps an
   so, goes in `implementations/`, one module per type.
 - **Constants** go in a `constants.rs` next to the type that uses them.
 - **An error** sits next to the code that returns it. A value type uses a `{type}_error.rs` file or
-  a `{type}_error/` module. A trait uses a `{name}_error/` module next to the trait. A function at
-  the root of the concept uses a module named after its error. An implementation folder uses an
-  `error.rs`.
+  a `{type}_error/` module. A trait uses a `{noun}_error/` module next to the trait, where `{noun}`
+  names what the trait handles. A function at the root of the concept uses a module named after its
+  error. An implementation folder uses an `error.rs`.
 - **The `mod.rs` of the concept** re-exports its main items. A caller imports them from the folder
   of the concept and does not need to know its subfolders.
 
