@@ -4,10 +4,9 @@
 //! after the rules of A1 (`acceptance_roll_ups.rs`), and lists the balance sheet identities that
 //! fail: `Assets` differs from `LiabilitiesAndEquity` by more than 0.1%.
 //!
-//! Only the 10-K of General Mills for fiscal year 2013 fails. It reports no liabilities and equity
-//! total, so the closed group `liabilities-and-equity` derives one. The redeemable interest of the
-//! filer is temporary equity, but the filer tags it with no concept of the alias list, so the
-//! derived total leaves it out.
+//! No filing fails. The 10-K of General Mills for fiscal year 2013 reports no liabilities and
+//! equity total, so the closed group `liabilities-and-equity` derives one. The derived total holds
+//! the redeemable interest of the filer, which the part rule of `TemporaryEquity` resolves.
 //!
 //! ## External Dependencies
 //!
@@ -22,7 +21,6 @@ use xbrl::core::roll_up_check::check_roll_ups;
 use xbrl::tests::fixtures::data::GZIP_EXTENSION;
 use xbrl::tests::fixtures::data::manifest::manifest;
 use xbrl::tests::fixtures::data::resolved::{derived_values, resolve_fixture_filings};
-use xbrl::tests::fixtures::sample_fact::date;
 
 /// The prefix of the path of a Notes fixture file in the manifest.
 const NOTES_PREFIX: &str = "notes/";
@@ -46,7 +44,7 @@ fn balance_sheet_mismatches(accession: &str) -> Vec<(String, Date)> {
 }
 
 #[test]
-fn should_fail_the_balance_sheet_identity_only_for_general_mills_10_k_2013_fy() {
+fn should_hold_the_balance_sheet_identity_for_each_fixture_filing() {
     let accessions: BTreeSet<String> = manifest()
         .into_iter()
         .filter(|entry| {
@@ -55,10 +53,7 @@ fn should_fail_the_balance_sheet_identity_only_for_general_mills_10_k_2013_fy() 
         .map(|entry| entry.accession)
         .collect();
 
-    let expected_result = vec![
-        ("0001193125-13-282371".to_string(), date(2012, 5, 27)),
-        ("0001193125-13-282371".to_string(), date(2013, 5, 26)),
-    ];
+    let expected_result: Vec<(String, Date)> = Vec::new();
 
     let result: Vec<(String, Date)> = accessions
         .iter()

@@ -871,11 +871,21 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &[
             "TemporaryEquityCarryingAmountAttributableToParent",
             "RedeemableNoncontrollingInterestEquityCarryingAmount",
+            // The three concepts below `RedeemableNoncontrollingInterestEquityCarryingAmount`.
+            // They come after it, so a filer that reports one next to it gets the total of the
+            // redeemable interest.
+            "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+            "RedeemableNoncontrollingInterestEquityOtherCarryingAmount",
+            "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+            // No calculation arc places this fair value below temporary equity. It counts, because
+            // a redeemable interest redeemable at fair value is carried at its redemption value,
+            // which is the fair value. It comes last, so each carrying amount wins.
+            "RedeemableNoncontrollingInterestEquityOtherFairValue",
         ],
-        // The two parts are each an other part of the other. The concepts below
-        // `RedeemableNoncontrollingInterestEquityCarryingAmount` are left out, because filers
-        // report them next to it, and they would stop it. The six `TemporaryEquityMaturity`
-        // siblings are left out, because they split the same total by maturity.
+        // The first two parts are each an other part of the other. The parts after them are no
+        // other parts, because filers report them next to the first two, and they would stop
+        // them. The six `TemporaryEquityMaturity` siblings are left out, because they split the
+        // same total by maturity.
         &[
             "TemporaryEquityCarryingAmountAttributableToParent",
             "RedeemableNoncontrollingInterestEquityCarryingAmount",

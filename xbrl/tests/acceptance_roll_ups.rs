@@ -537,7 +537,7 @@ roll_up_tests! {
     ],
     should_resolve_the_roll_ups_for_dow_10_k_2013_fy: "0000029915-14-000011" => [
         "Assets: Exact us-gaap/alias/assets@1 69501000000.0000",
-        "Liabilities: Derived core/roll-up/liabilities-and-equity@1 41577000000.0000",
+        "Liabilities: Derived core/roll-up/liabilities-and-equity@1 41421000000.0000",
         "Equity: Exact us-gaap/alias/equity@1 27924000000.0000",
         "LiabilitiesAndEquity: Exact us-gaap/alias/liabilities-and-equity@1 69501000000.0000",
         "Revenue: Exact us-gaap/alias/revenue@1 0",
@@ -643,7 +643,7 @@ roll_up_tests! {
         "Assets: Exact us-gaap/alias/assets@1 22658000000.0000",
         "Liabilities: Exact us-gaap/alias/liabilities@1 14562000000.0000",
         "Equity: Exact us-gaap/alias/equity@1 7128500000.0000",
-        "LiabilitiesAndEquity: Derived core/roll-up/liabilities-and-equity@1 21690500000.0000",
+        "LiabilitiesAndEquity: Derived core/roll-up/liabilities-and-equity@1 22658000000.0000",
         "Revenue: open",
         "NetIncome: Derived core/roll-up/net-income-attribution@1 1863200000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 1855200000.0000",
