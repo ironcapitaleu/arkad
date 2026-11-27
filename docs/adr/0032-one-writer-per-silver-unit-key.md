@@ -98,7 +98,9 @@ attempt ended.
   answered. It opens again if the Cloud Run documentation changes what a failed attempt is, or
   what the timeout does.
 - The documentation also says: "If you set --parallelism to greater than 1, tasks might not follow
-  the index order." This ADR does not rest on the order of tasks, so the sentence changes none of
+  the index order."
+  ([Container runtime contract](https://docs.cloud.google.com/run/docs/container-contract), accessed 2026-11-21)
+  This ADR does not rest on the order of tasks, so the sentence changes none of
   its decisions.
 
 ## Options Considered
