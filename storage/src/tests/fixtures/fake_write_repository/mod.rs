@@ -126,7 +126,7 @@ mod tests {
         let repository = FakeWriteRepository::new();
         let record = "CIK0001067983".to_string();
 
-        let expected_result = vec!["CIK0001067983".to_owned()];
+        let expected_result = vec!["CIK0001067983".to_string()];
 
         repository
             .persist(record)

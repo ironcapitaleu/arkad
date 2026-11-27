@@ -949,7 +949,7 @@ mod tests {
     fn should_take_the_size_from_the_body_when_building_a_document_from_a_file() {
         let document = sample_document_from_file();
 
-        let expected_result = SAMPLE_NOTES_ZIP.len() as u64;
+        let expected_result = 150;
 
         let result = document.metadata().size_in_bytes();
 
@@ -957,12 +957,14 @@ mod tests {
     }
 
     #[test]
-    fn should_match_the_digest_of_the_file_when_building_a_document_from_a_file() {
+    fn should_hold_the_sha256_of_the_body_when_building_a_document_from_a_file() {
         let document = sample_document_from_file();
 
         let expected_result = "c1109f90f92dfdd7e398132e45586b893814810ceb7b858090c846e031c0a1b9"
             .parse::<storage::Sha256Digest>()
-            .expect("Given a hardcoded lowercase hex digest, the parse should always succeed");
+            .expect(
+                "Given a hardcoded lowercase SHA-256 hex digest, the parse should always succeed",
+            );
 
         let result = document.metadata().sha256().clone();
 
