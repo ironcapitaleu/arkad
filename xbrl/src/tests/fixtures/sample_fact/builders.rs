@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use bigdecimal::BigDecimal;
 use jiff::civil::Date;
-use jiff::{Timestamp, ToSpan as _};
+use jiff::{Span, Timestamp};
 
 use crate::core::candidate::{Candidate, CandidateValue};
 use crate::core::concept::{ConceptName, NamespaceFamily};
@@ -259,7 +259,7 @@ pub fn filing(form: &str, period_of_report: Date, fiscal_year_end: &str) -> Fili
         entity: apple(),
         is_amendment: form.is_amendment(),
         form,
-        filed: period_of_report + 30.days(),
+        filed: period_of_report + Span::new().days(30),
         accepted: None,
         period_of_report: Some(period_of_report),
         fiscal_year: None,

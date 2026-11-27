@@ -5,7 +5,7 @@
 //! directories of the five filings of the parser agreement set (AMD, Procter & Gamble, Walmart,
 //! Disney, and Apple) hold `.xml.gz` files, which [`parse_instance_fixture_filing`] parses.
 
-use jiff::civil::Date;
+use jiff::civil::{Date, date};
 
 use super::manifest::manifest;
 use super::{fixture_content, fixture_taxonomy};
@@ -34,7 +34,7 @@ pub fn filing_id() -> FilingId {
 /// Never panics: the date is valid.
 #[must_use]
 pub const fn filed() -> Date {
-    jiff::civil::date(2026, 10, 29)
+    date(2026, 10, 29)
 }
 
 /// The prefix of the path of an instance fixture file in the manifest.

@@ -6,7 +6,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use jiff::ToSpan as _;
+use jiff::Span;
 use jiff::civil::{Date, Time};
 
 use super::invalid_value::{InvalidValue, InvalidValueReason};
@@ -95,7 +95,9 @@ impl FiscalYearEnd {
         if 2 * date.day() >= date.days_in_month() {
             Some(date.month())
         } else {
-            date.checked_sub(1.month()).ok().map(Date::month)
+            date.checked_sub(Span::new().months(1))
+                .ok()
+                .map(Date::month)
         }
     }
 
