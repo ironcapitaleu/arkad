@@ -417,7 +417,6 @@ tree is `NetChangeInCash`.
 | Concept | Group | Kind | Parent | Start | Weight | Closed |
 | ------- | ----- | ---- | ------ | ----- | ------ | ------ |
 | **`NetChangeInCash`** | top | | | | | |
-| **`CashAndRestrictedCash`** | top | | | | | |
 | `OperatingCashFlow` | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes |
 | `InvestingCashFlow` | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes |
 | `FinancingCashFlow` | `net-change-in-cash` | breakdown | `NetChangeInCash` | | +1 | yes |
@@ -434,15 +433,16 @@ tree is `NetChangeInCash`.
   the receipts and payments less net income.
 - `NetIncome` in the cash flow statement is the same standardized fact as in the income statement.
   So the cross-statement check of "5) Validation" on net income always holds and needs no code.
-- `CashAndRestrictedCash` is the cash at the end of the period that the statement reconciles: cash,
-  cash equivalents, and restricted cash. Its values are instants, and it is in no group. A period
+- **`CashAndRestrictedCash`** is a top line outside the table: it is the cash at the end of the
+  period that the statement reconciles, with cash equivalents and restricted cash. Its values are
+  instants, and it is in no group. A period
   before ASU 2016-18 has no value. The balance sheet line stays `CashAndEquivalents`.
 - No rule derives `NetChangeInCash` from two balances. The design has no check of
   `NetChangeInCash` against two balances. Such a check needs the balance at the day before the
   exact start of the period.
-- `NetChangeInCash`, `ExchangeRateEffect`, and the values derived from them carry a scope (see
-  "`StandardizedFact`"). A value from a concept before ASU 2016-18 has the scope
-  `ExcludesRestrictedCash`. The three cash flow totals carry no scope. The reasons are in
+- Only `NetChangeInCash` and `ExchangeRateEffect` carry a scope (see "`StandardizedFact`"). A value
+  from a concept before ASU 2016-18 has the scope `ExcludesRestrictedCash`. The three cash flow
+  totals carry no scope, and they count with either scope. The reasons are in
   [ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md).
 
 #### Disclosures
@@ -651,8 +651,8 @@ So the check of that group is skipped for that period.
   statement counts in it: the start of a step, the members that stand for a start with no value,
   and the children of a transparent parent that join the group. The other groups of the slot keep
   their checks ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
-- If two members of `net-change-in-cash` differ in scope, the group gets no check and reports a
-  `MixedScopes` finding. `derive_from_closed_groups` skips the group and reports nothing.
+- If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, `net-change-in-cash` gets no check
+  and reports a `MixedScopes` finding. The three totals carry no scope and count with either. `derive_from_closed_groups` skips the group and reports nothing.
 - `check_roll_ups` reports the `MixedStarts` finding. `derive_from_closed_groups` skips the group
   and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
@@ -682,8 +682,8 @@ be the parent, the start, or a child. A child that is zero if absent counts as k
   zero. A filer that reports no exchange rate effect can still have one under a concept outside
   the alias list. If it counted as zero, the rule would derive a wrong `NetChangeInCash`.
 - `net-change-in-cash` derives and checks only values of one scope. A derived value takes the scope
-  of its inputs. If two members differ in scope, the group derives nothing (see "Checks the Tree
-  Gives").
+  of the members that carry one. If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, the
+  group derives nothing (see "Checks the Tree Gives").
 - In each pass, the rule visits the groups in the order in which they first appear in the tables
   of "Roll-Up Tree". The first group that gives a value wins. The rule still checks every other
   group that holds the member, so a disagreement is a `RollUpMismatch` finding.
@@ -836,7 +836,7 @@ The changes are to comments and to the new lists.
 | `OperatingIncome`, `Assets`, `Liabilities` | stays |
 | `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part |
 | `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
-| `ExchangeRateEffect` | `EffectOfExchangeRateOnCashAndCashEquivalents` joins the list, and `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` joins the parts, both with the scope `ExcludesRestrictedCash` |
+| `ExchangeRateEffect` | `EffectOfExchangeRateOnCashAndCashEquivalents` joins the list, and `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` joins the parts with the other part `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations`, both with the scope `ExcludesRestrictedCash` |
 | `NetIncome`, `Equity` | stays. The part rule stays. `NetIncomeLoss` and `StockholdersEquity` also start the new lists |
 | `CurrentAssets`, `CashAndEquivalents`, `ShortTermInvestments`, `AccountsReceivable`, `Inventory`, `PropertyPlantEquipment`, `Goodwill`, `IntangibleAssets`, `CurrentLiabilities`, `LongTermDebt`, `RetainedEarnings` | stays |
 | `NonCurrentAssets`, `NonCurrentLiabilities` | stays. The comment changes: `core/roll-up/assets@1` and `core/roll-up/liabilities@1` fill most filings, not Tier 4 |
@@ -1972,7 +1972,7 @@ StandardizedFact {
 
 - `Scope` is a `#[non_exhaustive]` enum. Its one variant, `ExcludesRestrictedCash`, marks a cash
   value that leaves out restricted cash, from a concept before ASU 2016-18. An alias or a part
-  sets it, and a derived value takes it from its inputs ("Cash Flow Statement").
+  sets it, and a derived value takes it from the inputs that carry one ("Cash Flow Statement").
 - `rule` and `inputs` replace `resolution_path: Vec<String>`. The trace is typed and joins back to
   the as-is facts.
 - `inputs` replaces `sources: Vec<FilingSource>`. The input facts name their filings.

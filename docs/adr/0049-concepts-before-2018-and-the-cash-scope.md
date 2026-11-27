@@ -51,15 +51,17 @@ check of `NetChangeInCash` against two balances.
    `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the alias
    list of `NetChangeInCash`. `EffectOfExchangeRateOnCashAndCashEquivalents` joins the alias list
    of `ExchangeRateEffect`. `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations`
-   becomes a part of `ExchangeRateEffect`. Each value from these concepts carries the scope
+   becomes a part of `ExchangeRateEffect`, with the other part
+   `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations`. Each value from these concepts carries the scope
    `ExcludesRestrictedCash`.
 5. **The scope is a field of `StandardizedFact`.** `scope: Option<Scope>`, where `Scope` is a
    `#[non_exhaustive]` enum with one variant, `ExcludesRestrictedCash`. `None` means the full scope
    of the standard concept. Silver `standardized_facts` gets a nullable `scope` column.
-6. **A closed group derives and checks only values of one scope.** A value derived from a group
-   takes the scope of its inputs. If two members of `net-change-in-cash` differ in scope, the group
-   gets no check and derives nothing, and it reports a `MixedScopes` finding. The three cash flow
-   totals carry no scope (see "Consequences").
+6. **A closed group derives and checks only values of one scope.** Only `NetChangeInCash` and
+   `ExchangeRateEffect` carry a scope. The three cash flow totals carry none, and they count with
+   either scope (see "Consequences"). A value derived from `net-change-in-cash` takes the scope of
+   the members that carry one. If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, the
+   group gets no check, derives nothing, and reports a `MixedScopes` finding.
 7. **A new standard concept, `CashAndRestrictedCash`, holds cash at the end of the period.** It is
    a top line of the cash flow statement with instant values. Its alias is
    `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations`.
@@ -70,7 +72,7 @@ check of `NetChangeInCash` against two balances.
 8. **Banks get no new rule for `CashAndEquivalents`.** `CashAndDueFromBanks` and `DueFromBanks` get
    no mapping. After ASU 2016-18, `CashAndRestrictedCash` holds the cash of a bank.
 9. **No rule derives `NetChangeInCash` from two balances.** The difference of two balances is the
-   input of a check only.
+   input of a check only. The check belongs to a separate design.
 
 ## Options Considered
 
@@ -160,9 +162,8 @@ In the 2026 tree, `CashAndCashEquivalentsAtCarryingValue` is `CashAndDueFromBank
   so a period can mix values of two scopes. `MixedScopes` reports it.
 - Silver gains one column and one finding kind. A row stored before the change has a null `scope`,
   which reads as the full scope. A rebuild from the as-is layer sets it.
-- Not covered: `CashAndCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect` and
-  `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations`. No fixture 10-K reports
-  them.
+- Not covered: `CashAndCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect`. No
+  fixture 10-K reports it.
 
 ## Open Questions
 
@@ -172,6 +173,12 @@ In the 2026 tree, `CashAndCashEquivalentsAtCarryingValue` is `CashAndDueFromBank
   5,817 − 856 − 5,246 − 17 = −302 million USD as
   `CashAndCashEquivalentsPeriodIncreaseDecrease`. The table of removed elements confirms the
   placement in the earlier releases. A difference there reopens decisions 1 and 4.
+- The other parts of `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` are only each other. A
+  filer that splits revenue into goods and a third line, such as `OtherSalesRevenueNet`, gets the
+  goods line as `Revenue` with no finding. The table of removed elements lists the siblings of the
+  two concepts. A sibling there joins the other parts.
+- No fixture 10-K reports `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations`. The
+  table of removed elements confirms its name.
 - The sum of `CashAndDueFromBanks` and `InterestBearingDepositsInBanks` waits for a rule along the
   calculation tree.
 - A second scope, such as cash of discontinued operations, adds a variant to `Scope` and reopens
