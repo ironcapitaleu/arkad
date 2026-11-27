@@ -217,7 +217,8 @@ mod tests {
         let user_agent = UserAgent::new("Sample Company contact@example.com")
             .expect("A hardcoded SEC-format string should always validate");
 
-        let expected_result = user_agent.clone();
+        let expected_result = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
 
         let result = ReqwestClient::new(user_agent)
             .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize")
@@ -233,7 +234,8 @@ mod tests {
         let user_agent = UserAgent::new("Sample Company contact@example.com")
             .expect("A hardcoded SEC-format string should always validate");
 
-        let expected_result = user_agent.clone();
+        let expected_result = UserAgent::new("Sample Company contact@example.com")
+            .expect("A hardcoded SEC-format string should always validate");
 
         let result = ReqwestClient::from_builder(builder, user_agent)
             .expect("Given a validated user agent, building the HTTP client fails only if the TLS backend cannot initialize")

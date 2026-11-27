@@ -97,7 +97,10 @@ mod tests {
             target_state_name: "PrepareSecRequest".to_string(),
         };
 
-        let expected_result = TransitionError::MissingOutput(missing_output.clone());
+        let expected_result = TransitionError::MissingOutput(MissingOutput {
+            source_state_name: "ValidateCikFormat".to_owned(),
+            target_state_name: "PrepareSecRequest".to_owned(),
+        });
 
         let result: TransitionError = missing_output.into();
 

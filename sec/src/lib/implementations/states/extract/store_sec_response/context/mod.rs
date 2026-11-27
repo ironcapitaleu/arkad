@@ -319,7 +319,7 @@ mod tests {
     fn should_return_reference_to_self_when_accessing_context() {
         let context = sample_context();
 
-        let expected_result = &context.clone();
+        let expected_result = &sample_context();
 
         let result = context.context();
 
