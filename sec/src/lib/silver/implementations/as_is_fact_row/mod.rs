@@ -484,7 +484,7 @@ mod tests {
 
     use super::*;
     use crate::silver::implementations::provenance::sample_provenance;
-    use crate::silver::{FOLDER_LABELS, schema_text};
+    use crate::silver::{FOLDER_LABELS, UTC_TIME_ZONE, schema_text};
 
     /// A fact of the filing `sec:0000320193-26-000001` with the given value and precision.
     fn fact(value: FactValue, decimals: Option<Decimals>) -> AsIsFact {
@@ -1022,7 +1022,7 @@ mod tests {
     fn should_name_the_column_when_loaded_at_lies_past_the_times_of_jiff() {
         let batch = batch_with(
             "loaded_at",
-            Arc::new(TimestampMillisecondArray::from(vec![i64::MAX]).with_timezone("+00:00")),
+            Arc::new(TimestampMillisecondArray::from(vec![i64::MAX]).with_timezone(UTC_TIME_ZONE)),
         );
 
         let expected_result = Some("loaded_at");
