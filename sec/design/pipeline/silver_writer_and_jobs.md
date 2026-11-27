@@ -238,8 +238,8 @@ second hash enters the code. The count 64 comes from "Cloud Run Sizing" of the c
 
 ### Per Entity
 
-`xbrl::core::series::standardize_series(candidates, filings, conflicts) -> SeriesOutcome` runs the
-rules of one entity in this order:
+`xbrl::core::series::standardize_series(candidates, filings, conflicts, required) -> SeriesOutcome`
+runs the rules of one entity in this order:
 
 1. `newest_filing(candidates)` gives the `Series`: step 3 of the dedup order.
 2. `derive_q4(&series)` gives the fourth quarters.
@@ -247,20 +247,22 @@ rules of one entity in this order:
    are step 4 of the dedup order.
 4. `added` is the fourth quarters, then the roll-up values.
 5. `check_roll_ups(&series, &added)` gives `RollUpMismatch` and `NegativeOther` findings.
-6. `check_all_sums(&series, &added)` gives `SumMismatch` findings. Steps 5 and 6 take the same
-   `added`.
-7. `check_chronology` runs on the series with `added` merged in, with `conflicts` as the findings of
+6. `check_all_sums(&series, &added)` gives `SumMismatch` findings.
+7. `check_required(&series, &added, candidates, filings, required)` gives `MissingRequired`
+   findings. Steps 5, 6, and 7 take the same `added`.
+8. `check_chronology` runs on the series with `added` merged in, with `conflicts` as the findings of
    dedup. It gives `Gap`, `Overlap`, `Restatement`, and `SuspiciousPeriod`, then the conflicts.
 
-`SeriesOutcome` holds the standardized facts of step 7 and the findings of steps 5, 6, and 7.
+`SeriesOutcome` holds the standardized facts of step 8 and the findings of steps 5 to 8.
 `standardize_series` returns no error, because none of the functions it calls returns one.
 
 - `candidates` holds one `candidates` unit per filing, by the current facts rule of the contract.
 - `filings` holds the `filings` rows of the entity, for the forms and the fiscal year end.
 - `conflicts` holds the `Conflict` rows of `findings` with `step = filing` for the filings of
   `candidates`. The series step writes them again with `step = series`.
+- `required` holds `UsGaap::required_concepts()`.
 
-Segment values pass through step 1 with their dimensions. Steps 2 to 7 read only values without
+Segment values pass through step 1 with their dimensions. Steps 2 to 8 read only values without
 dimensions, by the rules of each function. The series step never calls `segment::reconcile`, so
 silver gets no line of the segment reconciliation
 ([ADR 0030](../../../docs/adr/0030-segment-reconciliation-per-report.md)). A test runs the series
