@@ -47,7 +47,8 @@ pub struct FilingCandidates {
 ///
 /// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the
 /// parts that the filing reports, the first that no other part blocks wins, with the part rule and
-/// confidence [`Confidence::Synonym`]. If the filing reports an other part in the period, the other
+/// confidence [`Confidence::Synonym`]. The candidate takes the scope that
+/// [`ConceptAliases::scopes`] names for the winning concept. If the filing reports an other part in the period, the other
 /// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
 /// other. A value of zero does not block. A conflict does. The check covers every dimension of the
 /// period, so an other part with a member, such as the noncontrolling interest on the equity
@@ -270,6 +271,7 @@ fn pick(
         rule: rule.clone(),
         release: plugin.release().clone(),
         inputs,
+        scope: aliases.scope_of(&fact.concept),
     })
 }
 
@@ -353,10 +355,11 @@ mod tests {
     use super::*;
     use crate::core::concept::NamespaceFamily;
     use crate::core::dedup::{more_precise, newest_filing};
-    use crate::core::elements::{BalanceSheetConcept, IncomeStatementConcept};
+    use crate::core::elements::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept};
     use crate::core::fact::{Decimals, FilingSource};
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
+    use crate::core::scope::Scope;
     use crate::core::taxonomy::reference::PartAliases;
     use crate::tests::fixtures::sample_fact::{apple, date, fact, source, us_gaap_plugin};
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin_with_aliases};
@@ -378,6 +381,7 @@ mod tests {
             ),
             concepts,
             parts: None,
+            scopes: Vec::new(),
         }
     }
 
@@ -405,6 +409,7 @@ mod tests {
                 ],
                 other_parts: vec![concept_of("us-gaap", "MinorityInterest")],
             }),
+            scopes: Vec::new(),
         };
         plugin_with_aliases(
             "us-gaap/2026",
@@ -433,6 +438,7 @@ mod tests {
                 parts: parts.clone(),
                 other_parts: parts,
             }),
+            scopes: Vec::new(),
         };
         plugin_with_aliases(
             "us-gaap/2026",
@@ -442,6 +448,49 @@ mod tests {
                 true,
             )],
             vec![short_term_debt],
+        )
+    }
+
+    /// Returns a plug-in whose exchange rate effect list holds the effect on cash with restricted
+    /// cash, then the effect on cash without it, with the effect of continuing operations as a part.
+    /// The concepts without restricted cash carry the scope `ExcludesRestrictedCash`.
+    fn exchange_rate_effect_plugin() -> FakeTaxonomy {
+        let narrow = concept_of("us-gaap", "EffectOfExchangeRateOnCashAndCashEquivalents");
+        let continuing = concept_of(
+            "us-gaap",
+            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+        );
+        let exchange_rate_effect = ConceptAliases {
+            element: CashFlowConcept::ExchangeRateEffect.element(),
+            rule: rule_of("us-gaap/alias/exchange-rate-effect@1"),
+            concepts: vec![
+                concept_of(
+                    "us-gaap",
+                    "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                ),
+                narrow.clone(),
+            ],
+            parts: Some(PartAliases {
+                rule: rule_of("us-gaap/part/exchange-rate-effect@1"),
+                parts: vec![continuing.clone()],
+                other_parts: vec![concept_of(
+                    "us-gaap",
+                    "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
+                )],
+            }),
+            scopes: vec![
+                (narrow, Scope::ExcludesRestrictedCash),
+                (continuing, Scope::ExcludesRestrictedCash),
+            ],
+        };
+        plugin_with_aliases(
+            "us-gaap/2026",
+            vec![declaration(
+                "us-gaap",
+                "http://fasb.org/us-gaap/{release}",
+                true,
+            )],
+            vec![exchange_rate_effect],
         )
     }
 
@@ -810,6 +859,47 @@ mod tests {
         )];
 
         let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_scope_of_the_winning_concept_to_the_candidate_and_the_value_for_each_concept()
+     {
+        let plugin = exchange_rate_effect_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let reported = [
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "EffectOfExchangeRateOnCashAndCashEquivalents",
+            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+        ];
+
+        let expected_result = vec![
+            (rule_of("us-gaap/alias/exchange-rate-effect@1"), None, None),
+            (
+                rule_of("us-gaap/alias/exchange-rate-effect@1"),
+                Some(Scope::ExcludesRestrictedCash),
+                Some(Scope::ExcludesRestrictedCash),
+            ),
+            (
+                rule_of("us-gaap/part/exchange-rate-effect@1"),
+                Some(Scope::ExcludesRestrictedCash),
+                Some(Scope::ExcludesRestrictedCash),
+            ),
+        ];
+
+        let result: Vec<(RuleId, Option<Scope>, Option<Scope>)> = reported
+            .into_iter()
+            .map(|local_name| {
+                let facts = vec![fact(&filing, local_name, "-42000000")];
+                let candidates = resolve_aliases(&more_precise(&facts), &registry).candidates;
+                let value = newest_filing(&candidates).facts.remove(0);
+                (candidates[0].rule.clone(), candidates[0].scope, value.scope)
+            })
+            .collect();
 
         assert_eq!(result, expected_result);
     }

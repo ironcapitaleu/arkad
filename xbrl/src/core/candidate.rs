@@ -13,6 +13,7 @@ use super::filing::EntityId;
 use super::period::Period;
 use super::release::TaxonomyRelease;
 use super::rule::RuleId;
+use super::scope::Scope;
 use super::unit::Unit;
 
 /// The value that one filing gives for one standard concept and one period.
@@ -42,6 +43,9 @@ pub struct Candidate {
     pub release: TaxonomyRelease,
     /// The value keys of the as-is facts. A blocked candidate names every conflicting rank.
     pub inputs: Vec<FactKey>,
+    /// The scope that the alias or the part names for the as-is concept, or `None` for the full
+    /// scope of the standard concept.
+    pub scope: Option<Scope>,
 }
 
 impl Candidate {

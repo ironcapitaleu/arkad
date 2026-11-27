@@ -237,7 +237,7 @@ the rule that picked the conflicting concept.
 | Column | Arrow type | From |
 | ------ | ---------- | ---- |
 | `value`, `confidence` | `decimal128(38, 10)`, `utf8`, both nullable | Null for a blocked candidate |
-| `scope` | `utf8`, nullable | Null until `Candidate` carries a scope |
+| `scope` | `utf8`, nullable | `Candidate::scope`: `ExcludesRestrictedCash`, or null for the full scope of the concept. A null reads as no scope |
 | `filing_id`, `filed`, `accepted` | as in `as_is_facts` | `Candidate::source` |
 | `decimals`, `decimals_infinite` | as in `as_is_facts` | The decimals of a reported value. Null and false for a blocked candidate |
 | `blocked` | `bool` | `CandidateValue::Blocked` |

@@ -2271,6 +2271,9 @@ Rules the code fixes where the table above leaves a choice:
   that the filing reports, the first that no other part blocks wins, with `Synonym`. An other part
   in the same period and unit blocks a part, in any dimension. A value of zero does not block. A
   conflict does.
+- The candidate takes the scope that `ConceptAliases::scopes` names for the winning concept or
+  part, or no scope. A definition of `us_gaap::mappings` names its scopes with `with_scopes`. Step 3
+  copies the scope to the value.
 
 Other cases:
 

@@ -180,6 +180,7 @@ fn standardize(group: &[&Candidate]) -> Option<StandardizedFact> {
         release: newest.release.clone(),
         inputs: newest.inputs.clone(),
         restated,
+        scope: newest.scope,
     })
 }
 

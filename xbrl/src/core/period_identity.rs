@@ -142,6 +142,7 @@ fn subtract(
         release: year.release.clone(),
         inputs,
         restated: year.restated || nine_months.restated,
+        scope: None,
     }
 }
 

@@ -285,6 +285,7 @@ impl KnownValues {
                 .flat_map(|(_, fact)| fact.inputs.iter().cloned())
                 .collect(),
             restated: inputs.iter().any(|(_, fact)| fact.restated),
+            scope: None,
         })
     }
 }

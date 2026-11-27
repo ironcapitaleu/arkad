@@ -225,6 +225,7 @@ mod tests {
             },
             inputs: Vec::new(),
             restated: false,
+            scope: None,
         }
     }
 

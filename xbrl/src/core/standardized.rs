@@ -13,6 +13,7 @@ use super::filing::EntityId;
 use super::period::Period;
 use super::release::TaxonomyRelease;
 use super::rule::RuleId;
+use super::scope::Scope;
 use super::unit::Unit;
 
 /// One value of one standard concept for one entity and one period.
@@ -47,6 +48,8 @@ pub struct StandardizedFact {
     pub inputs: Vec<FactKey>,
     /// `true` if an earlier filing reported another value for this value or for one of its inputs.
     pub restated: bool,
+    /// The part of the standard concept the value covers, or `None` for the full scope.
+    pub scope: Option<Scope>,
 }
 
 impl StandardizedFact {
