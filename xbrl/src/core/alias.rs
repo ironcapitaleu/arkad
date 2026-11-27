@@ -89,7 +89,7 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
                 if taken.contains(&(aliases.element, period)) {
                     continue;
                 }
-                let in_period = OtherParts {
+                let blockers = PartBlockers {
                     present: &|other| present.contains(&(period.span(), other)),
                     reported: &|other| reported.contains(&(period.span(), other)),
                 };
@@ -97,7 +97,7 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
                     routes_to(concept, plugin, registry)
                         && names_each_axis(concept, &period.dimensions, registry)
                 };
-                if let Some(candidate) = pick(plugin, aliases, concepts, &resolves, &in_period) {
+                if let Some(candidate) = pick(plugin, aliases, concepts, &resolves, &blockers) {
                     taken.insert((aliases.element, period));
                     candidates.push(candidate);
                 }
@@ -222,14 +222,14 @@ fn reported_in_any_dimension<'a>(
 }
 
 /// The checks of the part rule on the concepts of one period, in any dimension.
-struct OtherParts<'a> {
+struct PartBlockers<'a> {
     /// Accepts a concept with a value other than zero, or with a conflict.
     present: &'a dyn Fn(&ConceptName) -> bool,
     /// Accepts a concept with any value, zero included, or with a conflict.
     reported: &'a dyn Fn(&ConceptName) -> bool,
 }
 
-impl OtherParts<'_> {
+impl PartBlockers<'_> {
     /// Returns `true` if an other part, or a total of other parts, stops `part`.
     fn block(&self, part: &ConceptName, parts: &PartAliases) -> bool {
         let others = || parts.other_parts.iter().filter(|other| *other != part);
@@ -252,7 +252,7 @@ fn pick(
     aliases: &ConceptAliases,
     concepts: &BTreeMap<&ConceptName, Reported<'_>>,
     resolves: &dyn Fn(&ConceptName) -> bool,
-    in_period: &OtherParts<'_>,
+    blockers: &PartBlockers<'_>,
 ) -> Option<Candidate> {
     let (confidence, reported, rule) = first_reported(&aliases.concepts, concepts, resolves)
         .map(|(position, reported)| {
@@ -270,7 +270,7 @@ fn pick(
                 .iter()
                 .filter(|part| resolves(part))
                 .filter_map(|part| Some((part, *concepts.get(part)?)))
-                .find(|(part, _)| !in_period.block(part, parts))
+                .find(|(part, _)| !blockers.block(part, parts))
                 .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
         })?;
     let fact = reported.first();

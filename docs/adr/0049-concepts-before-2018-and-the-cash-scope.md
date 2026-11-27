@@ -125,6 +125,8 @@ Measured on 2026-11-27 on the branch of decision 3, at `fc75706`, with A1
 - A1 and A2 do not change. Air Products 2013 reports a flow for each activity, and Air Products
   2025 reports the line as 0.
 - `PartAliases` gains the field `other_part_totals`. The other part rules name none.
+- A filing that reports the line and the flows of only some activities gets no part for the other
+  activities, even if the reported flows sum to the line. Those values stay open.
 - Not covered: a filer that reports discontinued operations with an extension concept of its own.
   No part rule sees that concept.
 
