@@ -10,27 +10,22 @@ use arrow::array::{
     ArrayRef, BooleanArray, Date32Array, Decimal128Array, Int32Array, ListArray, RecordBatch,
     StringArray, TimestampMillisecondArray, UInt16Array,
 };
-use arrow::datatypes::{DataType, Field, Fields, Schema, SchemaRef};
-use bigdecimal::BigDecimal;
-use bigdecimal::num_bigint::BigInt;
+use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use xbrl::core::concept::{ConceptName, NamespaceFamily};
-use xbrl::core::fact::{
-    AsIsFact, Context, Decimals, Dimensions, FactValue, FilingSource, TaxonomyVersion,
-};
+use xbrl::core::fact::{AsIsFact, Context, FactValue, FilingSource, TaxonomyVersion};
 use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::invalid_value::InvalidValue;
-use xbrl::core::period::{Duration, Period};
 use xbrl::core::unit::Unit;
 
-use self::constants::{
-    DECIMAL_LIMIT, DECIMAL_PRECISION, DECIMAL_SCALE, VALUE_KIND_NIL, VALUE_KIND_NUMERIC,
-    VALUE_KIND_TEXT,
-};
+use self::constants::{VALUE_KIND_NIL, VALUE_KIND_NUMERIC, VALUE_KIND_TEXT};
 use crate::datasets::columns::{
-    BatchColumns, date_from_days, date32, failed_batch, list_array, list_item, list_type, nullable,
-    string_list, string_struct_array, string_struct_list, timestamp_array,
-    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null,
+    BatchColumns, date_from_days, date32, decimal128_array, decimals_arrays, decimals_from_columns,
+    dimensions_array, dimensions_at, dimensions_item, failed_batch, list_array, list_item,
+    list_type, nullable, number_from_decimal128, period_from_columns, string_list, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null, write_decimals,
+    write_dimensions,
 };
+use crate::datasets::constants::{DECIMAL_PRECISION, DECIMAL_SCALE};
 use crate::datasets::{ArrowRow, ArrowRowError, Provenance};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
@@ -61,22 +56,15 @@ impl ArrowRow for AsIsFactRow {
         let text = |value: fn(&AsIsFact) -> Option<String>| -> ArrayRef {
             Arc::new(StringArray::from_iter(facts().map(value)))
         };
-        let numbers = facts()
-            .enumerate()
-            .map(|(row, fact)| match &fact.value {
-                FactValue::Numeric(number) => decimal128(number).map(Some).map_err(|reason| {
-                    unexpected_value(Self::DATASET, "value_numeric", row, reason)
-                }),
-                FactValue::Text(_) | FactValue::Nil => Ok(None),
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-        let numbers = Decimal128Array::from(numbers)
-            .with_precision_and_scale(DECIMAL_PRECISION, DECIMAL_SCALE)
-            .map_err(|error| failed_batch(Self::DATASET, &error))?;
-        let dimension_item = list_item(&schema, "dimensions");
-        let (axes, members): (Vec<&str>, Vec<&str>) = facts()
-            .flat_map(|fact| fact.context.dimensions.iter())
-            .unzip();
+        let numbers = decimal128_array(
+            Self::DATASET,
+            "value_numeric",
+            facts().map(|fact| match &fact.value {
+                FactValue::Numeric(number) => Some(number),
+                FactValue::Text(_) | FactValue::Nil => None,
+            }),
+        )?;
+        let [decimals, decimals_infinite] = decimals_arrays(facts().map(|fact| fact.decimals));
         let footnote_item = list_item(&schema, "footnotes");
         let footnotes = facts().flat_map(|fact| fact.footnotes.iter());
         let mut columns: Vec<ArrayRef> = vec![
@@ -96,31 +84,15 @@ impl ArrowRow for AsIsFactRow {
                 facts().map(|fact| fact.context.period.quarters()),
             )),
             text(|fact| fact.unit.as_ref().map(ToString::to_string)),
-            list_array(
-                Arc::clone(&dimension_item),
-                facts()
-                    .map(|fact| fact.context.dimensions.iter().count())
-                    .collect(),
-                string_struct_array(
-                    &dimension_item,
-                    vec![StringArray::from(axes), StringArray::from(members)],
-                ),
-            ),
+            dimensions_array(facts().map(|fact| &fact.context.dimensions)),
             text(|fact| Some(value_kind(&fact.value).to_owned())),
-            Arc::new(numbers),
+            numbers,
             text(|fact| match &fact.value {
                 FactValue::Text(text) => Some(text.clone()),
                 FactValue::Numeric(_) | FactValue::Nil => None,
             }),
-            Arc::new(Int32Array::from_iter(facts().map(
-                |fact| match fact.decimals {
-                    Some(Decimals::Finite(places)) => Some(places),
-                    Some(Decimals::Infinite) | None => None,
-                },
-            ))),
-            Arc::new(BooleanArray::from_iter(
-                facts().map(|fact| Some(fact.decimals == Some(Decimals::Infinite))),
-            )),
+            decimals,
+            decimals_infinite,
             Arc::new(UInt16Array::from_iter_values(
                 facts().map(|fact| fact.copy_rank),
             )),
@@ -213,11 +185,7 @@ impl DigestRow for AsIsFactRow {
             FactValue::Text(text) => byte_form.null().utf8(text),
             FactValue::Nil => byte_form.null().null(),
         };
-        match fact.decimals {
-            Some(Decimals::Finite(places)) => byte_form.integer(places).bool(false),
-            Some(Decimals::Infinite) => byte_form.null().bool(true),
-            None => byte_form.null().bool(false),
-        };
+        write_decimals(byte_form, fact.decimals);
         byte_form.integer(fact.copy_rank).list(fact.footnotes.len());
         for footnote in &fact.footnotes {
             byte_form.utf8(footnote);
@@ -235,7 +203,6 @@ impl DigestRow for AsIsFactRow {
 fn schema_v1() -> SchemaRef {
     let text = |name: &str, nullable: bool| Field::new(name, DataType::Utf8, nullable);
     let date = |name: &str, nullable: bool| Field::new(name, DataType::Date32, nullable);
-    let pair = Fields::from(vec![text("axis", false), text("member", false)]);
     let mut fields = vec![
         text("filing_id", false),
         text("entity_scheme", false),
@@ -247,7 +214,7 @@ fn schema_v1() -> SchemaRef {
         date("period_start", true),
         Field::new("quarters", DataType::UInt16, false),
         text("unit", true),
-        Field::new("dimensions", list_type(DataType::Struct(pair)), false),
+        Field::new("dimensions", DataType::List(dimensions_item()), false),
         text("value_kind", false),
         Field::new(
             "value_numeric",
@@ -333,30 +300,13 @@ impl<'a> FactColumns<'a> {
             move |reason| unexpected_value(self.dataset, column, row, reason)
         };
         let date = |column: &'static str, days| date_from_days(days).map_err(unexpected(column));
-        let period_end = date("period_end", self.period_ends.value(row))?;
-        let period = match nullable(self.period_starts, row) {
-            None => Period::Instant { end: period_end },
-            Some(days) => Period::Duration(
-                Duration::from_dates(date("period_start", days)?, period_end)
-                    .map_err(invalid("period_start"))?,
-            ),
-        };
-        if period.quarters() != self.quarters.value(row) {
-            return Err(unexpected("quarters")(format!(
-                "the dates give '{}' quarters",
-                period.quarters()
-            )));
-        }
-        let pairs = string_struct_list(self.dimensions, row)
-            .into_iter()
-            .map(|pair| {
-                let mut fields = pair.into_iter();
-                // Both fields are not null in the schema, so the defaults never apply.
-                (
-                    fields.next().flatten().unwrap_or_default(),
-                    fields.next().flatten().unwrap_or_default(),
-                )
-            });
+        let period = period_from_columns(
+            self.dataset,
+            row,
+            self.period_ends.value(row),
+            nullable(self.period_starts, row),
+            self.quarters.value(row),
+        )?;
         Ok(AsIsFact {
             source: FilingSource {
                 filing: FilingId::from_str(self.filing_ids.value(row))
@@ -371,7 +321,7 @@ impl<'a> FactColumns<'a> {
                 entity: EntityId::new(self.entity_schemes.value(row), self.entity_ids.value(row))
                     .map_err(invalid("entity_id"))?,
                 period,
-                dimensions: Dimensions::new(pairs).map_err(invalid("dimensions"))?,
+                dimensions: dimensions_at(self.dimensions, row).map_err(invalid("dimensions"))?,
             },
             concept: ConceptName::new(
                 NamespaceFamily::new(self.concept_families.value(row))
@@ -388,19 +338,12 @@ impl<'a> FactColumns<'a> {
                 .transpose()
                 .map_err(invalid("unit"))?,
             value: self.value(row)?,
-            decimals: match (
+            decimals: decimals_from_columns(
+                self.dataset,
+                row,
                 nullable(self.decimals, row),
                 self.decimals_infinite.value(row),
-            ) {
-                (Some(places), false) => Some(Decimals::Finite(places)),
-                (None, true) => Some(Decimals::Infinite),
-                (None, false) => None,
-                (Some(_), true) => {
-                    return Err(unexpected("decimals")(
-                        "a finite value with 'decimals_infinite' true".to_owned(),
-                    ));
-                }
-            },
+            )?,
             copy_rank: self.copy_ranks.value(row),
             footnotes: string_list(self.footnotes, row),
         })
@@ -432,55 +375,19 @@ const fn value_kind(value: &FactValue) -> &'static str {
     }
 }
 
-/// Returns the number that the unscaled digits of a `decimal128(38, 10)` value stand for.
-///
-/// The number has no trailing zeros after the point: `-6.1100000000` reads as `-6.11`, and
-/// `100.0000000000` as `100`. So a filed `6.10` reads back as `6.1`, an equal number.
-fn number_from_decimal128(digits: i128) -> BigDecimal {
-    let number = BigDecimal::new(BigInt::from(digits), DECIMAL_SCALE.into()).normalized();
-    if number.fractional_digit_count() < 0 {
-        number.with_scale(0)
-    } else {
-        number
-    }
-}
-
-/// Returns the unscaled digits of a number in `decimal128(38, 10)`.
-///
-/// Fails if the number has more than 10 digits after the point, or more than 28 before it.
-fn decimal128(number: &BigDecimal) -> Result<i128, String> {
-    let scaled = number.with_scale(DECIMAL_SCALE.into());
-    if &scaled != number {
-        return Err(format!(
-            "'{number}' has more than {DECIMAL_SCALE} digits after the point"
-        ));
-    }
-    let (digits, _) = scaled.into_bigint_and_exponent();
-    i128::try_from(digits)
-        .ok()
-        .filter(|digits| digits.unsigned_abs() < DECIMAL_LIMIT)
-        .ok_or_else(|| format!("'{number}' has more than {DECIMAL_PRECISION} digits"))
-}
-
-/// Appends the axis and member pairs as a list of structs.
-fn write_dimensions(byte_form: &mut ByteForm, dimensions: &Dimensions) {
-    byte_form.list(dimensions.iter().count());
-    for (axis, member) in dimensions.iter() {
-        byte_form.struct_(2).utf8(axis).utf8(member);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::fmt::Debug;
     use std::hash::Hash;
 
+    use bigdecimal::BigDecimal;
     use jiff::Timestamp;
     use jiff::civil::date;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
-
+    use xbrl::core::fact::{Decimals, Dimensions};
     use xbrl::core::invalid_value::InvalidValueReason;
+    use xbrl::core::period::{Duration, Period};
 
     use super::*;
     use crate::datasets::implementations::provenance::sample_provenance;
@@ -715,8 +622,8 @@ mod tests {
     fn should_write_the_same_digest_bytes_when_only_the_run_columns_differ() {
         let first = sample_rows().remove(0);
         let mut second = first.clone();
-        second.provenance.execution_id = Uuid::from_u128(2);
-        second.provenance.loaded_at = Timestamp::UNIX_EPOCH;
+        second.provenance.run.execution_id = Uuid::from_u128(2);
+        second.provenance.run.loaded_at = Timestamp::UNIX_EPOCH;
         let mut first_bytes = ByteForm::new();
         first.write_row(&mut first_bytes);
 

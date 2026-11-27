@@ -1,6 +1,7 @@
 //! # Constants
 //!
-//! The Arrow time zone of the timestamp columns, and the folder labels of the silver paths.
+//! The Arrow time zone of the timestamp columns, the type of the decimal columns, and the folder
+//! labels of the silver paths.
 
 /// The Arrow time zone of every timestamp column of silver: UTC, written as an offset.
 ///
@@ -14,3 +15,12 @@ pub const UTC_TIME_ZONE: &str = "+00:00";
 /// `DuckDB` reads a `name=value` folder as a column, so no field of the dataset has one of these
 /// names.
 pub const FOLDER_LABELS: [&str; 2] = ["source", "unit_key"];
+
+/// The digits of a decimal column, such as `value_numeric` of `as_is_facts`.
+pub const DECIMAL_PRECISION: u8 = 38;
+
+/// The digits after the point of a decimal column.
+pub const DECIMAL_SCALE: i8 = 10;
+
+/// The unscaled digits of every decimal value are below this limit: `10^38`.
+pub const DECIMAL_LIMIT: u128 = 10_u128.pow(38);
