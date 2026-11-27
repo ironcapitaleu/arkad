@@ -4,6 +4,8 @@
 //! [`ApiError`].
 
 use axum::extract::Request;
+use axum::http::HeaderValue;
+use axum::http::header::WWW_AUTHENTICATE;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 
@@ -15,6 +17,9 @@ use crate::middleware::request_id::RequestId;
 /// The body carries the [`RequestId`] from the request extensions. If the request holds no
 /// [`RequestId`], the middleware creates one, so an error response always has a body. That ID
 /// matches no `X-Request-Id` header.
+///
+/// If the error has a [`challenge`](ApiError::challenge), the response carries it in the
+/// `WWW-Authenticate` header.
 pub async fn render_problem(request: Request, next: Next) -> Response {
     let request_id = request.extensions().get::<RequestId>().cloned();
     let response = next.run(request).await;
@@ -22,7 +27,13 @@ pub async fn render_problem(request: Request, next: Next) -> Response {
         return response;
     };
     let request_id = request_id.unwrap_or_else(RequestId::generate);
-    Problem::new(error, request_id.as_str()).into_response()
+    let mut response = Problem::new(error, request_id.as_str()).into_response();
+    if let Some(challenge) = error.challenge() {
+        response
+            .headers_mut()
+            .insert(WWW_AUTHENTICATE, HeaderValue::from_static(challenge));
+    }
+    response
 }
 
 #[cfg(test)]
