@@ -135,12 +135,15 @@ impl DigestRow for CandidateRow {
         byte_form.utf8(&self.candidate.source.filing.to_string());
     }
 
-    /// Appends `filing_id`, `concept`, and `dimensions`.
+    /// Appends `filing_id`, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`.
     fn write_row_key(&self, byte_form: &mut ByteForm) {
         let candidate = &self.candidate;
         byte_form
             .utf8(&candidate.source.filing.to_string())
-            .utf8(candidate.concept.name());
+            .utf8(candidate.concept.name())
+            .date(candidate.period.end())
+            .integer(candidate.period.quarters())
+            .utf8(&candidate.unit.to_string());
         write_dimensions(byte_form, &candidate.dimensions);
     }
 
@@ -445,12 +448,13 @@ impl<'a> CandidateColumns<'a> {
             self.decimals_infinite.value(row),
         )?;
         let unexpected =
-            |reason: &str| unexpected_value(self.dataset, "blocked", row, reason.to_owned());
+            |column, reason: &str| unexpected_value(self.dataset, column, row, reason.to_owned());
         let value = nullable(self.values, row);
         let confidence = nullable(self.confidences, row);
         match (self.blocked.value(row), value, confidence) {
             (true, None, None) if decimals.is_none() => Ok(CandidateValue::Blocked),
             (true, ..) => Err(unexpected(
+                "blocked",
                 "a blocked candidate with a value, a confidence, or decimals",
             )),
             (false, Some(digits), Some(name)) => Ok(CandidateValue::Reported {
@@ -465,9 +469,10 @@ impl<'a> CandidateColumns<'a> {
                     )
                 })?,
             }),
-            (false, ..) => Err(unexpected(
-                "a candidate that is not blocked without a value or a confidence",
-            )),
+            (false, None, _) => Err(unexpected("value", "a candidate that is not blocked")),
+            (false, Some(_), None) => {
+                Err(unexpected("confidence", "a candidate that is not blocked"))
+            }
         }
     }
 }
@@ -666,7 +671,17 @@ mod tests {
 
     /// Returns the batch of the first fixture row, with the column `name` replaced by `column`.
     fn batch_with(name: &str, column: ArrayRef) -> RecordBatch {
-        let batch = CandidateRow::to_batch(&sample_rows()[..1])
+        row_batch_with(0, name, column)
+    }
+
+    /// Returns the batch of the blocked fixture row, with the column `name` replaced by `column`.
+    fn blocked_batch_with(name: &str, column: ArrayRef) -> RecordBatch {
+        row_batch_with(2, name, column)
+    }
+
+    /// Returns the batch of fixture row `row`, with the column `name` replaced by `column`.
+    fn row_batch_with(row: usize, name: &str, column: ArrayRef) -> RecordBatch {
+        let batch = CandidateRow::to_batch(&sample_rows()[row..=row])
             .expect("Given rows whose values fit their columns, the batch should always build");
         let index = batch
             .schema()
@@ -845,9 +860,64 @@ mod tests {
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "candidates",
+            column: "confidence",
+            row: 0,
+            reason: "a candidate that is not blocked".to_owned(),
+        });
+
+        let result = CandidateRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_row_that_is_not_blocked_has_no_value() {
+        let batch = batch_with(
+            "value",
+            Arc::new(
+                Decimal128Array::from(vec![None::<i128>])
+                    .with_precision_and_scale(DECIMAL_PRECISION, DECIMAL_SCALE)
+                    .expect("Given the precision and scale of the column, the array should always build"),
+            ),
+        );
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "candidates",
+            column: "value",
+            row: 0,
+            reason: "a candidate that is not blocked".to_owned(),
+        });
+
+        let result = CandidateRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_blocked_row_has_only_decimals() {
+        let batch = blocked_batch_with("decimals", Arc::new(Int32Array::from(vec![-6])));
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "candidates",
             column: "blocked",
             row: 0,
-            reason: "a candidate that is not blocked without a value or a confidence".to_owned(),
+            reason: "a blocked candidate with a value, a confidence, or decimals".to_owned(),
+        });
+
+        let result = CandidateRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_blocked_row_has_only_a_confidence() {
+        let batch = blocked_batch_with("confidence", Arc::new(StringArray::from(vec!["Exact"])));
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "candidates",
+            column: "blocked",
+            row: 0,
+            reason: "a blocked candidate with a value, a confidence, or decimals".to_owned(),
         });
 
         let result = CandidateRow::from_batch(&batch, 1);
@@ -1062,16 +1132,70 @@ mod tests {
     }
 
     #[test]
-    fn should_write_the_filing_id_the_concept_and_the_dimensions_as_the_row_key() {
+    fn should_write_the_filing_the_concept_the_period_the_unit_and_the_dimensions_as_the_row_key() {
         let row = sample_rows().remove(2);
 
-        // filing_id | concept | dimensions empty list
+        // filing_id | concept | period_end | quarters 0 | unit | dimensions empty list
         let expected_result: &[u8] = b"\x01\x00\x00\x00\x18sec:0000320193-26-000001\
 \x01\x00\x00\x00\x07Revenue\
+\x01\x00\x00\x00\x0a2026-09-26\
+\x01\x00\x00\x00\x010\
+\x01\x00\x00\x00\x03USD\
 \x01\x00\x00\x00\x00";
 
         let mut byte_form = ByteForm::new();
         row.write_row_key(&mut byte_form);
+        let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_every_column_but_the_run_ids_in_schema_order_as_the_row() {
+        let row = sample_rows().remove(2);
+
+        // entity_scheme | entity_id | concept | period_end | period_start null | quarters 0 |
+        // dimensions empty | unit | value null | confidence null | rule | release_id |
+        // release_checksum | inputs: list of 1, struct of 9 (filing_id, concept_family,
+        // concept_name, taxonomy_version null, period_end, quarters 4, unit null, dimensions
+        // empty, copy_rank 1) | scope null | filing_id | filed | accepted null | decimals null |
+        // decimals_infinite false | blocked true | entity_bucket 63 | transform_version 1
+        let expected_result: &[u8] = b"\x01\x00\x00\x00\x16http://www.sec.gov/CIK\
+\x01\x00\x00\x00\x0a0000320193\
+\x01\x00\x00\x00\x07Revenue\
+\x01\x00\x00\x00\x0a2026-09-26\
+\x00\
+\x01\x00\x00\x00\x010\
+\x01\x00\x00\x00\x00\
+\x01\x00\x00\x00\x03USD\
+\x00\
+\x00\
+\x01\x00\x00\x00\x17us-gaap/alias/revenue@1\
+\x01\x00\x00\x00\x0cus-gaap/2026\
+\x01\x00\x00\x00\x40a92083bfe2d99f604c258a3a192602c4e8c8292d08f51cd3d34db30b80353b3c\
+\x01\x00\x00\x00\x01\
+\x01\x00\x00\x00\x09\
+\x01\x00\x00\x00\x18sec:0000320193-26-000001\
+\x01\x00\x00\x00\x07us-gaap\
+\x01\x00\x00\x00\x08Revenues\
+\x00\
+\x01\x00\x00\x00\x0a2026-09-26\
+\x01\x00\x00\x00\x014\
+\x00\
+\x01\x00\x00\x00\x00\
+\x01\x00\x00\x00\x011\
+\x00\
+\x01\x00\x00\x00\x18sec:0000320193-26-000001\
+\x01\x00\x00\x00\x0a2026-11-06\
+\x00\
+\x00\
+\x01\x00\x00\x00\x05false\
+\x01\x00\x00\x00\x04true\
+\x01\x00\x00\x00\x0263\
+\x01\x00\x00\x00\x011";
+
+        let mut byte_form = ByteForm::new();
+        row.write_row(&mut byte_form);
         let result = byte_form.as_bytes();
 
         assert_eq!(result, expected_result);

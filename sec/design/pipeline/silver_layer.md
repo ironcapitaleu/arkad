@@ -227,7 +227,7 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 
 ### `candidates`
 
-One row per standard concept, set of dimensions, and filing, from steps 1 and 2 of the dedup order in
+One row per standard concept, period, unit, set of dimensions, and filing, from steps 1 and 2 of the dedup order in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#4a-transform-integration). The columns are those of
 `standardized_facts` without `restated`, `change`, and `computed_at`, plus `filing_id`, `filed`,
 `accepted`, `decimals`, `decimals_infinite`, `blocked`, and `entity_bucket`. Only a series run sets `restated`, `change`,
@@ -242,7 +242,7 @@ the rule that picked the conflicting concept.
 | `decimals`, `decimals_infinite` | as in `as_is_facts` | The decimals of a reported value. Null and false for a blocked candidate |
 | `blocked` | `bool` | `CandidateValue::Blocked` |
 | `entity_bucket` | `uint8` | 0 to 63, see `silver_writer_and_jobs.md`, "Entity Buckets" |
-| Run columns | `transform_version`, `execution_id`, `loaded_at` | As in `standardized_facts`. A row carries no ingestion provenance. `inputs` leads to it |
+| `transform_version`, `execution_id`, `loaded_at` | `utf8`, `utf8`, `timestamp[ms, +00:00]` | The run columns, as in `standardized_facts`. A row carries no ingestion provenance. `inputs` leads to it |
 
 The other columns are those of `standardized_facts`, in its order. `CandidateRow` in
 `sec::datasets` holds the order of the schema. The segment view of a report and its reconciliation
@@ -365,7 +365,7 @@ The row key of `content_digest`, by dataset:
 
 - `as_is_facts`: the value key.
 - `filings`: `filing_id`.
-- `candidates`: `filing_id`, then `concept`, then `dimensions`.
+- `candidates`: `filing_id`, then `concept`, `period_end`, `quarters`, `unit`, and `dimensions`.
 - `standardized_facts` and `findings`: the key in the section of the dataset. A row without
   `filing_id` falls in the digest group of its entity.
 - `taxonomy_elements`: the digest group is the release. Rows sort by `concept_family`, then by
