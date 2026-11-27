@@ -17,6 +17,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_axum::routes;
 
 use crate::error::Problem;
+use crate::routes::AppState;
 
 pub mod companies;
 pub mod concepts;
@@ -32,7 +33,7 @@ pub const V1_PREFIX: &str = "/v1";
 pub struct V1Spec;
 
 /// Builds the router of every `/v1` route together with its spec.
-pub fn router() -> OpenApiRouter {
+pub fn router() -> OpenApiRouter<AppState> {
     let routes = OpenApiRouter::new()
         .routes(routes!(companies::company::list_companies))
         .routes(routes!(companies::company::get_company))

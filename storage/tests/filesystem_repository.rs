@@ -109,7 +109,7 @@ async fn should_return_the_same_record_when_reading_back_a_persisted_record_by_k
     let record = sample_document();
     let key = record.key().clone();
 
-    let expected_result = Some(record.clone());
+    let expected_result = Some(sample_document());
 
     repository
         .persist(record)

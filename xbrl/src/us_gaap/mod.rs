@@ -456,7 +456,7 @@ mod tests {
     use crate::core::finding::Finding;
     use crate::core::taxonomy::reference::{Balance, PeriodType};
     use crate::core::taxonomy::registry::{Plugin, Registry};
-    use crate::tests::fixtures::sample_fact::{date, fact, source};
+    use crate::tests::fixtures::sample_fact::{apple, date, fact, source};
     use crate::tests::fixtures::sample_taxonomy::{declaration, plugin};
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -3442,7 +3442,7 @@ mod tests {
         let facts = vec![eps.clone(), other_eps];
 
         let expected_result = vec![Finding::Conflict {
-            entity: eps.context.entity.clone(),
+            entity: apple(),
             key: eps.key(),
             ranks: vec![1],
             standard_concept: Some(PerShareConcept::EarningsPerShareBasic.element()),
@@ -3739,9 +3739,9 @@ mod tests {
         let child = concept("srt", "LifeInsuranceInForceCeded");
 
         let expected_result = Some(&CalculationArc {
-            role: role.to_string(),
-            parent: parent.clone(),
-            child: child.clone(),
+            role: "http://fasb.org/us-gaap/role/statement/StatementOfFinancialPositionClassifiedFirstAlternative".to_string(),
+            parent: concept("srt", "LifeInsuranceInForceNet"),
+            child: concept("srt", "LifeInsuranceInForceCeded"),
             weight: BigDecimal::from_str("-1.0")
                 .expect("Given a hardcoded decimal, the parse should always succeed"),
         });

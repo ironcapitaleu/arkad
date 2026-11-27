@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)) |
+| Status | Accepted by the project owner on 2026-11-21 ([STA-463 comment `5fa1a8f7`](https://linear.app/state-machine/issue/STA-463#comment-5fa1a8f7)). The project owner accepted [Amendment 1](#amendment-1-the-cost-of-the-print-and-the-hash) on 2026-11-21 ([STA-552 comment `c186ca1d`](https://linear.app/state-machine/issue/STA-552#comment-c186ca1d)) |
 | Date | 2026-11-16 |
 | Deciders | The project owner |
 | Ticket | [STA-463](https://linear.app/state-machine/issue/STA-463/design-silver-writer-and-transform-job-plan) |
@@ -61,6 +61,38 @@ This ADR fixes the byte form of one value, one row, and the frame around them.
 8. **A golden test pins the form to `transform_version`.** It holds one fixture unit per dataset
    and the expected digest for each `transform_version`. If the digest of the fixtures changes and
    the version does not, the test fails.
+
+## Amendment 1: The Cost of the Print and the Hash
+
+> **Proposed on 2026-11-21, accepted by the project owner on 2026-11-21.** It answers the open question on cost. It keeps the byte form.
+
+### Why
+
+"Consequences" says the cost of the print is not measured, and "Open Questions" asks for it on
+`2024q1`. The code of the digest measured it on 2026-11-21
+([ironcapitaleu/arkad#631](https://github.com/ironcapitaleu/arkad/pull/631)):
+
+- Input: `num.tsv` of `2024q1_notes.zip`, 9,101,360 rows in 7,573 filings. Each row has 14
+  columns: 7 `utf8`, 1 `date32`, 3 integers, and 3 `decimal128`.
+- The print, the sort, and the hash of all rows took 10.3 s to 12.8 s in 3 runs, median 10.9 s.
+  That is about 1.2 µs per row. The print alone took 7.6 s to 8.4 s.
+- The byte form of the rows and the row keys was 3.0 GB. All 3 runs gave one digest.
+- A path that prints the digits of a `decimal128` through `u128` instead of a big integer saved
+  about 3 %.
+- Machine: a cloud container, Intel Xeon at 2.10 GHz, 4 vCPU, x86-64 Linux, release build, one
+  thread.
+
+### Decision
+
+1. The cost is about 11 s per largest Notes file, on one thread. The target of 15 minutes per Notes
+   file holds it. The byte form stays as it is.
+2. The print of a decimal stays on the plain path. A faster path needs a measurement that saves more
+   than 3 %.
+
+### Consequences
+
+- The open question on cost is closed.
+- A change of the row count of a Notes file by a factor of 10 needs a new measurement.
 
 ## Options Considered
 

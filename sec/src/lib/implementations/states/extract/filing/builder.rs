@@ -579,7 +579,7 @@ mod tests {
             .instance_repository(instance_repository())
             .labels_repository(FakeXbrlLabelsRepository::new());
 
-        let expected_result = inputs.clone();
+        let expected_result = daily_index_inputs();
 
         let result = builder.inputs(inputs).build().context.inputs;
 

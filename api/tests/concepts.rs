@@ -1,4 +1,5 @@
 use api::config::InternalDocs;
+use api::tests::fixtures::fake_app_state::fake_app_state;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::response::Response;
@@ -11,7 +12,7 @@ async fn get_concepts() -> Response {
     let request = Request::get("/v1/concepts")
         .body(Body::empty())
         .expect("Given a hardcoded method and path, building the request should always succeed");
-    api::router(InternalDocs::Disabled)
+    api::router(InternalDocs::Disabled, fake_app_state())
         .oneshot(request)
         .await
         .expect("Given the router's infallible service, calling it should always succeed")

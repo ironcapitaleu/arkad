@@ -74,7 +74,10 @@ mod tests {
         let full_index_error = FormIndexError::MissingFormIndexHeader;
         let invalid_full_index = InvalidFullIndex::from_domain_error("TestState", full_index_error);
 
-        let expected_result = StateError::InvalidFullIndex(invalid_full_index.clone());
+        let expected_result = StateError::InvalidFullIndex(InvalidFullIndex {
+            state_name: "TestState".to_owned(),
+            full_index_error: FormIndexError::MissingFormIndexHeader,
+        });
 
         let result: StateError = invalid_full_index.into();
 

@@ -2,9 +2,9 @@
 //!
 //! Provides the error types the `storage` crate returns.
 //!
-//! Errors nest by operation: a [`ReadError`] or a [`WriteError`] wraps a backend error, and an
-//! [`ErrorKind`] wraps that. A caller can therefore propagate one type and still recover the
-//! specific cause. The [`TryFrom`] impls extract the inner error, returning
+//! Errors nest by operation: a [`ReadError`], a [`WriteError`], or a [`LeaseError`] wraps a
+//! backend error, and an [`ErrorKind`] wraps that. A caller can therefore propagate one type and
+//! still recover the specific cause. The [`TryFrom`] impls extract the inner error, returning
 //! [`ErrorKind::DowncastNotPossible`] when the variant does not match.
 //!
 //! A [`BackendError`] reaches [`ErrorKind`] through the operation that raised it. The backend error
@@ -13,6 +13,7 @@
 //! ## Modules
 //!
 //! - [`backend_error`]: Errors raised by the storage backend.
+//! - [`lease_error`]: Errors raised while taking or reading a lease.
 //! - [`read_error`]: Errors raised while reading from the store.
 //! - [`write_error`]: Errors raised while writing to the store.
 //!
@@ -29,10 +30,12 @@
 use thiserror::Error;
 
 pub mod backend_error;
+pub mod lease_error;
 pub mod read_error;
 pub mod write_error;
 
 pub use backend_error::{BackendCause, BackendError};
+pub use lease_error::LeaseError;
 pub use read_error::ReadError;
 pub use write_error::WriteError;
 
@@ -56,6 +59,12 @@ pub enum ErrorKind {
     #[error(transparent)]
     Write(WriteError),
 
+    /// An error originating from a lease operation.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    Lease(LeaseError),
+
     /// A [`TryFrom`] downcast to a more specific error type did not match the held variant.
     #[error("[DowncastNotPossible] Failed to downcast error into a more specific type")]
     DowncastNotPossible,
@@ -72,6 +81,29 @@ impl From<WriteError> for ErrorKind {
     /// Converts a [`WriteError`] into the [`ErrorKind::Write`] variant.
     fn from(error: WriteError) -> Self {
         Self::Write(error)
+    }
+}
+
+impl From<LeaseError> for ErrorKind {
+    /// Converts a [`LeaseError`] into the [`ErrorKind::Lease`] variant.
+    fn from(error: LeaseError) -> Self {
+        Self::Lease(error)
+    }
+}
+
+impl TryFrom<ErrorKind> for LeaseError {
+    type Error = ErrorKind;
+
+    /// Extracts the [`LeaseError`] from an [`ErrorKind::Lease`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ErrorKind::DowncastNotPossible`] if the value is not an [`ErrorKind::Lease`].
+    fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
+        match value {
+            ErrorKind::Lease(lease) => Ok(lease),
+            _ => Err(ErrorKind::DowncastNotPossible),
+        }
     }
 }
 
@@ -110,17 +142,17 @@ impl TryFrom<ErrorKind> for WriteError {
 impl TryFrom<ErrorKind> for BackendError {
     type Error = ErrorKind;
 
-    /// Extracts the [`BackendError`] from an [`ErrorKind`] holding a read or a write that failed at
-    /// the backend.
+    /// Extracts the [`BackendError`] from an [`ErrorKind`] holding a read, a write, or a lease
+    /// operation that failed at the backend.
     ///
     /// # Errors
     ///
-    /// Returns [`ErrorKind::DowncastNotPossible`] if neither the read nor the write branch holds a
-    /// [`BackendError`].
+    /// Returns [`ErrorKind::DowncastNotPossible`] if no branch holds a [`BackendError`].
     fn try_from(value: ErrorKind) -> Result<Self, Self::Error> {
         match value {
             ErrorKind::Read(ReadError::Backend(backend))
-            | ErrorKind::Write(WriteError::Backend(backend)) => Ok(backend),
+            | ErrorKind::Write(WriteError::Backend(backend))
+            | ErrorKind::Lease(LeaseError::Backend(backend)) => Ok(backend),
             _ => Err(ErrorKind::DowncastNotPossible),
         }
     }
@@ -210,7 +242,10 @@ mod tests {
     #[test]
     fn should_wrap_read_error_into_read_variant_when_converting_from_read_error() {
         let read_error = ReadError::missing_record("0000320193-24-000123");
-        let expected_result = ErrorKind::Read(read_error.clone());
+
+        let expected_result = ErrorKind::Read(ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        });
 
         let result = ErrorKind::from(read_error);
 
@@ -220,7 +255,10 @@ mod tests {
     #[test]
     fn should_wrap_write_error_into_write_variant_when_converting_from_write_error() {
         let write_error = WriteError::conflicting_write("duplicate accession");
-        let expected_result = ErrorKind::Write(write_error.clone());
+
+        let expected_result = ErrorKind::Write(WriteError::ConflictingWrite {
+            reason: "duplicate accession".to_owned(),
+        });
 
         let result = ErrorKind::from(write_error);
 
@@ -229,13 +267,16 @@ mod tests {
 
     #[test]
     fn should_downcast_to_read_error_when_error_kind_is_a_read_variant() {
-        let read_error = ReadError::missing_record("0000320193-24-000123");
-        let error_kind = ErrorKind::Read(read_error.clone());
+        let error_kind = ErrorKind::Read(ReadError::missing_record("0000320193-24-000123"));
+
+        let expected_result = ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        };
 
         let result = ReadError::try_from(error_kind)
             .expect("Given an `ErrorKind::Read`, the downcast to `ReadError` should succeed");
 
-        assert_eq!(result, read_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -251,13 +292,16 @@ mod tests {
 
     #[test]
     fn should_downcast_to_write_error_when_error_kind_is_a_write_variant() {
-        let write_error = WriteError::conflicting_write("duplicate accession");
-        let error_kind = ErrorKind::Write(write_error.clone());
+        let error_kind = ErrorKind::Write(WriteError::conflicting_write("duplicate accession"));
+
+        let expected_result = WriteError::ConflictingWrite {
+            reason: "duplicate accession".to_owned(),
+        };
 
         let result = WriteError::try_from(error_kind)
             .expect("Given an `ErrorKind::Write`, the downcast to `WriteError` should succeed");
 
-        assert_eq!(result, write_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -273,26 +317,36 @@ mod tests {
 
     #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_read() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let error_kind = ErrorKind::Read(ReadError::Backend(backend_error.clone()));
+        let error_kind = ErrorKind::Read(ReadError::Backend(BackendError::unreachable_storage(
+            "timeout",
+        )));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(error_kind).expect(
             "Given an `ErrorKind` wrapping a `ReadError::Backend`, the skip-level downcast should succeed",
         );
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_write() {
-        let backend_error = BackendError::unreachable_storage("timeout");
-        let error_kind = ErrorKind::Write(WriteError::Backend(backend_error.clone()));
+        let error_kind = ErrorKind::Write(WriteError::Backend(BackendError::unreachable_storage(
+            "timeout",
+        )));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
 
         let result = BackendError::try_from(error_kind).expect(
             "Given an `ErrorKind` wrapping a `WriteError::Backend`, the skip-level downcast should succeed",
         );
 
-        assert_eq!(result, backend_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
@@ -310,25 +364,62 @@ mod tests {
     }
 
     #[test]
+    fn should_roundtrip_lease_error_when_upcast_then_downcast() {
+        let lease_error = LeaseError::Backend(BackendError::unreachable_storage("timeout"));
+
+        let expected_result = LeaseError::Backend(BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        });
+
+        let result = LeaseError::try_from(ErrorKind::from(lease_error))
+            .expect("A `LeaseError` upcast into `ErrorKind` should downcast back unchanged");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_skip_level_downcast_to_backend_error_when_error_kind_wraps_a_backend_lease() {
+        let error_kind = ErrorKind::Lease(LeaseError::Backend(BackendError::unreachable_storage(
+            "timeout",
+        )));
+
+        let expected_result = BackendError::UnreachableStorage {
+            cause: BackendCause::Reason("timeout".to_owned()),
+        };
+
+        let result = BackendError::try_from(error_kind).expect(
+            "Given an `ErrorKind` wrapping a `LeaseError::Backend`, the skip-level downcast should succeed",
+        );
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_roundtrip_read_error_when_upcast_then_downcast() {
         let read_error = ReadError::missing_record("0000320193-24-000123");
 
-        let upcast: ErrorKind = read_error.clone().into();
-        let result = ReadError::try_from(upcast)
+        let expected_result = ReadError::MissingRecord {
+            identifier: "0000320193-24-000123".to_owned(),
+        };
+
+        let result = ReadError::try_from(ErrorKind::from(read_error))
             .expect("A `ReadError` upcast into `ErrorKind` should downcast back unchanged");
 
-        assert_eq!(result, read_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_roundtrip_write_error_when_upcast_then_downcast() {
         let write_error = WriteError::failed_integrity_check("balance sheet identity violated");
 
-        let upcast: ErrorKind = write_error.clone().into();
-        let result = WriteError::try_from(upcast)
+        let expected_result = WriteError::FailedIntegrityCheck {
+            reason: "balance sheet identity violated".to_owned(),
+        };
+
+        let result = WriteError::try_from(ErrorKind::from(write_error))
             .expect("A `WriteError` upcast into `ErrorKind` should downcast back unchanged");
 
-        assert_eq!(result, write_error);
+        assert_eq!(result, expected_result);
     }
 
     #[test]
