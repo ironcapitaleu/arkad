@@ -769,8 +769,9 @@ one hour, and each replay of the backfill runs every Notes file again.
   run puts one `adsh` in the same bucket. A hasher with a random seed per instance, such as the
   default of `HashMap`, drops or doubles filings. Each pass groups its rows by `adsh` and hands one
   filing at a time to the parse state.
-- **Parts.** The write state writes a Parquet part per bucket in B, and per about 256 MB of input
-  text in C (`part-<n>.parquet`). It then drops the rows, so it never holds a whole Notes file.
+- **Parts.** The silver writer of the task runner writes a Parquet part per bucket in B, and per
+  about 256 MB of input text in C (`part-<n>.parquet`). It then drops the rows, so it never holds
+  a whole Notes file.
   Inside a part, rows sort by `filing_id`.
 - `candidates` sorts each part by `entity_bucket`, then by `filing_id`, and starts a new row group
   at each change of `entity_bucket`. A series task reads the row groups of its entity bucket from
@@ -786,9 +787,11 @@ A Cloud Run task has a limit of one hour. One task transforms one Notes file, so
 largest Notes file, not the length of the history. More history adds tasks, and the tasks run in
 parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of the slowest task.
 
-- Measured on `2024q1`, the largest file, on one thread: split, parse, map, and write take 45.6 s
-  with C and 97.3 s with B. C that stops on the last row, then B, takes about 2.4 minutes. Not
-  measured: the standardize filing step and the reads from GCS.
+- Measured on 2026-11-08 with the Rust prototype of the silver layer, on `2024q1`, the largest
+  file, on one thread (Linear document "STA-424 Findings: Silver Parquet Layer and Polars for the
+  Transform Step"): split, parse, map, and write take 45.6 s with C and 97.3 s with B. C that
+  stops on the last row, then B, takes about 2.4 minutes. Not measured: the standardize filing
+  step and the reads from GCS.
 - Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
   target applies to C and B together, because C can stop on the last row of an unsorted file.
 - Units differ in size: `2009q1` holds no filings, and `2024q1` holds 2.7 GB of text. The time of
