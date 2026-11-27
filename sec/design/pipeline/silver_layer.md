@@ -794,8 +794,9 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
   the largest file bounds the job, not the mean. `silver_files` records `bytes` and `row_count` per
   unit, so the integrity report can list units far above the median, and the job can start the
   largest files first.
-- If a file breaks the target, the transform design splits it across tasks. It also defines how
-  the tasks of one unit write one `silver_files` row.
+- One task transforms one whole Notes file
+  ([ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md)). The ADR names the fallback if a
+  file breaks the target.
 
 ### Where the State Machine Fits
 
@@ -807,11 +808,12 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
 Proposal: A. The states move rows as Rust types, and the writer writes them with `arrow` and
 `parquet`. No state uses a DataFrame library:
 
-- The split state streams the ZIP, with C first and B as the fallback, and cuts it into filings, as in
-  [Unit of Work and Memory](#unit-of-work-and-memory).
+- The Notes reader of the task runner streams the ZIP, with C first and B as the fallback, and
+  cuts it into filings, as in [Unit of Work and Memory](#unit-of-work-and-memory).
 - The parse and standardize states call the `xbrl` crate on Rust types. Only the Rust code applies
   the rules.
-- The write state turns the Rust rows of one bucket into Arrow batches and writes one Parquet part.
+- The silver writer of the task runner turns the Rust rows of one bucket into Arrow batches and
+  writes one Parquet part.
 - The series step is a super-state per entity bucket. Inside it, the silver reader reads the
   `candidates` of the bucket, and the `xbrl` rules run per entity.
 
@@ -892,8 +894,10 @@ Other designs set these points of the transform:
 - **A corrected Notes file** has a new SHA-256. So rule 2 of a write finds a new `input_digest`,
   and the task writes a new unit ([`transform_per_filing.md`](transform_per_filing.md), "Handover
   to Silver and Gold").
-- **A filing that the parser rejects as a whole** leaves its unit and counts in `dropped_rows`
-  ([`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings").
+- **A filing that the parser rejects as a whole** leaves its unit and counts in `dropped_rows`.
+  The unit fails if too many of its filings are rejected
+  ([ADR 0042](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md),
+  [`transform_per_filing.md`](transform_per_filing.md), "Rejected Filings").
 - **The parallel plan of the transform:** threads inside a task, tasks per unit, and the order of
   the jobs ([`silver_writer_and_jobs.md`](silver_writer_and_jobs.md), "The Parallel Plan").
 
