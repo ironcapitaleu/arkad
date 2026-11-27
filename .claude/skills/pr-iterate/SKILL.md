@@ -121,7 +121,7 @@ Categorize each comment:
 | **Clearly valid** | Implement immediately | Bug fix, security issue, naming rule violation, missing test, style per AGENTS.md |
 | **Ambiguous / subjective** | Escalate to human | Architecture choice, scope question, "maybe we should...", taste-based |
 | **Already resolved** | Skip | Marked as resolved, outdated by subsequent commits |
-| **Nitpick / trivial** | Implement if correct and cheap, even when it is the only finding. It starts a push on its own | Typo, minor formatting, a 🟣 finding |
+| **Nitpick / trivial** | Implement if correct and cheap, even when it is the only finding. It starts a push on its own. Otherwise, reply on the PR with the reason and do not change the code | Typo, minor formatting, a 🟣 finding |
 
 ### Step 3: Implement Valid Feedback
 
@@ -200,11 +200,13 @@ findings and continues.
 
 Stop iterating when:
 - The review returns clean (no new comments). A review with only 🟣 findings is not clean: fix the
-  correct ones, push, and request a review. The owner does not watch the loop, so a nit left open
-  stays open
+  correct ones, push, and request a review. The owner does not watch the loop, so nobody else fixes
+  the nit. If no 🟣 finding is correct, reply to each with the reason. The review then counts as
+  clean
 - All remaining comments are ambiguous/human-decision items (escalated)
 - The human says to stop
-- 3 iterations have passed without convergence (flag to human)
+- 3 iterations have passed without convergence (flag to human). A round whose findings were all
+  🟣 does not count toward this limit
 
 ## Replying to Addressed Comments
 
@@ -224,7 +226,8 @@ human-escalated items.
 
 - **Never force-push** during iteration
 - **Never resolve a comment without implementing it** (or explicitly explaining why it was skipped)
-- **Max 3 autonomous iterations** before consulting the human
+- **Max 3 autonomous iterations** before consulting the human. A round with only 🟣 findings does
+  not count
 - **Never change the PR scope** — if feedback suggests new features or large refactors, flag
   to the human as a potential follow-up ticket
 - **Follow AGENTS.md** — all code changes must follow the project's development guidelines
