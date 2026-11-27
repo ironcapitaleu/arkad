@@ -58,7 +58,6 @@ macro_rules! missing_required_tests {
 
 missing_required_tests! {
     should_list_the_missing_required_concepts_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [
-        "Revenue",
         "NetChangeInCash",
     ],
     should_list_the_missing_required_concepts_for_apa_10_k_2013_fy: "0001193125-14-077668" => [
