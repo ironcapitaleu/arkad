@@ -93,7 +93,7 @@ fn bearer_token(headers: &HeaderMap) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use axum::http::Request;
-    use chrono::{DateTime, Utc};
+    use jiff::Timestamp;
     use pretty_assertions::assert_eq;
     use uuid::Uuid;
 
@@ -116,7 +116,7 @@ mod tests {
         let verified = VerifiedToken {
             account_id: account_id(),
             session_id: "session-1".to_owned(),
-            expires_at: DateTime::<Utc>::MAX_UTC,
+            expires_at: Timestamp::MAX,
         };
         Arc::new(FakeTokenVerifier::default().accepting("good-token", verified))
     }

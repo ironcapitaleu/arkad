@@ -2,7 +2,7 @@
 //!
 //! Provides the [`list_facts`] handler of `GET /v1/companies/{company_id}/facts`.
 
-use chrono::NaiveDate;
+use jiff::civil::Date;
 use serde::{Deserialize, Serialize};
 use utoipa::{IntoParams, ToSchema};
 use xbrl::core::fiscal_year::FiscalYear;
@@ -55,7 +55,7 @@ pub struct FactSource {
     pub form: Form,
     /// The filing date.
     #[schema(value_type = String, format = Date, example = "2024-11-01")]
-    pub filed_at: NaiveDate,
+    pub filed_at: Date,
     /// The folder of the filing on SEC EDGAR.
     #[schema(example = "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/")]
     pub url: String,
@@ -187,8 +187,7 @@ mod tests {
                 accession_number: filing_id.into(),
                 form: Form::new("10-K")
                     .expect("Given the hardcoded form '10-K', the creation should always succeed"),
-                filed_at: NaiveDate::from_ymd_opt(2024, 11, 1)
-                    .expect("Given a valid hardcoded date, building it should always succeed"),
+                filed_at: date(2024, 11, 1),
                 url: "https://www.sec.gov/Archives/edgar/data/320193/000032019324000123/"
                     .to_owned(),
             },
