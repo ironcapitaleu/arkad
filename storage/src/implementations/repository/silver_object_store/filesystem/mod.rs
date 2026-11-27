@@ -120,7 +120,8 @@ impl FilesystemSilverObjectStore {
         {
             Ok(file) => file,
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
-                // A directory at the path also fails with `AlreadyExists`, but it is no object.
+                // A directory or a symlink at the path also fails with `AlreadyExists`, but neither is
+                // an object.
                 return match fs::symlink_metadata(&path).await {
                     Ok(metadata) if metadata.is_file() => Ok(false),
                     _ => Err(io_error(FilesystemOperation::CreateFile)(error)),
@@ -368,13 +369,14 @@ mod tests {
 
     const fn implements_read_write_and_list<T: ReadWriteRepository + ReadListRepository>() {}
     #[test]
-    const fn should_implement_read_write_and_read_list_repository_for_silver_object_store() {
+    const fn should_implement_read_write_and_read_list_repository_for_filesystem_silver_object_store()
+     {
         implements_read_write_and_list::<FilesystemSilverObjectStore>();
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_silver_object_store() {
+    const fn should_implement_auto_traits_for_filesystem_silver_object_store() {
         implements_auto_traits::<FilesystemSilverObjectStore>();
     }
 

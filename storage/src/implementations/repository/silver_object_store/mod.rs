@@ -19,7 +19,7 @@ pub use filesystem::FilesystemSilverObjectStore;
 /// One silver object: its key and its bytes.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SilverObject {
-    /// The path of the object under the root.
+    /// The key of the object in the store.
     pub key: DocumentKey,
     /// The bytes of the object.
     pub bytes: Bytes,
@@ -28,7 +28,7 @@ pub struct SilverObject {
 /// One object that a listing found: its key and its size.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ListedObject {
-    /// The path of the object under the root.
+    /// The key of the object in the store.
     pub key: DocumentKey,
     /// The number of bytes the object holds.
     pub size_in_bytes: u64,
