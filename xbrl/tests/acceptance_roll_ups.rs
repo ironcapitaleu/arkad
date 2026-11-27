@@ -12,7 +12,7 @@
 //!
 //! - The filing reports the cash flow totals of continuing operations only, such as
 //!   `NetCashProvidedByUsedInOperatingActivitiesContinuingOperations`.
-//! - The filing reports a concept of the years before 2018, such as `SalesRevenueGoodsNet` or
+//! - The filing reports a concept of the years before 2018, such as
 //!   `CashAndCashEquivalentsPeriodIncreaseDecrease`.
 //! - The filer is a bank, a utility, or an energy company, and reports its own revenue lines.
 //! - The filing reports revenue with an extension concept of the filer.
@@ -384,7 +384,7 @@ roll_up_tests! {
         "Liabilities: Derived core/roll-up/liabilities-and-equity@1 56615000000.0000",
         "Equity: Exact us-gaap/alias/equity@1 33440000000.0000",
         "LiabilitiesAndEquity: Exact us-gaap/alias/liabilities-and-equity@1 90055000000.0000",
-        "Revenue: open",
+        "Revenue: Synonym us-gaap/part/revenue@1 46854000000.0000",
         "NetIncome: Exact us-gaap/alias/net-income@1 8626000000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 8584000000.0000",
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 10542000000.0000",
@@ -462,7 +462,7 @@ roll_up_tests! {
         "Liabilities: Derived core/roll-up/liabilities-and-equity@1 371610000.0000",
         "Equity: Exact us-gaap/alias/equity@1 888119000.0000",
         "LiabilitiesAndEquity: Exact us-gaap/alias/liabilities-and-equity@1 1259729000.0000",
-        "Revenue: open",
+        "Revenue: Synonym us-gaap/part/revenue@1 1556618000.0000",
         "NetIncome: Exact us-gaap/alias/net-income@1 145689000.0000",
         "NetIncomeAttributableToParent: Derived core/roll-up/net-income-attribution@1 145689000.0000",
         "OperatingCashFlow: open",
@@ -644,7 +644,7 @@ roll_up_tests! {
         "Liabilities: Exact us-gaap/alias/liabilities@1 14562000000.0000",
         "Equity: Exact us-gaap/alias/equity@1 7128500000.0000",
         "LiabilitiesAndEquity: Derived core/roll-up/liabilities-and-equity@1 22658000000.0000",
-        "Revenue: open",
+        "Revenue: Synonym us-gaap/part/revenue@1 17774100000.0000",
         "NetIncome: Derived core/roll-up/net-income-attribution@1 1863200000.0000",
         "NetIncomeAttributableToParent: Exact us-gaap/alias/net-income-attributable-to-parent@1 1855200000.0000",
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 2926000000.0000",
