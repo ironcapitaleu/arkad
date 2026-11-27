@@ -79,12 +79,11 @@ mod tests {
 
     #[test]
     fn should_return_the_text_when_the_job_kind_is_valid() {
-        let value = "transform-notes";
+        let job_kind = JobKind::new("transform-notes")
+            .expect("Given lower-case letters and '-', the creation of a job kind should succeed");
 
         let expected_result = "transform-notes";
 
-        let job_kind = JobKind::new(value)
-            .expect("Given lower-case letters and '-', the creation of a job kind should succeed");
         let result = job_kind.as_str();
 
         assert_eq!(result, expected_result);
