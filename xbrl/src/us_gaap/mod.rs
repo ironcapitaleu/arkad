@@ -3131,6 +3131,58 @@ mod tests {
     }
 
     #[test]
+    fn should_give_no_investing_cash_flow_when_the_discontinued_operations_flow_is_not_zero() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInInvestingActivitiesContinuingOperations",
+                "-46000000",
+            ),
+            fact(
+                &filing,
+                "CashProvidedByUsedInInvestingActivitiesDiscontinuedOperations",
+                "-1000000",
+            ),
+        ];
+
+        let expected_result = vec![];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_financing_cash_flow_when_the_discontinued_operations_flow_is_not_zero() {
+        let us_gaap = UsGaap::new();
+        let registry = Registry::new(vec![&us_gaap])
+            .expect("Given one plug-in with distinct families, the registry should always start");
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInFinancingActivitiesContinuingOperations",
+                "-61000000",
+            ),
+            fact(
+                &filing,
+                "CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations",
+                "2000000",
+            ),
+        ];
+
+        let expected_result = vec![];
+
+        let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_net_income_attributable_to_parent_and_the_net_income_part_when_registry_with_us_gaap_resolves_net_income_loss()
      {
         let us_gaap = UsGaap::new();
