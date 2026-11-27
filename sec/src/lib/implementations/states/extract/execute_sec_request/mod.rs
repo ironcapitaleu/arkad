@@ -551,7 +551,7 @@ mod tests {
         let input = ExecuteSecRequestInput::new(client, request);
         let context = ExecuteSecRequestContext::new(create_test_cik());
 
-        let expected_result = &context.clone();
+        let expected_result = &ExecuteSecRequestContext::new(create_test_cik());
 
         let state = ExecuteSecRequest::new(input, context);
         let result = state.context_data();

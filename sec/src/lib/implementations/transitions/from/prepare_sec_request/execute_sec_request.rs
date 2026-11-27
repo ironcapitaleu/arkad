@@ -88,10 +88,6 @@ mod tests {
         let client = SecClient::default();
         let cik = Cik::new("0001234567")
             .expect("Hardcoded valid CIK string should always parse successfully");
-        let request = SecRequest::builder()
-            .all_company_facts()
-            .cik(cik.clone())
-            .build();
         let mut state = PrepareCompanyFactsRequest::new(
             PrepareSecRequestInput::new(cik.clone()),
             PrepareSecRequestContext::new(cik),
@@ -101,7 +97,16 @@ mod tests {
             .await
             .expect("Valid state should always compute output data");
 
-        let expected_result = ExecuteSecRequestInput::new(client.clone(), request);
+        let expected_result = ExecuteSecRequestInput::new(
+            SecClient::default(),
+            SecRequest::builder()
+                .all_company_facts()
+                .cik(
+                    Cik::new("0001234567")
+                        .expect("Hardcoded valid CIK string should always parse successfully"),
+                )
+                .build(),
+        );
 
         let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")

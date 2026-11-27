@@ -99,7 +99,13 @@ mod tests {
         let invalid_notes_period =
             InvalidNotesPeriod::from_domain_error("TestState", sample_notes_period_error());
 
-        let expected_result = StateError::InvalidNotesPeriod(invalid_notes_period.clone());
+        let expected_result = StateError::InvalidNotesPeriod(InvalidNotesPeriod {
+            state_name: "TestState".to_owned(),
+            notes_period_error: NotesPeriodError {
+                reason: InvalidNotesPeriodReason::InvalidNotesPeriodFormat,
+                invalid_period: "2024".to_owned(),
+            },
+        });
 
         let result: StateError = invalid_notes_period.into();
 

@@ -169,7 +169,10 @@ mod tests {
             MissingFields::new(vec!["Revenue".to_string()]),
         );
 
-        let expected_result = StateError::IncompleteCompanyFacts(error.clone());
+        let expected_result = StateError::IncompleteCompanyFacts(IncompleteCompanyFacts {
+            state_name: "TestState".to_owned(),
+            missing_fields: MissingFields(vec!["Revenue".to_owned()]),
+        });
 
         let result: StateError = error.into();
 

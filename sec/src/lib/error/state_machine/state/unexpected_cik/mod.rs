@@ -70,7 +70,11 @@ mod tests {
     fn should_convert_to_state_error_when_from_is_called() {
         let error = UnexpectedCik::new(STATE_NAME, berkshire_cik(), "0000320193");
 
-        let expected_result = StateError::UnexpectedCik(error.clone());
+        let expected_result = StateError::UnexpectedCik(UnexpectedCik {
+            state_name: "Parse Company Facts".to_owned(),
+            expected: berkshire_cik(),
+            found: "0000320193".to_owned(),
+        });
 
         let result = StateError::from(error);
 

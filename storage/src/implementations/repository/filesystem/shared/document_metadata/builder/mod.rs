@@ -699,7 +699,7 @@ mod tests {
         let digest_of_other_bytes = Sha256Digest::of(b"[]");
         let (execution_id, producer) = sample_run();
 
-        let expected_result = (2, digest_of_other_bytes.clone());
+        let expected_result = (2, Sha256Digest::of(b"[]"));
 
         let metadata = DocumentMetadata::builder()
             .document_type::<SampleDocument>()

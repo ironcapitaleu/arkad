@@ -97,7 +97,13 @@ mod tests {
         let invalid_index_date =
             InvalidIndexDate::from_domain_error("TestState", sample_index_date_error());
 
-        let expected_result = StateError::InvalidIndexDate(invalid_index_date.clone());
+        let expected_result = StateError::InvalidIndexDate(InvalidIndexDate {
+            state_name: "TestState".to_owned(),
+            index_date_error: IndexDateError {
+                reason: InvalidIndexDateReason::InvalidIndexDateFormat,
+                invalid_date: "2026-1-2".to_owned(),
+            },
+        });
 
         let result: StateError = invalid_index_date.into();
 

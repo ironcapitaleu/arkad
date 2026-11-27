@@ -37,7 +37,7 @@ mod tests {
         let method = Method::GET;
         let url = Url::parse("https://example.com").expect("Hardcoded URL should always be valid");
 
-        let expected_result = Request::new(method.clone(), url.clone()).method().clone();
+        let expected_result = Method::GET;
 
         let result = <Request as InnerRequest>::new(method, url).method().clone();
 
@@ -49,7 +49,8 @@ mod tests {
         let method = Method::GET;
         let url = Url::parse("https://example.com").expect("Hardcoded URL should always be valid");
 
-        let expected_result = Request::new(method.clone(), url.clone()).url().clone();
+        let expected_result =
+            Url::parse("https://example.com").expect("Hardcoded URL should always be valid");
 
         let result = <Request as InnerRequest>::new(method, url).url().clone();
 
