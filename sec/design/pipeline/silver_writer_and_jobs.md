@@ -247,7 +247,8 @@ runs the rules of one entity in this order:
 3. `derive_from_closed_groups(&series, &fourth_quarters)` gives the roll-up values. Steps 2 and 3
    are step 4 of the dedup order.
 4. `added` is the fourth quarters, then the roll-up values.
-5. `check_roll_ups(&series, &added)` gives `RollUpMismatch` and `NegativeOther` findings.
+5. `check_roll_ups(&series, &added)` gives `RollUpMismatch`, `NegativeOther`, `MixedStarts`,
+   `MixedScopes`, and `RollForwardMismatch` findings.
 6. `check_all_sums(&series, &added)` gives `SumMismatch` findings.
 7. `check_required(&series, &added, candidates, filings, required)` gives `MissingRequired`
    findings. Steps 5, 6, and 7 take the same `added`.
