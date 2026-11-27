@@ -16,8 +16,8 @@ pub use invalid_job_kind::InvalidJobKind;
 /// The name of the jobs that write one silver unit key, such as `transform-notes`: lower-case
 /// ASCII letters, digits, and `-`.
 ///
-/// A [`LeaseStore`](crate::LeaseStore) holds one lease per job kind. A backend uses the job kind
-/// as a path component, so it holds no `/` and no `.`.
+/// A [`LeaseRepository`](crate::LeaseRepository) holds one lease per job kind. A backend uses the
+/// job kind as a path component, so it holds no `/` and no `.`.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct JobKind(String);
 

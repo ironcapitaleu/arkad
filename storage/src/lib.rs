@@ -9,8 +9,8 @@
 //! store holds, and [`ReadListRepository`] names a store that reads and lists with one key type. A component depends on the trait for the
 //! access it needs, so a write from a read-only caller does not compile.
 //!
-//! [`LeaseStore`] takes and reads the lease of a [`JobKind`], so one run of the job kind writes at a
-//! time.
+//! [`LeaseRepository`] takes and reads the lease of a [`JobKind`], so one run of the job kind
+//! writes at a time.
 //!
 //! [`EntityResolver`] returns the [`CompanyId`] of a [`CompanyIdentifier`] at a date.
 //! [`ListingResolver`] returns the [`ListingId`] of a [`ListingIdentifier`] at a date.
@@ -53,9 +53,9 @@ pub use shared::{
     InvalidMic, InvalidSha256Digest, JobKind, Lease, LeaseGeneration, ListingId, ListingIdentifier,
     ListingScheme, Mic, Sha256Digest,
 };
-pub use traits::lease::LeaseStore;
 pub use traits::repository::{
-    ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository, WriteRepository,
+    LeaseRepository, ListRepository, ReadListRepository, ReadRepository, ReadWriteRepository,
+    WriteRepository,
 };
 pub use traits::resolver::{EntityResolver, ListingResolver};
 

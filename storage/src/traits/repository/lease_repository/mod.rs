@@ -1,16 +1,16 @@
-//! # Lease Store
+//! # Lease Repository
 //!
-//! Provides [`LeaseStore`], the port through which one run of a job kind takes the lease that lets
-//! it write, and each task reads it.
+//! Provides [`LeaseRepository`], the port through which one run of a job kind takes the lease that
+//! lets it write, and each task reads it.
 //!
 //! ## Usage
 //!
 //! A task checks that its plan still holds the lease before its first write:
 //!
 //! ```rust
-//! use storage::{JobKind, LeaseError, LeaseStore};
+//! use storage::{JobKind, LeaseError, LeaseRepository};
 //!
-//! async fn holds_the_lease<S: LeaseStore>(
+//! async fn holds_the_lease<S: LeaseRepository>(
 //!     store: &S,
 //!     kind: &JobKind,
 //!     plan_id: &str,
@@ -28,10 +28,10 @@ use crate::shared::{JobKind, Lease, LeaseGeneration};
 
 /// Takes and reads the lease of a job kind, so one run of the job kind writes at a time.
 ///
-/// A store holds at most one lease per [`JobKind`]. A lease expires at its `expires_at`. Then
-/// another plan can take it. Each lease the store writes gets a new [`LeaseGeneration`].
+/// A repository holds at most one lease per [`JobKind`]. A lease expires at its `expires_at`. Then
+/// another plan can take it. Each lease the repository writes gets a new [`LeaseGeneration`].
 #[async_trait]
-pub trait LeaseStore: Send + Sync {
+pub trait LeaseRepository: Send + Sync {
     /// Takes the lease of the job kind for the plan, until `expires_at`.
     ///
     /// Writes the lease if the job kind has none, or if its lease expired at or before the time of
@@ -43,8 +43,8 @@ pub trait LeaseStore: Send + Sync {
     ///
     /// Returns:
     /// - [`LeaseError::LeaseHeld`] with the lease that holds the job kind, if it has not expired.
-    ///   The store changes nothing. This holds for the plan of the lease too.
-    /// - [`LeaseError::Backend`] if the store cannot read or write the lease.
+    ///   The repository changes nothing. This holds for the plan of the lease too.
+    /// - [`LeaseError::Backend`] if the repository cannot read or write the lease.
     async fn acquire(
         &self,
         kind: &JobKind,
@@ -58,7 +58,7 @@ pub trait LeaseStore: Send + Sync {
     ///
     /// # Errors
     ///
-    /// Returns [`LeaseError::Backend`] if the store cannot read the lease.
+    /// Returns [`LeaseError::Backend`] if the repository cannot read the lease.
     async fn current(&self, kind: &JobKind)
     -> Result<Option<(Lease, LeaseGeneration)>, LeaseError>;
 }
@@ -69,12 +69,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::tests::fixtures::fake_lease_store::FakeLeaseStore;
+    use crate::tests::fixtures::fake_lease_repository::FakeLeaseRepository;
 
-    const fn implements_lease_store<T: LeaseStore>() {}
+    const fn implements_lease_repository<T: LeaseRepository>() {}
     #[test]
-    const fn should_implement_lease_store_for_fake_lease_store() {
-        implements_lease_store::<FakeLeaseStore>();
+    const fn should_implement_lease_repository_for_fake_lease_repository() {
+        implements_lease_repository::<FakeLeaseRepository>();
     }
 
     fn transform_notes() -> JobKind {
@@ -84,7 +84,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_lease_held_from_the_fake_when_the_lease_has_not_expired() {
-        let store = FakeLeaseStore::default();
+        let store = FakeLeaseRepository::default();
         let kind = transform_notes();
         let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
         store
@@ -108,7 +108,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_the_next_generation_from_the_fake_when_the_lease_expired() {
-        let store = FakeLeaseStore::default();
+        let store = FakeLeaseRepository::default();
         let kind = transform_notes();
         store
             .acquire(&kind, "plan-a", DateTime::<Utc>::UNIX_EPOCH)
@@ -126,7 +126,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_return_the_lease_when_reading_through_a_trait_object() {
-        let store: Box<dyn LeaseStore> = Box::new(FakeLeaseStore::default());
+        let store: Box<dyn LeaseRepository> = Box::new(FakeLeaseRepository::default());
         let kind = transform_notes();
         let expires_at = DateTime::<Utc>::MAX_UTC - TimeDelta::days(1);
         store

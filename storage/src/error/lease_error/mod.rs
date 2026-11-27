@@ -1,7 +1,7 @@
 //! # Lease Error
 //!
-//! Provides [`LeaseError`], the error raised when a [`LeaseStore`](crate::LeaseStore) cannot take
-//! or read a lease.
+//! Provides [`LeaseError`], the error raised when a [`LeaseRepository`](crate::LeaseRepository)
+//! cannot take or read a lease.
 
 use thiserror::Error;
 

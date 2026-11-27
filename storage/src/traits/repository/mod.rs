@@ -8,9 +8,12 @@
 //! scope.
 //! [`ListRepository`] gives it [`list_keys`](ListRepository::list_keys) and
 //! [`list`](ListRepository::list), and no read by key.
+//! [`LeaseRepository`] gives it [`acquire`](LeaseRepository::acquire) and
+//! [`current`](LeaseRepository::current) for the lease of a job kind.
 //!
 //! ## Modules
 //!
+//! - [`lease_repository`]: [`LeaseRepository`] — takes and reads the lease of a job kind.
 //! - [`list_repository`]: [`ListRepository`] — lists the documents a store holds.
 //! - [`read_repository`]: [`ReadRepository`] — reads a record by key.
 //! - [`read_list_repository`]: [`ReadListRepository`] — names a store that reads and lists with
@@ -30,12 +33,14 @@
 //! }
 //! ```
 
+pub mod lease_repository;
 pub mod list_repository;
 pub mod read_list_repository;
 pub mod read_repository;
 pub mod read_write_repository;
 pub mod write_repository;
 
+pub use lease_repository::LeaseRepository;
 pub use list_repository::ListRepository;
 pub use read_list_repository::ReadListRepository;
 pub use read_repository::ReadRepository;

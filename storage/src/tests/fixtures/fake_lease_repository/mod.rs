@@ -1,6 +1,6 @@
-//! # Fake Lease Store
+//! # Fake Lease Repository
 //!
-//! Provides [`FakeLeaseStore`], an in-memory [`LeaseStore`] for tests.
+//! Provides [`FakeLeaseRepository`], an in-memory [`LeaseRepository`] for tests.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -10,19 +10,19 @@ use chrono::{DateTime, Utc};
 
 use crate::error::LeaseError;
 use crate::shared::{JobKind, Lease, LeaseGeneration};
-use crate::traits::lease::LeaseStore;
+use crate::traits::repository::LeaseRepository;
 
-/// An in-memory [`LeaseStore`] that keeps one lease and its generation per job kind.
+/// An in-memory [`LeaseRepository`] that keeps one lease and its generation per job kind.
 ///
 /// It follows the contract of the trait: it replaces a lease only after the lease expired, and
 /// gives each written lease the next generation, starting at 1.
 #[derive(Debug, Default)]
-pub struct FakeLeaseStore {
+pub struct FakeLeaseRepository {
     leases: Mutex<HashMap<JobKind, (Lease, LeaseGeneration)>>,
 }
 
 #[async_trait]
-impl LeaseStore for FakeLeaseStore {
+impl LeaseRepository for FakeLeaseRepository {
     async fn acquire(
         &self,
         kind: &JobKind,

@@ -1,26 +1,26 @@
-//! # Filesystem Lease Store
+//! # Filesystem Lease Repository
 //!
-//! Provides [`FilesystemLeaseStore`], which stores each lease of a job kind as a file under a root
-//! directory.
+//! Provides [`FilesystemLeaseRepository`], which stores each lease of a job kind as a file under a
+//! root directory.
 //!
 //! ## Usage
 //!
 //! ```rust
 //! use chrono::{TimeDelta, Utc};
-//! use storage::implementations::lease::filesystem::FilesystemLeaseStore;
-//! use storage::{JobKind, LeaseGeneration, LeaseStore};
+//! use storage::implementations::repository::lease::filesystem::FilesystemLeaseRepository;
+//! use storage::{JobKind, LeaseGeneration, LeaseRepository};
 //!
 //! # #[tokio::main(flavor = "current_thread")]
 //! # async fn main() {
 //! # let root = tempfile::TempDir::new().expect("Given a writable temp directory, it should build");
-//! let store = FilesystemLeaseStore::new(root.path());
+//! let repository = FilesystemLeaseRepository::new(root.path());
 //! let kind = JobKind::new("transform-notes")
 //!     .expect("Given a valid hardcoded job kind, the creation should always succeed");
 //! let expires_at = Utc::now() + TimeDelta::hours(16);
 //!
 //! let expected_result = LeaseGeneration(1);
 //!
-//! let result = store
+//! let result = repository
 //!     .acquire(&kind, "2026-11-21T180000.000Z", expires_at)
 //!     .await
 //!     .expect("Given a job kind without a lease, the acquire should always succeed");
@@ -43,7 +43,7 @@ use crate::implementations::repository::filesystem::{
     FailedFilesystemOperation, FailedFilesystemOperationReason, FilesystemOperation, check_root,
 };
 use crate::shared::{JobKind, Lease, LeaseGeneration};
-use crate::traits::lease::LeaseStore;
+use crate::traits::repository::LeaseRepository;
 
 /// The directory under the root that holds one directory of leases per job kind.
 pub const LEASES_DIRECTORY: &str = "leases";
@@ -55,19 +55,19 @@ static TEMPORARY_FILE_COUNTER: AtomicU64 = AtomicU64::new(0);
 ///
 /// The lease of generation `n` of a job kind lives at `leases/<kind>/<n>`. The current lease is the
 /// file with the highest generation. A new lease is a new file with the next generation, so the
-/// store keeps each older lease.
+/// repository keeps each older lease.
 ///
 /// A write first writes and syncs a hidden temporary file in the same directory. It then links
 /// the file to its generation. The link fails if the generation exists, so of two acquires at the
 /// same time only one writes the generation. The other reads the new lease again. A reader sees a
 /// whole lease or none.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FilesystemLeaseStore {
+pub struct FilesystemLeaseRepository {
     root: PathBuf,
 }
 
-impl FilesystemLeaseStore {
-    /// Creates a [`FilesystemLeaseStore`] under the root directory.
+impl FilesystemLeaseRepository {
+    /// Creates a [`FilesystemLeaseRepository`] under the root directory.
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
@@ -154,8 +154,8 @@ impl FilesystemLeaseStore {
 }
 
 #[async_trait]
-impl LeaseStore for FilesystemLeaseStore {
-    /// Takes the lease of the job kind, as the contract of [`LeaseStore::acquire`] says.
+impl LeaseRepository for FilesystemLeaseRepository {
+    /// Takes the lease of the job kind, as the contract of [`LeaseRepository::acquire`] says.
     ///
     /// # Errors
     ///
@@ -299,29 +299,29 @@ mod tests {
         Utc::now() + TimeDelta::hours(hours)
     }
 
-    async fn acquired(store: &FilesystemLeaseStore, plan_id: &str, expires_at: DateTime<Utc>) {
+    async fn acquired(store: &FilesystemLeaseRepository, plan_id: &str, expires_at: DateTime<Utc>) {
         store
             .acquire(&transform_notes(), plan_id, expires_at)
             .await
             .expect("Given a job kind without a live lease, the acquire should always succeed");
     }
 
-    const fn implements_lease_store<T: LeaseStore>() {}
+    const fn implements_lease_repository<T: LeaseRepository>() {}
     #[test]
-    const fn should_implement_lease_store_for_filesystem_lease_store() {
-        implements_lease_store::<FilesystemLeaseStore>();
+    const fn should_implement_lease_repository_for_filesystem_lease_repository() {
+        implements_lease_repository::<FilesystemLeaseRepository>();
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_filesystem_lease_store() {
-        implements_auto_traits::<FilesystemLeaseStore>();
+    const fn should_implement_auto_traits_for_filesystem_lease_repository() {
+        implements_auto_traits::<FilesystemLeaseRepository>();
     }
 
     #[tokio::test]
     async fn should_return_lease_held_when_the_lease_has_not_expired() {
         let root = temporary_root();
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let expires_at = in_hours(16);
         acquired(&store, "plan-a", expires_at).await;
         let kind = transform_notes();
@@ -344,7 +344,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_the_next_generation_when_the_lease_expired() {
         let root = temporary_root();
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         acquired(&store, "plan-a", in_hours(-1)).await;
         let kind = transform_notes();
         let plan_id = "plan-b";
@@ -360,7 +360,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_the_new_lease_when_an_acquire_replaced_an_expired_lease() {
         let root = temporary_root();
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let expires_at = in_hours(16);
         acquired(&store, "plan-a", in_hours(-1)).await;
         acquired(&store, "plan-b", expires_at).await;
@@ -382,7 +382,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_none_when_the_job_kind_has_no_lease() {
         let root = temporary_root();
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let kind = transform_notes();
 
         let expected_result = Ok(None);
@@ -395,7 +395,7 @@ mod tests {
     #[tokio::test]
     async fn should_let_one_acquire_win_when_two_run_at_the_same_time() {
         let root = temporary_root();
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let kind = transform_notes();
         let first_plan_id = "plan-a";
         let second_plan_id = "plan-b";
@@ -415,7 +415,7 @@ mod tests {
     #[tokio::test]
     async fn should_return_lease_held_to_the_loser_when_two_acquires_run_at_the_same_time() {
         let root = temporary_root();
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let kind = transform_notes();
         let first_plan_id = "plan-a";
         let second_plan_id = "plan-b";
@@ -462,7 +462,7 @@ mod tests {
             br#"{"plan_id":"plan-a","expires_at":"1970-01-01T00:00:00Z"}"#,
         )
         .expect("Given an existing directory, writing a file should always succeed");
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let kind = transform_notes();
         let plan_id = "plan-b";
         let expires_at = in_hours(16);
@@ -480,7 +480,7 @@ mod tests {
     async fn should_return_missing_root_when_the_root_does_not_exist() {
         let parent = temporary_root();
         let root = parent.path().join("missing");
-        let store = FilesystemLeaseStore::new(&root);
+        let store = FilesystemLeaseRepository::new(&root);
         let kind = transform_notes();
         let plan_id = "plan-a";
         let expires_at = in_hours(16);
@@ -502,7 +502,7 @@ mod tests {
             .expect("Given a writable temp directory, creating subdirectories should succeed");
         std::fs::write(directory.join("1"), b"{")
             .expect("Given an existing directory, writing a file should always succeed");
-        let store = FilesystemLeaseStore::new(root.path());
+        let store = FilesystemLeaseRepository::new(root.path());
         let kind = transform_notes();
 
         let expected_result = Err(LeaseError::Backend(BackendError::from(
