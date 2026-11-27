@@ -126,6 +126,7 @@ async fn should_list_one_entry_per_mapped_concept_for_concepts_request() {
             ("share_based_compensation", "Share-Based Compensation"),
             ("net_change_in_cash", "Net Change in Cash"),
             ("exchange_rate_effect", "Exchange Rate Effect"),
+            ("cash_and_restricted_cash", "Cash and Restricted Cash"),
             ("other_comprehensive_income", "Other Comprehensive Income"),
             ("comprehensive_income", "Comprehensive Income"),
         ]

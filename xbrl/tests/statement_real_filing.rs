@@ -257,16 +257,19 @@ fn should_add_up_the_income_statement_of_june_2026_for_the_fixture_filing() {
 }
 
 /// Builds the cash flow statement of the quarter to 2026-09-30 from the standardized `facts`, with
-/// net income as the start of `operating-cash-flow`.
+/// net income as the start of `operating-cash-flow` and the cash at 2026-09-30 as its last line.
 fn cash_flow_of_the_quarter_to_2026_09_30(
     facts: &[StandardizedFact],
 ) -> Result<Vec<(Line, Option<BigDecimal>)>, InvalidStatementFacts> {
-    let cash_flow_facts = facts_of(facts, date(2026, 9, 30), 1, |concept| {
+    let mut cash_flow_facts = facts_of(facts, date(2026, 9, 30), 1, |concept| {
         matches!(
             concept,
             CanonicalElementKind::Statement(StatementConcept::CashFlow(_))
         ) || concept == IncomeStatementConcept::NetIncome.element()
     });
+    cash_flow_facts.extend(facts_of(facts, date(2026, 9, 30), 0, |concept| {
+        concept == CashFlowConcept::CashAndRestrictedCash.element()
+    }));
     Statement::build(StatementKind::CashFlow, cash_flow_facts).map(|statement| lines(&statement))
 }
 
@@ -322,6 +325,10 @@ fn expected_cash_flow_of_the_quarter_to_2026_09_30() -> Vec<(Line, Option<BigDec
         (
             standard(CashFlowConcept::ExchangeRateEffect),
             Some(millions(-1)),
+        ),
+        (
+            standard(CashFlowConcept::CashAndRestrictedCash),
+            Some(millions(388)),
         ),
     ]
 }

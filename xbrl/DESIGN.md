@@ -788,7 +788,7 @@ instants and `CY2025` for durations, read on 2026-11-09. For comparison, 6,206 f
 | Concept | Alias list | Parts | Filers |
 | ------- | ---------- | ----- | ------ |
 | `LiabilitiesAndEquity` | `LiabilitiesAndStockholdersEquity` | | 6,090 |
-| `TemporaryEquity` | `TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests` | `TemporaryEquityCarryingAmountAttributableToParent` (448) and `RedeemableNoncontrollingInterestEquityCarryingAmount` (311). Each blocks the other | 130 |
+| `TemporaryEquity` | `TemporaryEquityCarryingAmountIncludingPortionAttributableToNoncontrollingInterests` | `TemporaryEquityCarryingAmountAttributableToParent` (448) and `RedeemableNoncontrollingInterestEquityCarryingAmount` (311). Each blocks the other. Then the three concepts below the second part, and last `RedeemableNoncontrollingInterestEquityOtherFairValue` (counts not measured). These four block nothing, so if two of them appear without the second part, the first counts alone | 130 |
 | `AccountsPayable` | `AccountsPayableCurrent` | | 3,615 |
 | `ShortTermDebt` | `DebtCurrent` | `LongTermDebtAndCapitalLeaseObligationsCurrent` (354) and `ShortTermBorrowings` (756). Each blocks the other | 365 |
 | `EquityAttributableToParent` | `StockholdersEquity` | | 5,810 |
@@ -867,7 +867,8 @@ The flag `required` marks the 11 roll-ups of the MVP Decision Spike that map to 
 concept: `Assets`, `Liabilities`, `Equity`, `LiabilitiesAndEquity`, `Revenue`, `NetIncome`,
 `NetIncomeAttributableToParent`, `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow`, and
 `NetChangeInCash`. `OperatingIncome` has no flag: it is no roll-up of the spike. The cash at the
-end of the period, `CashAndRestrictedCash`, has no flag, because the code does not map it yet. `UsGaap::required_concepts`
+end of the period, `CashAndRestrictedCash`, has no flag, because a period before ASU 2016-18 has no
+value for it. `UsGaap::required_concepts`
 returns the set, and the completeness check of "5) Validation" reads it
 ([ADR 0050](../docs/adr/0050-missing-required-finding.md)). The flag does not follow the arrays
 `REQUIRED_CONCEPTS` and `OPTIONAL_CONCEPTS`: the parse of the `sec` crate reads
@@ -2846,9 +2847,11 @@ pub struct StatementLine {
   no other line ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)). The statement
   marks no such group. The `MixedStarts` finding names it, and the fact of each line shows its
   start.
-- The kind fixes the period type: instant for the balance sheet, duration for the rest. `build`
-  takes the concepts of its statement, and the start of a step from another statement, such as
-  `NetIncome` in the cash flow statement. It rejects every other fact.
+- The kind fixes the period type: instant for the balance sheet, duration for the rest. The cash
+  flow statement also takes `CashAndRestrictedCash` as an instant at its period end. The facts of
+  the period type of the kind fix the length in quarters, and `build` needs at least one of them.
+  `build` takes the concepts of its statement, and the start of a step from another statement,
+  such as `NetIncome` in the cash flow statement. It rejects every other fact.
 - The layout, the other lines, and the checks all come from the table. A new concept adds a row to
   the table and a variant to the concept enum of its statement.
 - The fields are private, so a `Statement` cannot change its kind after a check. Getters give

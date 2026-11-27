@@ -342,6 +342,8 @@ pub const SHARE_BASED_COMPENSATION_RULE: &str = "us-gaap/alias/share-based-compe
 pub const NET_CHANGE_IN_CASH_RULE: &str = "us-gaap/alias/net-change-in-cash@1";
 /// The ID of the alias rule of [`CashFlowConcept::ExchangeRateEffect`].
 pub const EXCHANGE_RATE_EFFECT_RULE: &str = "us-gaap/alias/exchange-rate-effect@1";
+/// The ID of the alias rule of [`CashFlowConcept::CashAndRestrictedCash`].
+pub const CASH_AND_RESTRICTED_CASH_RULE: &str = "us-gaap/alias/cash-and-restricted-cash@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
 pub const OTHER_COMPREHENSIVE_INCOME_RULE: &str = "us-gaap/alias/other-comprehensive-income@1";
 /// The ID of the alias rule of [`IncomeStatementConcept::ComprehensiveIncome`].
@@ -732,6 +734,18 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         EXCHANGE_RATE_EFFECT_RULE,
         false,
     ),
+    ConceptDefinition::new(
+        CashFlowConcept::CashAndRestrictedCash.element(),
+        // `CashAndCashEquivalentsAtCarryingValue` is not in the list, because it leaves out
+        // restricted cash. It is the alias of `CashAndEquivalents`.
+        // `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents` is a part, next to the
+        // cash of disposal groups. `PART_CONCEPTS` holds it.
+        &[
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+        ],
+        CASH_AND_RESTRICTED_CASH_RULE,
+        false,
+    ),
     // Comprehensive income. Many filers present no other comprehensive income, so these lists
     // are optional.
     ConceptDefinition::new(
@@ -795,6 +809,8 @@ pub const SHARE_REPURCHASES_PART_RULE: &str = "us-gaap/part/share-repurchases@1"
 pub const NET_CHANGE_IN_CASH_PART_RULE: &str = "us-gaap/part/net-change-in-cash@1";
 /// The ID of the part rule of [`CashFlowConcept::ExchangeRateEffect`].
 pub const EXCHANGE_RATE_EFFECT_PART_RULE: &str = "us-gaap/part/exchange-rate-effect@1";
+/// The ID of the part rule of [`CashFlowConcept::CashAndRestrictedCash`].
+pub const CASH_AND_RESTRICTED_CASH_PART_RULE: &str = "us-gaap/part/cash-and-restricted-cash@1";
 /// The ID of the part rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
 pub const OTHER_COMPREHENSIVE_INCOME_PART_RULE: &str = "us-gaap/part/other-comprehensive-income@1";
 /// The ID of the part rule of [`IncomeStatementConcept::ComprehensiveIncome`].
@@ -817,7 +833,15 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &[
             "RevenueFromContractWithCustomerExcludingAssessedTax",
             "RevenueFromContractWithCustomerIncludingAssessedTax",
+            "SalesRevenueGoodsNet",
+            "SalesRevenueServicesNet",
         ],
+        // The 2026 release does not hold `SalesRevenueGoodsNet` and `SalesRevenueServicesNet`.
+        // Each is an other part of the other. The other parts are one list, so each also blocks
+        // the contract revenue parts. Known gaps: goods next to a third line, such as
+        // `OtherSalesRevenueNet`, resolves to the goods line with no finding. Goods or services
+        // next to contract revenue resolves to that line with no finding.
+        //
         // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
         // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
         // `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`, and
@@ -840,6 +864,8 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "RevenueNotFromContractWithCustomerExcludingInterestIncome",
             "RevenuesExcludingInterestAndDividends",
             "SaleOfTrustAssetsToPayExpenses",
+            "SalesRevenueGoodsNet",
+            "SalesRevenueServicesNet",
             "SalesTypeLeaseInterestIncome",
             "SalesTypeLeaseRevenue",
             "SalesTypeLeaseVariableLeaseIncome",
@@ -871,11 +897,21 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &[
             "TemporaryEquityCarryingAmountAttributableToParent",
             "RedeemableNoncontrollingInterestEquityCarryingAmount",
+            // Below the second part in the 2026 tree. If two of them appear without the second
+            // part, the first counts alone.
+            "RedeemableNoncontrollingInterestEquityCommonCarryingAmount",
+            "RedeemableNoncontrollingInterestEquityOtherCarryingAmount",
+            "RedeemableNoncontrollingInterestEquityPreferredCarryingAmount",
+            // No calculation arc places this fair value below temporary equity. It stands for the
+            // carrying amount, which equals the fair value if the interest is redeemable at fair
+            // value and the redemption value is above the ASC 810 amount. It comes last, so each
+            // carrying amount wins.
+            "RedeemableNoncontrollingInterestEquityOtherFairValue",
         ],
-        // The two parts are each an other part of the other. The concepts below
-        // `RedeemableNoncontrollingInterestEquityCarryingAmount` are left out, because filers
-        // report them next to it, and they would stop it. The six `TemporaryEquityMaturity`
-        // siblings are left out, because they split the same total by maturity.
+        // The first two parts are each an other part of the other. The parts after them block
+        // nothing, because filers report them next to the first two, and they would block them.
+        // The six `TemporaryEquityMaturity` siblings are left out, because they split the same
+        // total by maturity.
         &[
             "TemporaryEquityCarryingAmountAttributableToParent",
             "RedeemableNoncontrollingInterestEquityCarryingAmount",
@@ -1118,6 +1154,15 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         &[],
         EXCHANGE_RATE_EFFECT_PART_RULE,
+    ),
+    PartDefinition::new(
+        CashFlowConcept::CashAndRestrictedCash.element(),
+        &["CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
+        &[
+            "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+        ],
+        &[],
+        CASH_AND_RESTRICTED_CASH_PART_RULE,
     ),
     PartDefinition::new(
         IncomeStatementConcept::OtherComprehensiveIncome.element(),
