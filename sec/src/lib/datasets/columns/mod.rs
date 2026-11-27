@@ -6,15 +6,21 @@
 use std::sync::Arc;
 
 use arrow::array::{
-    Array, ArrayAccessor, ArrayRef, ListArray, RecordBatch, StringArray, StructArray,
-    TimestampMillisecondArray,
+    Array, ArrayAccessor, ArrayRef, BooleanArray, Decimal128Array, Int32Array, ListArray,
+    RecordBatch, StringArray, StructArray, TimestampMillisecondArray,
 };
 use arrow::buffer::OffsetBuffer;
 use arrow::datatypes::{DataType, Field, FieldRef, Fields, Schema, TimeUnit};
 use arrow::error::ArrowError;
+use bigdecimal::BigDecimal;
+use bigdecimal::num_bigint::BigInt;
 use jiff::civil::{Date, date};
 use jiff::{Span, Timestamp};
+use xbrl::core::fact::{Decimals, Dimensions};
+use xbrl::core::invalid_value::InvalidValue;
+use xbrl::core::period::{Duration, Period};
 
+use crate::datasets::constants::{DECIMAL_LIMIT, DECIMAL_PRECISION, DECIMAL_SCALE};
 use crate::datasets::{ArrowRow, ArrowRowError, UTC_TIME_ZONE, schema_text};
 use crate::shared::row_digest::ByteForm;
 
@@ -37,6 +43,187 @@ pub fn list_item(schema: &Schema, column: &str) -> FieldRef {
         Ok(DataType::List(item)) => Arc::clone(item),
         _ => unreachable!("Given a column that the schema of its dataset holds as a list"),
     }
+}
+
+/// Returns the item field of a `dimensions` column: a struct of `axis` and `member`.
+pub fn dimensions_item() -> FieldRef {
+    let text = |name| Field::new(name, DataType::Utf8, false);
+    let pair = Fields::from(vec![text("axis"), text("member")]);
+    Arc::new(Field::new_list_field(DataType::Struct(pair), false))
+}
+
+/// Returns a `dimensions` array whose row `n` holds the pairs of the `n`-th value.
+pub fn dimensions_array<'d>(values: impl Iterator<Item = &'d Dimensions> + Clone) -> ArrayRef {
+    let item = dimensions_item();
+    let lengths = values.clone().map(|value| value.iter().count()).collect();
+    let (axes, members): (Vec<&str>, Vec<&str>) = values.flat_map(Dimensions::iter).unzip();
+    let pairs = string_struct_array(
+        &item,
+        vec![StringArray::from(axes), StringArray::from(members)],
+    );
+    list_array(item, lengths, pairs)
+}
+
+/// Reads the axis and member pairs of row `row` of a `dimensions` column.
+pub fn dimensions_at(array: &ListArray, row: usize) -> Result<Dimensions, InvalidValue> {
+    let pairs = string_struct_list(array, row).into_iter().map(|pair| {
+        let mut fields = pair.into_iter();
+        // Both fields are not null in the schema, so the defaults never apply.
+        (
+            fields.next().flatten().unwrap_or_default(),
+            fields.next().flatten().unwrap_or_default(),
+        )
+    });
+    Dimensions::new(pairs)
+}
+
+/// Appends the axis and member pairs as a list of structs.
+pub fn write_dimensions(byte_form: &mut ByteForm, dimensions: &Dimensions) {
+    byte_form.list(dimensions.iter().count());
+    for (axis, member) in dimensions.iter() {
+        byte_form.struct_(2).utf8(axis).utf8(member);
+    }
+}
+
+/// Reads the period of a row from its `period_end`, `period_start`, and `quarters` values.
+///
+/// Fails if a day count lies past the dates of `jiff`, if the start lies after the end, or if
+/// `quarters` differs from the quarters of the dates.
+pub fn period_from_columns(
+    dataset: &'static str,
+    row: usize,
+    end_days: i32,
+    start_days: Option<i32>,
+    quarters: u16,
+) -> Result<Period, ArrowRowError> {
+    let date = |column, days| {
+        date_from_days(days).map_err(|reason| unexpected_value(dataset, column, row, reason))
+    };
+    let end = date("period_end", end_days)?;
+    let period = match start_days {
+        None => Period::Instant { end },
+        Some(days) => Period::Duration(
+            Duration::from_dates(date("period_start", days)?, end).map_err(|source| {
+                ArrowRowError::InvalidColumnValue {
+                    dataset,
+                    column: "period_start",
+                    row,
+                    source,
+                }
+            })?,
+        ),
+    };
+    if period.quarters() != quarters {
+        return Err(unexpected_value(
+            dataset,
+            "quarters",
+            row,
+            format!("the dates give '{}' quarters", period.quarters()),
+        ));
+    }
+    Ok(period)
+}
+
+/// Returns a `decimal128(38, 10)` array of the numbers.
+///
+/// # Errors
+///
+/// Returns [`ArrowRowError::UnexpectedColumnValue`] if a number has no form in the column.
+pub fn decimal128_array<'n>(
+    dataset: &'static str,
+    column: &'static str,
+    values: impl Iterator<Item = Option<&'n BigDecimal>>,
+) -> Result<ArrayRef, ArrowRowError> {
+    let digits = values
+        .enumerate()
+        .map(|(row, value)| {
+            value
+                .map(decimal128)
+                .transpose()
+                .map_err(|reason| unexpected_value(dataset, column, row, reason))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let array = Decimal128Array::from(digits)
+        .with_precision_and_scale(DECIMAL_PRECISION, DECIMAL_SCALE)
+        .map_err(|error| failed_batch(dataset, &error))?;
+    Ok(Arc::new(array))
+}
+
+/// Returns the number that the unscaled digits of a `decimal128(38, 10)` value stand for.
+///
+/// The number has no trailing zeros after the point: `-6.1100000000` reads as `-6.11`, and
+/// `100.0000000000` as `100`. So a filed `6.10` reads back as `6.1`, an equal number.
+pub fn number_from_decimal128(digits: i128) -> BigDecimal {
+    let number = BigDecimal::new(BigInt::from(digits), DECIMAL_SCALE.into()).normalized();
+    if number.fractional_digit_count() < 0 {
+        number.with_scale(0)
+    } else {
+        number
+    }
+}
+
+/// Returns the unscaled digits of a number in `decimal128(38, 10)`.
+///
+/// Fails if the number has more than 10 digits after the point, or more than 28 before it.
+fn decimal128(number: &BigDecimal) -> Result<i128, String> {
+    let scaled = number.with_scale(DECIMAL_SCALE.into());
+    if &scaled != number {
+        return Err(format!(
+            "'{number}' has more than {DECIMAL_SCALE} digits after the point"
+        ));
+    }
+    let (digits, _) = scaled.into_bigint_and_exponent();
+    i128::try_from(digits)
+        .ok()
+        .filter(|digits| digits.unsigned_abs() < DECIMAL_LIMIT)
+        .ok_or_else(|| format!("'{number}' has more than {DECIMAL_PRECISION} digits"))
+}
+
+/// Returns the `decimals` and `decimals_infinite` arrays of the precisions.
+///
+/// `decimals` holds the places of a finite precision, and is null otherwise. `decimals_infinite`
+/// is true for an infinite precision.
+pub fn decimals_arrays(values: impl Iterator<Item = Option<Decimals>> + Clone) -> [ArrayRef; 2] {
+    let places = values.clone().map(|value| match value {
+        Some(Decimals::Finite(places)) => Some(places),
+        Some(Decimals::Infinite) | None => None,
+    });
+    let infinite = values.map(|value| Some(value == Some(Decimals::Infinite)));
+    [
+        Arc::new(Int32Array::from_iter(places)),
+        Arc::new(BooleanArray::from_iter(infinite)),
+    ]
+}
+
+/// Reads the precision of a row from its `decimals` and `decimals_infinite` values.
+///
+/// Fails if the row has finite places and `decimals_infinite` true.
+pub fn decimals_from_columns(
+    dataset: &'static str,
+    row: usize,
+    places: Option<i32>,
+    infinite: bool,
+) -> Result<Option<Decimals>, ArrowRowError> {
+    match (places, infinite) {
+        (Some(places), false) => Ok(Some(Decimals::Finite(places))),
+        (None, true) => Ok(Some(Decimals::Infinite)),
+        (None, false) => Ok(None),
+        (Some(_), true) => Err(unexpected_value(
+            dataset,
+            "decimals",
+            row,
+            "a finite value with 'decimals_infinite' true".to_owned(),
+        )),
+    }
+}
+
+/// Appends the `decimals` and `decimals_infinite` values of a precision.
+pub fn write_decimals(byte_form: &mut ByteForm, decimals: Option<Decimals>) {
+    match decimals {
+        Some(Decimals::Finite(places)) => byte_form.integer(places).bool(false),
+        Some(Decimals::Infinite) => byte_form.null().bool(true),
+        None => byte_form.null().bool(false),
+    };
 }
 
 /// Returns the days from 1970-01-01 to the date, the value of a `date32` column.
@@ -153,6 +340,33 @@ impl<'a> BatchColumns<'a> {
                 dataset: self.dataset,
                 version: self.version,
                 reason: format!("column '{column}' holds another array type"),
+            })
+    }
+
+    /// Returns the array of a field of the struct items of a list column.
+    ///
+    /// The array holds the items of every row. The offsets of the list column give the items of
+    /// one row.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ArrowRowError::UnexpectedSchema`] if the column or its field holds another array
+    /// type.
+    pub fn item_field<A: Array + 'static>(
+        &self,
+        column: &str,
+        field: &str,
+    ) -> Result<&'a A, ArrowRowError> {
+        let list = self.get::<ListArray>(column)?;
+        list.values()
+            .as_any()
+            .downcast_ref::<StructArray>()
+            .and_then(|items| items.column_by_name(field))
+            .and_then(|array| array.as_any().downcast_ref::<A>())
+            .ok_or_else(|| ArrowRowError::UnexpectedSchema {
+                dataset: self.dataset,
+                version: self.version,
+                reason: format!("field '{field}' of column '{column}' holds another array type"),
             })
     }
 

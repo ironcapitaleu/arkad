@@ -279,9 +279,10 @@ pub struct FilingRows {
   ([ADR 0043](../../../docs/adr/0043-standardize-filing-once-per-source.md)). An instance unit and
   a Notes unit of one filing each write their own `candidates` rows. "Current Facts" of the
   contract picks one unit per filing at read time.
-- `BuildFilingRows` adds the ingestion provenance and the run columns to each row, and computes
-  `entity_bucket` as "Entity Buckets" of the job design gives it. The provenance joins each row
-  here, not in the parser, because `xbrl` knows no raw document.
+- `BuildFilingRows` adds the run columns to each row, and the ingestion provenance to each row of
+  `as_is_facts` and `filings`. It computes `entity_bucket` as "Entity Buckets" of the job design
+  gives it. The provenance joins each row here, not in the parser, because `xbrl` knows no raw
+  document.
 - The `Conflict` findings and the parser findings `UnmappedRow` and `UndeclaredFamily` go to
   `findings` with `step = filing`
   ([ADR 0041](../../../docs/adr/0041-parser-findings-in-silver.md)). `dropped_rows` counts the

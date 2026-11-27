@@ -1,23 +1,19 @@
 //! # Provenance
 //!
-//! Provides [`Provenance`], the ingestion provenance and the run columns that every row of
+//! Provides [`Provenance`], the ingestion provenance and the [`RunColumns`] that every row of
 //! `as_is_facts` and `filings` carries, and [`SourceKind`], the kind of its raw document.
 
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use arrow::array::{ArrayRef, StringArray, TimestampMillisecondArray};
+use arrow::array::{ArrayRef, StringArray};
 use arrow::datatypes::{DataType, Field};
-use jiff::Timestamp;
 use storage::implementations::repository::filesystem::IngestionMode;
 use storage::shared::Sha256Digest;
-use uuid::Uuid;
 
-use crate::datasets::ArrowRowError;
-use crate::datasets::columns::{
-    BatchColumns, timestamp_array, timestamp_from_milliseconds, timestamp_type, unexpected_value,
-};
+use crate::datasets::columns::{BatchColumns, unexpected_value};
+use crate::datasets::{ArrowRowError, RunColumns};
 use crate::shared::row_digest::ByteForm;
 
 /// The kind of the raw document that a silver row comes from.
@@ -59,40 +55,27 @@ pub struct Provenance {
     pub source_sha256: Sha256Digest,
     /// The ingestion mode of the raw document, from its metadata.
     pub ingestion_mode: IngestionMode,
-    /// The version of the silver output, as in
-    /// [`TRANSFORM_VERSION`](crate::shared::transform_version::TRANSFORM_VERSION).
-    pub transform_version: u32,
-    /// The run that wrote the row.
-    pub execution_id: Uuid,
-    /// The time of the write. The part below one millisecond does not reach the batch.
-    pub loaded_at: Timestamp,
+    /// The version of the silver output and the run that wrote the row.
+    pub run: RunColumns,
 }
 
 impl Provenance {
-    /// The names of the columns, in the order of the schema.
-    const COLUMNS: [&'static str; 7] = [
+    /// The names of the source columns, in the order of the schema. The run columns follow them.
+    const COLUMNS: [&'static str; 4] = [
         "source_kind",
         "source_key",
         "source_sha256",
         "ingestion_mode",
-        "transform_version",
-        "execution_id",
-        "loaded_at",
     ];
 
     /// Returns the fields of the columns, in the order of the schema.
     pub(crate) fn fields() -> Vec<Field> {
-        Self::COLUMNS
+        let mut fields: Vec<Field> = Self::COLUMNS
             .iter()
-            .map(|name| {
-                let data_type = if *name == "loaded_at" {
-                    timestamp_type()
-                } else {
-                    DataType::Utf8
-                };
-                Field::new(*name, data_type, false)
-            })
-            .collect()
+            .map(|name| Field::new(*name, DataType::Utf8, false))
+            .collect();
+        fields.extend(RunColumns::fields());
+        fields
     }
 
     /// Returns the arrays of the columns, in the order of the schema.
@@ -102,15 +85,15 @@ impl Provenance {
                 rows.iter().map(|row| value(row)),
             ))
         };
-        vec![
+        let runs: Vec<RunColumns> = rows.iter().map(|row| row.run).collect();
+        let mut arrays = vec![
             text(|row| row.source_kind.to_string()),
             text(|row| row.source_key.clone()),
             text(|row| row.source_sha256.to_string()),
             text(|row| row.ingestion_mode.to_string()),
-            text(|row| row.transform_version.to_string()),
-            text(|row| row.execution_id.to_string()),
-            timestamp_array(rows.iter().map(|row| Some(row.loaded_at))),
-        ]
+        ];
+        arrays.extend(RunColumns::arrays(&runs));
+        arrays
     }
 
     /// Reads the columns of every row of the batch.
@@ -119,16 +102,15 @@ impl Provenance {
     ///
     /// Returns [`ArrowRowError::UnexpectedColumnValue`] if a value does not parse.
     pub(crate) fn read(columns: &BatchColumns<'_>) -> Result<Vec<Self>, ArrowRowError> {
-        let [kind, key, sha256, mode, version, execution, loaded] = Self::COLUMNS;
+        let [kind, key, sha256, mode] = Self::COLUMNS;
         let kinds = columns.get::<StringArray>(kind)?;
         let keys = columns.get::<StringArray>(key)?;
         let digests = columns.get::<StringArray>(sha256)?;
         let modes = columns.get::<StringArray>(mode)?;
-        let versions = columns.get::<StringArray>(version)?;
-        let executions = columns.get::<StringArray>(execution)?;
-        let loaded_ats = columns.get::<TimestampMillisecondArray>(loaded)?;
-        (0..columns.row_count())
-            .map(|row| {
+        let runs = RunColumns::read(columns)?;
+        runs.into_iter()
+            .enumerate()
+            .map(|(row, run)| {
                 let fail = |column, reason: String| {
                     unexpected_value(columns.dataset(), column, row, reason)
                 };
@@ -144,14 +126,7 @@ impl Provenance {
                         .into_iter()
                         .find(|candidate| candidate.to_string() == modes.value(row))
                         .ok_or_else(|| fail(mode, "not 'backfill' or 'incremental'".to_owned()))?,
-                    transform_version: versions
-                        .value(row)
-                        .parse()
-                        .map_err(|_| fail(version, "not a base-10 number".to_owned()))?,
-                    execution_id: Uuid::parse_str(executions.value(row))
-                        .map_err(|error| fail(execution, error.to_string()))?,
-                    loaded_at: timestamp_from_milliseconds(loaded_ats.value(row))
-                        .map_err(|reason| fail(loaded, reason))?,
+                    run,
                 })
             })
             .collect()
@@ -165,8 +140,8 @@ impl Provenance {
             .utf8(self.source_kind.as_str())
             .utf8(&self.source_key)
             .utf8(self.source_sha256.as_str())
-            .utf8(&self.ingestion_mode.to_string())
-            .utf8(&self.transform_version.to_string());
+            .utf8(&self.ingestion_mode.to_string());
+        self.run.write_digest(byte_form);
     }
 }
 
@@ -178,11 +153,7 @@ pub(crate) fn sample_provenance() -> Provenance {
         source_key: "sec/instances/0000320193-26-000001.xml".to_owned(),
         source_sha256: Sha256Digest::of(b"instance"),
         ingestion_mode: IngestionMode::Incremental,
-        transform_version: 1,
-        execution_id: Uuid::from_u128(1),
-        loaded_at: Timestamp::from_millisecond(1_793_966_700_123).expect(
-            "Given a hardcoded time in the range of jiff, the creation should always succeed",
-        ),
+        run: crate::datasets::implementations::run_columns::sample_run_columns(),
     }
 }
 
