@@ -1,11 +1,13 @@
 ---
 name: domain-concept
 description: >
-  This skill should be used when the user asks to "create a domain concept", "add a domain type",
-  "design a domain concept", "implement a shared type", "add dependency injection", or needs to
-  create a new domain struct, enum, or trait in the shared directory (e.g., Cik, SecClient, InnerClient)
-  with validation, errors, fakes, and tests.
-version: 0.1.0
+  Use when you add or move a type, trait, error, or constant that more than one state, job, or
+  module uses, in any crate (sec, storage, api, xbrl). This includes the work on a ticket, not only
+  a request. Also use when the user asks to "create a domain concept", "add a domain type",
+  "design a domain concept", "implement a shared type", or "add dependency injection". Covers
+  where the concept lives, its layout of traits, implementations, constants, and errors, its
+  fakes, and its tests.
+version: 0.2.0
 argument-hint: "[concept-name]"
 allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 ---
@@ -14,9 +16,39 @@ allowed-tools: [Read, Write, Edit, Bash, AskUserQuestion]
 
 ## Purpose
 
-Design and implement a new domain concept — a standalone type that lives in `sec/src/lib/shared/`
-(or the equivalent shared directory), is independent of any specific state, and can be developed
-and tested in isolation.
+Design and implement a new domain concept — a standalone type that more than one state, job, or
+module uses. It is independent of any specific state, and can be developed and tested in isolation.
+"Where a Concept Lives" names its place in each crate, and "Layout by Part" names its files.
+
+## Where a Concept Lives
+
+| Crate | Value type | Trait and its implementations | Fakes |
+| ----- | ---------- | ----------------------------- | ----- |
+| `sec` | `src/lib/shared/{concept}/` | `src/lib/shared/{concept}/traits/` and `src/lib/shared/{concept}/implementations/`, as in `http_client` and `rate_limiter` | `src/lib/tests/fixtures/sample_{concept}/` |
+| `storage` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, split at the crate level | `src/tests/fixtures/` |
+| `api` | `src/shared/{concept}/` | `src/traits/{concept}/` and `src/implementations/{concept}/`, split at the crate level | `src/tests/fixtures/` |
+| `xbrl` | `src/core/{concept}.rs`, one flat file per concept | `xbrl` has no trait for dependency injection today | `src/tests/fixtures/` |
+
+Follow the layout of the crate you work in. Do not move the code of another crate to match.
+
+## Layout by Part
+
+The parts of a concept decide its files, not whether it wraps an external crate:
+
+- **A trait** that other types implement goes in `traits/`, one file per trait, with a `pub use` in
+  `traits/mod.rs`. Example: `sec::shared::rate_limiter::traits::rate_limiter`.
+- **A concrete type** that implements a trait, or that the concept provides next to its trait, goes
+  in `implementations/`, one module per type. Example:
+  `sec::shared::rate_limiter::implementations::sec_rate_limiter`.
+- **Constants** go in a `constants.rs` next to the type that uses them. Example:
+  `sec/src/lib/shared/rate_limiter/implementations/sec_rate_limiter/constants.rs`.
+- **An error** sits next to the code that returns it: an `error.rs` in the folder of the type, or its
+  own module next to the function that returns it.
+- **The concept's `mod.rs`** re-exports the main items, so a caller imports
+  `crate::shared::{concept}::{Item}` and does not need to know the folders.
+
+A value type with no trait, such as `Cik`, needs no `traits/` or `implementations/` folder. It still
+puts its constants in a `constants.rs` next to it.
 
 Domain concepts range from simple value types (like `Cik`) to trait-based abstractions with
 dependency injection (like `SecClient` / `InnerClient`).
@@ -30,9 +62,9 @@ Not everything needs to be known upfront. It's fine to leave some answers as "do
 and discover them together during implementation. The questionnaire is a starting point, not
 a gate.
 
-If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`)
-or the conversation already established what the concept is, skip questions you can already
-answer. Do not guess names from existing codebase concepts — either infer from context or
+If the user provided context when invoking the skill (e.g., `/domain-concept RateLimiter`),
+or the conversation, the ticket, or a design document already established what the concept is,
+skip questions you can already answer. Do not guess names from existing codebase concepts — either infer from context or
 let the user provide the name via "Other".
 
 **First prompt:**
@@ -60,6 +92,8 @@ let the user provide the name via "Other".
 
 - If it wraps an external dependency → Path B (trait + fake + real impl + integration tests)
 - If it interacts with an external system but doesn't wrap a dep → Path B (trait for testability)
+- If it defines a trait that several types implement → Path B layout, with a fake implementor in
+  the tests
 - Otherwise → Path A (value type with optional validation)
 - If answers are "don't know yet" → start with what's known, discover the rest together
 
@@ -69,7 +103,8 @@ let the user provide the name via "Other".
 
 #### Phase 1: Type Definition
 
-Create in `sec/src/lib/shared/{concept_name}/mod.rs`:
+Create in the value-type folder of the crate ("Where a Concept Lives"), for example
+`sec/src/lib/shared/{concept_name}/mod.rs`:
 
 ```rust
 #[derive(Debug, Clone, PartialEq, PartialOrd, Hash, Eq, Ord, Serialize)]
@@ -147,8 +182,8 @@ wraps it and adds no fact, that type passes it through. See `AGENTS.md` ("Error 
 
 ### Path B: Trait-Based Abstraction with Dependency Injection
 
-Use this path when the concept wraps an external dependency (HTTP client, file system, etc.)
-that needs to be decoupled for testability.
+Use this path when the concept has a trait: it wraps an external dependency (HTTP client, file
+system, etc.) that needs to be decoupled for testability, or several types implement its trait.
 
 #### Directory Structure
 
@@ -164,8 +199,12 @@ that needs to be decoupled for testability.
     ├── {library}.rs          # Real implementation (e.g., reqwest_client.rs)
     └── {domain_impl}/
         ├── mod.rs            # Domain implementation struct
+        ├── constants.rs      # Constants of the implementation
         └── error.rs          # Implementation-specific errors
 ```
+
+This tree is the per-concept layout of `sec`. In `storage` and `api`, `traits/` and
+`implementations/` sit at the crate root ("Where a Concept Lives").
 
 #### Phase 1: Define the Trait(s)
 
@@ -226,7 +265,8 @@ pub trait SecClient: Debug + Clone + Eq + Ord + Hash + Send + Sync + Unpin + Ser
 
 #### Phase 2: Fake Implementation(s) + Trait Unit Tests
 
-Create Fakes in `sec/src/lib/tests/fixtures/sample_{concept_name}/` and write unit tests
+Create Fakes in the fixtures folder of the crate ("Where a Concept Lives"), for example
+`sec/src/lib/tests/fixtures/sample_{concept_name}/`, and write unit tests
 against the trait using those Fakes. This validates the trait design before touching any
 3rd-party dependency.
 
@@ -542,6 +582,8 @@ impl Display for EntityName {
 - [ ] Happy path test(s)
 - [ ] Error path test(s)
 - [ ] Module registered in parent `mod.rs`
+- [ ] Files follow "Layout by Part": traits in `traits/`, types in `implementations/`, constants in
+      `constants.rs`, errors next to the code that returns them
 - [ ] Compiles and tests pass
 
 ## Self-Improvement
