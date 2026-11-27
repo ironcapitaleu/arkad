@@ -487,4 +487,19 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[test]
+    fn should_write_the_places_then_false_when_the_decimals_are_finite() {
+        let decimals = Some(Decimals::Finite(-6));
+
+        // decimals: marker 01 | length 00000002 | text -6
+        // decimals_infinite: marker 01 | length 00000005 | text false
+        let expected_result: &[u8] = b"\x01\x00\x00\x00\x02-6\x01\x00\x00\x00\x05false";
+
+        let mut byte_form = ByteForm::new();
+        write_decimals(&mut byte_form, decimals);
+        let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
 }
