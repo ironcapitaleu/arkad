@@ -118,6 +118,8 @@ before you write or amend an ADR.
   the page: `([Title](https://…), accessed YYYY-MM-DD)`. So does each link to a ticket or a pull
   request. [`DOCUMENTATION.md`](DOCUMENTATION.md), "External Links and References", holds the
   rule.
+- **Use the business terms of [`GLOSSARY.md`](GLOSSARY.md).** [`DOCUMENTATION.md`](DOCUMENTATION.md),
+  "General Principles", holds the rule.
 - **Refer to [`DOCUMENTATION.md`](DOCUMENTATION.md) for the full documentation guidelines** — how to structure module, item, and error docs; when to include `# Sections`; intra-doc link and doc-test conventions; and the wording style to follow. Consult it whenever writing or reviewing documentation.
 
 ### Writing Style

@@ -8,6 +8,8 @@
 //! ## Modules
 //!
 //! - [`accession_number`]: The accession number of a filing.
+//! - [`api_key`]: The [`ApiKey`](api_key::ApiKey) that a client sends to call `/v1`, with its
+//!   format, checksum, and digest.
 //! - [`concept_id`]: The `snake_case` identifier of a canonical concept.
 //! - [`confidence`]: The resolution tier that produced a fact.
 //! - [`exact_decimal`]: An exact decimal number as a string.
@@ -18,6 +20,7 @@
 //! - [`mod@unit`]: The unit of a fact as a string.
 
 pub mod accession_number;
+pub mod api_key;
 pub mod concept_id;
 pub mod confidence;
 pub mod exact_decimal;
