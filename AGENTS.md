@@ -346,7 +346,8 @@ records the decision, the measured options, and the fallback.
   needs a system library at runtime. If you add a dependency, run `cargo tree -i openssl-sys`. It
   must find no package.
 - **Compile data in.** Distroless has no shell. If a binary needs data such as time zones, compile
-  it in, as `chrono-tz` does, so the binary does not depend on the files of the image.
+  it in, as `jiff` does with its feature `static`, so the binary does not depend on the files of
+  the image ([ADR 0047](docs/adr/0047-jiff-for-dates-and-time-zones.md)).
 - **Fallback:** if a binary cannot build static, use `gcr.io/distroless/cc-debian13` with a glibc
   build on a `trixie` stage, and name the reason in the PR.
 
