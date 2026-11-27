@@ -230,6 +230,7 @@ async fn should_return_expected_top_level_keys_when_retrieving_berkshire_company
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
+    // `serde_json` without `preserve_order` sorts the keys of an object.
     let expected_result = vec!["cik", "entityName", "facts"];
 
     let body = client
@@ -253,6 +254,7 @@ async fn should_return_expected_facts_keys_when_retrieving_berkshire_company_fac
     let cik = Cik::new("1067983").expect("A hardcoded CIK should always be valid");
     let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
+    // `serde_json` without `preserve_order` sorts the keys of an object.
     let expected_result = vec!["dei", "ffd", "rxp", "us-gaap"];
 
     let body = client
