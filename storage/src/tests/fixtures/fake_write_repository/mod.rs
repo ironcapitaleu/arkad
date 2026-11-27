@@ -125,7 +125,7 @@ mod tests {
     async fn should_record_the_record_when_persist_is_called() {
         let repository = FakeWriteRepository::new();
         let record = "CIK0001067983".to_string();
-        let expected_result = vec![record.clone()];
+        let expected_result = vec!["CIK0001067983".to_string()];
 
         repository
             .persist(record)
