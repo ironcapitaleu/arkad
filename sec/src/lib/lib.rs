@@ -7,6 +7,7 @@
 //! - [`prelude`]: Convenient re-exports of core traits for easy use in downstream crates.
 //! - [`traits`]: Core state machine, state, context, and data traits for extensibility and integration.
 //! - [`implementations`]: Concrete state machine and state implementations for SEC data extraction, transformation, and loading.
+//! - [`datasets`]: The row types of the silver datasets and their Arrow form.
 //! - [`shared`]: Shared utilities and domain types (e.g., CIK parsing) used across the library.
 //! - [`error`]: Strongly-typed error handling for state machines, states, and transitions, with comprehensive error kinds and conversions.
 //!
@@ -23,6 +24,8 @@ pub mod traits;
 pub mod implementations;
 
 pub mod shared;
+
+pub mod datasets;
 
 pub mod error;
 

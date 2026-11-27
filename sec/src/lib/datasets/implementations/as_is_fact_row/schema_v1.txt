@@ -1,0 +1,27 @@
+filing_id: utf8
+entity_scheme: utf8
+entity_id: utf8
+concept_family: utf8
+concept_name: utf8
+taxonomy_version: utf8 nullable
+period_end: date32
+period_start: date32 nullable
+quarters: uint16
+unit: utf8 nullable
+dimensions: list<item: struct<axis: utf8, member: utf8>>
+value_kind: utf8
+value_numeric: decimal128(38, 10) nullable
+value_text: utf8 nullable
+decimals: int32 nullable
+decimals_infinite: bool
+copy_rank: uint16
+footnotes: list<item: utf8>
+filed: date32
+accepted: timestamp[ms, +00:00] nullable
+source_kind: utf8
+source_key: utf8
+source_sha256: utf8
+ingestion_mode: utf8
+transform_version: utf8
+execution_id: utf8
+loaded_at: timestamp[ms, +00:00]
