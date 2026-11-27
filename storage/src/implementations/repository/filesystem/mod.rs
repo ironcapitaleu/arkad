@@ -460,6 +460,7 @@ impl From<FailedFilesystemOperation> for BackendError {
             | FailedFilesystemOperationReason::UnserializableMetadata
             | FailedFilesystemOperationReason::UnexpectedDocumentSize { .. }
             | FailedFilesystemOperationReason::UnexpectedDocumentDigest { .. }
+            | FailedFilesystemOperationReason::InvalidLease { .. }
             | FailedFilesystemOperationReason::InvalidKeySuffix
             | FailedFilesystemOperationReason::FailedIo { .. } => {
                 |cause| Self::FailedOperation { cause }

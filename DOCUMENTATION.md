@@ -770,6 +770,31 @@ Rule of thumb: if removing the link would leave the reader guessing what somethi
 - Use renamed links when the fully-qualified path would hurt readability in prose.
 - All intra-doc links **must resolve**. Broken links are treated as errors in CI.
 
+### External Links and References
+
+Every link to a page or an item outside this repository names the date you read it. Such an item
+is a web page, a ticket, a ticket comment, or a pull request. A page outside the repository changes
+without notice. The date lets a reader tell a later change of the page from an error in the text.
+
+- Write the date after the link: `([Set task timeout](https://…), accessed 2026-11-21)`.
+- Use the date you read the page, not the date you write the text.
+- If you read the page again and it still says the same, change the date to the new one.
+- If the page changed, correct the text, then change the date.
+- If a link names its date as "read on YYYY-MM-DD", change it to the form above when you read the
+  page again.
+- In an accepted or a superseded ADR, never change a link, its date, or the text that relies on it.
+  If the page changed and the ADR is accepted, add an amendment, as the `adr` skill says. If the ADR
+  is superseded, change nothing.
+- A bare ID with no link, such as `STA-550`, needs no date.
+- A relative link to a file in this repository needs no date. The commit that holds the link pins
+  the version of the file.
+- A URL that code requests, or a URL in an example, is data, not a source. It needs no date.
+- A link that no text relies on, such as an attribution line or a link to open an issue, needs no
+  date.
+
+The rule holds for every kind of documentation: rustdoc, comments, design documents, ADRs, READMEs,
+skills, and pull request descriptions.
+
 ### Doc-Test Mechanics
 
 Doc-tests answer the *Wie?* (How?) question concretely — they show a consumer how to use the item. These are the formatting rules for writing them.
