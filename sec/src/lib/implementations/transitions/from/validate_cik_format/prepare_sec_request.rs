@@ -83,11 +83,16 @@ mod tests {
             .await
             .expect("Hardcoded valid CIK should always compute successfully");
 
-        let expected_cik = Cik::new(cik_string)
-            .expect("Hardcoded valid CIK string should always parse successfully");
-        let expected_context = PrepareSecRequestContext::new(expected_cik.clone());
-        let expected_input = PrepareSecRequestInput::new(expected_cik);
-        let expected_result = PrepareCompanyFactsRequest::new(expected_input, expected_context);
+        let expected_result = PrepareCompanyFactsRequest::new(
+            PrepareSecRequestInput::new(
+                Cik::new("0001234567")
+                    .expect("Hardcoded valid CIK string should always parse successfully"),
+            ),
+            PrepareSecRequestContext::new(
+                Cik::new("0001234567")
+                    .expect("Hardcoded valid CIK string should always parse successfully"),
+            ),
+        );
 
         let result = PrepareCompanyFactsRequest::try_from(state)
             .expect("State with computed output should always transition successfully");
@@ -122,11 +127,15 @@ mod tests {
             .await
             .expect("Given a hardcoded valid CIK, validation should always succeed");
 
-        let expected_cik = Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
-            .expect("Given a hardcoded valid CIK, parsing should always succeed");
         let expected_result = PrepareSecRequest::<Submissions>::new(
-            PrepareSecRequestInput::new(expected_cik.clone()),
-            PrepareSecRequestContext::new(expected_cik),
+            PrepareSecRequestInput::new(
+                Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+                    .expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            ),
+            PrepareSecRequestContext::new(
+                Cik::new(BERKSHIRE_HATHAWAY_CIK_RAW)
+                    .expect("Given a hardcoded valid CIK, parsing should always succeed"),
+            ),
         );
 
         let result = PrepareSecRequest::<Submissions>::try_from(state)

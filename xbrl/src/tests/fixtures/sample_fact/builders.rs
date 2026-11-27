@@ -1,6 +1,6 @@
 //! # Builders
 //!
-//! Provides helpers that build a [`FilingSource`], an [`AsIsFact`], a [`Candidate`], and a [`Filing`] with fixed
+//! Provides helpers that build a [`FilingSource`], an [`EntityId`], an [`AsIsFact`], a [`Candidate`], and a [`Filing`] with fixed
 //! defaults. A test changes the public fields it needs.
 
 use std::str::FromStr;
@@ -70,7 +70,14 @@ fn number(text: &str) -> BigDecimal {
         .expect("Given a hardcoded decimal text, the parse should always succeed")
 }
 
-fn apple() -> EntityId {
+/// Returns the entity ID of Apple, CIK `0000320193` under the scheme `cik`, that every builder
+/// uses.
+///
+/// # Panics
+///
+/// Panics if the hardcoded scheme or ID is empty or holds whitespace. Neither one does.
+#[must_use]
+pub fn apple() -> EntityId {
     EntityId::new("cik", "0000320193")
         .expect("Given a hardcoded scheme and ID, the creation should always succeed")
 }

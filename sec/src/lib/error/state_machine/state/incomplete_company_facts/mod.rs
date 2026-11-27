@@ -127,8 +127,11 @@ mod tests {
         let missing = MissingFields::new(vec!["Revenue".to_string(), "Total Assets".to_string()]);
 
         let expected_result = IncompleteCompanyFacts {
-            state_name: state_name.to_string(),
-            missing_fields: missing.clone(),
+            state_name: "Parse Company Facts".to_string(),
+            missing_fields: MissingFields::new(vec![
+                "Revenue".to_string(),
+                "Total Assets".to_string(),
+            ]),
         };
 
         let result = IncompleteCompanyFacts::new(state_name, missing);

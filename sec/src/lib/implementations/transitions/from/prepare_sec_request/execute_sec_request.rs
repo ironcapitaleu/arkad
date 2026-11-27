@@ -151,7 +151,8 @@ mod tests {
             .await
             .expect("Valid state should always compute output data");
 
-        let expected_result = input_cik;
+        let expected_result = Cik::new("0001234567")
+            .expect("Hardcoded valid CIK string should always parse successfully");
 
         let result = ExecuteCompanyFactsRequest::try_from((state, client))
             .expect("Given a computed state, the transition should always succeed")

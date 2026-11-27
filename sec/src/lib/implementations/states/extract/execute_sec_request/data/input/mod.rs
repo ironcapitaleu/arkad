@@ -177,8 +177,11 @@ mod tests {
         let request = SecRequest::builder().all_company_facts().cik(cik).build();
 
         let expected_result = ExecuteSecRequestInput {
-            sec_client: client.clone(),
-            sec_request: request.clone(),
+            sec_client: SecClient::default(),
+            sec_request: SecRequest::builder()
+                .all_company_facts()
+                .cik(Cik::new("1234567890").expect("Hardcoded CIK should always be valid"))
+                .build(),
         };
 
         let result = ExecuteSecRequestInput::new(client, request);

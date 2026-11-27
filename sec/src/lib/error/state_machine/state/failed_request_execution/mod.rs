@@ -82,8 +82,10 @@ mod tests {
         let domain_error = create_baseline_domain_error();
 
         let expected_result = FailedRequestExecution {
-            state_name: state_name.to_string(),
-            domain_error: domain_error.clone(),
+            state_name: "ExecuteSecRequest".to_string(),
+            domain_error: FailedSecRequest::new(ErrorReason::FailedRequestExecution {
+                details: "Network unreachable".to_string(),
+            }),
         };
 
         let result = FailedRequestExecution::new(state_name, domain_error);
