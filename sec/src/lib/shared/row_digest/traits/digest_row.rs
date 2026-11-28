@@ -11,7 +11,7 @@ use crate::shared::row_digest::ByteForm;
 /// method appends values to the [`ByteForm`] with the methods of [`ByteForm`], one per column.
 ///
 /// The digest group and the row key of each dataset are in `sec/design/pipeline/silver_layer.md`,
-/// `silver_files`, column `content_digest`.
+/// `unit_manifests`, column `content_digest`.
 ///
 /// [`content_digest`]: crate::shared::row_digest::content_digest()
 /// [`group_hashes`]: crate::shared::row_digest::group_hashes

@@ -79,7 +79,7 @@ The Decision above lets `ingest` write the graph and fact projections into Postg
 raw write. Since then, the pipeline gained a silver layer between transform and load
 ([`silver_layer.md`](../../sec/design/pipeline/silver_layer.md)). Silver keeps the as-is facts of
 both SEC sources, the Notes files and the XBRL instances, side by side. It writes Parquet units,
-with a list of written units (`silver_files`). A prototype on real SEC files measured it on
+with one manifest per unit (`unit_manifests`). A prototype on real SEC files measured it on
 2026-11-08:
 
 - The largest Notes file, `2024q1`, writes its silver unit in 46 s with a streamed split, and in
@@ -95,17 +95,17 @@ with a list of written units (`silver_files`). A prototype on real SEC files mea
 2. **`ingest` writes the raw store only.** The graph and fact writes leave `ingest`. So the hybrid
    transaction of `ingest` is gone.
 3. **One load per silver unit, in one Postgres transaction.** The load job reads the current unit of
-   a unit key from `silver_files`. It checks the size and CRC32C of each file, copies the rows with
-   `COPY`, and checks the row count against `silver_files`. The graph rows, the fact rows, and the
+   a unit key from `unit_manifests`. It checks the size and CRC32C of each file, copies the rows with
+   `COPY`, and checks the row count against `unit_manifests`. The graph rows, the fact rows, and the
    ledger row go through impl-private helpers on one `PgTransaction`, inside `storage-postgres`. For
    each silver unit, one call of a port method owns that transaction, as `ingest` did. The gold
    design names the method. `GraphStore::upsert` and `FactStore::upsert` commit on their own, so the
    load does not compose them.
-4. **A ledger of loaded units makes the load idempotent.** Each ledger row names one `silver_files`
+4. **A ledger of loaded units makes the load idempotent.** Each ledger row names one `unit_manifests`
    row by its unit key (dataset, source, unit kind, and `unit_key`) and its attempt path, the
    segment `<digest>-v<transform_version>/<execution_id>-<attempt>` of
    [Paths](../../sec/design/pipeline/silver_layer.md#paths), with its `-b` suffix. Each
-   `silver_files` row has its own attempt path. A null `source` matches a null `source`: the ledger
+   `unit_manifests` row has its own attempt path. A null `source` matches a null `source`: the ledger
    uses `UNIQUE NULLS NOT DISTINCT`, which needs Postgres 15 or newer, and the skip check uses
    `IS NOT DISTINCT FROM`. If the ledger holds the row, the load skips. A newer unit of the same
    unit key replaces the rows of the older unit in the same transaction.

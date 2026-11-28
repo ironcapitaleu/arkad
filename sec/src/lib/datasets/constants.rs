@@ -10,15 +10,15 @@
 /// records the choice.
 pub const UTC_TIME_ZONE: &str = "+00:00";
 
-/// The folder labels of the path of a dataset other than `silver_files`.
+/// The folder labels of the path of a dataset other than `unit_manifests`.
 ///
 /// `DuckDB` reads a `name=value` folder as a column, so no field of the dataset has one of these
 /// names.
 pub const FOLDER_LABELS: [&str; 2] = ["source", "unit_key"];
 
-/// The folder labels of the path of `silver_files`.
+/// The folder labels of the path of `unit_manifests`.
 ///
-/// `DuckDB` reads a `name=value` folder as a column, so no field of `silver_files` has one of these
+/// `DuckDB` reads a `name=value` folder as a column, so no field of `unit_manifests` has one of these
 /// names.
 pub const UNIT_MANIFEST_FOLDER_LABELS: [&str; 2] = ["execution", "task"];
 

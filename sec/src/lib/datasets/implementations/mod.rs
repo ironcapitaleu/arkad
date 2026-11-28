@@ -10,7 +10,7 @@
 //! - [`finding_row`]: [`FindingRow`], one row of `findings`.
 //! - [`provenance`]: [`Provenance`], the raw document of a row and the run that wrote it.
 //! - [`run_columns`]: [`RunColumns`], the version of the output and the run that wrote a row.
-//! - [`unit_manifest_row`]: [`UnitManifestRow`], one row of `silver_files`.
+//! - [`unit_manifest_row`]: [`UnitManifestRow`], one row of `unit_manifests`.
 
 pub mod as_is_fact_row;
 pub mod candidate_row;

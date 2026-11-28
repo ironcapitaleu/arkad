@@ -11,7 +11,7 @@
 
 Silver stores every timestamp as an Arrow `timestamp` with the unit milliseconds and a time zone.
 The columns are `accepted` and `loaded_at` of `as_is_facts` and `filings`, `sic_retrieved_at` of
-`filings`, and `computed_at` and `written_at` of the series datasets and `silver_files`. Each value
+`filings`, and `computed_at` and `written_at` of the series datasets and `unit_manifests`. Each value
 is a UTC instant.
 
 The time zone of an Arrow type is a string. It is part of the schema, so it is part of each

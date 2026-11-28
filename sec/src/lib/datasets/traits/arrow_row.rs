@@ -16,7 +16,7 @@ use crate::datasets::ArrowRowError;
 /// The columns of each dataset are in `sec/design/pipeline/silver_layer.md`, "Datasets".
 pub trait ArrowRow: Sized {
     /// The name of the dataset, for example `as_is_facts`. The silver path and the `dataset`
-    /// column of `silver_files` hold it.
+    /// column of `unit_manifests` hold it.
     const DATASET: &'static str;
 
     /// The schema version that [`Self::to_batch`] writes.
@@ -41,7 +41,7 @@ pub trait ArrowRow: Sized {
 
     /// Reads the rows of a record batch that holds the schema of `version`.
     ///
-    /// `version` is the `schema_version` of the unit in its `silver_files` row. A field that the
+    /// `version` is the `schema_version` of the unit in its `unit_manifests` row. A field that the
     /// schema of `version` lacks is an `Option` in the row type, and is `None` in each row read.
     ///
     /// # Errors

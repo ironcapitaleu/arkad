@@ -27,7 +27,7 @@ Integrity check 3 of silver compares row counts inside a unit of `as_is_facts` o
 `source_rows` minus `dropped_rows` must equal `row_count`. An unmapped row is a source row with no
 silver row. If `dropped_rows` does not count it, check 3 fails on every unit with an unmapped row.
 
-The choice binds the row types of `findings` and `silver_files` and their schema snapshots. A
+The choice binds the row types of `findings` and `unit_manifests` and their schema snapshots. A
 snapshot fixes the columns, and a later change needs a new `schema_version`. No silver data exists
 on 2026-11-21, so a reversal today costs no migration.
 
@@ -42,7 +42,7 @@ on 2026-11-21, so a reversal today costs no migration.
    `content_digest` is not fixed.
 4. **`reason` of an `UnmappedRow` holds the name of the `InvalidValueReason` variant**, for example
    `NotANumber`.
-5. **`dropped_rows` of `silver_files` counts each unmapped row** under the reason `UnmappedRow`.
+5. **`dropped_rows` of `unit_manifests` counts each unmapped row** under the reason `UnmappedRow`.
    Check 3 then holds.
 
 ## Options Considered

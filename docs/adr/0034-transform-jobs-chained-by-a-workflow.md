@@ -58,7 +58,7 @@ Terms in this ADR:
    series step, the checks, and load. `silver-backfill` runs by hand: transform of the Notes files,
    the series step, the checks, and load.
 5. **A failed transform step does not stop the series step.** The series step reads only units
-   with a `silver_files` row, and the next series run covers each unit written later. The workflow
+   with a `unit_manifests` row, and the next series run covers each unit written later. The workflow
    ends as failed.
 6. **Load starts only after the checks step succeeded.**
 7. **A busy lease stops the workflow** at the plan step, before any write. The references stay with
@@ -71,7 +71,7 @@ Compared on 2026-11-16, on the facts in "Context".
 | Option | Barrier | Parallel tasks for 80 Notes files | New runtime part |
 | ------ | ------- | --------------------------------- | ---------------- |
 | **A (chosen). Jobs, a workflow chains plan and worker steps** | End of each execution | Yes | One workflow per path |
-| B. Cloud Scheduler starts each job at a fixed time, and each job checks `silver_files` | A guess of the time | Yes | None |
+| B. Cloud Scheduler starts each job at a fixed time, and each job checks `unit_manifests` | A guess of the time | Yes | None |
 | C. One execution runs every step in one task | In the code | No | None |
 | D. A Cloud Run service, started per message by push delivery | None between transform and series | Yes | A service, a topic, and the queue port |
 | E. A or D, with an Eventarc trigger that starts the workflow per message | End of each execution | Yes | A trigger. About 90 starts a business day, and each start meets a busy lease while a run is in progress |

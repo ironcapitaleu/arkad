@@ -1,6 +1,6 @@
 //! # Unit Manifest Row
 //!
-//! Provides [`UnitManifestRow`], one row of the silver dataset `silver_files`: the manifest of one unit,
+//! Provides [`UnitManifestRow`], one row of the silver dataset `unit_manifests`: the manifest of one unit,
 //! with its inputs, its files, and the job that wrote it.
 
 use std::str::FromStr;
@@ -23,9 +23,9 @@ use crate::datasets::columns::{
 };
 use crate::datasets::{ArrowRow, ArrowRowError, SourceKind};
 
-/// One row of `silver_files`: the manifest of one unit of a dataset.
+/// One row of `unit_manifests`: the manifest of one unit of a dataset.
 ///
-/// `sec/design/pipeline/silver_layer.md`, `silver_files`, names the columns. A reader finds the
+/// `sec/design/pipeline/silver_layer.md`, `unit_manifests`, names the columns. A reader finds the
 /// current files of a dataset through these rows. The writer writes the row last.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UnitManifestRow {
@@ -188,7 +188,7 @@ pub struct DroppedRows {
 }
 
 impl ArrowRow for UnitManifestRow {
-    const DATASET: &'static str = "silver_files";
+    const DATASET: &'static str = "unit_manifests";
     const SCHEMA_VERSION: u16 = 1;
 
     fn schema(version: u16) -> Option<SchemaRef> {
@@ -336,7 +336,7 @@ fn struct_item(fields: Vec<Field>) -> FieldRef {
 fn item_of(column: &str) -> FieldRef {
     match schema_v1().field_with_name(column).map(Field::data_type) {
         Ok(DataType::List(item)) => Arc::clone(item),
-        _ => unreachable!("Given a list column of the schema of `silver_files`"),
+        _ => unreachable!("Given a list column of the schema of `unit_manifests`"),
     }
 }
 
@@ -424,7 +424,7 @@ where
     )
 }
 
-/// The arrays of the columns of one batch of `silver_files`.
+/// The arrays of the columns of one batch of `unit_manifests`.
 struct UnitColumns<'a> {
     dataset: &'static str,
     datasets: &'a StringArray,
@@ -878,7 +878,7 @@ mod tests {
         rows[1].row_count = 3;
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "row_count",
             row: 1,
             reason: "the files hold '2' rows".to_owned(),
@@ -903,7 +903,7 @@ mod tests {
             .expect("Given a column of the same type, the batch should always build");
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "row_count",
             row: 1,
             reason: "the files hold '2' rows".to_owned(),
@@ -923,7 +923,7 @@ mod tests {
         );
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "row_count",
             row: 0,
             reason: "the rows of the files overflow 'u64'".to_owned(),
@@ -982,7 +982,7 @@ mod tests {
             .expect("Given rows whose values fit their columns, the batch should always build");
 
         let expected_result = Err(ArrowRowError::UnknownSchemaVersion {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             version: 2,
         });
 
@@ -1010,7 +1010,7 @@ mod tests {
         let batch = batch_with(0, "row_count", Arc::new(UInt64Array::from(vec![8])));
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "row_count",
             row: 0,
             reason: "the files hold '7' rows".to_owned(),
@@ -1026,7 +1026,7 @@ mod tests {
         let batch = batch_with(0, "unit_kind", Arc::new(StringArray::from(vec!["notes"])));
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "unit_kind",
             row: 0,
             reason: "unknown unit kind 'notes'".to_owned(),
@@ -1042,7 +1042,7 @@ mod tests {
         let batch = batch_with(0, "source", Arc::new(StringArray::from(vec!["zip"])));
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "source",
             row: 0,
             reason: "not 'notes' or 'instance'".to_owned(),
@@ -1058,7 +1058,7 @@ mod tests {
         let batch = batch_with(0, "split", Arc::new(StringArray::from(vec!["passes"])));
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "split",
             row: 0,
             reason: "not 'stream' or 'buckets'".to_owned(),
@@ -1078,7 +1078,7 @@ mod tests {
         );
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "ingestion_mode",
             row: 0,
             reason: "not 'backfill' or 'incremental'".to_owned(),
@@ -1098,7 +1098,7 @@ mod tests {
         );
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
-            dataset: "silver_files",
+            dataset: "unit_manifests",
             column: "transform_version",
             row: 0,
             reason: "not a base-10 number".to_owned(),

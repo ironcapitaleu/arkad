@@ -60,7 +60,7 @@ None of this section has code. It follows
 [ADR 0001](../../../docs/adr/0001-mvp-database.md).
 
 - **Ingest** writes the raw store only.
-- **Transform** reads the raw store and writes silver: Parquet units and the `silver_files` list
+- **Transform** reads the raw store and writes silver: Parquet units and the `unit_manifests` list
   ([`silver_layer.md`](../pipeline/silver_layer.md)).
 - **Load** reads one silver unit and writes its graph rows, its fact rows, and a ledger row in one
   Postgres transaction. The backend lives in `storage-postgres`. If the ledger holds a unit, a

@@ -9,7 +9,7 @@
 
 ## Context
 
-Each `silver_files` row holds a `content_digest`. Integrity check 4 runs the transform again on the
+Each `unit_manifests` row holds a `content_digest`. Integrity check 4 runs the transform again on the
 same input with the same `transform_version`, and compares the digests. Silver stores the digest of
 every unit for good, so a change of the byte form makes every stored digest unequal to a new one.
 
