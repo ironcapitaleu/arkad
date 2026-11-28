@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-332 comment `f86f6786`](https://linear.app/state-machine/issue/STA-332#comment-f86f6786), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-332 comment `f86f6786`](https://linear.app/state-machine/issue/STA-332#comment-f86f6786), accessed 2026-11-27). Amendment 1: Accepted by the project owner on 2026-11-28 ([STA-578 comment `d54571b7`](https://linear.app/state-machine/issue/STA-578#comment-d54571b7), accessed 2026-11-28) |
 | Date | 2026-11-21 |
 | Deciders | The project owner |
 | Ticket | [STA-332](https://linear.app/state-machine/issue/STA-332), accessed 2026-11-27 |
@@ -52,6 +52,32 @@ This choice binds the filing step, the silver writer, and the run summary of the
    every selected filing is rejected.**
    The writer checks this after the last filing of the unit, before it writes the `unit_manifests`
    row. A unit that fails this way is a bad unit in the failure table of the job design.
+
+## Amendment 1: The Reason Text `RejectedFiling`
+
+Date: 2026-11-28. Ticket: [STA-578](https://linear.app/state-machine/issue/STA-578/feature-buildfilingrows-run-filing-and-filingoutcome-of-the-filing), accessed 2026-11-28.
+
+### Reason
+
+`dropped_rows` of `unit_manifests` stores each reason as text. On `main` at `083de59`
+(2026-11-28), `DropReason` of `sec` prints `UnmappedRow` and `DuplicateRow`, as ADR 0053 sets
+them. Decision 2 above sets `rejected_filing`. So one column held two styles, and a query on
+`reason` had to know the style of each reason. `UnmappedRow` is also a `kind` of `findings`, in
+the same PascalCase. No silver data exists on 2026-11-28, so a rename costs no migration.
+
+### Decision
+
+1. **The reason of a rejected filing is `RejectedFiling`.** It replaces `rejected_filing` in
+   decision 2.
+2. **Every reason of `dropped_rows` is the PascalCase name of its `DropReason` variant.** A new
+   reason follows this rule, for example `FormNotSelected` and `NoSubRow` of the Notes reader.
+
+### Consequences
+
+- A query on `dropped_rows.reason` uses one style for every reason.
+- The text of a reason equals the name of its Rust variant, so a reader finds the variant by the
+  text.
+- Not covered: the `kind` values of `findings`. They are PascalCase already.
 
 ## Options Considered
 

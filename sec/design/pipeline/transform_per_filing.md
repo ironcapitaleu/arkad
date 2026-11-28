@@ -114,7 +114,7 @@ SHA-256 against the metadata on each read.
 3. **Select filings.** It keeps the `sub` rows whose form is in `SELECTED_FORMS`, with their
    amendments. This is the same rule as the daily path
    ([`extraction_overview.md`](extraction_overview.md), "Filings We Select"). The rows of the other
-   filings count in `dropped_rows` with the reason `form_not_selected`. `2024q1` drops 1,259,028
+   filings count in `dropped_rows` with the reason `FormNotSelected`. `2024q1` drops 1,259,028
    rows this way (measured).
 4. **Split by `adsh`.** It streams `num.tsv` and `txt.tsv` side by side, first in one pass, and in
    K passes over hash buckets after the first row out of order. See [The Split](#the-split).
@@ -155,7 +155,7 @@ bucket split as the fallback.
   no `num` or `txt` row appears in exactly one pass. The count of a pass includes the filings that
   the machines reject, because each one still sends an outcome to the writer.
 - **Filings with no `sub` row.** A `num` or `txt` row whose `adsh` has no `sub` row counts in
-  `dropped_rows` with the reason `no_sub_row`. Measured files hold no such row, so the reason
+  `dropped_rows` with the reason `NoSubRow`. Measured files hold no such row, so the reason
   stays for a damaged file.
 - **A `sub` row with no `num` or `txt` row** still gives a filing. It writes a `filings` row and no
   fact.
@@ -231,8 +231,9 @@ pub struct StoredIndustry {
 
 ## The Filing Machine
 
-`TransformFilingSuperState<S>` runs one filing. It has two entry states, one per source, and a
-shared part.
+`run_filing` runs one filing through three states: the parse state of its source, then the two
+shared states. It moves from one state to the next by the `TryFrom` transitions, as
+[The Filing Step](#the-filing-step) says.
 
 | State | Input | Output | Calls |
 | ----- | ----- | ------ | ----- |
@@ -300,7 +301,7 @@ The runner calls one function per filing:
 
 ```rust
 /// Runs the filing machine on one filing.
-pub fn run_filing(input: FilingInput, context: &FilingContext) -> FilingOutcome;
+pub async fn run_filing(input: FilingInput, context: &FilingContext) -> FilingOutcome;
 
 pub enum FilingInput {
     Notes(NotesFilingInput),
@@ -308,16 +309,22 @@ pub enum FilingInput {
 }
 
 pub enum FilingOutcome {
-    Written(FilingRows),
+    Written(Box<FilingRows>),
     Rejected(RejectedFiling),
 }
 
 pub struct RejectedFiling {
     pub filing: String,                 // the adsh, or the accession number
-    pub error: TransformFilingError,
-    pub counts: SourceCounts,           // every source row of the filing, dropped as rejected_filing
+    pub error: StateMachine,            // the error of the state or the transition that failed
+    pub counts: SourceCounts,           // every source row of the filing, dropped with the reason RejectedFiling
 }
 ```
+
+- `run_filing` is `async`, because the states are. No state waits on I/O, so the future completes
+  in one run of the current-thread executor of the worker.
+- `SourceCounts` of a rejected filing holds the source rows the machine knows when it fails: the
+  `num` and `txt` rows of a Notes filing, the fact elements of an instance whose parse succeeded,
+  and none for an instance whose parse failed. An instance that is not XML has no countable fact.
 
 The split is a concern of the runner, not of the machine. So the worker wraps the outcome for the
 writer:
@@ -342,8 +349,8 @@ job design says.
 
 ### The Context
 
-`FilingContext` holds the registry, the `transform_version`, and the `execution_id`. Every state of
-the machine takes it.
+`FilingContext` holds the registry, the `transform_version`, the `execution_id`, and `loaded_at`.
+Every state of the machine takes it.
 
 - The task builds one `Registry` at its start and keeps it for its whole run, as
   `&'static Registry<'static>`. The `UsGaap` plug-in is a static value, so the registry borrows
@@ -351,6 +358,8 @@ the machine takes it.
 - `RegistryHandle` wraps the reference. Its `Eq`, `Ord`, and `Hash` compare the release IDs of the
   plug-ins, so the context has the value traits that every state context needs.
 - A test passes a registry of fake plug-ins through the same handle.
+- `loaded_at` is the start time of the task. `BuildFilingRows` writes it to every row
+  ([ADR 0054](../../../docs/adr/0054-loaded-at-from-the-task-start.md)).
 
 A 20-F or 40-F filer can report in IFRS. The registry holds no IFRS plug-in in the MVP. The facts
 of such a filing reach `as_is_facts` with an undeclared family and a `UndeclaredFamily` finding,
@@ -368,8 +377,8 @@ Each state error follows `AGENTS.md`, "Error Display Format". The leaf is the er
 | `StandardizeFiling` | None | The functions it calls return no error |
 | `BuildFilingRows` | `FailedRowBuild`, `Caused by:` the `ArrowRowError` | A value does not fit its Arrow type, for example a decimal with more than 28 digits before the point |
 
-`TransformFilingError` is the error of the super-state. It passes each state error through, as
-`#[error(transparent)]`, and adds no segment.
+`RejectedFiling` holds the `StateMachine` error of `sec`. It passes each state error and each
+transition error through, as `#[error(transparent)]`, and adds no segment.
 
 ## Validation Layers
 
@@ -383,7 +392,7 @@ The extraction design sets four layers of validation, each in the state that fir
 | 4. Row content, one row | The parsers. A row that breaks a rule of a core type gives an `UnmappedRow` finding | The row: an `UnmappedRow` finding, and `dropped_rows`, reason `UnmappedRow` |
 | 4. Row content, one filing | The parse states. A `sub` row or a cover fact that breaks a rule, an instance that is not XML | The filing: a rejected filing |
 | 4. Row content, the unit | The Notes reader. Two `sub` rows with one `adsh` | Bad unit |
-| 4. Row content, references | The Notes reader. A `num` or `txt` row with no `sub` row | The row: `dropped_rows`, reason `no_sub_row` |
+| 4. Row content, references | The Notes reader. A `num` or `txt` row with no `sub` row | The row: `dropped_rows`, reason `NoSubRow` |
 
 The instance path has no layers 2 and 3. The daily index of the day is the one table it reads, and
 extract checked it when it stored it. A daily index that does not parse is a bad unit.
@@ -395,7 +404,7 @@ A filing is rejected when its filing machine returns an error
 
 - The unit goes on without the filing. The filing writes no row in any dataset.
 - `dropped_rows` of `as_is_facts` counts every source row of the filing with the reason
-  `rejected_filing`, and `dropped_rows` of `filings` counts its `sub` row or its instance. So check
+  `RejectedFiling`, and `dropped_rows` of `filings` counts its `sub` row or its instance. So check
   3 of the contract, "Row counts", still holds.
 - The task logs one `filing_rejected` event per filing, as `warn`, with the unit key, the filing,
   and the error text. `rejected_filings` of `task_summary` counts them.

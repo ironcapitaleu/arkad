@@ -27,6 +27,18 @@ pub enum FilingInput {
     Instance(InstanceFilingInput),
 }
 
+impl FilingInput {
+    /// Returns the accession number of the filing: the `adsh` of a Notes filing, or the
+    /// accession number of the daily index for an instance filing.
+    #[must_use]
+    pub fn accession_number(&self) -> &str {
+        match self {
+            Self::Notes(notes) => notes.adsh(),
+            Self::Instance(instance) => instance.filing.accession_number().value(),
+        }
+    }
+}
+
 /// The rows of one selected Notes filing and the raw document they came from.
 #[derive(Debug, Clone)]
 pub struct NotesFilingInput {
