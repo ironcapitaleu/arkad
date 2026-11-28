@@ -23,7 +23,7 @@ use crate::datasets::columns::{
     list_array, list_item, list_type, nullable, string_list, timestamp_array,
     timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null,
 };
-use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
+use crate::datasets::{ArrowRow, ArrowRowError, PartOrder, RunColumns};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
 mod filing_finding;
@@ -290,6 +290,15 @@ impl ArrowRow for FindingRow {
             .enumerate()
             .map(|(row, run)| reader.row(row, run))
             .collect()
+    }
+}
+
+/// Sorts by `filing_id`, or by the entity for a row without a filing, then by the key of the
+/// finding.
+impl PartOrder for FindingRow {
+    fn write_sort_key(&self, byte_form: &mut ByteForm) {
+        self.write_group_id(byte_form);
+        self.write_row_key(byte_form);
     }
 }
 
