@@ -239,7 +239,11 @@ One reader serves every Rust caller. It reads `unit_manifests` and never lists a
   `computed_at` and a `run_tasks` equal to the count of its unit keys. If no `series_base` run
   counts, the call returns no unit.
 - `read_rows::<R>(unit, filter)` reads each part whole through `ReadRepository`, skips the row
-  groups that the filter excludes by their statistics, and returns rows of type `R`.
+  groups that the filter excludes by their statistics, and returns rows of type `R`. It decodes
+  with the `schema_version` of the unit, so a unit of an older version reads into `R`.
+- The filter is `RowFilter::All` or `RowFilter::EntityBuckets(set)`. The bucket filter skips each
+  row group whose minimum and maximum `entity_bucket` hold no bucket of the set, and drops the
+  other rows of the kept row groups. `ReadSeriesInputs` uses it on the `candidates` parts.
 - The current facts rule of the contract, one unit per filing, runs on top of these calls.
 
 ## Byte Form of `content_digest`

@@ -1,11 +1,17 @@
 //! # Unit Reader
 //!
 //! Provides the reads of the units of a dataset: [`current_units()`], the current unit of each
-//! unit key, [`current_units_as_of()`], the units as the store held them at a time, and
-//! [`series_units()`], the units of a series dataset.
+//! unit key, [`current_units_as_of()`], the units as the store held them at a time,
+//! [`series_units()`], the units of a series dataset, and [`read_rows()`], the rows of one unit.
 //!
 //! The reader finds units through the `unit_manifests` list files only. It never lists a folder of
 //! a dataset, because a listing also finds the parts of replaced units and of failed attempts.
+//!
+//! ## Modules
+//!
+//! - [`constants`]: The column of the bucket filter.
+//! - [`row_filter`]: The [`RowFilter`] of [`read_rows()`].
+//! - [`row_reader`]: [`read_rows()`], the rows of one unit.
 
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
@@ -23,8 +29,14 @@ use crate::datasets::implementations::UnitKind;
 use crate::datasets::part_writer::constants::FOOTER_SCHEMA_VERSION;
 use crate::datasets::{ArrowRow, SourceKind, UnitManifestRow, UnitReadError};
 
+pub mod constants;
 #[cfg(test)]
 mod fixtures;
+pub mod row_filter;
+pub mod row_reader;
+
+pub use row_filter::RowFilter;
+pub use row_reader::read_rows;
 
 /// The current units of one dataset and source, by unit kind and `unit_key`.
 pub type CurrentUnits = BTreeMap<(UnitKind, String), UnitManifestRow>;
