@@ -26,7 +26,7 @@ use crate::datasets::columns::{
     string_struct_array, string_struct_list, timestamp_array, timestamp_from_milliseconds,
     timestamp_type, unexpected_value, utf8_or_null,
 };
-use crate::datasets::{ArrowRow, ArrowRowError, Provenance};
+use crate::datasets::{ArrowRow, ArrowRowError, PartOrder, Provenance};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
 /// One row of `filings`: a filing, the document of its industry code, and the raw document it
@@ -133,6 +133,13 @@ impl ArrowRow for FilingRow {
                 })
             })
             .collect()
+    }
+}
+
+/// Sorts by `filing_id`.
+impl PartOrder for FilingRow {
+    fn write_sort_key(&self, byte_form: &mut ByteForm) {
+        self.write_row_key(byte_form);
     }
 }
 

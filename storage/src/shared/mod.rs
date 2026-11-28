@@ -17,6 +17,8 @@
 //! - [`company_id`]: The [`CompanyId`], the internal key of a company.
 //! - [`company_identifier`]: The [`CompanyIdentifier`], a `(scheme, value)` pair that names a
 //!   company, and its [`CompanyScheme`].
+//! - [`crc32c`](mod@crc32c): The [`Crc32c`] checksum of a stored object, and the [`InvalidCrc32c`]
+//!   for a string that is not one.
 //! - [`job_kind`]: The [`JobKind`] that names the jobs writing one unit key, and the
 //!   [`InvalidJobKind`] for a string that is not a job kind.
 //! - [`key_environment`]: The [`KeyEnvironment`] an API key works in, and the
@@ -42,6 +44,7 @@ pub mod api_key_name;
 pub mod channel;
 pub mod company_id;
 pub mod company_identifier;
+pub mod crc32c;
 pub mod job_kind;
 pub mod key_environment;
 pub mod lease;
@@ -59,6 +62,7 @@ pub use api_key_name::{ApiKeyName, InvalidApiKeyName, MAX_API_KEY_NAME_CHARACTER
 pub use channel::{Channel, InvalidChannel};
 pub use company_id::CompanyId;
 pub use company_identifier::{CompanyIdentifier, CompanyScheme};
+pub use crc32c::{Crc32c, InvalidCrc32c};
 pub use job_kind::{InvalidJobKind, JobKind};
 pub use key_environment::{InvalidKeyEnvironment, KeyEnvironment};
 pub use lease::{Lease, LeaseGeneration};
