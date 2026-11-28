@@ -381,6 +381,25 @@ mod tests {
     }
 
     #[test]
+    fn should_return_invalid_manifest_line_when_year_is_not_four_digits() {
+        let digest = "0".repeat(64);
+        let manifest =
+            format!("{digest}  https://xbrl.fasb.org/us-gaap/20x0/elts/us-gaap-2020-01-31.xsd");
+
+        let expected_result = Some(format!(
+            "[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: \
+             '{digest}  https://xbrl.fasb.org/us-gaap/20x0/elts/us-gaap-2020-01-31.xsd', Line: \
+             '1', Path: 'MANIFEST'"
+        ));
+
+        let result = source_releases(Path::new("MANIFEST"), &manifest)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_invalid_manifest_line_when_digest_is_not_a_lowercase_sha256() {
         let digest = "A".repeat(64);
         let manifest =
