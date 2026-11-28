@@ -311,4 +311,21 @@ mod tests {
 
         assert_eq!(result, expected_result);
     }
+
+    #[tokio::test]
+    async fn should_return_invalid_part_checksum_when_the_size_differs_from_its_entry() {
+        let (_directory, store) = store();
+        let rows = vec![fake_row(FILING_A, 3, None)];
+        let unit = unit_with_part(&store, notes_unit("2024q1", 1), rows).await;
+        let path = unit.files[0].path.clone();
+        let mut files = unit.files.clone();
+        files[0].bytes += 1;
+        let unit = UnitManifestRow { files, ..unit };
+
+        let expected_result = Err(UnitReadError::InvalidPartChecksum { path });
+
+        let result = read(&store, &unit, &RowFilter::All).await;
+
+        assert_eq!(result, expected_result);
+    }
 }

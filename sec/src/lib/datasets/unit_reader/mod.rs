@@ -484,6 +484,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_the_units_of_one_base_run_when_two_base_runs_share_a_computed_at() {
+        let (_directory, store) = store();
+        let first = series_unit(BASE, "base-a-t0", 1, "2026-11-01T06:00:00Z", 1);
+        let second = series_unit(BASE, "base-b-t0", 2, "2026-11-01T06:00:00Z", 1);
+        write_units(&store, 0, 0, vec![first], "2026-11-01T07:00:00Z").await;
+        write_units(&store, 0, 0, vec![second], "2026-11-01T08:00:00Z").await;
+
+        // Execution 2 sorts after execution 1, so its run is the last of the newest base runs.
+        let expected_result = vec!["base-b-t0".to_owned()];
+
+        let result = series_keys(&store).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_no_series_unit_when_only_delta_runs_count() {
         let (_directory, store) = store();
         let unit = series_unit(
