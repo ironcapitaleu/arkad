@@ -154,7 +154,8 @@ where
 /// `computed_at` and a `run_tasks` that equals the count of distinct unit keys of the run.
 ///
 /// The units are those of the newest `series_base` run that counts, and of every `series_delta` run
-/// that counts with a later `computed_at`. They sort by `computed_at`, then by `unit_key`. If no
+/// that counts with a later `computed_at`. If two base runs share the newest `computed_at`, the run
+/// with the larger `execution_id` wins. The units sort by `computed_at`, then by `unit_key`. If no
 /// `series_base` run counts, the list is empty.
 ///
 /// # Errors
