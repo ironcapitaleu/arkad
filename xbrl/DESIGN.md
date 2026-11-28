@@ -648,8 +648,8 @@ So the check of that group is skipped for that period.
 - A closed group gets no check for a period if a member has no value and is not zero if absent,
   or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
 - The values of one period end and length in quarters share a slot, which holds every group of
-  that period. If two members of one group have different exact starts, such as a quarter and a
-  4-month stub, that group gets no check, gives no derived value, gets no other line in the
+  that period. If two members of one group, or two values of one member, have different exact
+  starts, such as a quarter and a 4-month stub, that group gets no check, gives no derived value, gets no other line in the
   statement, and reports a `MixedStarts` finding. The members of a group are the values that the
   statement counts in it: the start of a step, the members that stand for a start with no value,
   and the children of a transparent parent that join the group. The other groups of the slot keep
@@ -903,7 +903,7 @@ parses it.
   `ExchangeRateEffect` carry a scope. `reason` holds
   `net-change-in-cash`.
 - `MixedStarts` is a value of `findings.kind`. `concepts` holds the members of the group with a
-  value, in the order of `RollUpMismatch`. The members that stand for a start with no value take
+  value, each once, in the order of `RollUpMismatch`. The members that stand for a start with no value take
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
@@ -2212,7 +2212,7 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
 | `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree with rank 0 (see "Agreement of copies") | Take `copy_rank` 0 |
-| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions, and the same exact start for a duration of 0 quarters (see "Durations Under 46 Days") | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions, and the same exact start for a short duration (see "Durations Under 46 Days") | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
 Agreement of copies:
 
@@ -2368,7 +2368,7 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 
 - **Timeline.** One entity, standard concept, unit, and dimensions. Values of every length belong
   to it. A value of any length fills an expected period if its end lies within 7 days of the
-  expected end. A duration of 0 quarters is the exception: it fills only an expected period of 0
+  expected end. A short duration is the exception: it fills only an expected period of 0
   quarters (see "Durations Under 46 Days"). A 52-53 week year ends up to 6 days away from the end of its month.
 - **Forms.** The form counts without its `/A` suffix. `10-Q` and `10-QT` make a quarterly filer.
   `10-K`, `10-KT`, `20-F`, and `40-F` are annual reports. A `T` form reports a transition period.

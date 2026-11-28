@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-28 ([STA-489 comment `aa928dc9`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-aa928dc9), accessed 2026-11-28) |
+| Status | Accepted by the project lead on 2026-11-28 ([STA-489 comment `aa928dc9`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-aa928dc9), accessed 2026-11-28), and in its final wording ([STA-489 comment `ff3536e7`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-ff3536e7), accessed 2026-11-28) |
 | Date | 2026-11-28 |
 | Deciders | The project lead |
 | Ticket | [STA-489](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days), accessed 2026-11-28 |
@@ -71,7 +71,8 @@ STA-481 and STA-555 follow it.
    two members with different starts ([ADR 0025](0025-exact-start-splits-copies.md), decision 5).
 6. **Silver keys a short duration on its start.** The key of a row of `standardized_facts` adds
    `period_start` if `quarters` is 0. The struct of `periods` in `findings` adds a nullable
-   `period_start`, set for a period of a short duration and null for `MixedStarts`. The value key and the key of
+   `period_start`, set for a value of a short duration. It is null for `Gap`, `MissingRequired`,
+   and `MixedStarts`. The value key and the key of
    `as_is_facts` stay as they are.
 
 ## Options Considered
