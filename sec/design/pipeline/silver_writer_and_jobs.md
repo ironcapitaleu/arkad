@@ -166,8 +166,8 @@ pub trait PartOrder {
   part, both as `ByteForm` bytes. A part sorts by the row group key, then by the sort key, and
   starts a new row group where the row group key changes. `candidates` has `entity_bucket` as its
   row group key, and sorts by its value key. `as_is_facts` and `filings` sort by the row key, and
-  `findings` sorts by the digest group, then the row key. Each of these starts with `filing_id`.
-  These three have no row group key.
+  `findings` sorts by the digest group, then the row key. Each of these sort keys starts with
+  `filing_id`. The three datasets have no row group key.
 
 ### Schema Tests
 
