@@ -2,11 +2,12 @@
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
 //! Notes period validation, index date validation, daily index and full index parsing, SEC request execution, a missing daily index,
-//! the selection of filing documents, document writes, the Company Facts parse, the CIK of the Company Facts, data completeness, and input/context/output handling.
+//! the selection of filing documents, document writes, the Company Facts parse, the CIK of the Company Facts, data completeness, the Notes and instance parse, and input/context/output handling.
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
-//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`FailedCompanyFactsParse`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
+//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`FailedCompanyFactsParse`], [`FailedNotesParse`], [`FailedInstanceParse`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
 //! [`UnexpectedCik`] carries the failing state's name, the CIK of the state, and the CIK of the body.
+//! [`InvalidInstanceText`] carries the failing state's name, the filing, and the decode error.
 //! [`MissingDailyIndex`] carries the failing state's name and the date. [`MissingFullIndexDate`]
 //! carries the failing state's name, the date, and the last date of the full index.
 //! [`InvalidFiledDateRange`]
@@ -29,6 +30,9 @@
 //! - [`failed_company_facts_parse`]: The [`FailedCompanyFactsParse`] error wrapping a Company Facts body that does not parse.
 //! - [`unexpected_cik`]: The [`UnexpectedCik`] error for a Company Facts body about another company.
 //! - [`incomplete_company_facts`]: The [`IncompleteCompanyFacts`] error for a response missing required fields.
+//! - [`failed_notes_parse`]: The [`FailedNotesParse`] error wrapping a Notes filing that does not parse.
+//! - [`invalid_instance_text`]: The [`InvalidInstanceText`] error for a stored instance that is not UTF-8.
+//! - [`failed_instance_parse`]: The [`FailedInstanceParse`] error wrapping an instance that does not parse.
 
 use thiserror::Error;
 
@@ -38,6 +42,10 @@ pub mod failed_document_selection;
 pub use failed_document_selection::FailedDocumentSelection;
 pub mod failed_document_write;
 pub use failed_document_write::FailedDocumentWrite;
+pub mod failed_instance_parse;
+pub use failed_instance_parse::FailedInstanceParse;
+pub mod failed_notes_parse;
+pub use failed_notes_parse::FailedNotesParse;
 pub mod failed_request_execution;
 pub use failed_request_execution::FailedRequestExecution;
 pub mod incomplete_company_facts;
@@ -52,6 +60,8 @@ pub mod invalid_daily_index;
 pub use invalid_daily_index::InvalidDailyIndex;
 pub mod invalid_full_index;
 pub use invalid_full_index::InvalidFullIndex;
+pub mod invalid_instance_text;
+pub use invalid_instance_text::InvalidInstanceText;
 pub mod invalid_filed_date_range;
 pub use invalid_filed_date_range::InvalidFiledDateRange;
 pub mod missing_daily_index;
@@ -148,6 +158,24 @@ pub enum State {
 
     #[error(transparent)]
     UnexpectedCik(UnexpectedCik),
+
+    /// Indicates that the Notes parser rejected the filing.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedNotesParse(FailedNotesParse),
+
+    /// Indicates that the bytes of a stored instance are not UTF-8 text.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    InvalidInstanceText(InvalidInstanceText),
+
+    /// Indicates that the instance parser rejected the filing.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedInstanceParse(FailedInstanceParse),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     #[error(

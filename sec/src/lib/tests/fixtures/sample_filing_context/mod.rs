@@ -1,0 +1,29 @@
+//! # Sample Filing Context
+//!
+//! Provides [`fixture_context`], a [`FilingContext`] on a registry of the families of the `xbrl`
+//! fixture filing.
+
+use uuid::Uuid;
+use xbrl::core::taxonomy::Taxonomy;
+use xbrl::core::taxonomy::registry::Registry;
+use xbrl::tests::fixtures::data::fixture_taxonomy;
+
+use crate::shared::filing_context::{FilingContext, RegistryHandle};
+
+/// Returns a [`FilingContext`] whose registry declares `us-gaap`, `dei`, `srt`, and `ecd`. The
+/// plug-in and the registry are leaked for the `'static` lifetime of the handle.
+///
+/// # Panics
+///
+/// Never panics: one plug-in with four distinct families always gives a registry.
+#[must_use]
+pub fn fixture_context() -> FilingContext {
+    let plugin: &'static dyn Taxonomy = Box::leak(Box::new(fixture_taxonomy()));
+    let registry = Registry::new(vec![plugin])
+        .expect("Given one plug-in with four families, the creation should always succeed");
+    FilingContext {
+        registry: RegistryHandle::new(Box::leak(Box::new(registry))),
+        transform_version: 1,
+        execution_id: Uuid::nil(),
+    }
+}

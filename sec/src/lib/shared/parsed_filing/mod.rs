@@ -6,13 +6,16 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
+use state_maschine::prelude::StateData as SMStateData;
 use xbrl::core::fact::AsIsFact;
 use xbrl::core::filing::Filing;
 use xbrl::core::finding::Finding;
 
+use crate::error::State as StateError;
 use crate::shared::filing_input::StoredIndustry;
 use crate::shared::source_counts::SourceCounts;
 use crate::shared::source_document::SourceDocument;
+use crate::traits::state_machine::state::StateData;
 
 /// The as-is output of one filing, from either parser.
 #[derive(Debug, Clone)]
@@ -61,6 +64,25 @@ impl Ord for ParsedFiling {
         self.source
             .cmp(&other.source)
             .then_with(|| self.filing.id.cmp(&other.filing.id))
+    }
+}
+
+// Deviation: the update is `()`. The filing machine passes one value per filing from state to
+// state and never changes one in place (ADR 0048), so a field-wise updater has no caller.
+impl SMStateData for ParsedFiling {
+    type UpdateType = ();
+
+    fn state(&self) -> &Self {
+        self
+    }
+
+    fn update_state(&mut self, (): Self::UpdateType) {}
+}
+
+impl StateData for ParsedFiling {
+    /// Changes nothing: the update holds no field.
+    fn update_state(&mut self, (): Self::UpdateType) -> Result<(), StateError> {
+        Ok(())
     }
 }
 

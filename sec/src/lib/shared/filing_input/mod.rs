@@ -11,11 +11,14 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 
 use jiff::Timestamp;
+use state_maschine::prelude::StateData as SMStateData;
 use xbrl::adapter::edgar::notes::NotesFiling;
 use xbrl::core::filing::IndustryCode;
 
+use crate::error::State as StateError;
 use crate::shared::filing_ref::FilingRef;
 use crate::shared::source_document::SourceDocument;
+use crate::traits::state_machine::state::StateData;
 
 /// The input of the filing machine for one filing, from either source.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -97,6 +100,44 @@ pub struct StoredIndustry {
     pub source: SourceDocument,
     /// When extract fetched the `submissions` file.
     pub retrieved_at: Timestamp,
+}
+
+// Deviation: the update is `()`. The filing machine passes one value per filing from state to
+// state and never changes one in place (ADR 0048), so a field-wise updater has no caller.
+impl SMStateData for NotesFilingInput {
+    type UpdateType = ();
+
+    fn state(&self) -> &Self {
+        self
+    }
+
+    fn update_state(&mut self, (): Self::UpdateType) {}
+}
+
+impl StateData for NotesFilingInput {
+    /// Changes nothing: the update holds no field.
+    fn update_state(&mut self, (): Self::UpdateType) -> Result<(), StateError> {
+        Ok(())
+    }
+}
+
+// Deviation: the update is `()`. The filing machine passes one value per filing from state to
+// state and never changes one in place (ADR 0048), so a field-wise updater has no caller.
+impl SMStateData for InstanceFilingInput {
+    type UpdateType = ();
+
+    fn state(&self) -> &Self {
+        self
+    }
+
+    fn update_state(&mut self, (): Self::UpdateType) {}
+}
+
+impl StateData for InstanceFilingInput {
+    /// Changes nothing: the update holds no field.
+    fn update_state(&mut self, (): Self::UpdateType) -> Result<(), StateError> {
+        Ok(())
+    }
 }
 
 #[cfg(test)]

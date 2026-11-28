@@ -55,13 +55,19 @@ struct NotesTables {
 /// Never panics: the `sub` row of the fixture filing is valid.
 #[must_use]
 pub fn parse_notes_fixture() -> NotesFacts {
-    parse_with_fixture_taxonomy(&notes_filing(&NotesTables {
+    parse_with_fixture_taxonomy(&notes_fixture_rows())
+}
+
+/// Returns the rows of the compiled-in 10-Q `0001628280-26-068246`.
+#[must_use]
+pub fn notes_fixture_rows() -> NotesFiling {
+    notes_filing(&NotesTables {
         sub: SUB_TSV.to_owned(),
         num: NUM_TSV.to_owned(),
         txt: TXT_TSV.to_owned(),
         dim: DIM_TSV.to_owned(),
         tag: TAG_TSV.to_owned(),
-    }))
+    })
 }
 
 /// Parses the rows of the fixture filing `accession` with a registry of [`fixture_taxonomy`].

@@ -10,6 +10,10 @@
 //!
 //! - [`parse_company_facts`]: Parses the Company Facts JSON into structured [`CompanyData`].
 //! - [`create_financial_statements`]: Builds financial statements from that [`CompanyData`].
+//! - [`parse_notes_filing`]: Parses the rows of one Notes filing into a `ParsedFiling`. An entry
+//!   state of the filing machine.
+//! - [`parse_instance_filing`]: Parses the main instance of one filing into a `ParsedFiling`. An
+//!   entry state of the filing machine.
 //!
 //! ## State Flow
 //!
@@ -46,6 +50,8 @@
 
 pub mod create_financial_statements;
 pub mod parse_company_facts;
+pub mod parse_instance_filing;
+pub mod parse_notes_filing;
 
 use std::fmt::{self, Display, Formatter};
 
