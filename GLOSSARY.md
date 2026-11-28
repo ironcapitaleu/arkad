@@ -180,7 +180,7 @@ Of the write units of one unit key, the one that silver wrote last. A normal rea
 results of the series step are the exception: a read takes the last full run that finished, and
 the changes of each finished run after it.
 
-- **Related:** Replay, Unit Key, Write Unit.
+- **Related:** Replay, Unit Key, Unit Manifest, Write Unit.
 
 ### Dataset
 
@@ -259,8 +259,8 @@ repeats across datasets.
 ### Unit Manifest
 
 The record of one write unit: its files, its inputs, its counts, its digests, and the run that
-wrote it. The dataset `unit_manifests` holds one per row. Readers find the current files of a
-dataset through it.
+wrote it. Each row of the dataset `unit_manifests` holds one unit manifest. Readers find the
+current files of a dataset through it.
 
 - **Related:** Current Unit, Dataset, Write Unit.
 
