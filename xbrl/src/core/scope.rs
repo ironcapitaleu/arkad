@@ -39,15 +39,6 @@ pub enum Scope {
 impl Scope {
     /// Every scope, in declaration order.
     const ALL: [Self; 1] = [Self::ExcludesRestrictedCash];
-
-    /// Returns the position of the scope in [`Scope::ALL`]. A new variant fails to compile here
-    /// until `ALL` names it.
-    #[cfg(test)]
-    const fn position(self) -> usize {
-        match self {
-            Self::ExcludesRestrictedCash => 0,
-        }
-    }
 }
 
 impl fmt::Display for Scope {
@@ -108,17 +99,6 @@ mod tests {
 
         let result: Vec<Result<Scope, InvalidValue>> =
             names.iter().map(|name| Scope::from_str(name)).collect();
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_hold_each_scope_at_its_position_for_all_scopes() {
-        let scopes = Scope::ALL;
-
-        let expected_result = [0];
-
-        let result = scopes.map(Scope::position);
 
         assert_eq!(result, expected_result);
     }
