@@ -102,8 +102,8 @@ pub struct StoredIndustry {
     pub retrieved_at: Timestamp,
 }
 
-// Deviation: the update is `()`, not a field-wise updater, because a value of this type is never
-// changed in place.
+// Deviation: the update is `()`. No code changes a value of this type in place, so it needs no
+// field-wise updater.
 impl SMStateData for NotesFilingInput {
     type UpdateType = ();
 
@@ -121,8 +121,8 @@ impl StateData for NotesFilingInput {
     }
 }
 
-// Deviation: the update is `()`, not a field-wise updater, because a value of this type is never
-// changed in place.
+// Deviation: the update is `()`. No code changes a value of this type in place, so it needs no
+// field-wise updater.
 impl SMStateData for InstanceFilingInput {
     type UpdateType = ();
 
