@@ -1172,7 +1172,7 @@ mod tests {
     }
 
     #[test]
-    fn should_attach_each_line_total_to_the_alias_list_of_its_standard_concept_when_building_the_alias_lists()
+    fn should_attach_each_line_total_to_the_alias_list_of_its_standard_concept_for_a_table_of_line_totals()
      {
         let line_totals = [mappings::LineTotalDefinition::new(
             IncomeStatementConcept::Revenue.element(),
