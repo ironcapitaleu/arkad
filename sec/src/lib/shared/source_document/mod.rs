@@ -16,7 +16,7 @@ use crate::datasets::SourceKind;
 pub struct SourceDocument {
     /// The kind of the raw document.
     pub kind: SourceKind,
-    /// The key of the raw document in the raw store.
+    /// The key of the raw document in the document store.
     pub key: DocumentKey,
     /// The SHA-256 of the raw document.
     pub sha256: Sha256Digest,

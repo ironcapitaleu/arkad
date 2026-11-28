@@ -169,7 +169,8 @@ pub struct NotesFilingInput {
     pub source: SourceDocument,
 }
 
-/// The raw document of a row, for the ingestion provenance of the silver contract.
+/// The raw document of a row, for the ingestion provenance of each row of `as_is_facts` and
+/// `filings`.
 pub struct SourceDocument {
     pub kind: SourceKind,           // Notes or Instance
     pub key: DocumentKey,

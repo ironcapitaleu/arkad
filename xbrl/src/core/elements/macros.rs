@@ -126,7 +126,7 @@ macro_rules! middle_concepts {
             }
 
             impl $middle {
-                /// Returns the name in silver of the concept, from
+                /// Returns the stored name of the concept, from
                 /// [`Concept::name`](crate::core::elements::Concept::name).
                 #[must_use]
                 pub fn name(self) -> &'static str {

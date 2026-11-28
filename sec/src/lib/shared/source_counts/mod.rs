@@ -4,7 +4,8 @@
 //! by [`DropReason`].
 //!
 //! The writer adds the counts of each filing into `source_rows` and `dropped_rows` of the
-//! `as_is_facts` unit, so that check 3 of the silver contract, "Row counts", holds.
+//! `as_is_facts` unit. A row count check then requires that the source rows minus the dropped
+//! rows equal the rows of the unit.
 
 use std::collections::BTreeMap;
 use std::fmt;

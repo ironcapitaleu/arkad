@@ -553,7 +553,7 @@ Two traits describe a concept. Each innermost enum, such as `BalanceSheetConcept
 pub trait Concept: Copy + Eq + 'static {
     /// Every variant, in the order of the enum.
     const ALL: &'static [Self];
-    /// The name in silver, such as `NetIncome`.
+    /// The stored name, such as `NetIncome`.
     fn name(self) -> &'static str;
     /// The label for people, such as `Net Income`.
     fn label(self) -> &'static str;

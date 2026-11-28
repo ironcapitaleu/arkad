@@ -32,7 +32,7 @@ impl Concept {
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidPascalCase`] if the name in silver of the concept is not in
+    /// Returns an [`InvalidPascalCase`] if the stored name of the concept is not in
     /// `PascalCase`.
     fn from_element(element: CanonicalElementKind) -> Result<Self, InvalidPascalCase> {
         Ok(Self {
