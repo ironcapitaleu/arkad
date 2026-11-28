@@ -23,8 +23,9 @@ use super::table_read_error::TableReadError;
 /// The reader holds its own reference to the zipped bytes, so readers of two tables can run on two
 /// threads. It checks the CRC-32 and a member shorter than its unzipped size after the last row,
 /// so a caller must read to the end to know that the table is valid. If an item is an error, a row
-/// before it can hold cut data. A member longer than its unzipped size fails at the first row after
-/// the reader passes the size.
+/// before it can hold cut data. A member longer than its unzipped size fails at the first item
+/// after the reader passes the size, or in [`NotesArchive::table`](super::NotesArchive::table) if
+/// the first read passes it.
 #[derive(Debug)]
 pub struct TableReader {
     table: NotesTable,
@@ -524,7 +525,8 @@ mod tests {
         });
         let content = format!("dimhash\tsegments\tsegt\n{rows}");
         let mut builder = sample_with_dim(content.as_bytes());
-        // 14,022 bytes. The size cuts `0\n` from the last row, so its last field reads empty.
+        // 14,022 bytes. The stream stops one byte after the size 14,019, so the last row ends
+        // `\t\t` and its last field reads empty.
         builder.member_mut("dim.tsv").unzipped_size = Some(14_019);
         let archive = open(&builder);
         let reader = archive.table(NotesTable::Dim).expect(

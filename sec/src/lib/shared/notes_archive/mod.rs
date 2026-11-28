@@ -120,8 +120,9 @@ impl NotesArchive {
     ///
     /// # Errors
     ///
-    /// Returns [`TableReadError::UnexpectedHeader`] if the header differs from the columns, and
-    /// the other variants of [`TableReadError`] if the header row cannot be read.
+    /// Returns [`TableReadError::UnexpectedHeader`] if the header differs from the columns,
+    /// [`TableReadError::InvalidMemberSize`] if the first read of the member passes its unzipped
+    /// size, and the other variants of [`TableReadError`] if the header row cannot be read.
     pub fn table(&self, table: NotesTable) -> Result<TableReader, TableReadError> {
         let archive_table = &self.tables[&table];
         TableReader::new(table, &archive_table.member, &archive_table.columns)
