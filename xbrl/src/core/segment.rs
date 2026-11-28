@@ -239,9 +239,12 @@ impl Group {
             .chain(
                 self.corporate
                     .into_iter()
-                    .filter(|candidate| {
-                        segment_total.is_none() || reported(candidate) != segment_total.as_ref()
-                    })
+                    .filter(
+                        |candidate| match (reported(candidate), segment_total.as_ref()) {
+                            (Some(value), Some(total)) => value != total,
+                            _ => true,
+                        },
+                    )
                     .map(ReconciliationLine::Corporate),
             )
             .collect();
@@ -696,6 +699,32 @@ mod tests {
         let corporate = revenue("100", &[("ConsolidationItems", "MaterialReconcilingItems")]);
         let candidates = vec![
             revenue("300", &[]),
+            cloud.clone(),
+            devices.clone(),
+            corporate.clone(),
+        ];
+
+        let expected_result = vec![
+            ReconciliationLine::Segment(cloud),
+            ReconciliationLine::Segment(devices),
+            ReconciliationLine::Corporate(corporate),
+        ];
+
+        let result = lines(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_blocked_corporate_value_when_a_segment_is_blocked() {
+        let cloud = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let devices = blocked(revenue("100", &[("BusinessSegments", "Devices")]));
+        let corporate = blocked(revenue(
+            "5",
+            &[("ConsolidationItems", "CorporateNonSegment")],
+        ));
+        let candidates = vec![
+            revenue("205", &[]),
             cloud.clone(),
             devices.clone(),
             corporate.clone(),

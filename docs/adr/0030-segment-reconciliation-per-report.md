@@ -82,13 +82,13 @@ value:
 The second table counts the 4,523 groups with a segment, a consolidated value, and a value on
 `CorporateNonSegment` or `MaterialReconcilingItems`:
 
-| Option | Groups that stop to add up | Groups that start to add up |
-| ------ | -------------------------- | --------------------------- |
+| Option | Groups that reconcile today and fail with the option | Groups that fail today and reconcile with the option |
+| ------ | ---------------------------------------------------- | ---------------------------------------------------- |
 | A: `MaterialReconcilingItems` has no role | 358 | 84 |
 | **B: a corporate value exactly equal to the segment total gets no line (chosen)** | 3 | 53 |
 
-Of these groups, 57 hold a value on `MaterialReconcilingItems` and 19 a value on `CorporateNonSegment` that
-equals the segment total exactly.
+In 57 of these groups, the value on `MaterialReconcilingItems` equals the segment total exactly. In
+19, the value on `CorporateNonSegment` does.
 
 **Decision.** `MaterialReconcilingItems` keeps the corporate role, because it holds reconciling
 items in 370 of 879 groups. A corporate value exactly equal to the sum of the segment lines is the

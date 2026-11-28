@@ -90,8 +90,7 @@ fn line(
 }
 
 #[test]
-fn should_reconcile_revenue_to_zero_when_coca_cola_tags_the_segment_total_as_a_material_reconciling_item()
- {
+fn should_reconcile_revenue_to_zero_when_coca_cola_repeats_the_segment_total() {
     let us_gaap = UsGaap::new();
     let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
