@@ -7,7 +7,7 @@ description: >
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover. Also posts the stale points of that ticket in a comment, and assigns an
   unassigned ticket to the user when the next session works for the user.
-version: 0.7.0
+version: 0.8.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -125,6 +125,8 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - <If the end is a PR:> If "In flight" names an open PR for the branch, push to it and open no new
   PR. Otherwise, you must open the PR against `main` without asking. Then run `pr-iterate`. Never
   merge it.
+  <Never add a guardrail that changes a rule of `pr-iterate`. For example, a correct 🟣 finding
+  starts a push on its own.>
   <If the end is a document, a branch, or a report:> Open no PR.
 
 # Reporting
