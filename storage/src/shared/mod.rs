@@ -17,7 +17,7 @@
 //! - [`company_id`]: The [`CompanyId`], the internal key of a company.
 //! - [`company_identifier`]: The [`CompanyIdentifier`], a `(scheme, value)` pair that names a
 //!   company, and its [`CompanyScheme`].
-//! - [`job_kind`]: The [`JobKind`] that names the jobs writing one unit key of a dataset, and the
+//! - [`job_kind`]: The [`JobKind`] that names the jobs writing one unit key, and the
 //!   [`InvalidJobKind`] for a string that is not a job kind.
 //! - [`key_environment`]: The [`KeyEnvironment`] an API key works in, and the
 //!   [`InvalidKeyEnvironment`] for a string that is not an environment.

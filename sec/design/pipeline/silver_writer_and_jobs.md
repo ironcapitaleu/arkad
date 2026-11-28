@@ -123,7 +123,7 @@ The filesystem backend opens each file with `create_new`. Tests and local runs u
 ### `ArrowRow` and `DigestRow`
 
 ```rust
-/// A row type of one silver dataset and its Arrow form.
+/// A row type of one dataset and its Arrow form.
 pub trait ArrowRow: Sized {
     const DATASET: &'static str;
     const SCHEMA_VERSION: u16;
