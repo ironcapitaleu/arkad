@@ -211,7 +211,12 @@ impl fmt::Display for BuildFilingRows {
             self.input.parsed.filing.id.id(),
             self.output.as_ref().map_or_else(
                 || "None".to_owned(),
-                |output| format!("As-is facts: {}", output.as_is_facts.len())
+                |output| format!(
+                    "As-is facts: {}, Candidates: {}, Findings: {}",
+                    output.as_is_facts.len(),
+                    output.candidates.len(),
+                    output.findings.len()
+                )
             )
         )
     }
@@ -249,6 +254,7 @@ mod tests {
     use uuid::Uuid;
     use xbrl::core::concept::NamespaceFamily;
     use xbrl::core::fact::FactValue;
+    use xbrl::core::filing::EntityId;
     use xbrl::core::finding::Finding;
     use xbrl::tests::fixtures::data::notes::notes_fixture_rows;
 
@@ -373,19 +379,37 @@ mod tests {
 
         let expected_result = vec![(
             FindingKind::UndeclaredFamily,
-            "http://www.sec.gov/CIK:0002082247".to_owned(),
+            EntityId::new("http://www.sec.gov/CIK", "0002082247")
+                .expect("Given a hardcoded scheme and CIK, the creation should always succeed"),
         )];
 
-        let result: Vec<(FindingKind, String)> = output_of(input)
+        let result: Vec<(FindingKind, EntityId)> = output_of(input)
             .await
             .findings
             .iter()
-            .map(|row| {
-                (
-                    row.kind,
-                    format!("{}:{}", row.entity.scheme(), row.entity.id()),
-                )
-            })
+            .map(|row| (row.kind, row.entity.clone()))
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_give_a_finding_row_when_the_standardization_gave_a_conflict() {
+        let mut input = fixture_standardized_filing().await;
+        input.conflicts.push(Finding::Conflict {
+            entity: input.parsed.filing.entity.clone(),
+            key: input.candidates[0].inputs[0].clone(),
+            ranks: vec![1],
+            standard_concept: None,
+        });
+
+        let expected_result = vec![FindingKind::Conflict];
+
+        let result: Vec<FindingKind> = output_of(input)
+            .await
+            .findings
+            .iter()
+            .map(|row| row.kind)
             .collect();
 
         assert_eq!(result, expected_result);

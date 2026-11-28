@@ -633,7 +633,8 @@ the unit as "source replaced". No check can restore the old bytes.
 | ---- | ------- | -------- |
 | Period | `period_end`, `quarters`, `period_start` | Which period does the value describe? |
 | Public time | `filed`, `accepted` | Since when was the value public? |
-| Silver time | `loaded_at`, and `written_at` in `unit_manifests` | Since when did silver hold the value? |
+| Silver time | `written_at` in `unit_manifests` | Since when did silver hold the value? |
+| Run time | `loaded_at` | When did the task that wrote the row start? It is earlier than `written_at` ([ADR 0054](../../../docs/adr/0054-loaded-at-from-the-task-start.md)) |
 
 Queries this allows:
 
