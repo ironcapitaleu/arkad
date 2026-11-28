@@ -50,8 +50,9 @@ const SHORT_YEAR_DAYS: i64 = 357;
 /// period are such years.
 ///
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
-/// `restated` if an input has it. It carries the release of the fiscal year value. It carries the
-/// scope of the inputs if both carry the same scope, and no scope otherwise.
+/// `restated` if an input has it. It carries the release of the fiscal year value and the scope of
+/// the inputs. If the two inputs differ in scope, the rule derives nothing, because the difference
+/// of two scopes is a value of neither.
 #[must_use]
 pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
     let known: BTreeSet<SeriesKey> = series
@@ -80,6 +81,7 @@ pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
                 .iter()
                 .filter_map(|nine_months| fourth_quarter(year, nine_months))
                 .max_by_key(|(quarter, _)| quarter.start())
+                .filter(|(_, nine_months)| nine_months.scope == year.scope)
                 .map(|(quarter, nine_months)| subtract(year, nine_months, quarter))
         })
         .collect()
@@ -143,7 +145,7 @@ fn subtract(
         release: year.release.clone(),
         inputs,
         restated: year.restated || nine_months.restated,
-        scope: year.scope.filter(|scope| nine_months.scope == Some(*scope)),
+        scope: year.scope,
     }
 }
 
@@ -376,13 +378,30 @@ mod tests {
     }
 
     #[test]
-    fn should_carry_no_scope_when_only_the_year_carries_a_scope() {
+    fn should_derive_nothing_when_only_the_year_carries_a_scope() {
         let mut year = standardized(fiscal_year(), "391035000000");
         year.scope = Some(Scope::ExcludesRestrictedCash);
         let first_nine_months = standardized(nine_months(), "296105000000");
         let facts = series(vec![year, first_nine_months]);
 
-        let expected_result = vec![None];
+        let expected_result: Vec<Option<Scope>> = Vec::new();
+
+        let result: Vec<Option<Scope>> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.scope)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_only_the_nine_months_carry_a_scope() {
+        let year = standardized(fiscal_year(), "391035000000");
+        let mut first_nine_months = standardized(nine_months(), "296105000000");
+        first_nine_months.scope = Some(Scope::ExcludesRestrictedCash);
+        let facts = series(vec![year, first_nine_months]);
+
+        let expected_result: Vec<Option<Scope>> = Vec::new();
 
         let result: Vec<Option<Scope>> = derive_q4(&facts)
             .into_iter()
