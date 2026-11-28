@@ -262,7 +262,7 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
     ),
     ConceptDefinition::new(
         IncomeStatementConcept::OperatingIncome.element(),
-        &["OperatingIncomeLoss", "IncomeLossFromOperations"],
+        &["OperatingIncomeLoss"],
         OPERATING_INCOME_RULE,
         false,
     ),

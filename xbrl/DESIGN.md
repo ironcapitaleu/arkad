@@ -34,6 +34,7 @@ The taxonomy knowledge is code in the repository. A transform needs no call to t
 ```text
 xbrl/
   taxonomy/us-gaap/2026/   <- vendored FASB files and a MANIFEST with the SHA-256 of each file
+  taxonomy/us-gaap-removed/ <- MANIFEST: URL and SHA-256 of the FASB files of the removed elements
   src/
     core/
       concept.rs           <- ConceptName, NamespaceFamily, Namespace (parser input)
@@ -56,6 +57,7 @@ xbrl/
         family.rs          <- FamilyDeclaration, UriPattern
         reference.rs       <- ConceptAliases, CalculationTree, ElementReference
         registry.rs        <- Registry, Plugin, RegistryError
+        removed.rs         <- trait RemovedElements, RemovedElement
         segment.rs         <- trait SegmentAxes, SegmentAxis, MemberRole
       fact_set.rs          <- working set of resolution for one entity and one period
       graph.rs             <- resolution and validation engine
@@ -66,11 +68,12 @@ xbrl/
       chronology.rs        <- order over time, gap check
       suspicious_period.rs <- periods that no filer means, and the filing that confirms the value
     us_gaap/
-      mod.rs               <- UsGaap: impl Taxonomy, family declarations
+      mod.rs               <- UsGaap: impl Taxonomy and RemovedElements, family declarations
       mappings.rs          <- aliases: standard concept -> US GAAP concepts (tiers 1 and 2)
-      table.rs             <- ElementRow, CalculationRow: the rows of the generated tables
+      table.rs             <- ElementRow, CalculationRow, RemovedElementRow: the rows of the generated tables
       taxonomy.rs          <- generated tables: calculation tree, element reference data
-      generator/           <- feature `generator`: vendored files -> taxonomy.rs
+      removed.rs           <- generated table: the elements that earlier releases removed
+      generator/           <- feature `generator`: vendored files -> taxonomy.rs, FASB files -> removed.rs
     adapter/               <- one adapter per data source
       edgar/               <- the documents of EDGAR, the filing system of the SEC
         notes/             <- rows of one Notes filing -> AsIsFact, Filing, findings
@@ -1514,8 +1517,7 @@ pub trait Taxonomy: Send + Sync {
     fn calculation_tree(&self) -> &CalculationTree;
     /// The reference data of one element: label, data type, balance, period type.
     fn element(&self, concept: &ConceptName) -> Option<&ElementReference>;
-    /// The reference data of every element of the release, and of every retired element.
-    /// Each `ElementReference` names the release it comes from.
+    /// The reference data of every element of the release, the deprecated ones included.
     fn elements(&self) -> &[ElementReference];
 }
 
@@ -1719,14 +1721,12 @@ file fails at run time).
 
 ### Release in Use Today
 
-- `us_gaap/mappings.rs` names no release. Its 150 tags are picked by hand from filings. 147 of them
-  are in the 2026 release. `SalesRevenueNet` (deprecated), `IncomeLossFromOperations`, and
-  `EarningsPerShareBasicAndDiluted` are not.
-  The unit test
+- `us_gaap/mappings.rs` names no release. Its tags are picked by hand from filings. An alias list
+  bridges renames across releases, so it does not come from one release. The unit test
   `should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created`
-  checks that the other 137, and each concept below a root of `other_part_trees`, are in the 2026
-  schema. An alias list bridges renames across releases,
-  so it does not come from one release.
+  names each tag that the 2026 schema does not define, such as `SalesRevenueNet`. The unit test
+  `should_find_removed_element_for_every_alias_and_part_that_the_release_lacks` checks that the
+  table of removed elements holds each of them (see "Releases Over Time").
 - `us_gaap/taxonomy.rs` holds the generated tables of the 2026 release (see "Taxonomy Data in
   Code").
 - The US GAAP 2026 release lives in `xbrl/taxonomy/us-gaap/2026/`. The files come from the FASB
@@ -1753,8 +1753,6 @@ file fails at run time).
   releases that the US GAAP release imports, so they get no release ID of their own. The
   checksum covers the files of all three folders. So a changed `srt` or `dei` file changes the
   checksum, and the release ID stays the same.
-- Missing for the reference data: the elements that the FASB removed before 2026 (see "Releases
-  Over Time").
 
 ### Releases Over Time
 
@@ -1797,8 +1795,11 @@ of retired elements. A check of the releases 2011 to 2026 on 2026-11-08 found tw
   These elements come from `us-gaap-2026.xsd`, so `elements()` covers them with the 2026 release.
 - **Removed.** The FASB drops a deprecated element from the schema in a later release.
   `SalesRevenueNet` is deprecated in 2018 (label `Revenue, Net (Deprecated 2018-01-31)`) and last
-  defined in the 2020 schema. 6,628 elements of the schemas 2011 to 2025 are missing from 2026.
-  Their last definitions spread over 14 releases, 2012 to 2025.
+  defined in the 2020 schema. 6,628 concepts of the schemas 2011 to 2025 are missing from 2026.
+  Their last definitions spread over 14 releases, 2012 to 2025. The count takes each concept, a
+  top-level `xs:element` with a `substitutionGroup`, as "Taxonomy Data in Code" defines it. A
+  count of each top-level `xs:element` gives 6,637. The 9 more are domain helpers of typed
+  dimensions, such as `InvestmentIdentifierAxis.domain`, and no fact can use them.
 
 The fields that the FASB files hold for a retired element:
 
@@ -1811,10 +1812,28 @@ The fields that the FASB files hold for a retired element:
 The release that retires an element is not a field. It is the date in the label, or the first
 release whose schema no longer defines the element.
 
-Vendoring the removed elements needs the 14 schemas (about 4.5 MB each) and their label linkbases
-(about 14 MB each), about 260 MB in Git. The owner decided on 2026-11-08 to ship the 2026 release
-first. `elements()` covers the elements of the 2026 schema, including the deprecated ones. A later
-ticket decides where the removed elements live.
+`elements()` covers the elements of the 2026 schema, including the deprecated ones. The removed
+elements come from a generated table, `us_gaap/removed.rs`, and the FASB files it comes from are not
+vendored ([ADR 0058](../docs/adr/0058-generated-table-of-removed-us-gaap-elements.md)):
+
+- `xbrl/taxonomy/us-gaap-removed/MANIFEST` names the 28 source files: the element schema and the
+  label linkbase of each of the 14 releases. Each line holds the SHA-256 and the URL of one file,
+  in the format of `sha256sum`.
+- A developer downloads the files and runs
+  `cargo run -p xbrl --features generator --bin generate_us_gaap_removed -- <folder>`. The doc of
+  the binary gives the commands. The generator refuses a file whose SHA-256 differs from the
+  `MANIFEST`. No test runs it, because it needs the files.
+- The generator reads the releases from the newest to the oldest. A concept that the 2026 schema
+  does not define gets the data of the newest release that defines it. So each row names its last
+  release.
+- The deprecation date is the text at the end of the standard label: a release date, such as
+  `(Deprecated 2018-01-31)`, up to 2021, and a year, such as `(Deprecated 2020)`, from 2022. Each
+  release up to 2021 is dated January 31, so the row keeps the release of the date, for example
+  `us-gaap/2018`. The generator refuses another date. 480 labels name no date.
+- The plug-in returns the rows through the trait `RemovedElements`, next to `Taxonomy`.
+  `Taxonomy::element()` returns `None` for a removed element, and
+  `RemovedElements::removed_element()` returns its data. Each `RemovedElement` holds an
+  `ElementReference` that names its last release, and the release of its deprecation date.
 
 ### `us_gaap`
 
@@ -3088,5 +3107,5 @@ The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for the lines below the top lines
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 150 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. A tag that the 2026 release lacks gets its data from the table of removed elements
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28), confirmed with one list for `ExchangeRateEffect` ([STA-610 comment `50ed6d43`](https://linear.app/state-machine/issue/STA-610#comment-50ed6d43), accessed 2026-11-28). Decision 2 superseded by [ADR 0056](0056-revenue-of-banks-utilities-and-producers.md) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28), confirmed with one list for `ExchangeRateEffect` ([STA-610 comment `50ed6d43`](https://linear.app/state-machine/issue/STA-610#comment-50ed6d43), accessed 2026-11-28). Decision 2 superseded by [ADR 0056](0056-revenue-of-banks-utilities-and-producers.md). [Amendment 3](#amendment-3-the-placement-in-the-releases-2014-and-2017) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-619 comment `b118ce56`](https://linear.app/state-machine/issue/STA-619#comment-b118ce56), accessed 2026-11-28). |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-541](https://linear.app/state-machine/issue/STA-541), accessed 2026-11-27 |
@@ -185,6 +185,50 @@ goods line, and it is nearer to `Revenue`. Option B gives no value where A gives
   part as `Revenue`, too low, with `Synonym`. No fixture 10-K shows such a filer.
 - Not covered: goods next to a third line, such as `OtherSalesRevenueNet`. The open question on the
   siblings of the two concepts stays.
+
+## Amendment 3: The Placement in the Releases 2014 and 2017
+
+> **Proposed and accepted by the project owner on 2026-11-28.** It answers open questions 1 and 3. It changes no decision and no
+> amendment.
+
+### Why
+
+Open questions 1 and 3 waited for the calculation trees of the releases before 2018. The trees of
+2014 and 2017 now answer them.
+
+### Decision
+
+1. **The placement of decisions 1 and 4 holds in 2014 and 2017.** In the role `StatementOfIncome`,
+   `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` sum to `SalesRevenueNet` with weight 1.0.
+   In the role `StatementOfCashFlowsIndirect`, `EffectOfExchangeRateOnCashAndCashEquivalents` sums
+   to `CashAndCashEquivalentsPeriodIncreaseDecrease` with weight 1.0, and
+   `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` and
+   `…DiscontinuedOperations` sum to `EffectOfExchangeRateOnCashAndCashEquivalents` with weight 1.0.
+   Open question 1 is answered, and decisions 1 and 4 stay.
+2. **The name `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations` is confirmed.**
+   The calculation trees of 2014 and 2017 name it, and the US GAAP schemas define it up to 2024.
+   Open question 3 is answered.
+
+### Consequences of the Amendment
+
+- No code changes. The alias lists and part rules stay as decisions 1 and 4 set them.
+- The check covers the two roles named above, in two releases. A placement in another role or
+  release is not checked.
+- Open question 2 stays open.
+
+### Sources of the Amendment
+
+- ([us-gaap-stm-soi-cal-2014-01-31.xml](https://xbrl.fasb.org/us-gaap/2014/stm/us-gaap-stm-soi-cal-2014-01-31.xml),
+  accessed 2026-11-28) and
+  ([us-gaap-stm-soi-cal-2017-01-31.xml](https://xbrl.fasb.org/us-gaap/2017/stm/us-gaap-stm-soi-cal-2017-01-31.xml),
+  accessed 2026-11-28): the arcs of `SalesRevenueNet`.
+- ([us-gaap-stm-scf-indir-cal-2014-01-31.xml](https://xbrl.fasb.org/us-gaap/2014/stm/us-gaap-stm-scf-indir-cal-2014-01-31.xml),
+  accessed 2026-11-28) and
+  ([us-gaap-stm-scf-indir-cal-2017-01-31.xml](https://xbrl.fasb.org/us-gaap/2017/stm/us-gaap-stm-scf-indir-cal-2017-01-31.xml),
+  accessed 2026-11-28): the arcs of the exchange rate effect.
+- The element schemas of 2011 to 2025, for example
+  ([us-gaap-2024.xsd](https://xbrl.fasb.org/us-gaap/2024/elts/us-gaap-2024.xsd), accessed
+  2026-11-28): the releases that define the discontinued operations concept.
 
 ## Options Considered
 

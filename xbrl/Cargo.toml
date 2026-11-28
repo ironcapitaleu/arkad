@@ -33,6 +33,11 @@ name = "generate_us_gaap"
 path = "src/bin/generate_us_gaap.rs"
 required-features = ["generator"]
 
+[[bin]]
+name = "generate_us_gaap_removed"
+path = "src/bin/generate_us_gaap_removed.rs"
+required-features = ["generator"]
+
 [dev-dependencies]
 pretty_assertions = "1"
 # The self dev-dependency turns on `test-fixtures` and `generator` for every test build, so CI runs
