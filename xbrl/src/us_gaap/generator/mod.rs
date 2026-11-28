@@ -62,15 +62,17 @@ const SRT_FOLDER: &str = "taxonomy/srt/2026";
 /// The folder of the vendored `dei` release, relative to the `xbrl` crate.
 const DEI_FOLDER: &str = "taxonomy/dei/2026";
 
-/// The element schemas that the generator reads, with the family of their concepts. The first one
-/// is the US GAAP schema.
+/// The US GAAP element schema of the release and its label linkbase.
+const US_GAAP_SCHEMA: ElementSchema = ElementSchema {
+    family: "us-gaap",
+    folder: RELEASE_FOLDER,
+    schema_file: "elts/us-gaap-2026.xsd",
+    label_file: "elts/us-gaap-lab-2026.xml",
+};
+
+/// The element schemas that the generator reads, with the family of their concepts.
 const ELEMENT_SCHEMAS: &[ElementSchema] = &[
-    ElementSchema {
-        family: "us-gaap",
-        folder: RELEASE_FOLDER,
-        schema_file: "elts/us-gaap-2026.xsd",
-        label_file: "elts/us-gaap-lab-2026.xml",
-    },
+    US_GAAP_SCHEMA,
     ElementSchema {
         family: "srt",
         folder: SRT_FOLDER,

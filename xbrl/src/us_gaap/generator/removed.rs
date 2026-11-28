@@ -10,7 +10,7 @@
 //! An element counts if it is a concept of an earlier schema and not of the US GAAP schema of the
 //! release in use. Its row takes the data of the newest release that defines it.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -19,7 +19,8 @@ use sha2::{Digest, Sha256};
 use super::error::GeneratorError;
 use super::linkbase::{self, ConceptRef};
 use super::render::{self, RemovedElementLine};
-use super::{ELEMENT_SCHEMAS, RELEASE_ID, hex, read, schema};
+use super::schema::{self, Concept};
+use super::{RELEASE_ID, US_GAAP_SCHEMA, hex, read};
 
 /// The `MANIFEST` of the source files, relative to the `xbrl` crate.
 pub const REMOVED_MANIFEST_FILE: &str = "taxonomy/us-gaap-removed/MANIFEST";
@@ -51,6 +52,9 @@ const RELEASE_MONTH_AND_DAY: &str = "-01-31";
 /// The number of digits of a year.
 const YEAR_LENGTH: usize = 4;
 
+/// The number of lowercase hex digits of a SHA-256.
+const SHA256_HEX_LENGTH: usize = 64;
+
 /// The element schema and the label linkbase of one release, as the `MANIFEST` names them.
 #[derive(Debug, Default)]
 struct SourceRelease {
@@ -69,40 +73,81 @@ struct SourceRelease {
 /// # Errors
 ///
 /// Returns [`GeneratorError::UnexpectedChecksum`] if a source file differs from the `MANIFEST`,
-/// [`GeneratorError::InvalidManifestLine`] or [`GeneratorError::MissingSourceFile`] if the
-/// `MANIFEST` breaks its form, [`GeneratorError::InvalidDeprecationDate`] if a label ends with a
+/// [`GeneratorError::InvalidManifestLine`], [`GeneratorError::RepeatedSourceFile`], or
+/// [`GeneratorError::MissingSourceFile`] if the `MANIFEST` breaks its form, [`GeneratorError::InvalidDeprecationDate`] if a label ends with a
 /// deprecation date of an unknown form, and the errors of reading and parsing a file.
 pub fn generate_removed(xbrl_crate: &Path, sources: &Path) -> Result<String, GeneratorError> {
     let manifest_path = xbrl_crate.join(REMOVED_MANIFEST_FILE);
     let releases = source_releases(&manifest_path, &read(&manifest_path)?)?;
-    let in_use = &ELEMENT_SCHEMAS[0];
-    let in_use_path = xbrl_crate.join(in_use.folder).join(in_use.schema_file);
-    let mut known: BTreeSet<String> = schema::concepts(&in_use_path, &read(&in_use_path)?)?
+    let in_use_path = xbrl_crate
+        .join(US_GAAP_SCHEMA.folder)
+        .join(US_GAAP_SCHEMA.schema_file);
+    let known = schema::concepts(&in_use_path, &read(&in_use_path)?)?
         .into_iter()
         .map(|concept| concept.name)
         .collect();
-    let mut elements = Vec::new();
+    let mut read_releases = Vec::new();
     for (year, release) in releases.iter().rev() {
-        let last_release = format!("{FAMILY}/{year}");
-        let missing = |file| GeneratorError::MissingSourceFile {
-            release: last_release.clone(),
-            file,
-        };
-        let (schema_path, schema_digest) = release
-            .schema
-            .as_ref()
-            .ok_or_else(|| missing("element schema"))?;
-        let (label_path, label_digest) = release
-            .labels
-            .as_ref()
-            .ok_or_else(|| missing("label linkbase"))?;
-        let schema_path = sources.join(schema_path);
-        let label_path = sources.join(label_path);
-        let concepts =
-            schema::concepts(&schema_path, &verified_read(&schema_path, schema_digest)?)?;
-        let mut labels =
-            linkbase::standard_labels(&label_path, &verified_read(&label_path, label_digest)?)?;
-        for concept in concepts {
+        read_releases.push(read_release(sources, year, release)?);
+    }
+    let elements = removed_lines(known, read_releases)?;
+    Ok(render::render_removed(RELEASE_ID, &elements))
+}
+
+/// One earlier release, read and checked: its ID, its concepts, and their standard labels.
+struct ReadRelease {
+    /// The release ID, for example `us-gaap/2020`.
+    id: String,
+    /// The concepts of the element schema.
+    concepts: Vec<Concept>,
+    /// The standard labels of the label linkbase.
+    labels: HashMap<ConceptRef, String>,
+}
+
+/// Reads the source files of the release of `year` from `sources`, after a check of their SHA-256.
+fn read_release(
+    sources: &Path,
+    year: &str,
+    release: &SourceRelease,
+) -> Result<ReadRelease, GeneratorError> {
+    let id = format!("{FAMILY}/{year}");
+    let missing = |file| GeneratorError::MissingSourceFile {
+        release: id.clone(),
+        file,
+    };
+    let (schema_path, schema_digest) = release
+        .schema
+        .as_ref()
+        .ok_or_else(|| missing("element schema"))?;
+    let (label_path, label_digest) = release
+        .labels
+        .as_ref()
+        .ok_or_else(|| missing("label linkbase"))?;
+    let schema_path = sources.join(schema_path);
+    let label_path = sources.join(label_path);
+    Ok(ReadRelease {
+        concepts: schema::concepts(&schema_path, &verified_read(&schema_path, schema_digest)?)?,
+        labels: linkbase::standard_labels(&label_path, &verified_read(&label_path, label_digest)?)?,
+        id,
+    })
+}
+
+/// Returns one line per concept of `releases` that `known` lacks, sorted by name.
+///
+/// `releases` runs from the newest to the oldest, so each line takes the data of the newest
+/// release that defines its concept. `known` holds the concepts of the release in use.
+///
+/// # Errors
+///
+/// Returns [`GeneratorError::MissingLabel`] if a concept has no standard label in its release, and
+/// [`GeneratorError::InvalidDeprecationDate`] if a label ends with a date of an unknown form.
+fn removed_lines(
+    mut known: BTreeSet<String>,
+    releases: Vec<ReadRelease>,
+) -> Result<Vec<RemovedElementLine>, GeneratorError> {
+    let mut elements = Vec::new();
+    for mut release in releases {
+        for concept in release.concepts {
             if !known.insert(concept.name.clone()) {
                 continue;
             }
@@ -110,11 +155,13 @@ pub fn generate_removed(xbrl_crate: &Path, sources: &Path) -> Result<String, Gen
                 family: FAMILY.to_string(),
                 name: concept.name,
             };
-            let label = labels
-                .remove(&key)
-                .ok_or_else(|| GeneratorError::MissingLabel {
-                    concept: key.to_string(),
-                })?;
+            let label =
+                release
+                    .labels
+                    .remove(&key)
+                    .ok_or_else(|| GeneratorError::MissingLabel {
+                        concept: key.to_string(),
+                    })?;
             elements.push(RemovedElementLine {
                 deprecated_in: deprecated_in(&key, &label)?,
                 name: key.name,
@@ -122,12 +169,12 @@ pub fn generate_removed(xbrl_crate: &Path, sources: &Path) -> Result<String, Gen
                 data_type: concept.data_type,
                 balance: concept.balance,
                 period_type: concept.period_type,
-                last_release: last_release.clone(),
+                last_release: release.id.clone(),
             });
         }
     }
     elements.sort_by(|first, second| first.name.cmp(&second.name));
-    Ok(render::render_removed(RELEASE_ID, &elements))
+    Ok(elements)
 }
 
 /// Returns the releases of `manifest` by year, with the path and SHA-256 of each source file.
@@ -146,6 +193,13 @@ fn source_releases(
             text: text.to_string(),
         };
         let (digest, url) = text.split_once("  ").ok_or_else(invalid)?;
+        let is_sha256 = digest.len() == SHA256_HEX_LENGTH
+            && digest
+                .bytes()
+                .all(|byte| matches!(byte, b'0'..=b'9' | b'a'..=b'f'));
+        if !is_sha256 {
+            return Err(invalid());
+        }
         let relative = url.strip_prefix(SOURCE_HOST).ok_or_else(invalid)?;
         let segments: Vec<&str> = relative.split('/').collect();
         let [FAMILY, year, ELEMENT_FOLDER, file] = segments[..] else {
@@ -161,7 +215,11 @@ fn source_releases(
             &mut release.schema
         };
         if slot.is_some() {
-            return Err(invalid());
+            return Err(GeneratorError::RepeatedSourceFile {
+                path: path.to_path_buf(),
+                line: index + 1,
+                text: text.to_string(),
+            });
         }
         *slot = Some((PathBuf::from(relative), digest.to_string()));
     }
@@ -212,6 +270,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::taxonomy::reference::PeriodType;
 
     fn sales_revenue_net() -> ConceptRef {
         ConceptRef {
@@ -275,11 +334,11 @@ mod tests {
 
     #[test]
     fn should_return_invalid_manifest_line_when_url_is_not_an_element_file() {
-        let manifest = "ab  https://xbrl.fasb.org/us-gaap/2020/stm/us-gaap-stm-soi-2020-01-31.xsd";
+        let manifest = "ab  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd";
 
         let expected_result = Some(
             "[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: \
-             'ab  https://xbrl.fasb.org/us-gaap/2020/stm/us-gaap-stm-soi-2020-01-31.xsd', Line: \
+             'ab  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd', Line: \
              '1', Path: 'MANIFEST'"
                 .to_string(),
         );
@@ -293,7 +352,10 @@ mod tests {
 
     #[test]
     fn should_return_unexpected_checksum_when_file_differs_from_the_manifest() {
-        let path = std::env::temp_dir().join("xbrl-removed-unexpected-checksum.xsd");
+        let path = std::env::temp_dir().join(format!(
+            "xbrl-removed-unexpected-checksum-{}.xsd",
+            std::process::id()
+        ));
         fs::write(&path, "abc").expect("Given the temp folder, a write should always succeed");
         let expected = "0".repeat(64);
 
@@ -304,6 +366,111 @@ mod tests {
         ));
 
         let result = verified_read(&path, &expected)
+            .err()
+            .map(|error| error.to_string());
+        fs::remove_file(&path).expect("Given the file this test wrote, the removal should succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    fn concept(name: &str) -> Concept {
+        Concept {
+            name: name.to_string(),
+            data_type: "xbrli:monetaryItemType".to_string(),
+            balance: None,
+            period_type: PeriodType::Duration,
+        }
+    }
+
+    fn release(id: &str, names: &[&str], label_suffix: &str) -> ReadRelease {
+        ReadRelease {
+            id: id.to_string(),
+            concepts: names.iter().map(|name| concept(name)).collect(),
+            labels: names
+                .iter()
+                .map(|name| {
+                    let key = ConceptRef {
+                        family: FAMILY.to_string(),
+                        name: (*name).to_string(),
+                    };
+                    (key, format!("{name} {label_suffix}"))
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn should_take_data_of_the_newest_release_when_two_releases_define_the_concept() {
+        let releases = vec![
+            release(
+                "us-gaap/2020",
+                &["SalesRevenueNet"],
+                "(Deprecated 2018-01-31)",
+            ),
+            release("us-gaap/2019", &["SalesRevenueNet"], "old"),
+        ];
+
+        let expected_result = vec![RemovedElementLine {
+            name: "SalesRevenueNet".to_string(),
+            label: "SalesRevenueNet (Deprecated 2018-01-31)".to_string(),
+            data_type: "xbrli:monetaryItemType".to_string(),
+            balance: None,
+            period_type: PeriodType::Duration,
+            last_release: "us-gaap/2020".to_string(),
+            deprecated_in: Some("us-gaap/2018".to_string()),
+        }];
+
+        let result = removed_lines(BTreeSet::new(), releases)
+            .expect("Given a label for each concept, the lines should always build");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_skip_concept_when_the_release_in_use_defines_it() {
+        let known = BTreeSet::from(["Revenues".to_string()]);
+        let releases = vec![release("us-gaap/2020", &["Revenues"], "label")];
+
+        let expected_result: Vec<RemovedElementLine> = Vec::new();
+
+        let result = removed_lines(known, releases)
+            .expect("Given a label for each concept, the lines should always build");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_missing_label_when_release_has_no_label_for_a_concept() {
+        let mut releases = vec![release("us-gaap/2020", &["SalesRevenueNet"], "label")];
+        releases[0].labels.clear();
+
+        let expected_result = Some(
+            "[MissingLabel] Standard label not found for concept 'us-gaap:SalesRevenueNet'"
+                .to_string(),
+        );
+
+        let result = removed_lines(BTreeSet::new(), releases)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_repeated_source_file_when_manifest_names_two_schemas_of_one_release() {
+        let digest = "0".repeat(64);
+        let manifest = format!(
+            "{digest}  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd\n\
+             {digest}  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020.xsd"
+        );
+
+        let expected_result = Some(format!(
+            "[RepeatedSourceFile] The MANIFEST names a second file of the same kind for one \
+             release, Text: '{digest}  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020.xsd', \
+             Line: '2', Path: 'MANIFEST'"
+        ));
+
+        let result = source_releases(Path::new("MANIFEST"), &manifest)
             .err()
             .map(|error| error.to_string());
 

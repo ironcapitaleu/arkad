@@ -115,7 +115,7 @@ pub enum GeneratorError {
         concept: String,
     },
 
-    /// A source file has another SHA-256 than its line of the `MANIFEST`.
+    /// The SHA-256 of a source file differs from its line in the `MANIFEST`.
     #[error("[UnexpectedChecksum] Source file differs from the MANIFEST, Expected: '{expected}', Actual: '{actual}', Path: '{}'", path.display())]
     UnexpectedChecksum {
         /// The path of the file.
@@ -130,6 +130,17 @@ pub enum GeneratorError {
     /// schema or label linkbase.
     #[error("[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: '{text}', Line: '{line}', Path: '{}'", path.display())]
     InvalidManifestLine {
+        /// The path of the `MANIFEST`.
+        path: PathBuf,
+        /// The number of the line, from 1.
+        line: usize,
+        /// The text of the line.
+        text: String,
+    },
+
+    /// The `MANIFEST` names a second element schema or a second label linkbase for one release.
+    #[error("[RepeatedSourceFile] The MANIFEST names a second file of the same kind for one release, Text: '{text}', Line: '{line}', Path: '{}'", path.display())]
+    RepeatedSourceFile {
         /// The path of the `MANIFEST`.
         path: PathBuf,
         /// The number of the line, from 1.

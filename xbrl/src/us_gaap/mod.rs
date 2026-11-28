@@ -4838,7 +4838,7 @@ mod tests {
     }
 
     #[test]
-    fn should_hold_one_row_per_concept_of_the_schemas_2012_to_2025_missing_from_2026() {
+    fn should_hold_6628_rows_for_the_removed_elements() {
         let us_gaap = UsGaap::new();
 
         let expected_result = 6_628;
@@ -4871,6 +4871,20 @@ mod tests {
             });
 
         let result = us_gaap.removed_element(&removed).cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_removed_elements_sorted_by_name_without_repeats_for_the_binary_search() {
+        let names: Vec<&str> = removed::REMOVED_ELEMENTS
+            .iter()
+            .map(|row| row.name)
+            .collect();
+
+        let expected_result = true;
+
+        let result = names.windows(2).all(|pair| pair[0] < pair[1]);
 
         assert_eq!(result, expected_result);
     }
