@@ -25,7 +25,7 @@ impl ConceptId {
 impl TryFrom<CanonicalElementKind> for ConceptId {
     type Error = InvalidPascalCase;
 
-    /// Converts a [`CanonicalElementKind`] into its [`ConceptId`]: the name in silver of the
+    /// Converts a [`CanonicalElementKind`] into its [`ConceptId`]: the stored name of the
     /// concept, from [`CanonicalElementKind::name`], in `snake_case`.
     ///
     /// # Errors
