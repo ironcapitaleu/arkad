@@ -260,7 +260,7 @@ repeats across datasets.
 
 The record of one write unit: its files, its inputs, its counts, its digests, and the run that
 wrote it. Each row of the dataset `unit_manifests` holds one unit manifest. Readers find the
-current files of a dataset through it.
+current files of a dataset through the unit manifests.
 
 - **Related:** Current Unit, Dataset, Write Unit.
 
