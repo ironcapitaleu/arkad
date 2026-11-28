@@ -53,8 +53,8 @@ reader that maps a column of `dim.tsv` by name.
 
 - If the SEC renames `dimhash` to `dimh` in the header, every file fails. The fix removes the
   alias.
-- The check covers 2 of 80 files. The design measured equal headers in `2012q1`, `2024q1`, and
-  `2026_09`, so the alias likely holds for all files.
+- The measurement covers 2 of 80 files. The alias is not measured on the other 78 files. On
+  2026-10-28, the headers of all eight tables were equal in `2012q1`, `2024q1`, and `2026_09`.
 
 ## Open Questions
 

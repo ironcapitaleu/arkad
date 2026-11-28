@@ -35,6 +35,10 @@ pub struct SampleMember {
     pub crc32: Option<u32>,
     /// The unzipped size the ZIP index records, instead of the size of `content`.
     pub unzipped_size: Option<u32>,
+    /// The zipped bytes the ZIP stores, instead of the deflate of `content`.
+    pub data: Option<Vec<u8>>,
+    /// The zipped size the ZIP index records, instead of the size of the zipped bytes.
+    pub zipped_size: Option<u32>,
 }
 
 impl SampleMember {
@@ -47,6 +51,8 @@ impl SampleMember {
             compression: SampleCompression::Deflated,
             crc32: None,
             unzipped_size: None,
+            data: None,
+            zipped_size: None,
         }
     }
 }
@@ -137,16 +143,18 @@ struct MemberHeader {
     method: u16,
     crc32: u32,
     unzipped_size: u32,
+    zipped_size: u32,
     name_length: u16,
     data: Vec<u8>,
 }
 
 impl MemberHeader {
     fn of(member: &SampleMember) -> Self {
-        let (method, data) = match member.compression {
+        let (method, zipped) = match member.compression {
             SampleCompression::Stored => (0, member.content.clone()),
             SampleCompression::Deflated => (8, deflate(&member.content)),
         };
+        let data = member.data.clone().unwrap_or(zipped);
         let mut crc = Crc::new();
         crc.update(&member.content);
         Self {
@@ -155,6 +163,7 @@ impl MemberHeader {
             unzipped_size: member
                 .unzipped_size
                 .unwrap_or_else(|| to_u32(member.content.len())),
+            zipped_size: member.zipped_size.unwrap_or_else(|| to_u32(data.len())),
             name_length: u16::try_from(member.name.len())
                 .expect("Given a short sample name, its length should always fit in 16 bits"),
             data,
@@ -170,7 +179,7 @@ impl MemberHeader {
         out.extend_from_slice(&0_u16.to_le_bytes());
         out.extend_from_slice(&0x21_u16.to_le_bytes());
         out.extend_from_slice(&self.crc32.to_le_bytes());
-        out.extend_from_slice(&to_u32(self.data.len()).to_le_bytes());
+        out.extend_from_slice(&self.zipped_size.to_le_bytes());
         out.extend_from_slice(&self.unzipped_size.to_le_bytes());
         out.extend_from_slice(&self.name_length.to_le_bytes());
     }

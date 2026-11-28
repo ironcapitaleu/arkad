@@ -66,14 +66,6 @@ impl NotesTable {
             Self::Ren => "ren.tsv",
         }
     }
-
-    /// Returns the table whose member has the given name, or `None` if no table has it.
-    #[must_use]
-    pub fn from_member_name(name: &str) -> Option<Self> {
-        Self::ALL
-            .into_iter()
-            .find(|table| table.member_name() == name)
-    }
 }
 
 /// Formats as the name of the member, for example `num.tsv`.
@@ -93,28 +85,6 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_notes_table() {
         implements_auto_traits::<NotesTable>();
-    }
-
-    #[test]
-    fn should_return_the_table_when_the_member_name_names_a_table() {
-        let name = "dim.tsv";
-
-        let expected_result = Some(NotesTable::Dim);
-
-        let result = NotesTable::from_member_name(name);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_return_none_when_the_member_name_names_no_table() {
-        let name = "readme.htm";
-
-        let expected_result = None;
-
-        let result = NotesTable::from_member_name(name);
-
-        assert_eq!(result, expected_result);
     }
 
     #[test]

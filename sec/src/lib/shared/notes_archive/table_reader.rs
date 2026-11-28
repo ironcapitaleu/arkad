@@ -20,9 +20,10 @@ use super::table_read_error::TableReadError;
 /// that holds a tab or a quote, and `""` for a quote inside such a field. Each item is one row, or
 /// the first error. After an error, the reader returns `None`.
 ///
-/// The reader holds its own copy of the zipped bytes, so readers of two tables can run on two
+/// The reader holds its own reference to the zipped bytes, so readers of two tables can run on two
 /// threads. It checks the CRC-32 and the unzipped size of the member after the last row, so a
-/// caller must read to the end to know that the table is valid.
+/// caller must read to the end to know that the table is valid. If an item is an error, a row
+/// before it can hold cut data.
 #[derive(Debug)]
 pub struct TableReader {
     table: NotesTable,
@@ -85,7 +86,13 @@ impl Iterator for TableReader {
         }
         let mut record = StringRecord::new();
         match self.rows.read_record(&mut record) {
-            Ok(true) => Some(Ok(TableRow(record))),
+            Ok(true) => match self.rows.get_ref().overflow() {
+                Some(mismatch) => {
+                    self.done = true;
+                    Some(Err(mismatch.for_table(self.table)))
+                }
+                None => Some(Ok(TableRow(record))),
+            },
             Ok(false) => {
                 self.done = true;
                 self.rows
@@ -520,6 +527,45 @@ mod tests {
         let result = reader.filter_map(Result::err).last();
 
         assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_member_size_instead_of_the_row_when_the_cut_falls_inside_its_last_field()
+     {
+        let mut builder = NotesZipBuilder::sample();
+        builder.member_mut("dim.tsv").unzipped_size = Some(58);
+        let archive = open(&builder);
+        let mut reader = archive
+            .table(NotesTable::Dim)
+            .expect("Given the sample dim.tsv, its header should always match");
+
+        let expected_result = Some(Err(TableReadError::InvalidMemberSize {
+            table: NotesTable::Dim,
+            expected: 58,
+            actual: 59,
+        }));
+
+        let result = reader.next();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_failed_table_read_when_the_deflate_stream_is_damaged() {
+        let mut builder = NotesZipBuilder::sample();
+        builder.member_mut("dim.tsv").data = Some(vec![0xff; 16]);
+        let archive = open(&builder);
+
+        let result = archive.table(NotesTable::Dim).err();
+
+        // The reason is the text of `flate2`, which the test leaves out.
+        assert!(matches!(
+            result,
+            Some(TableReadError::FailedTableRead {
+                table: NotesTable::Dim,
+                ..
+            })
+        ));
     }
 
     #[test]

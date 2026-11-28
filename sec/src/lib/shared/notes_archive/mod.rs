@@ -602,6 +602,37 @@ mod tests {
     }
 
     #[test]
+    fn should_fail_with_invalid_zip_index_when_the_member_data_lies_outside_the_file() {
+        let mut builder = NotesZipBuilder::sample();
+        builder.member_mut("notes-metadata.json").zipped_size = Some(1_000_000);
+
+        let expected_result = Some(NotesArchiveError::InvalidZipIndex {
+            reason: "The data of the member 'notes-metadata.json' lies outside the file".to_owned(),
+        });
+
+        let result = open_error(&builder);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_with_invalid_metadata_when_the_metadata_member_has_another_size() {
+        let mut builder = NotesZipBuilder::sample();
+        let metadata = builder.member_mut("notes-metadata.json");
+        metadata.unzipped_size = Some(10);
+
+        let result = open_error(&builder);
+
+        // The size of the metadata member depends on all sample headers, so the test leaves the
+        // count of bytes out.
+        assert!(matches!(
+            result,
+            Some(NotesArchiveError::InvalidMetadata { reason })
+                if reason == "Size: 11 bytes, Expected: 10 bytes"
+        ));
+    }
+
+    #[test]
     fn should_replace_the_metadata_name_with_the_header_name_for_the_dim_hash_column() {
         let columns = vec!["dimh".to_owned(), "segments".to_owned(), "segt".to_owned()];
 
