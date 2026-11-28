@@ -13,11 +13,13 @@ use std::fmt;
 use xbrl::core::finding::Finding;
 
 /// Why the parse dropped a source row.
-#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DropReason {
     /// The parser could not map the row into a fact, and gave an `UnmappedRow` finding.
     UnmappedRow,
+    /// The row repeats a fact of an earlier row in key, value, and `decimals`. The parser keeps one
+    /// fact for both and gives no finding.
+    DuplicateRow,
 }
 
 impl DropReason {
@@ -26,6 +28,7 @@ impl DropReason {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::UnmappedRow => "UnmappedRow",
+            Self::DuplicateRow => "DuplicateRow",
         }
     }
 }
@@ -44,7 +47,7 @@ impl fmt::Display for DropReason {
 /// ```rust
 /// use sec::shared::source_counts::{DropReason, SourceCounts};
 ///
-/// let counts = SourceCounts::new(12, &[]);
+/// let counts = SourceCounts::new(12, 0, &[]);
 ///
 /// let expected_result = 0;
 ///
@@ -59,18 +62,22 @@ pub struct SourceCounts {
 }
 
 impl SourceCounts {
-    /// Creates the counts of a filing with `rows_in` source rows. Counts one row under
-    /// [`DropReason::UnmappedRow`] for each [`Finding::UnmappedRow`] in `findings`.
+    /// Creates the counts of a filing with `rows_in` source rows, of which the parser merged
+    /// `duplicate_rows` into an earlier row. Counts them under [`DropReason::DuplicateRow`], and
+    /// one row under [`DropReason::UnmappedRow`] for each [`Finding::UnmappedRow`] in `findings`.
     #[must_use]
-    pub fn new(rows_in: u64, findings: &[Finding]) -> Self {
+    pub fn new(rows_in: u64, duplicate_rows: u64, findings: &[Finding]) -> Self {
         let unmapped = findings
             .iter()
             .filter(|finding| matches!(finding, Finding::UnmappedRow { .. }))
-            .count();
-        let mut dropped = BTreeMap::new();
-        if unmapped > 0 {
-            dropped.insert(DropReason::UnmappedRow, unmapped as u64);
-        }
+            .count() as u64;
+        let dropped = [
+            (DropReason::UnmappedRow, unmapped),
+            (DropReason::DuplicateRow, duplicate_rows),
+        ]
+        .into_iter()
+        .filter(|&(_, rows)| rows > 0)
+        .collect();
         Self { rows_in, dropped }
     }
 
@@ -154,7 +161,7 @@ mod tests {
 
         let expected_result = BTreeMap::from([(DropReason::UnmappedRow, 2)]);
 
-        let result = SourceCounts::new(10, &findings).dropped().clone();
+        let result = SourceCounts::new(10, 0, &findings).dropped().clone();
 
         assert_eq!(result, expected_result);
     }
@@ -165,7 +172,7 @@ mod tests {
 
         let expected_result = BTreeMap::new();
 
-        let result = SourceCounts::new(10, &findings).dropped().clone();
+        let result = SourceCounts::new(10, 0, &findings).dropped().clone();
 
         assert_eq!(result, expected_result);
     }
@@ -176,7 +183,7 @@ mod tests {
 
         let expected_result = 27_529;
 
-        let result = SourceCounts::new(rows_in, &[]).rows_in();
+        let result = SourceCounts::new(rows_in, 0, &[]).rows_in();
 
         assert_eq!(result, expected_result);
     }
@@ -186,6 +193,29 @@ mod tests {
         let reason = DropReason::UnmappedRow;
 
         let expected_result = "UnmappedRow";
+
+        let result = reason.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_duplicate_rows_next_to_unmapped_rows_when_both_occur() {
+        let findings = vec![unmapped_row()];
+
+        let expected_result =
+            BTreeMap::from([(DropReason::UnmappedRow, 1), (DropReason::DuplicateRow, 3)]);
+
+        let result = SourceCounts::new(10, 3, &findings).dropped().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_reason_as_dropped_rows_text_for_duplicate_row() {
+        let reason = DropReason::DuplicateRow;
+
+        let expected_result = "DuplicateRow";
 
         let result = reason.to_string();
 

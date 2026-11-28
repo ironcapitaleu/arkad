@@ -52,20 +52,27 @@ pub struct Candidate<O, R> {
     pub fact: AsIsFact,
 }
 
+/// The output of [`number_copies`].
+pub struct NumberedCopies<R> {
+    /// The kept facts, in the order of the candidates.
+    pub facts: Vec<AsIsFact>,
+    /// Each row whose rank does not fit `copy_rank`, with the reason.
+    pub overflow: Vec<(R, InvalidValue)>,
+    /// The number of candidates that repeat an earlier fact. The function drops them.
+    pub duplicate_rows: u64,
+}
+
 /// Drops the facts that repeat a fact, and numbers the copies of each key in copy order.
 ///
 /// A fact repeats an earlier fact if the two are equal in key, value, and `decimals`. The other
 /// facts of one key get the ranks 0, 1, 2, and so on, in copy order, then in the order of the
 /// candidates. The facts keep the order of the candidates.
-///
-/// Returns the kept facts, and each row whose rank does not fit `copy_rank`, with the reason.
-pub fn number_copies<O: Ord, R>(
-    candidates: Vec<Candidate<O, R>>,
-) -> (Vec<AsIsFact>, Vec<(R, InvalidValue)>) {
+pub fn number_copies<O: Ord, R>(candidates: Vec<Candidate<O, R>>) -> NumberedCopies<R> {
     let mut order: Vec<usize> = (0..candidates.len()).collect();
     order.sort_by(|&left, &right| candidates[left].order.cmp(&candidates[right].order));
     let mut copies: HashMap<FactKey, Vec<usize>> = HashMap::new();
     let mut outcomes: Vec<Option<Result<u16, InvalidValue>>> = vec![None; candidates.len()];
+    let mut duplicate_rows = 0;
     for index in order {
         let fact = &candidates[index].fact;
         let earlier = copies.entry(fact.key()).or_default();
@@ -73,6 +80,7 @@ pub fn number_copies<O: Ord, R>(
             candidates[other].fact.value == fact.value
                 && candidates[other].fact.decimals == fact.decimals
         }) {
+            duplicate_rows += 1;
             continue;
         }
         let rank = u16::try_from(earlier.len()).map_err(|_| {
@@ -99,7 +107,11 @@ pub fn number_copies<O: Ord, R>(
             None => {}
         }
     }
-    (facts, overflow)
+    NumberedCopies {
+        facts,
+        overflow,
+        duplicate_rows,
+    }
 }
 
 /// Returns one [`Finding::UndeclaredFamily`] per family of the facts that no plug-in declares,
@@ -183,7 +195,7 @@ mod tests {
 
         let expected_result = vec![0, 1];
 
-        let (facts, _) = number_copies(candidates);
+        let facts = number_copies(candidates).facts;
         let result: Vec<u16> = facts.iter().map(|fact| fact.copy_rank).collect();
 
         assert_eq!(result, expected_result);
@@ -202,7 +214,7 @@ mod tests {
             ("200".to_owned(), 1, vec!["row 2".to_owned()]),
         ];
 
-        let (facts, _) = number_copies(candidates);
+        let facts = number_copies(candidates).facts;
         let result: Vec<(String, u16, Vec<String>)> = facts
             .into_iter()
             .map(|fact| match fact.value {
@@ -210,6 +222,22 @@ mod tests {
                 _ => (String::new(), fact.copy_rank, fact.footnotes),
             })
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_each_dropped_repeat_when_three_copies_repeat_a_fact() {
+        let candidates = vec![
+            candidate(0, 0, "100"),
+            candidate(1, 1, "100"),
+            candidate(2, 2, "200"),
+            candidate(3, 3, "100"),
+        ];
+
+        let expected_result = 2;
+
+        let result = number_copies(candidates).duplicate_rows;
 
         assert_eq!(result, expected_result);
     }

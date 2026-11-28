@@ -288,6 +288,10 @@ pub struct FilingRows {
   `findings` with `step = filing`
   ([ADR 0041](../../../docs/adr/0041-parser-findings-in-silver.md)). `dropped_rows` counts the
   row of each `UnmappedRow` under the reason `UnmappedRow`.
+- Each parse state fills `SourceCounts` from the parser output: `rows_in`, the `UnmappedRow`
+  findings, and `duplicate_rows` under the reason `DuplicateRow`. The parsers count the rows they
+  read and the rows they merge, so no count comes from a subtraction
+  ([ADR 0053](../../../docs/adr/0053-duplicate-rows-and-row-counts-from-the-parsers.md)).
 
 ### The Filing Step
 
