@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27) |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-541](https://linear.app/state-machine/issue/STA-541), accessed 2026-11-27 |
@@ -73,6 +73,62 @@ check of `NetChangeInCash` against two balances.
    no mapping. After ASU 2016-18, `CashAndRestrictedCash` holds the cash of a bank.
 9. **No rule derives `NetChangeInCash` from two balances.** The difference of two balances is the
    input of a check only. The check belongs to a separate design.
+
+## Amendment 1: The One-Line Total of Discontinued Operations
+
+> **Proposed and accepted by the project owner on 2026-11-27.** It adds a blocker to the part rules of decision 3. It keeps the
+> parts and the other parts.
+
+### Why
+
+A filer can report the discontinued operations of all activities as one line,
+`NetCashProvidedByUsedInDiscontinuedOperations`. In the 2026 calculation tree
+(`StatementOfCashFlowsIndirectDepositBasedOperations`), that line is the parent of the three
+`CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flows. If a filing reports the line and no
+flow, no other part blocks the part. Each cash flow total then gets only the value of continuing
+operations.
+
+The line cannot simply join the other parts. Of the 107 fixture filings, only Air Products 2013
+and 2025 report it (Notes rows, read on 2026-11-27):
+
+| Filing | Fiscal year | Line | Operating flow | Investing flow | Financing flow |
+| ------ | ----------- | ---- | -------------- | -------------- | -------------- |
+| `0001193125-13-453925` | 2013 | 13.1 | 14.3 | −1.2 | 0 |
+| `0000002969-25-000055` | 2025 | 0 | 0 | 0 | 0 |
+
+Values in million USD. As an other part, the line would block the financing cash flow of Air
+Products 2013, 115.4 million USD. That value is the full total, because the financing flow of
+discontinued operations is 0.
+
+### Decision
+
+1. **A part rule can name totals of other parts.** A total blocks the part only if the filing
+   reports none of the other parts in the period, in any dimension, with any value, zero included.
+   A total of zero does not block, as an other part of zero does not.
+2. **The three cash flow part rules name `NetCashProvidedByUsedInDiscontinuedOperations` as their
+   total of other parts.** A filer that reports the flow of an activity reports the line as the
+   sum of the flows, so the flow decides for that activity.
+
+### Options Considered
+
+| Option | A1 lines filled by decision 3 | A filing with the line and no flow |
+| ------ | ----------------------------- | ---------------------------------- |
+| **A. Total of other parts (chosen)** | 22 | Blocked |
+| B. The line as an other part | 21. Air Products 2013 financing stays open | Blocked |
+| C. No change | 22 | Continuing operations only, as `Synonym` |
+
+Measured on 2026-11-27 on the branch of decision 3, at `fc75706`, with A1
+(`xbrl/tests/acceptance_roll_ups.rs`).
+
+### Consequences of the Amendment
+
+- A1 and A2 do not change. Air Products 2013 reports a flow for each activity, and Air Products
+  2025 reports the line as 0.
+- `PartAliases` gains the field `other_part_totals`. The other part rules name none.
+- A filing that reports the line and the flows of only some activities gets no part for the other
+  activities, even if the reported flows sum to the line. Those values stay open.
+- Not covered: a filer that reports discontinued operations with an extension concept of its own.
+  No part rule sees that concept.
 
 ## Options Considered
 
