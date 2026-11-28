@@ -114,7 +114,7 @@ SHA-256 against the metadata on each read.
 3. **Select filings.** It keeps the `sub` rows whose form is in `SELECTED_FORMS`, with their
    amendments. This is the same rule as the daily path
    ([`extraction_overview.md`](extraction_overview.md), "Filings We Select"). The rows of the other
-   filings count in `dropped_rows` with the reason `form_not_selected`. `2024q1` drops 1,259,028
+   filings count in `dropped_rows` with the reason `FormNotSelected`. `2024q1` drops 1,259,028
    rows this way (measured).
 4. **Split by `adsh`.** It streams `num.tsv` and `txt.tsv` side by side, first in one pass, and in
    K passes over hash buckets after the first row out of order. See [The Split](#the-split).
@@ -155,7 +155,7 @@ bucket split as the fallback.
   no `num` or `txt` row appears in exactly one pass. The count of a pass includes the filings that
   the machines reject, because each one still sends an outcome to the writer.
 - **Filings with no `sub` row.** A `num` or `txt` row whose `adsh` has no `sub` row counts in
-  `dropped_rows` with the reason `no_sub_row`. Measured files hold no such row, so the reason
+  `dropped_rows` with the reason `NoSubRow`. Measured files hold no such row, so the reason
   stays for a damaged file.
 - **A `sub` row with no `num` or `txt` row** still gives a filing. It writes a `filings` row and no
   fact.
@@ -316,7 +316,7 @@ pub enum FilingOutcome {
 pub struct RejectedFiling {
     pub filing: String,                 // the adsh, or the accession number
     pub error: StateMachine,            // the error of the state or the transition that failed
-    pub counts: SourceCounts,           // every source row of the filing, dropped as rejected_filing
+    pub counts: SourceCounts,           // every source row of the filing, dropped as RejectedFiling
 }
 ```
 
@@ -392,7 +392,7 @@ The extraction design sets four layers of validation, each in the state that fir
 | 4. Row content, one row | The parsers. A row that breaks a rule of a core type gives an `UnmappedRow` finding | The row: an `UnmappedRow` finding, and `dropped_rows`, reason `UnmappedRow` |
 | 4. Row content, one filing | The parse states. A `sub` row or a cover fact that breaks a rule, an instance that is not XML | The filing: a rejected filing |
 | 4. Row content, the unit | The Notes reader. Two `sub` rows with one `adsh` | Bad unit |
-| 4. Row content, references | The Notes reader. A `num` or `txt` row with no `sub` row | The row: `dropped_rows`, reason `no_sub_row` |
+| 4. Row content, references | The Notes reader. A `num` or `txt` row with no `sub` row | The row: `dropped_rows`, reason `NoSubRow` |
 
 The instance path has no layers 2 and 3. The daily index of the day is the one table it reads, and
 extract checked it when it stored it. A daily index that does not parse is a bad unit.
@@ -404,7 +404,7 @@ A filing is rejected when its filing machine returns an error
 
 - The unit goes on without the filing. The filing writes no row in any dataset.
 - `dropped_rows` of `as_is_facts` counts every source row of the filing with the reason
-  `rejected_filing`, and `dropped_rows` of `filings` counts its `sub` row or its instance. So check
+  `RejectedFiling`, and `dropped_rows` of `filings` counts its `sub` row or its instance. So check
   3 of the contract, "Row counts", still holds.
 - The task logs one `filing_rejected` event per filing, as `warn`, with the unit key, the filing,
   and the error text. `rejected_filings` of `task_summary` counts them.

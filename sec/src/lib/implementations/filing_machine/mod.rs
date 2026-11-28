@@ -43,7 +43,7 @@ pub struct RejectedFiling {
     pub filing: String,
     /// The error of the state or the transition that failed.
     pub error: StateMachineError,
-    /// Every source row of the filing, dropped under `rejected_filing`.
+    /// Every source row of the filing, dropped under `RejectedFiling`.
     pub counts: SourceCounts,
 }
 

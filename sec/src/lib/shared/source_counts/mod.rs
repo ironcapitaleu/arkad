@@ -25,14 +25,14 @@ pub enum DropReason {
 }
 
 impl DropReason {
-    /// Returns the text of the `reason` field of `dropped_rows`, for example `UnmappedRow` or
-    /// `rejected_filing`.
+    /// Returns the text of the `reason` field of `dropped_rows`: the name of the variant, for
+    /// example `UnmappedRow`.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::UnmappedRow => "UnmappedRow",
             Self::DuplicateRow => "DuplicateRow",
-            Self::RejectedFiling => "rejected_filing",
+            Self::RejectedFiling => "RejectedFiling",
         }
     }
 }
@@ -253,7 +253,7 @@ mod tests {
     fn should_display_reason_as_dropped_rows_text_for_rejected_filing() {
         let reason = DropReason::RejectedFiling;
 
-        let expected_result = "rejected_filing";
+        let expected_result = "RejectedFiling";
 
         let result = reason.to_string();
 
