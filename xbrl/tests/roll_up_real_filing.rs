@@ -15,6 +15,9 @@
 //! `MixedStarts` in each quarter. `net-change-in-cash` holds only four-month values, and the income
 //! statement holds only quarters, so their groups keep their checks.
 //!
+//! The cash roll forward of each four-month period holds: 109 − 24 = 85 million USD in 2025, and
+//! 251 + 137 = 388 in 2026, from `CashAndRestrictedCash` on 31 May and 30 September.
+//!
 //! ## External Dependencies
 //!
 //! None. The fixtures live in `src/tests/fixtures/data/`.
@@ -245,6 +248,49 @@ fn should_keep_the_checks_of_net_change_in_cash_and_net_income_attribution_when_
     ];
 
     let result = summaries(findings_of(&series));
+
+    assert_eq!(result, expected_result);
+}
+
+/// Returns the start and the end of the change of each [`Finding::RollForwardMismatch`] in
+/// `findings`.
+fn roll_forward_mismatches(findings: Vec<Finding>) -> Vec<(Option<Date>, Date)> {
+    findings
+        .into_iter()
+        .filter_map(|finding| match finding {
+            Finding::RollForwardMismatch { period, .. } => Some((period.start(), period.end())),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn should_report_no_roll_forward_mismatch_when_the_checks_run_on_the_notes_facts() {
+    let series = series_of(&parse_notes_fixture().facts);
+
+    let expected_result: Vec<(Option<Date>, Date)> = Vec::new();
+
+    let result = roll_forward_mismatches(findings_of(&series));
+
+    assert_eq!(result, expected_result);
+}
+
+#[test]
+fn should_report_a_roll_forward_mismatch_of_the_four_months_when_the_closing_cash_of_2026_is_shifted()
+ {
+    let mut series = series_of(&parse_notes_fixture().facts);
+    for fact in &mut series.facts {
+        if fact.concept == CashFlowConcept::CashAndRestrictedCash.element()
+            && fact.dimensions.is_empty()
+            && fact.period.end() == date(2026, 9, 30)
+        {
+            fact.value += BigDecimal::from(1_000_000);
+        }
+    }
+
+    let expected_result = vec![(Some(date(2026, 6, 1)), date(2026, 9, 30))];
+
+    let result = roll_forward_mismatches(findings_of(&series));
 
     assert_eq!(result, expected_result);
 }

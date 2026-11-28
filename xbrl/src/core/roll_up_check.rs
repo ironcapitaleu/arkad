@@ -15,12 +15,13 @@ use super::elements::statement::balance_sheet::BalanceSheetGroup;
 use super::elements::statement::groups;
 use super::elements::statement::income_statement::IncomeStatementGroup;
 use super::elements::{
-    BalanceSheetConcept, CanonicalElementKind, Group, GroupName, StatementConcept,
+    BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, Group, GroupName, StatementConcept,
 };
 use super::fact::Dimensions;
 use super::filing::EntityId;
-use super::finding::{Finding, RollUpCheck};
+use super::finding::{Finding, RollForward, RollUpCheck};
 use super::period::Period;
+use super::scope::Scope;
 use super::standardized::StandardizedFact;
 use super::statement::{Line, Statement, StatementKind, mixed_starts};
 use super::taxonomy::reference::PeriodType;
@@ -56,6 +57,8 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 /// 3. The other line of `current-assets`, `non-current-assets`, `current-liabilities`,
 ///    `non-current-liabilities`, and `operating-expenses` must not fall below zero. A failure is a
 ///    [`Finding::NegativeOther`]. The other line is the one of [`Statement`].
+/// 4. The cash roll forward: the opening balance plus `NetChangeInCash` must equal the closing
+///    balance. A failure is a [`Finding::RollForwardMismatch`].
 ///
 /// A check passes within ±0.1% of the largest absolute value of its values, not of the parent. In
 /// a step, the parent can be near zero while its members are large.
@@ -66,11 +69,19 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 /// group also gets no check for a period if `core/roll-up/<group>@1` derived a value of that group
 /// for the period, because the group then holds by construction.
 ///
+/// The cash roll forward reads `CashAndRestrictedCash` for a change with no scope, and
+/// `CashAndEquivalents` for a change with the scope [`Scope::ExcludesRestrictedCash`]. The opening
+/// balance is the instant at the day before the exact start of the change, with no window. The
+/// closing balance is the instant at the end. A balance must have the unit of the change. The cash
+/// roll forward gets no check for a period if the change or a balance has no value, or if dedup
+/// blocks one of them.
+///
 /// Before these checks, each group of the slot, open or closed, gets a [`Finding::MixedStarts`] if
 /// two of the facts that [`Statement`] counts in it have different exact starts. Such a group gets
 /// no other check and no other line. The other groups of the slot keep their checks.
 #[must_use]
 pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Finding> {
+    let balances = Balances::all(series, added);
     let mut findings = Vec::new();
     for slot in Slot::all(series, added) {
         findings.extend(groups().filter_map(|group| slot.check_starts(*group)));
@@ -81,8 +92,60 @@ pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Findin
         );
         findings.extend(slot.check_balance_sheet());
         findings.extend(slot.check_negative_others());
+        findings.extend(slot.check_cash_roll_forward(&balances));
     }
     findings
+}
+
+/// The key of a balance in [`Balances`]: the entity, the concept, the instant, and the unit.
+type BalanceKey<'a> = (&'a EntityId, CanonicalElementKind, Date, &'a Unit);
+
+/// The instant values without dimensions of one entity, and the instants that dedup blocks.
+struct Balances<'a> {
+    values: BTreeMap<BalanceKey<'a>, &'a StandardizedFact>,
+    blocked: BTreeSet<BalanceKey<'a>>,
+}
+
+impl<'a> Balances<'a> {
+    /// Returns the instant values of `series` and `added`, and the blocked keys of `series` with
+    /// 0 quarters.
+    fn all(series: &'a Series, added: &'a [StandardizedFact]) -> Self {
+        let values = series
+            .facts
+            .iter()
+            .chain(added)
+            .filter(|fact| {
+                fact.dimensions.is_empty() && fact.period.period_type() == PeriodType::Instant
+            })
+            .map(|fact| {
+                let key = (&fact.entity, fact.concept, fact.period.end(), &fact.unit);
+                (key, fact)
+            })
+            .collect();
+        let blocked = series
+            .blocked
+            .iter()
+            .filter(|key| key.dimensions.is_empty() && key.quarters == 0)
+            .map(|key| (&key.entity, key.concept, key.period_end, &key.unit))
+            .collect();
+        Self { values, blocked }
+    }
+
+    /// Returns the value of `key`, or `None` if it has no value or dedup blocks it.
+    fn get(&self, key: BalanceKey<'a>) -> Option<&'a StandardizedFact> {
+        if self.blocked.contains(&key) {
+            return None;
+        }
+        self.values.get(&key).copied()
+    }
+}
+
+/// Returns the balance concept that the cash roll forward reads for a change with `scope`.
+const fn cash_balance(scope: Option<Scope>) -> CanonicalElementKind {
+    match scope {
+        None => CashFlowConcept::CashAndRestrictedCash.element(),
+        Some(Scope::ExcludesRestrictedCash) => BalanceSheetConcept::CashAndEquivalents.element(),
+    }
 }
 
 /// The key of a [`Slot`]: the entity, the period end, the length in quarters, the period type, the
@@ -256,6 +319,33 @@ impl<'a> Slot<'a> {
         findings
     }
 
+    /// Checks the cash roll forward of the change in cash of the slot, and returns a
+    /// [`Finding::RollForwardMismatch`] if it fails.
+    fn check_cash_roll_forward(&self, balances: &Balances<'a>) -> Option<Finding> {
+        let change_concept = CashFlowConcept::NetChangeInCash.element();
+        if self.blocked.contains(&change_concept) {
+            return None;
+        }
+        let change = *self.values.get(&change_concept)?;
+        let opening_day = change.period.start()?.yesterday().ok()?;
+        let balance = cash_balance(change.scope);
+        let opening = balances.get((&self.entity, balance, opening_day, &self.unit))?;
+        let closing = balances.get((&self.entity, balance, change.period.end(), &self.unit))?;
+        let difference = &opening.value + &change.value - &closing.value;
+        let facts = [opening, change, closing];
+        exceeds_tolerance(&difference, &facts, TOLERANCE_BASIS_POINTS).then(|| {
+            Finding::RollForwardMismatch {
+                entity: self.entity.clone(),
+                period: change.period,
+                unit: self.unit.clone(),
+                dimensions: self.dimensions.clone(),
+                concepts: vec![balance, change_concept],
+                reason: RollForward::Cash,
+                confidence: weakest(&facts),
+            }
+        })
+    }
+
     /// Builds the [`Statement`] of `kind` from the values of the slot that `kind` places, or
     /// returns `None` if the slot has no such value.
     fn statement(&self, kind: StatementKind) -> Option<Statement> {
@@ -315,8 +405,8 @@ mod tests {
     use super::*;
     use crate::core::candidate::SeriesKey;
     use crate::core::confidence::Confidence;
+    use crate::core::elements::IncomeStatementConcept;
     use crate::core::elements::statement::cash_flow::CashFlowGroup;
-    use crate::core::elements::{CashFlowConcept, IncomeStatementConcept};
     use crate::core::period::Duration;
     use crate::core::rule::RuleId;
     use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
@@ -978,6 +1068,274 @@ mod tests {
         let expected_result: Vec<Finding> = Vec::new();
 
         let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns the value of `concept` at the instant `day`.
+    fn balance_at(
+        concept: impl Into<CanonicalElementKind>,
+        day: Date,
+        amount: &str,
+    ) -> StandardizedFact {
+        value(concept, Period::Instant { end: day }, amount)
+    }
+
+    /// Returns the change in cash of the fixture filing for [`four_months`], and the balances
+    /// `CashAndRestrictedCash` of `opening` on 2026-05-31 and of `closing` on 2026-09-30.
+    fn cash_roll_forward(opening: &str, closing: &str) -> Vec<StandardizedFact> {
+        vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months(),
+                "137",
+            ),
+            balance_at(
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                date(2026, 5, 31),
+                opening,
+            ),
+            balance_at(
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                date(2026, 9, 30),
+                closing,
+            ),
+        ]
+    }
+
+    /// Returns the [`Finding::RollForwardMismatch`] of the cash roll forward of `balance` for
+    /// `period`.
+    fn roll_forward_mismatch(
+        period: Period,
+        balance: CanonicalElementKind,
+        confidence: Confidence,
+    ) -> Finding {
+        Finding::RollForwardMismatch {
+            entity: entity(),
+            period,
+            unit: unit(),
+            dimensions: Dimensions::default(),
+            concepts: vec![balance, CashFlowConcept::NetChangeInCash.element()],
+            reason: RollForward::Cash,
+            confidence,
+        }
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_opening_cash_plus_the_change_equals_the_closing_cash() {
+        let facts = series(cash_roll_forward("251", "388"));
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_a_roll_forward_mismatch_when_the_closing_cash_misses_by_more_than_the_tolerance()
+     {
+        let facts = series(cash_roll_forward("251", "389"));
+
+        let expected_result = vec![roll_forward_mismatch(
+            four_months(),
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            Confidence::Exact,
+        )];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_closing_cash_misses_by_exactly_the_tolerance() {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                four_months(),
+                "0",
+            ),
+            balance_at(
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                date(2026, 5, 31),
+                "1000",
+            ),
+            balance_at(
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                date(2026, 9, 30),
+                "1001",
+            ),
+        ]);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_change_in_cash_has_no_value() {
+        let mut facts = cash_roll_forward("251", "389");
+        facts.remove(0);
+        let facts = series(facts);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_opening_cash_has_no_value() {
+        let mut facts = cash_roll_forward("251", "389");
+        facts.remove(1);
+        let facts = series(facts);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_closing_cash_has_no_value() {
+        let mut facts = cash_roll_forward("251", "389");
+        facts.remove(2);
+        let facts = series(facts);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_opening_cash_lies_at_the_exact_start_instead_of_the_day_before()
+     {
+        let mut facts = cash_roll_forward("251", "389");
+        facts[1] = balance_at(
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            date(2026, 6, 1),
+            "251",
+        );
+        let facts = series(facts);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_dedup_blocks_the_opening_cash() {
+        let mut facts = series(cash_roll_forward("251", "389"));
+        facts.blocked = vec![facts.facts[1].series_key()];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_balances_have_another_unit_than_the_change() {
+        let mut facts = cash_roll_forward("251", "389");
+        facts[0].unit = Unit::from_str("EUR")
+            .expect("Given a hardcoded ISO 4217 code, the parse should always succeed");
+        let facts = series(facts);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_cash_and_equivalents_when_the_change_excludes_restricted_cash() {
+        let mut facts = cash_roll_forward("251", "388");
+        facts[0].scope = Some(Scope::ExcludesRestrictedCash);
+        facts.extend([
+            balance_at(
+                BalanceSheetConcept::CashAndEquivalents.element(),
+                date(2026, 5, 31),
+                "200",
+            ),
+            balance_at(
+                BalanceSheetConcept::CashAndEquivalents.element(),
+                date(2026, 9, 30),
+                "300",
+            ),
+        ]);
+        let facts = series(facts);
+
+        let expected_result = vec![roll_forward_mismatch(
+            four_months(),
+            BalanceSheetConcept::CashAndEquivalents.element(),
+            Confidence::Exact,
+        )];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_the_cash_at_the_prior_fiscal_year_end_when_the_change_is_year_to_date() {
+        let year_to_date = since(date(2026, 1, 1));
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                year_to_date,
+                "137",
+            ),
+            balance_at(
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                date(2025, 12, 31),
+                "251",
+            ),
+            balance_at(
+                CashFlowConcept::CashAndRestrictedCash.element(),
+                date(2026, 9, 30),
+                "389",
+            ),
+        ]);
+
+        let expected_result = vec![roll_forward_mismatch(
+            year_to_date,
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            Confidence::Exact,
+        )];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_the_weakest_confidence_when_a_derived_change_in_cash_fails() {
+        let mut facts = cash_roll_forward("251", "389");
+        let mut derived = facts.remove(0);
+        derived.confidence = Confidence::Derived;
+        derived.rule = RuleId::from_str("core/roll-up/net-change-in-cash@1").expect(
+            "Given a hardcoded rule ID in the documented form, the parse should always succeed",
+        );
+        let facts = series(facts);
+
+        let expected_result = vec![roll_forward_mismatch(
+            four_months(),
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            Confidence::Derived,
+        )];
+
+        let result = check_roll_ups(&facts, &[derived]);
 
         assert_eq!(result, expected_result);
     }
