@@ -231,8 +231,8 @@ pub struct StoredIndustry {
 
 ## The Filing Machine
 
-`run_filing` runs one filing through four states. It has two entry states, one per source, and a
-shared part. It moves from one state to the next by the `TryFrom` transitions, as
+`run_filing` runs one filing through three states: the parse state of its source, then the two
+shared states. It moves from one state to the next by the `TryFrom` transitions, as
 [The Filing Step](#the-filing-step) says.
 
 | State | Input | Output | Calls |

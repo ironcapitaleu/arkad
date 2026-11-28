@@ -57,32 +57,38 @@ pub struct RejectedFiling {
 /// and none for an instance whose parse failed.
 pub async fn run_filing(input: FilingInput, context: &FilingContext) -> FilingOutcome {
     let filing = input.accession_number().to_owned();
-    let mut rows_in = match &input {
-        FilingInput::Notes(notes) => (notes.rows.num.len() + notes.rows.txt.len()) as u64,
-        FilingInput::Instance(_) => 0,
-    };
-    match build_rows(input, *context, &mut rows_in).await {
-        Ok(rows) => FilingOutcome::Written(Box::new(rows)),
-        Err(error) => FilingOutcome::Rejected(RejectedFiling {
+    let reject = |error, rows_in| {
+        FilingOutcome::Rejected(RejectedFiling {
             filing,
             error,
             counts: SourceCounts::rejected(rows_in),
-        }),
+        })
+    };
+    let rows_before_parse = match &input {
+        FilingInput::Notes(notes) => (notes.rows.num.len() + notes.rows.txt.len()) as u64,
+        FilingInput::Instance(_) => 0,
+    };
+    let standardize = match parse(input, *context).await {
+        Ok(state) => state,
+        Err(error) => return reject(error, rows_before_parse),
+    };
+    let rows_in = standardize.input_data().counts.rows_in();
+    match standardize_and_build(standardize).await {
+        Ok(rows) => FilingOutcome::Written(Box::new(rows)),
+        Err(error) => reject(error, rows_in),
     }
 }
 
-/// Runs each state of the machine and moves its output into the next state. Sets `rows_in` to
-/// the source rows of the parse once the parse state succeeds.
+/// Runs the parse state of the source and moves its output into `StandardizeFiling`.
 ///
 /// # Errors
 ///
-/// Returns the [`StateMachineError`] of the first state or transition that fails.
-async fn build_rows(
+/// Returns the [`StateMachineError`] of the parse state or of the transition.
+async fn parse(
     input: FilingInput,
     context: FilingContext,
-    rows_in: &mut u64,
-) -> Result<FilingRows, StateMachineError> {
-    let mut standardize = match input {
+) -> Result<StandardizeFiling, StateMachineError> {
+    Ok(match input {
         FilingInput::Notes(notes) => {
             let mut parse = ParseNotesFiling::new(notes, context);
             parse.compute_output_data_async().await?;
@@ -93,8 +99,17 @@ async fn build_rows(
             parse.compute_output_data_async().await?;
             StandardizeFiling::try_from(parse)?
         }
-    };
-    *rows_in = standardize.input_data().counts.rows_in();
+    })
+}
+
+/// Runs `StandardizeFiling` and `BuildFilingRows`, and returns the rows of the filing.
+///
+/// # Errors
+///
+/// Returns the [`StateMachineError`] of the first state or transition that fails.
+async fn standardize_and_build(
+    mut standardize: StandardizeFiling,
+) -> Result<FilingRows, StateMachineError> {
     standardize.compute_output_data_async().await?;
     let mut build = BuildFilingRows::try_from(standardize)?;
     build.compute_output_data_async().await?;
@@ -172,7 +187,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_the_notes_fixture_filing() {
+    async fn should_write_every_as_is_fact_for_the_notes_fixture_filing() {
         let input = notes_input(notes_fixture_rows());
 
         let expected_result = Some(613);
@@ -183,7 +198,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_write_the_instance_fixture_filing() {
+    async fn should_write_every_as_is_fact_for_the_instance_fixture_filing() {
         let input = instance_input(INSTANCE_DOCUMENT.as_bytes());
 
         let expected_result = Some(613);
@@ -216,6 +231,25 @@ mod tests {
             "0001628280-26-068246".to_owned(),
             "[FailedInstanceParse] Failed to parse the instance filing, Caused by: [InvalidXml] Failed to parse the instance document of the filing 'sec:0001628280-26-068246', Reason: 'the root node was opened but never closed'".to_owned(),
             SourceCounts::rejected(0),
+        ));
+
+        let result = rejection(run_filing(input, &us_gaap_context()).await);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_reject_every_fact_element_when_the_row_build_of_an_instance_fails() {
+        let document = INSTANCE_DOCUMENT.replace(
+            r#"id="f-31" unitRef="usd">388000000<"#,
+            r#"id="f-31" unitRef="usd">1000000000000000000000000000000<"#,
+        );
+        let input = instance_input(document.as_bytes());
+
+        let expected_result = Some((
+            "0001628280-26-068246".to_owned(),
+            "[FailedRowBuild] Failed to build the rows of the filing 'sec:0001628280-26-068246', Caused by: [UnexpectedColumnValue] Row '30' of column 'value_numeric' in dataset 'as_is_facts' holds an unexpected value, Reason: ''1000000000000000000000000000000' has more than 38 digits'".to_owned(),
+            SourceCounts::rejected(678),
         ));
 
         let result = rejection(run_filing(input, &us_gaap_context()).await);
