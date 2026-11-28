@@ -897,8 +897,9 @@ Some filers report their own revenue lines and no concept of the alias list or t
 
 - The `Revenue` of a bank is its net revenue: net interest income plus noninterest income, before
   the provision for credit losses.
-- **Line total.** The rule runs only if no alias and no part gives a value in the period. Each line
-  must have a value in the same period, unit, and dimensions. The value is the sum of the lines,
+- **Line total.** The rule runs only if no alias and no part gives a value in the period and set of
+  dimensions. Each line must have a value in the same period, unit, and dimensions. The value is
+  the sum of the lines,
   and `inputs` holds the value key of each line. A conflict on a line blocks the candidate, as a
   conflict on a part does.
 - `InterestRevenueExpenseNet` is not a line: it also holds the interest outside operations.

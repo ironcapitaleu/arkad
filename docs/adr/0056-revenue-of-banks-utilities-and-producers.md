@@ -170,8 +170,9 @@ Values in million USD. Each of A to C fills the 3 lines of Regions Financial in 
   revenue reads `InterestAndDividendIncomeOperating` from the as-is layer.
 - The line total needs both lines. Only the bank filings report `NoninterestIncome`: 8 of the 105
   Notes fixture filings, all of JPMorgan Chase and Regions Financial.
-- The line total runs with the parts, on each set of dimensions. A bank that reports both lines
-  for a segment gets a `Computed` segment value of `Revenue`.
+- The line total runs with the parts, on each set of dimensions. An alias or a part blocks it only
+  in its own set of dimensions. A bank that reports both lines for a segment gets a `Computed`
+  segment value of `Revenue`.
 - Not covered: a bank that reports a contract revenue part and `InterestIncomeExpenseNet`, but no
   `NoninterestIncome`. The part gives only the contract revenue as `Revenue`. Commercial filers
   report `InterestIncomeExpenseNet` outside revenue, so it cannot block the part.
