@@ -32,7 +32,7 @@ use crate::datasets::columns::{
     write_dimensions,
 };
 use crate::datasets::constants::{DECIMAL_PRECISION, DECIMAL_SCALE};
-use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
+use crate::datasets::{ArrowRow, ArrowRowError, PartOrder, RunColumns};
 use crate::shared::entity_bucket::ENTITY_BUCKET_COUNT;
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
@@ -150,6 +150,18 @@ fn bucket_out_of_range(row: usize, entity_bucket: u8) -> ArrowRowError {
         row,
         format!("'{entity_bucket}' is not below the bucket count {ENTITY_BUCKET_COUNT}"),
     )
+}
+
+/// Groups by `entity_bucket`, then sorts by the value key, which starts with `filing_id`. Each
+/// `entity_bucket` starts a new row group.
+impl PartOrder for CandidateRow {
+    fn write_sort_key(&self, byte_form: &mut ByteForm) {
+        self.write_row_key(byte_form);
+    }
+
+    fn write_row_group_key(&self, byte_form: &mut ByteForm) {
+        byte_form.integer(self.entity_bucket);
+    }
 }
 
 impl DigestRow for CandidateRow {
@@ -1324,6 +1336,24 @@ mod tests {
 
         let mut byte_form = ByteForm::new();
         row.write_row(&mut byte_form);
+        let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_entity_bucket_as_the_row_group_key_for_a_candidate_row() {
+        let row = CandidateRow {
+            candidate: candidate(reported("1", None, Confidence::Exact)),
+            entity_bucket: 7,
+            run: sample_run_columns(),
+        };
+
+        // marker 01 | length 00000001 | text 7
+        let expected_result: &[u8] = b"\x01\x00\x00\x00\x017";
+
+        let mut byte_form = ByteForm::new();
+        row.write_row_group_key(&mut byte_form);
         let result = byte_form.as_bytes();
 
         assert_eq!(result, expected_result);

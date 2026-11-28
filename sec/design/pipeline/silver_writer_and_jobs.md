@@ -138,6 +138,12 @@ pub trait DigestRow {
     fn write_row_key(&self, out: &mut ByteForm);
     fn write_row(&self, out: &mut ByteForm);
 }
+
+/// The order of the rows of one dataset in a part.
+pub trait PartOrder {
+    fn write_sort_key(&self, out: &mut ByteForm);
+    fn write_row_group_key(&self, _out: &mut ByteForm) {}
+}
 ```
 
 - One row type per dataset: `AsIsFactRow`, `FilingRow`, `CandidateRow`, `StandardizedFactRow`,
@@ -156,6 +162,14 @@ pub trait DigestRow {
   `None` for a unit of that version.
 - `DigestRow` is a separate trait. A type can have a digest without an Arrow form, for example the
   fixture rows of the golden test.
+- `PartOrder` is a separate trait too. It gives the row group key and the sort key of a row in a
+  part, both as `ByteForm` bytes. A part sorts by the row group key, then by the sort key, and
+  starts a new row group where the row group key changes. `candidates` has `entity_bucket` as its
+  row group key, and sorts by its row key. `as_is_facts` and `filings` sort by the row key, and
+  `findings` sorts by the digest group, then the row key. The sort keys of `as_is_facts`,
+  `filings`, and `candidates` start with `filing_id`. The sort key of a finding starts with
+  `filing_id`, or with `entity_scheme` and `entity_id` if the finding has no filing.
+  `as_is_facts`, `filings`, and `findings` have no row group key.
 
 ### Schema Tests
 
@@ -182,12 +196,14 @@ rules of the contract in this form:
    `<dataset>/source=<source>/unit_key=<key>/<digest16>-v<version>/<execution_id>-<attempt>/part-<n>.parquet`
    through `WriteRepository::persist`. The series datasets leave out `source=`. Each part:
    - sorts its rows by `filing_id`, then by the value key, or by `entity_bucket`, then
-     `filing_id` for `candidates`.
+     `filing_id` for `candidates`. A finding with no filing sorts by its entity.
    - has row groups of about 100,000 rows. `candidates` starts a new row group at each change of
      `entity_bucket`.
    - uses zstd at level 3.
    - holds the footer entries `dataset`, `schema_version`, `unit_key`, and `transform_version`,
      through `WriterProperties::set_key_value_metadata`.
+   - `write_part` writes one part and returns its `UnitFile`: the path, the row count, the size,
+     and the CRC32C in base64 of its 4 big-endian bytes.
 4. **List row.** It writes the `unit_manifests` row last, to
    `unit_manifests/execution=<execution_id>/task=<n>-<attempt>.parquet`, with the size and CRC32C of
    each part as the writer computed them. It sets `written_at` to the later of the time now and the

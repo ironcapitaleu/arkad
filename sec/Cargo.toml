@@ -35,9 +35,9 @@ xbrl = { path = "../xbrl" }
 uuid = { version = "1.23.2", features = ["v4"] }
 # No default features: the entity bucket of a row needs only the 64-bit XXH3 hash.
 twox-hash = { version = "2.1", default-features = false, features = ["xxhash3_64"] }
-# No default features: no compression codec until the silver writer picks one. `arrow` reads and
-# writes Arrow record batches.
-parquet = { version = "60.2", default-features = false, features = ["arrow"] }
+# No default features. `arrow` reads and writes Arrow record batches. `zstd` is the codec of each
+# part that the dataset writer writes.
+parquet = { version = "60.2", default-features = false, features = ["arrow", "zstd"] }
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

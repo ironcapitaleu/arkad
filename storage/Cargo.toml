@@ -11,7 +11,10 @@ readme = "../README.md"
 
 [dependencies]
 async-trait = "0.1.88"
+# `Crc32c` prints the checksum of a stored object in base64.
+base64 = "0.22"
 bytes = "1.11.1"
+crc32c = "0.6"
 futures-core = "0.3.34"
 # No default features: `jiff` reads no zone file of the system (ADR 0047). `storage` needs no zone.
 jiff = { version = "1", default-features = false, features = ["serde", "std"] }
