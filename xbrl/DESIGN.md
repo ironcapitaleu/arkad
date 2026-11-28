@@ -903,7 +903,10 @@ Some filers report their own revenue lines and no concept of the alias list or t
   conflict on a part does.
 - `InterestRevenueExpenseNet` is not a line: it also holds the interest outside operations.
 - The line total needs both lines. Commercial filers report `InterestIncomeExpenseNet` outside
-  revenue, but only banks report `NoninterestIncome`.
+  revenue. In the fixtures, only banks report `NoninterestIncome`. A non-bank filer that reports
+  both lines gets their sum as `Revenue`, with no finding.
+- The line total runs with the parts, on each set of dimensions, so a bank segment gets a
+  `Computed` value (see "Resolution of a Segment Value").
 - The new parts follow the existing parts, in the order `UtilityRevenue`,
   `ElectricUtilityRevenue`, `OilAndGasRevenue`. A filer that reports a goods or services line next
   to a new part gets the goods or services line, because the new parts are not own other parts of
@@ -1372,7 +1375,8 @@ segments. No standard concept holds them, so they stay as-is facts.
   dimensions: `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`,
   the sums along the calculation tree of a plug-in, and the checks of "Checks the Tree Gives". A
   segment value gets no derived or computed value, no check, no other line, and no `MixedStarts`
-  finding.
+  finding. The line total of "Revenue of Banks, Utilities, and Producers" is the one exception: it
+  runs with the parts, on each set of dimensions.
 - **Chronology** runs only on values without dimensions. A segment value still gets `restated`.
 - `FactSet` and the statement output types take only values without dimensions. A segment value
   enters no statement.
