@@ -4,8 +4,8 @@
 //! by [`DropReason`].
 //!
 //! The writer adds the counts of each filing into `source_rows` and `dropped_rows` of the
-//! `as_is_facts` unit. A row count check then compares the source rows less the dropped rows with
-//! the rows of the unit.
+//! `as_is_facts` unit. A row count check then requires that the source rows minus the dropped
+//! rows equal the rows of the unit.
 
 use std::collections::BTreeMap;
 use std::fmt;
