@@ -165,9 +165,11 @@ pub trait PartOrder {
 - `PartOrder` is a separate trait too. It gives the row group key and the sort key of a row in a
   part, both as `ByteForm` bytes. A part sorts by the row group key, then by the sort key, and
   starts a new row group where the row group key changes. `candidates` has `entity_bucket` as its
-  row group key, and sorts by its value key. `as_is_facts` and `filings` sort by the row key, and
-  `findings` sorts by the digest group, then the row key. Each of these sort keys starts with
-  `filing_id`. The three datasets have no row group key.
+  row group key, and sorts by its row key. `as_is_facts` and `filings` sort by the row key, and
+  `findings` sorts by the digest group, then the row key. The sort keys of `as_is_facts`,
+  `filings`, and `candidates` start with `filing_id`. The sort key of a finding starts with
+  `filing_id`, or with `entity_scheme` and `entity_id` if the finding has no filing.
+  `as_is_facts`, `filings`, and `findings` have no row group key.
 
 ### Schema Tests
 
@@ -194,7 +196,7 @@ rules of the contract in this form:
    `<dataset>/source=<source>/unit_key=<key>/<digest16>-v<version>/<execution_id>-<attempt>/part-<n>.parquet`
    through `WriteRepository::persist`. The series datasets leave out `source=`. Each part:
    - sorts its rows by `filing_id`, then by the value key, or by `entity_bucket`, then
-     `filing_id` for `candidates`.
+     `filing_id` for `candidates`. A finding with no filing sorts by its entity.
    - has row groups of about 100,000 rows. `candidates` starts a new row group at each change of
      `entity_bucket`.
    - uses zstd at level 3.
