@@ -9,8 +9,8 @@
 //! - [`candidate_row`]: [`CandidateRow`], one row of `candidates`.
 //! - [`finding_row`]: [`FindingRow`], one row of `findings`.
 //! - [`provenance`]: [`Provenance`], the raw document of a row and the run that wrote it.
-//! - [`written_unit_row`]: [`WrittenUnitRow`], one row of `silver_files`.
 //! - [`run_columns`]: [`RunColumns`], the version of the output and the run that wrote a row.
+//! - [`written_unit_row`]: [`WrittenUnitRow`], one row of `silver_files`.
 
 pub mod as_is_fact_row;
 pub mod candidate_row;

@@ -212,9 +212,6 @@ pub enum FindingChange {
 }
 
 impl FindingChange {
-    /// Every change.
-    const ALL: [Self; 3] = [Self::New, Self::Changed, Self::Resolved];
-
     /// Returns the text of the `change` column: `new`, `changed`, or `resolved`.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -223,6 +220,14 @@ impl FindingChange {
             Self::Changed => "changed",
             Self::Resolved => "resolved",
         }
+    }
+
+    /// Returns the change whose text is `text`, or `None` if no change has it.
+    #[must_use]
+    pub fn from_name(text: &str) -> Option<Self> {
+        [Self::New, Self::Changed, Self::Resolved]
+            .into_iter()
+            .find(|change| change.as_str() == text)
     }
 }
 
@@ -533,9 +538,7 @@ impl<'a> FindingColumns<'a> {
                 "a value in a filing row".to_owned(),
             )),
             ("series", Some(change), Some(milliseconds)) => Ok(FindingStep::Series {
-                change: FindingChange::ALL
-                    .into_iter()
-                    .find(|candidate| candidate.as_str() == change)
+                change: FindingChange::from_name(change)
                     .ok_or_else(|| unexpected("change", format!("unknown change '{change}'")))?,
                 computed_at: timestamp_from_milliseconds(milliseconds)
                     .map_err(|reason| unexpected("computed_at", reason))?,
@@ -723,6 +726,21 @@ mod tests {
         let expected_result = Some(FindingKind::RollForwardMismatch);
 
         let result = FindingKind::from_name(name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_every_change_back_from_its_text() {
+        let texts = ["new", "changed", "resolved"];
+
+        let expected_result = [
+            Some(FindingChange::New),
+            Some(FindingChange::Changed),
+            Some(FindingChange::Resolved),
+        ];
+
+        let result = texts.map(FindingChange::from_name);
 
         assert_eq!(result, expected_result);
     }

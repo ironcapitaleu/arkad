@@ -18,8 +18,8 @@ use storage::shared::Sha256Digest;
 use uuid::Uuid;
 
 use crate::datasets::columns::{
-    BatchColumns, failed_batch, item_range, nullable, timestamp_array, timestamp_from_milliseconds,
-    timestamp_type, unexpected_value,
+    BatchColumns, failed_batch, ingestion_mode_from_name, item_range, nullable, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value,
 };
 use crate::datasets::{ArrowRow, ArrowRowError, SourceKind};
 
@@ -57,7 +57,8 @@ pub struct WrittenUnitRow {
     pub dropped_rows: Vec<DroppedRows>,
     /// The SHA-256 over the digest groups of the unit's rows.
     pub content_digest: Sha256Digest,
-    /// The start time of the series run of a series unit. `None` for the other units.
+    /// The start time of the series run of a series unit. `None` for the other units. The part
+    /// below one millisecond does not reach the batch.
     pub computed_at: Option<Timestamp>,
     /// The task count of the series run of a series unit. `None` for the other units.
     pub run_tasks: Option<u16>,
@@ -85,15 +86,6 @@ pub enum UnitKind {
 }
 
 impl UnitKind {
-    /// Every kind.
-    const ALL: [Self; 5] = [
-        Self::NotesFile,
-        Self::FilingDay,
-        Self::SeriesBase,
-        Self::SeriesDelta,
-        Self::Release,
-    ];
-
     /// Returns the text of the `unit_kind` column, for example `notes_file`.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -104,6 +96,20 @@ impl UnitKind {
             Self::SeriesDelta => "series_delta",
             Self::Release => "release",
         }
+    }
+
+    /// Returns the kind whose text is `text`, or `None` if no kind has it.
+    #[must_use]
+    pub fn from_name(text: &str) -> Option<Self> {
+        [
+            Self::NotesFile,
+            Self::FilingDay,
+            Self::SeriesBase,
+            Self::SeriesDelta,
+            Self::Release,
+        ]
+        .into_iter()
+        .find(|kind| kind.as_str() == text)
     }
 }
 
@@ -125,6 +131,14 @@ impl NotesSplit {
             Self::Buckets => "buckets",
         }
     }
+
+    /// Returns the split whose text is `text`, or `None` if no split has it.
+    #[must_use]
+    pub fn from_name(text: &str) -> Option<Self> {
+        [Self::Stream, Self::Buckets]
+            .into_iter()
+            .find(|split| split.as_str() == text)
+    }
 }
 
 /// One raw document or silver file that a unit read: an item of the `inputs` column.
@@ -138,7 +152,7 @@ pub struct UnitInput {
     /// vendored release.
     pub requested_url: Option<String>,
     /// The time the raw store wrote a raw document. `None` for a silver file and the vendored
-    /// release.
+    /// release. The part below one millisecond does not reach the batch.
     pub produced_at: Option<Timestamp>,
 }
 
@@ -182,6 +196,10 @@ impl ArrowRow for WrittenUnitRow {
     }
 
     fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError> {
+        for (index, row) in rows.iter().enumerate() {
+            check_row_count(row.row_count, &row.files)
+                .map_err(|reason| unexpected_value(Self::DATASET, "row_count", index, reason))?;
+        }
         let text = |value: fn(&Self) -> Option<String>| -> ArrayRef {
             Arc::new(StringArray::from_iter(rows.iter().map(value)))
         };
@@ -234,6 +252,21 @@ impl ArrowRow for WrittenUnitRow {
         (0..columns.row_count())
             .map(|row| reader.row(row))
             .collect()
+    }
+}
+
+/// Checks that `row_count` is the sum of the rows of the files.
+///
+/// Fails if the sum differs, or if it does not fit in a `u64`.
+fn check_row_count(row_count: u64, files: &[UnitFile]) -> Result<(), String> {
+    let file_rows = files
+        .iter()
+        .try_fold(0_u64, |sum, file| sum.checked_add(file.row_count))
+        .ok_or_else(|| "the rows of the files overflow 'u64'".to_owned())?;
+    if row_count == file_rows {
+        Ok(())
+    } else {
+        Err(format!("the files hold '{file_rows}' rows"))
     }
 }
 
@@ -495,13 +528,7 @@ impl<'a> UnitColumns<'a> {
         };
         let files = self.files(row);
         let row_count = self.row_counts.value(row);
-        let file_rows: u64 = files.iter().map(|file| file.row_count).sum();
-        if row_count != file_rows {
-            return Err(fail(
-                "row_count",
-                format!("the files hold '{file_rows}' rows"),
-            ));
-        }
+        check_row_count(row_count, &files).map_err(|reason| fail("row_count", reason))?;
         let unit_kind = self.unit_kinds.value(row);
         let mode = self.ingestion_modes.value(row);
         Ok(WrittenUnitRow {
@@ -509,15 +536,11 @@ impl<'a> UnitColumns<'a> {
             schema_version: self.schema_versions.value(row),
             source: nullable(self.sources, row)
                 .map(|text| {
-                    [SourceKind::Notes, SourceKind::Instance]
-                        .into_iter()
-                        .find(|source| source.as_str() == text)
+                    SourceKind::from_name(text)
                         .ok_or_else(|| fail("source", "not 'notes' or 'instance'".to_owned()))
                 })
                 .transpose()?,
-            unit_kind: UnitKind::ALL
-                .into_iter()
-                .find(|kind| kind.as_str() == unit_kind)
+            unit_kind: UnitKind::from_name(unit_kind)
                 .ok_or_else(|| fail("unit_kind", format!("unknown unit kind '{unit_kind}'")))?,
             unit_key: self.unit_keys.value(row).to_owned(),
             input_digest: digest("input_digest", self.input_digests.value(row))?,
@@ -547,9 +570,7 @@ impl<'a> UnitColumns<'a> {
                 .collect(),
             split: nullable(self.splits, row)
                 .map(|text| {
-                    [NotesSplit::Stream, NotesSplit::Buckets]
-                        .into_iter()
-                        .find(|split| split.as_str() == text)
+                    NotesSplit::from_name(text)
                         .ok_or_else(|| fail("split", "not 'stream' or 'buckets'".to_owned()))
                 })
                 .transpose()?,
@@ -565,15 +586,12 @@ impl<'a> UnitColumns<'a> {
             run_tasks: nullable(self.run_tasks, row),
             execution_id: Uuid::parse_str(self.execution_ids.value(row))
                 .map_err(|error| fail("execution_id", error.to_string()))?,
-            ingestion_mode: [IngestionMode::Backfill, IngestionMode::Incremental]
-                .into_iter()
-                .find(|candidate| candidate.to_string() == mode)
-                .ok_or_else(|| {
-                    fail(
-                        "ingestion_mode",
-                        "not 'backfill' or 'incremental'".to_owned(),
-                    )
-                })?,
+            ingestion_mode: ingestion_mode_from_name(mode).ok_or_else(|| {
+                fail(
+                    "ingestion_mode",
+                    "not 'backfill' or 'incremental'".to_owned(),
+                )
+            })?,
             written_at: timestamp("written_at", self.written_at.value(row))?,
         })
     }
@@ -635,7 +653,8 @@ mod tests {
     }
 
     /// The fixture rows: a Notes unit with every column set, a series unit that read a silver
-    /// file with a non-ASCII key, and a release unit with every list and nullable column empty.
+    /// file with a non-ASCII key, a release unit with every list and nullable column empty, and
+    /// a filing day unit of the instance source.
     fn sample_rows() -> Vec<WrittenUnitRow> {
         let notes = WrittenUnitRow {
             dataset: "as_is_facts".to_owned(),
@@ -708,7 +727,15 @@ mod tests {
             ingestion_mode: IngestionMode::Incremental,
             ..release_unit()
         };
-        vec![notes, series, release_unit()]
+        let filing_day = WrittenUnitRow {
+            dataset: "filings".to_owned(),
+            source: Some(SourceKind::Instance),
+            unit_kind: UnitKind::FilingDay,
+            unit_key: "2026-11-06".to_owned(),
+            ingestion_mode: IngestionMode::Incremental,
+            ..release_unit()
+        };
+        vec![notes, series, release_unit(), filing_day]
     }
 
     /// Returns the batch of fixture row `row`, with the column `name` replaced by `column`.
@@ -778,12 +805,131 @@ mod tests {
     }
 
     #[test]
-    fn should_write_notes_file_for_the_unit_kind_of_a_notes_file() {
-        let unit_kind = UnitKind::NotesFile;
+    fn should_write_the_texts_of_the_contract_for_every_unit_kind() {
+        let kinds = [
+            UnitKind::NotesFile,
+            UnitKind::FilingDay,
+            UnitKind::SeriesBase,
+            UnitKind::SeriesDelta,
+            UnitKind::Release,
+        ];
 
-        let expected_result = "notes_file";
+        let expected_result = [
+            "notes_file",
+            "filing_day",
+            "series_base",
+            "series_delta",
+            "release",
+        ];
 
-        let result = unit_kind.as_str();
+        let result = kinds.map(UnitKind::as_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_every_unit_kind_back_from_its_text() {
+        let texts = [
+            "notes_file",
+            "filing_day",
+            "series_base",
+            "series_delta",
+            "release",
+        ];
+
+        let expected_result = [
+            Some(UnitKind::NotesFile),
+            Some(UnitKind::FilingDay),
+            Some(UnitKind::SeriesBase),
+            Some(UnitKind::SeriesDelta),
+            Some(UnitKind::Release),
+        ];
+
+        let result = texts.map(UnitKind::from_name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_the_texts_of_the_contract_for_every_split() {
+        let splits = [NotesSplit::Stream, NotesSplit::Buckets];
+
+        let expected_result = ["stream", "buckets"];
+
+        let result = splits.map(NotesSplit::as_str);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_every_split_back_from_its_text() {
+        let texts = ["stream", "buckets"];
+
+        let expected_result = [Some(NotesSplit::Stream), Some(NotesSplit::Buckets)];
+
+        let result = texts.map(NotesSplit::from_name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_row_count_differs_from_the_rows_of_the_files_on_write() {
+        let mut rows = sample_rows();
+        rows[1].row_count = 3;
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "silver_files",
+            column: "row_count",
+            row: 1,
+            reason: "the files hold '2' rows".to_owned(),
+        });
+
+        let result = WrittenUnitRow::to_batch(&rows);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_row_when_a_later_row_of_the_batch_breaks_a_rule() {
+        let batch = WrittenUnitRow::to_batch(&sample_rows()[..2])
+            .expect("Given rows whose values fit their columns, the batch should always build");
+        let index = batch
+            .schema()
+            .index_of("row_count")
+            .expect("Given a column of the schema of version 1, the lookup should always succeed");
+        let mut columns = batch.columns().to_vec();
+        columns[index] = Arc::new(UInt64Array::from(vec![7, 3]));
+        let batch = RecordBatch::try_new(batch.schema(), columns)
+            .expect("Given a column of the same type, the batch should always build");
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "silver_files",
+            column: "row_count",
+            row: 1,
+            reason: "the files hold '2' rows".to_owned(),
+        });
+
+        let result = WrittenUnitRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_rows_of_the_files_overflow_u64() {
+        let batch = batch_with_item_field(
+            "files",
+            "row_count",
+            Arc::new(UInt64Array::from(vec![u64::MAX, 1])),
+        );
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "silver_files",
+            column: "row_count",
+            row: 0,
+            reason: "the rows of the files overflow 'u64'".to_owned(),
+        });
+
+        let result = WrittenUnitRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }

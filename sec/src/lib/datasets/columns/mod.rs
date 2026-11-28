@@ -17,6 +17,7 @@ use bigdecimal::BigDecimal;
 use bigdecimal::num_bigint::BigInt;
 use jiff::civil::{Date, date};
 use jiff::{Span, Timestamp};
+use storage::implementations::repository::filesystem::IngestionMode;
 use xbrl::core::confidence::Confidence;
 use xbrl::core::fact::{Decimals, Dimensions};
 use xbrl::core::invalid_value::InvalidValue;
@@ -238,6 +239,13 @@ pub fn confidence_from_name(text: &str) -> Option<Confidence> {
     ]
     .into_iter()
     .find(|confidence| confidence.to_string() == text)
+}
+
+/// Returns the ingestion mode whose text is `text`: `backfill` or `incremental`.
+pub fn ingestion_mode_from_name(text: &str) -> Option<IngestionMode> {
+    [IngestionMode::Backfill, IngestionMode::Incremental]
+        .into_iter()
+        .find(|mode| mode.to_string() == text)
 }
 
 /// Returns the days from 1970-01-01 to the date, the value of a `date32` column.
@@ -522,6 +530,36 @@ mod tests {
         let mut byte_form = ByteForm::new();
         write_decimals(&mut byte_form, decimals);
         let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_items_of_the_row_when_a_list_has_empty_rows() {
+        let list = ListArray::new(
+            Arc::new(Field::new_list_field(DataType::Utf8, false)),
+            OffsetBuffer::new(vec![0, 2, 2, 5].into()),
+            Arc::new(StringArray::from(vec!["a", "b", "c", "d", "e"])),
+            None,
+        );
+
+        let expected_result = 2..5;
+
+        let result = item_range(&list, 2);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_every_ingestion_mode_back_from_its_text() {
+        let texts = ["backfill", "incremental"];
+
+        let expected_result = [
+            Some(IngestionMode::Backfill),
+            Some(IngestionMode::Incremental),
+        ];
+
+        let result = texts.map(ingestion_mode_from_name);
 
         assert_eq!(result, expected_result);
     }

@@ -12,7 +12,7 @@ use arrow::datatypes::{DataType, Field};
 use storage::implementations::repository::filesystem::IngestionMode;
 use storage::shared::Sha256Digest;
 
-use crate::datasets::columns::{BatchColumns, unexpected_value};
+use crate::datasets::columns::{BatchColumns, ingestion_mode_from_name, unexpected_value};
 use crate::datasets::{ArrowRowError, RunColumns};
 use crate::shared::row_digest::ByteForm;
 
@@ -33,6 +33,14 @@ impl SourceKind {
             Self::Notes => "notes",
             Self::Instance => "instance",
         }
+    }
+
+    /// Returns the source kind whose text is `text`, or `None` if no kind has it.
+    #[must_use]
+    pub fn from_name(text: &str) -> Option<Self> {
+        [Self::Notes, Self::Instance]
+            .into_iter()
+            .find(|kind| kind.as_str() == text)
     }
 }
 
@@ -115,16 +123,12 @@ impl Provenance {
                     unexpected_value(columns.dataset(), column, row, reason)
                 };
                 Ok(Self {
-                    source_kind: [SourceKind::Notes, SourceKind::Instance]
-                        .into_iter()
-                        .find(|candidate| candidate.as_str() == kinds.value(row))
+                    source_kind: SourceKind::from_name(kinds.value(row))
                         .ok_or_else(|| fail(kind, "not 'notes' or 'instance'".to_owned()))?,
                     source_key: keys.value(row).to_owned(),
                     source_sha256: Sha256Digest::from_str(digests.value(row))
                         .map_err(|error| fail(sha256, error.to_string()))?,
-                    ingestion_mode: [IngestionMode::Backfill, IngestionMode::Incremental]
-                        .into_iter()
-                        .find(|candidate| candidate.to_string() == modes.value(row))
+                    ingestion_mode: ingestion_mode_from_name(modes.value(row))
                         .ok_or_else(|| fail(mode, "not 'backfill' or 'incremental'".to_owned()))?,
                     run,
                 })
@@ -188,6 +192,17 @@ mod tests {
         let expected_result = "instance";
 
         let result = source_kind.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_every_source_kind_back_from_its_text() {
+        let texts = ["notes", "instance"];
+
+        let expected_result = [Some(SourceKind::Notes), Some(SourceKind::Instance)];
+
+        let result = texts.map(SourceKind::from_name);
 
         assert_eq!(result, expected_result);
     }
