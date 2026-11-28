@@ -76,7 +76,7 @@ impl fmt::Display for TaskAttempt {
 ///
 /// The part goes to
 /// `<dataset>/source=<source>/unit_key=<key>/<digest16>-v<version>/<execution_id>-<attempt>/part-<n>.parquet`.
-/// The rows sort by their [`PartOrder`] sort key. A row group holds at most
+/// The rows sort by their [`PartOrder`] row group key, then by their sort key. A row group holds at most
 /// [`ROW_GROUP_ROWS`] rows, and starts anew where the row group key changes. Each column chunk
 /// uses zstd at level [`ZSTD_LEVEL`]. The footer holds `dataset`, `schema_version`, `unit_key`,
 /// and `transform_version`. The rows take the newest schema version of `R`.
@@ -187,17 +187,17 @@ fn encode_part<R: ArrowRow + PartOrder>(
     rows: &mut [R],
     row_group_rows: usize,
 ) -> Result<Vec<u8>, PartWriteError> {
-    rows.sort_by_cached_key(|row| key_bytes(|byte_form| row.write_sort_key(byte_form)));
+    rows.sort_by_cached_key(|row| {
+        key_bytes(|byte_form| {
+            row.write_row_group_key(byte_form);
+            row.write_sort_key(byte_form);
+        })
+    });
     let schema = R::schema(R::SCHEMA_VERSION).ok_or(ArrowRowError::UnknownSchemaVersion {
         dataset: R::DATASET,
         version: R::SCHEMA_VERSION,
     })?;
-    let level = ZstdLevel::try_new(ZSTD_LEVEL).map_err(|error| failed_encoding(&error))?;
-    let properties = WriterProperties::builder()
-        .set_compression(Compression::ZSTD(level))
-        .set_max_row_group_row_count(Some(row_group_rows))
-        .set_key_value_metadata(Some(footer::<R>(location)))
-        .build();
+    let properties = part_properties::<R>(location, row_group_rows)?;
     let mut writer = ArrowWriter::try_new(Vec::new(), schema, Some(properties))
         .map_err(|error| failed_encoding(&error))?;
     for range in row_group_ranges(rows, row_group_rows) {
@@ -207,6 +207,19 @@ fn encode_part<R: ArrowRow + PartOrder>(
         writer.flush().map_err(|error| failed_encoding(&error))?;
     }
     writer.into_inner().map_err(|error| failed_encoding(&error))
+}
+
+/// Returns the writer properties of a part: zstd, the row limit, and the footer entries.
+fn part_properties<R: ArrowRow>(
+    location: &PartLocation,
+    row_group_rows: usize,
+) -> Result<WriterProperties, PartWriteError> {
+    let level = ZstdLevel::try_new(ZSTD_LEVEL).map_err(|error| failed_encoding(&error))?;
+    Ok(WriterProperties::builder()
+        .set_compression(Compression::ZSTD(level))
+        .set_max_row_group_row_count(Some(row_group_rows))
+        .set_key_value_metadata(Some(footer::<R>(location)))
+        .build())
 }
 
 /// Returns the ranges of the row groups of sorted rows.
@@ -277,6 +290,7 @@ mod tests {
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     use parquet::file::metadata::RowGroupMetaData;
     use parquet::file::reader::{FileReader, SerializedFileReader};
+    use parquet::schema::types::ColumnPath;
     use pretty_assertions::assert_eq;
     use storage::ReadRepository;
     use storage::WriteError;
@@ -457,6 +471,21 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_return_invalid_unit_key_when_the_unit_key_is_empty() {
+        let (_directory, store) = store();
+        let location = location(None, "");
+        let rows = vec![row("0000320193-24-000006", 0)];
+
+        let expected_result = Err(PartWriteError::InvalidUnitKey {
+            unit_key: String::new(),
+        });
+
+        let result = write_part(&store, &location, 0, rows).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_invalid_unit_key_when_the_unit_key_holds_a_colon() {
         let (_directory, store) = store();
         let location = location(None, "2026-11-06T06:00Z");
@@ -503,6 +532,8 @@ mod tests {
             .expect("Given an empty store and a valid unit key, the write should always succeed");
         let bytes = stored_bytes(&store, &file.path).await;
 
+        // The bytes depend on the Parquet encoder, so the test compares the file with the stored
+        // bytes. `should_print_the_crc32c_in_base64_for_the_check_input` pins the CRC32C text.
         let expected_result = (bytes.len() as u64, crc32c_text(&bytes), 1);
 
         let result = (file.bytes, file.crc32c, file.row_count);
@@ -529,7 +560,6 @@ mod tests {
             row("0000320193-24-000006", 0),
             row("0000320193-24-000007", 0),
         ];
-        let bytes = encoded(&mut rows, ROW_GROUP_ROWS);
 
         let expected_result = vec![
             Some("0000320193-24-000006"),
@@ -537,7 +567,7 @@ mod tests {
             Some("0000320193-24-000009"),
         ];
 
-        let batch = ParquetRecordBatchReaderBuilder::try_new(bytes)
+        let batch = ParquetRecordBatchReaderBuilder::try_new(encoded(&mut rows, ROW_GROUP_ROWS))
             .expect("Given the bytes of a written part, the footer should always parse")
             .build()
             .expect("Given a parsed footer, the reader should always build")
@@ -557,7 +587,6 @@ mod tests {
     #[test]
     fn should_write_the_footer_entries_for_a_written_part() {
         let mut rows = vec![row("0000320193-24-000006", 0)];
-        let bytes = encoded(&mut rows, ROW_GROUP_ROWS);
 
         let expected_result = vec![
             ("dataset".to_owned(), Some("fake_rows".to_owned())),
@@ -566,7 +595,7 @@ mod tests {
             ("transform_version".to_owned(), Some("2".to_owned())),
         ];
 
-        let reader = file_reader(bytes);
+        let reader = file_reader(encoded(&mut rows, ROW_GROUP_ROWS));
         let entries = reader
             .metadata()
             .file_metadata()
@@ -584,11 +613,11 @@ mod tests {
     #[test]
     fn should_compress_the_column_chunks_with_zstd_for_a_written_part() {
         let mut rows = vec![row("0000320193-24-000006", 0)];
-        let bytes = encoded(&mut rows, ROW_GROUP_ROWS);
 
+        // The footer names the codec, not its level, so a reader gives the default level.
         let expected_result = Compression::ZSTD(ZstdLevel::default());
 
-        let reader = file_reader(bytes);
+        let reader = file_reader(encoded(&mut rows, ROW_GROUP_ROWS));
         let result = reader.metadata().row_group(0).column(0).compression();
 
         assert_eq!(result, expected_result);
@@ -601,11 +630,46 @@ mod tests {
             row("0000320193-24-000007", 0),
             row("0000320193-24-000008", 0),
         ];
-        let bytes = encoded(&mut rows, 2);
 
         let expected_result = vec![2, 1];
 
-        let reader = file_reader(bytes);
+        let reader = file_reader(encoded(&mut rows, 2));
+        let result: Vec<i64> = reader
+            .metadata()
+            .row_groups()
+            .iter()
+            .map(RowGroupMetaData::num_rows)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_set_zstd_at_level_3_for_each_column_of_a_part() {
+        let location = location(None, "2024q1");
+
+        let expected_result = Compression::ZSTD(
+            ZstdLevel::try_new(3).expect("Given level 3, the zstd level should always build"),
+        );
+
+        let properties = part_properties::<FakeRow>(&location, ROW_GROUP_ROWS)
+            .expect("Given the zstd level of the writer, the properties should always build");
+        let result = properties.compression(&ColumnPath::from("filing_id"));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_the_rows_of_one_row_group_key_together_when_the_sort_key_mixes_them() {
+        let mut rows = vec![
+            row("0000320193-24-000006", 2),
+            row("0000320193-24-000007", 1),
+            row("0000320193-24-000008", 2),
+        ];
+
+        let expected_result = vec![1, 2];
+
+        let reader = file_reader(encoded(&mut rows, ROW_GROUP_ROWS));
         let result: Vec<i64> = reader
             .metadata()
             .row_groups()

@@ -8,7 +8,7 @@ use thiserror::Error;
 
 use crate::datasets::ArrowRowError;
 
-/// Error indicating that one part of a unit was not written.
+/// Error of a part that the writer did not write.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PartWriteError {

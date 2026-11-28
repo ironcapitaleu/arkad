@@ -162,11 +162,12 @@ pub trait PartOrder {
   `None` for a unit of that version.
 - `DigestRow` is a separate trait. A type can have a digest without an Arrow form, for example the
   fixture rows of the golden test.
-- `PartOrder` is a separate trait too. It gives the sort key of a row in a part, and the row group
-  key, where a part starts a new row group. Both are `ByteForm` bytes. `candidates` sorts by
-  `entity_bucket`, then by its value key, and its row group key is `entity_bucket`. The other row
-  types sort by their digest group and row key, which start with `filing_id`, and have no row group
-  key.
+- `PartOrder` is a separate trait too. It gives the row group key and the sort key of a row in a
+  part, both as `ByteForm` bytes. A part sorts by the row group key, then by the sort key, and
+  starts a new row group where the row group key changes. `candidates` has `entity_bucket` as its
+  row group key, and sorts by its value key. `as_is_facts` and `filings` sort by the row key, and
+  `findings` sorts by the digest group, then the row key. Each of these starts with `filing_id`.
+  These three have no row group key.
 
 ### Schema Tests
 

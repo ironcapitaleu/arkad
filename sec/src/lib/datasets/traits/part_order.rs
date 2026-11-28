@@ -7,12 +7,9 @@ use crate::shared::row_digest::ByteForm;
 
 /// The order of the rows of one dataset in a part, and where a part starts a new row group.
 ///
-/// A part sorts its rows by the bytes of their sort key. A [`ByteForm`] puts the length of each
-/// value before its text. So two values of the same length sort in the order of their text, and a
-/// shorter value sorts first. A filing ID always has 20 characters, so the rows of one filing sort
-/// together, in the order of the filing IDs. Rows with equal keys keep their order.
-///
-/// A part also starts a new row group where the row group key of two neighbor rows differs.
+/// A part sorts its rows by the bytes of their row group key, then by the bytes of their sort key.
+/// Rows with equal keys keep their order. A part starts a new row group where the row group key
+/// of two neighbor rows differs.
 ///
 /// # Examples
 ///

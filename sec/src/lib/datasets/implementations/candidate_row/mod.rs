@@ -129,11 +129,10 @@ impl ArrowRow for CandidateRow {
     }
 }
 
-/// Sorts by `entity_bucket`, then by the value key, which starts with `filing_id`. Each
+/// Groups by `entity_bucket`, then sorts by the value key, which starts with `filing_id`. Each
 /// `entity_bucket` starts a new row group.
 impl PartOrder for CandidateRow {
     fn write_sort_key(&self, byte_form: &mut ByteForm) {
-        self.write_row_group_key(byte_form);
         self.write_row_key(byte_form);
     }
 
