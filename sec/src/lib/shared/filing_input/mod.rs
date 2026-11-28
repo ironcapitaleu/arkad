@@ -101,6 +101,7 @@ pub struct StoredIndustry {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map::DefaultHasher;
     use std::fmt::Debug;
 
     use pretty_assertions::assert_eq;
@@ -121,6 +122,12 @@ mod tests {
             },
             source: notes_source(),
         }
+    }
+
+    fn hash_of<T: Hash>(value: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -166,6 +173,18 @@ mod tests {
         let expected_result = false;
 
         let result = input == other;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hash_equal_when_notes_inputs_differ_only_in_num_rows() {
+        let input = notes_input("0000320193-26-000001", Vec::new());
+        let other = notes_input("0000320193-26-000001", vec![NumRow::default()]);
+
+        let expected_result = hash_of(&other);
+
+        let result = hash_of(&input);
 
         assert_eq!(result, expected_result);
     }

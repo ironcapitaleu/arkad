@@ -66,6 +66,7 @@ impl Ord for ParsedFiling {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::hash_map::DefaultHasher;
     use std::fmt::Debug;
 
     use jiff::civil::date;
@@ -75,7 +76,7 @@ mod tests {
     use xbrl::core::form::Form;
 
     use super::*;
-    use crate::tests::fixtures::sample_source_document::notes_source;
+    use crate::tests::fixtures::sample_source_document::{instance_source, notes_source};
 
     fn parsed_filing(accession_number: &str, findings: Vec<Finding>) -> ParsedFiling {
         ParsedFiling {
@@ -102,6 +103,12 @@ mod tests {
             industry_source: None,
             counts: SourceCounts::default(),
         }
+    }
+
+    fn hash_of<T: Hash>(value: &T) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -135,6 +142,41 @@ mod tests {
         let expected_result = true;
 
         let result = parsed == other;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_differ_when_parsed_filings_share_the_filing_id_but_not_the_source() {
+        let parsed = parsed_filing("0000320193-26-000001", Vec::new());
+        let other = ParsedFiling {
+            source: instance_source(),
+            ..parsed_filing("0000320193-26-000001", Vec::new())
+        };
+
+        let expected_result = false;
+
+        let result = parsed == other;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hash_equal_when_parsed_filings_differ_only_in_findings() {
+        let parsed = parsed_filing("0000320193-26-000001", Vec::new());
+        let other = parsed_filing(
+            "0000320193-26-000001",
+            vec![Finding::UndeclaredFamily {
+                filing: parsed.filing.id.clone(),
+                family: NamespaceFamily::new("xyz/2027").expect(
+                    "Given a hardcoded family without whitespace, the creation should always succeed",
+                ),
+            }],
+        );
+
+        let expected_result = hash_of(&other);
+
+        let result = hash_of(&parsed);
 
         assert_eq!(result, expected_result);
     }
