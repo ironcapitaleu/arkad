@@ -103,33 +103,42 @@ leaves `Cargo.lock` with the last slice. Both held on 2026-11-24. On 2026-11-27,
 ([ironcapitaleu/arkad#663](https://github.com/ironcapitaleu/arkad/pull/663), accessed 2026-11-28)
 added `arrow` and `parquet` to `sec`.
 
-`arrow`, `arrow-array`, `arrow-arith`, and `parquet` 60.2.0 name `chrono ^0.4.40` as a dependency
-that is not optional, and no feature drops it. The release lines 57, 58, and 59 do the same. No
-release of `arrow` builds without `chrono` on 2026-11-28.
+`arrow-arith`, `arrow-array`, `arrow-cast`, and `parquet` 60.2.0 name `chrono ^0.4.40` as a
+dependency that is not optional, and no feature drops it. `arrow` 60.2.0 depends on all three
+`arrow-*` crates, and names `chrono` only as a dev-dependency. The four crates name `chrono ^0.4.40`,
+not optional, in 57.3.3, 58.4.2, and 59.3.3 too. No release of `arrow` from 57 to 60 builds without
+`chrono` on 2026-11-28.
 
 ### Decision
 
 1. **Decision 1 holds.** No crate of the workspace names `chrono` in its own `Cargo.toml`.
 2. **`chrono` stays in `Cargo.lock` as a dependency of `arrow` and `parquet`.** `cargo audit`
    reports RUSTSEC-2026-0543 as a warning until a release of `arrow` builds without `chrono`.
-   [STA-612](https://linear.app/state-machine/issue/STA-612), accessed 2026-11-28, does that
-   upgrade.
+   [STA-612](https://linear.app/state-machine/issue/STA-612), accessed 2026-11-28, upgrades
+   `arrow` and `parquet` when such a release exists.
 
 Options considered:
 
 | Option | `chrono` in `Cargo.lock` | Cost |
 | ------ | ------------------------ | ---- |
 | **A (chosen)**: keep `arrow` 60.2.0 | Yes, through `arrow` and `parquet` | A warning of `cargo audit` |
-| B: upgrade `arrow` and `parquet` | Yes | No release drops `chrono` |
+| B: upgrade `arrow` and `parquet` | Yes, no release drops it on 2026-11-28 | Not available |
 | C: remove `arrow` and `parquet` from `sec` | No | `ArrowRow` and the dataset schemas in `sec/src/lib/datasets` lose the types they build on |
 
 ### Consequences
 
-- First-party code calls no `chrono` API. Only `arrow` and `parquet` do.
+- First-party code calls no `chrono` API. Only the `arrow-*` crates and `parquet` do.
 - The "Security Check" step of CI still passes, because RUSTSEC-2026-0543 is a warning.
 - A new crate of the workspace that names `chrono` breaks decision 1, even though `chrono` is in
   `Cargo.lock`.
-- A release of `arrow` that builds without `chrono` reopens this amendment.
+- `chrono-tz` stays out of `Cargo.lock`. `sec/Cargo.toml` builds `arrow` with
+  `default-features = false` and without its feature `chrono-tz`.
+
+### Open Questions
+
+- If a release of `arrow` and `parquet` builds without `chrono`, STA-612 upgrades to it, and
+  `chrono` leaves `Cargo.lock`. STA-612 checks the crates.io manifests of `arrow-arith`,
+  `arrow-array`, `arrow-cast`, and `parquet`.
 
 ## Options Considered
 
@@ -185,7 +194,8 @@ Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0
 - Amendment 2: `cargo tree -i chrono -e normal --workspace --depth 1` on `main` at `335cd78`,
   2026-11-28: `chrono` 0.4.45 under `arrow-arith`, `arrow-array`, `arrow-cast`, and `parquet`
   60.2.0. `cargo audit` on the same commit: RUSTSEC-2026-0543.
-- Amendment 2: `https://crates.io/api/v1/crates/<crate>/<version>/dependencies` for `arrow`,
-  `arrow-array`, `arrow-arith`, and `parquet` 60.2.0, and `arrow-array` 57.3.3, 58.4.2, and
-  59.3.3, accessed 2026-11-27: `chrono ^0.4.40`, not optional.
+- Amendment 2: `https://crates.io/api/v1/crates/<crate>/<version>/dependencies` for
+  `arrow-arith`, `arrow-array`, `arrow-cast`, and `parquet` 57.3.3, 58.4.2, 59.3.3, and 60.2.0,
+  accessed 2026-11-27 and 2026-11-28: `chrono ^0.4.40`, kind `normal`, not optional. `arrow`
+  60.2.0: `chrono ^0.4.40`, kind `dev`. The newest `arrow` on 2026-11-28 is 60.2.0.
 - Amendment 2: `git log -S 'arrow = ' -- sec/Cargo.toml`, 2026-11-28: `072e327`, 2026-11-27.
