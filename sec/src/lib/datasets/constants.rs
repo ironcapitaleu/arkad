@@ -20,7 +20,7 @@ pub const FOLDER_LABELS: [&str; 2] = ["source", "unit_key"];
 ///
 /// `DuckDB` reads a `name=value` folder as a column, so no field of `silver_files` has one of these
 /// names.
-pub const WRITTEN_UNIT_FOLDER_LABELS: [&str; 2] = ["execution", "task"];
+pub const UNIT_MANIFEST_FOLDER_LABELS: [&str; 2] = ["execution", "task"];
 
 /// The digits of a decimal column, such as `value_numeric` of `as_is_facts`.
 pub const DECIMAL_PRECISION: u8 = 38;

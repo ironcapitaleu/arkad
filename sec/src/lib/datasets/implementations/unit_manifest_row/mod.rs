@@ -1,6 +1,6 @@
-//! # Written Unit Row
+//! # Unit Manifest Row
 //!
-//! Provides [`WrittenUnitRow`], one row of the silver dataset `silver_files`: one written unit,
+//! Provides [`UnitManifestRow`], one row of the silver dataset `silver_files`: the manifest of one unit,
 //! with its inputs, its files, and the job that wrote it.
 
 use std::str::FromStr;
@@ -23,12 +23,12 @@ use crate::datasets::columns::{
 };
 use crate::datasets::{ArrowRow, ArrowRowError, SourceKind};
 
-/// One row of `silver_files`: one written unit of a dataset.
+/// One row of `silver_files`: the manifest of one unit of a dataset.
 ///
 /// `sec/design/pipeline/silver_layer.md`, `silver_files`, names the columns. A reader finds the
 /// current files of a dataset through these rows. The writer writes the row last.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct WrittenUnitRow {
+pub struct UnitManifestRow {
     /// The dataset of the unit, for example `as_is_facts`.
     pub dataset: String,
     /// The schema version of the unit's files.
@@ -70,7 +70,7 @@ pub struct WrittenUnitRow {
     pub written_at: Timestamp,
 }
 
-/// The kind of a written unit: the text of the `unit_kind` column.
+/// The kind of a unit: the text of the `unit_kind` column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UnitKind {
     /// All filings of one Notes file.
@@ -187,7 +187,7 @@ pub struct DroppedRows {
     pub rows: u64,
 }
 
-impl ArrowRow for WrittenUnitRow {
+impl ArrowRow for UnitManifestRow {
     const DATASET: &'static str = "silver_files";
     const SCHEMA_VERSION: u16 = 1;
 
@@ -351,19 +351,19 @@ fn struct_list(
         unreachable!("Given the item field of a list column of structs")
     };
     let items = StructArray::try_new(Fields::clone(fields), item_columns, None)
-        .map_err(|error| failed_batch(WrittenUnitRow::DATASET, &error))?;
+        .map_err(|error| failed_batch(UnitManifestRow::DATASET, &error))?;
     let list = ListArray::try_new(
         item,
         OffsetBuffer::from_lengths(lengths),
         Arc::new(items),
         None,
     )
-    .map_err(|error| failed_batch(WrittenUnitRow::DATASET, &error))?;
+    .map_err(|error| failed_batch(UnitManifestRow::DATASET, &error))?;
     Ok(Arc::new(list))
 }
 
 /// Returns the `inputs` array: per row, the documents that the unit read.
-fn inputs_array(rows: &[WrittenUnitRow]) -> Result<ArrayRef, ArrowRowError> {
+fn inputs_array(rows: &[UnitManifestRow]) -> Result<ArrayRef, ArrowRowError> {
     let inputs = || rows.iter().flat_map(|row| &row.inputs);
     struct_list(
         "inputs",
@@ -384,7 +384,7 @@ fn inputs_array(rows: &[WrittenUnitRow]) -> Result<ArrayRef, ArrowRowError> {
 }
 
 /// Returns the `files` array: per row, the Parquet files of the unit.
-fn files_array(rows: &[WrittenUnitRow]) -> Result<ArrayRef, ArrowRowError> {
+fn files_array(rows: &[UnitManifestRow]) -> Result<ArrayRef, ArrowRowError> {
     let files = || rows.iter().flat_map(|row| &row.files);
     struct_list(
         "files",
@@ -516,7 +516,7 @@ impl<'a> UnitColumns<'a> {
     }
 
     /// Reads the unit of one row.
-    fn row(&self, row: usize) -> Result<WrittenUnitRow, ArrowRowError> {
+    fn row(&self, row: usize) -> Result<UnitManifestRow, ArrowRowError> {
         let fail = |column: &'static str, reason: String| {
             unexpected_value(self.dataset, column, row, reason)
         };
@@ -531,7 +531,7 @@ impl<'a> UnitColumns<'a> {
         check_row_count(row_count, &files).map_err(|reason| fail("row_count", reason))?;
         let unit_kind = self.unit_kinds.value(row);
         let mode = self.ingestion_modes.value(row);
-        Ok(WrittenUnitRow {
+        Ok(UnitManifestRow {
             dataset: self.datasets.value(row).to_owned(),
             schema_version: self.schema_versions.value(row),
             source: nullable(self.sources, row)
@@ -618,7 +618,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::datasets::{UTC_TIME_ZONE, WRITTEN_UNIT_FOLDER_LABELS, schema_text};
+    use crate::datasets::{UNIT_MANIFEST_FOLDER_LABELS, UTC_TIME_ZONE, schema_text};
 
     /// A time of a write.
     fn written_at() -> Timestamp {
@@ -628,8 +628,8 @@ mod tests {
     }
 
     /// A unit of `taxonomy_elements` with every list empty and every nullable column empty.
-    fn release_unit() -> WrittenUnitRow {
-        WrittenUnitRow {
+    fn release_unit() -> UnitManifestRow {
+        UnitManifestRow {
             dataset: "taxonomy_elements".to_owned(),
             schema_version: 1,
             source: None,
@@ -655,8 +655,8 @@ mod tests {
     /// The fixture rows: a Notes unit with every column set, a series unit that read a silver
     /// file with a non-ASCII key, a release unit with every list and nullable column empty, and
     /// a filing day unit of the instance source.
-    fn sample_rows() -> Vec<WrittenUnitRow> {
-        let notes = WrittenUnitRow {
+    fn sample_rows() -> Vec<UnitManifestRow> {
+        let notes = UnitManifestRow {
             dataset: "as_is_facts".to_owned(),
             source: Some(SourceKind::Notes),
             unit_kind: UnitKind::NotesFile,
@@ -704,7 +704,7 @@ mod tests {
             }],
             ..release_unit()
         };
-        let series = WrittenUnitRow {
+        let series = UnitManifestRow {
             dataset: "findings".to_owned(),
             unit_kind: UnitKind::SeriesDelta,
             unit_key: "2026-11-06T0600Z-t0".to_owned(),
@@ -727,7 +727,7 @@ mod tests {
             ingestion_mode: IngestionMode::Incremental,
             ..release_unit()
         };
-        let filing_day = WrittenUnitRow {
+        let filing_day = UnitManifestRow {
             dataset: "filings".to_owned(),
             source: Some(SourceKind::Instance),
             unit_kind: UnitKind::FilingDay,
@@ -740,7 +740,7 @@ mod tests {
 
     /// Returns the batch of fixture row `row`, with the column `name` replaced by `column`.
     fn batch_with(row: usize, name: &str, column: ArrayRef) -> RecordBatch {
-        let batch = WrittenUnitRow::to_batch(&sample_rows()[row..=row])
+        let batch = UnitManifestRow::to_batch(&sample_rows()[row..=row])
             .expect("Given rows whose values fit their columns, the batch should always build");
         let index = batch
             .schema()
@@ -755,7 +755,7 @@ mod tests {
     /// Returns the batch of the Notes fixture row, with the field `field` of the items of the list
     /// column `column` replaced by `items`.
     fn batch_with_item_field(column: &str, field: &str, items: ArrayRef) -> RecordBatch {
-        let batch = WrittenUnitRow::to_batch(&sample_rows()[..1])
+        let batch = UnitManifestRow::to_batch(&sample_rows()[..1])
             .expect("Given rows whose values fit their columns, the batch should always build");
         let list = batch
             .column_by_name(column)
@@ -786,7 +786,7 @@ mod tests {
 
     /// Returns the column that the error of reading the batch names.
     fn failing_column(batch: &RecordBatch) -> Option<&'static str> {
-        match WrittenUnitRow::from_batch(batch, 1) {
+        match UnitManifestRow::from_batch(batch, 1) {
             Err(ArrowRowError::UnexpectedColumnValue { column, .. }) => Some(column),
             _ => None,
         }
@@ -794,14 +794,14 @@ mod tests {
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
     #[test]
-    const fn should_implement_auto_traits_for_written_unit_row() {
-        implements_auto_traits::<WrittenUnitRow>();
+    const fn should_implement_auto_traits_for_unit_manifest_row() {
+        implements_auto_traits::<UnitManifestRow>();
     }
 
     const fn implements_value_traits<T: Debug + Clone + PartialEq + Eq + Hash>() {}
     #[test]
-    const fn should_implement_value_traits_for_written_unit_row() {
-        implements_value_traits::<WrittenUnitRow>();
+    const fn should_implement_value_traits_for_unit_manifest_row() {
+        implements_value_traits::<UnitManifestRow>();
     }
 
     #[test]
@@ -884,14 +884,14 @@ mod tests {
             reason: "the files hold '2' rows".to_owned(),
         });
 
-        let result = WrittenUnitRow::to_batch(&rows);
+        let result = UnitManifestRow::to_batch(&rows);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_name_the_row_when_a_later_row_of_the_batch_breaks_a_rule() {
-        let batch = WrittenUnitRow::to_batch(&sample_rows()[..2])
+        let batch = UnitManifestRow::to_batch(&sample_rows()[..2])
             .expect("Given rows whose values fit their columns, the batch should always build");
         let index = batch
             .schema()
@@ -909,7 +909,7 @@ mod tests {
             reason: "the files hold '2' rows".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -929,7 +929,7 @@ mod tests {
             reason: "the rows of the files overflow 'u64'".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -940,9 +940,9 @@ mod tests {
 
         let expected_result = sample_rows();
 
-        let batch = WrittenUnitRow::to_batch(&rows)
+        let batch = UnitManifestRow::to_batch(&rows)
             .expect("Given rows whose values fit their columns, the batch should always build");
-        let result = WrittenUnitRow::from_batch(&batch, WrittenUnitRow::SCHEMA_VERSION)
+        let result = UnitManifestRow::from_batch(&batch, UnitManifestRow::SCHEMA_VERSION)
             .expect("Given a batch that `to_batch` built, the read should always succeed");
 
         assert_eq!(result, expected_result);
@@ -950,7 +950,7 @@ mod tests {
 
     #[test]
     fn should_match_the_checked_in_snapshot_for_the_schema_of_version_1() {
-        let schema = WrittenUnitRow::schema(1).expect("Given version 1, the schema should exist");
+        let schema = UnitManifestRow::schema(1).expect("Given version 1, the schema should exist");
 
         let expected_result = include_str!("schema_v1.txt");
 
@@ -960,8 +960,8 @@ mod tests {
     }
 
     #[test]
-    fn should_name_no_field_after_a_folder_label_for_written_units() {
-        let schema = WrittenUnitRow::schema(WrittenUnitRow::SCHEMA_VERSION)
+    fn should_name_no_field_after_a_folder_label_for_unit_manifests() {
+        let schema = UnitManifestRow::schema(UnitManifestRow::SCHEMA_VERSION)
             .expect("Given the version that `to_batch` writes, the schema should exist");
 
         let expected_result: Vec<&str> = Vec::new();
@@ -970,7 +970,7 @@ mod tests {
             .fields()
             .iter()
             .map(|field| field.name().as_str())
-            .filter(|name| WRITTEN_UNIT_FOLDER_LABELS.contains(name))
+            .filter(|name| UNIT_MANIFEST_FOLDER_LABELS.contains(name))
             .collect();
 
         assert_eq!(result, expected_result);
@@ -978,7 +978,7 @@ mod tests {
 
     #[test]
     fn should_fail_when_the_schema_version_is_unknown() {
-        let batch = WrittenUnitRow::to_batch(&sample_rows())
+        let batch = UnitManifestRow::to_batch(&sample_rows())
             .expect("Given rows whose values fit their columns, the batch should always build");
 
         let expected_result = Err(ArrowRowError::UnknownSchemaVersion {
@@ -986,20 +986,20 @@ mod tests {
             version: 2,
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 2);
+        let result = UnitManifestRow::from_batch(&batch, 2);
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
     fn should_return_no_rows_when_the_batch_holds_no_rows() {
-        let rows: Vec<WrittenUnitRow> = Vec::new();
+        let rows: Vec<UnitManifestRow> = Vec::new();
 
-        let expected_result: Vec<WrittenUnitRow> = Vec::new();
+        let expected_result: Vec<UnitManifestRow> = Vec::new();
 
         let batch =
-            WrittenUnitRow::to_batch(&rows).expect("Given no rows, the batch should always build");
-        let result = WrittenUnitRow::from_batch(&batch, WrittenUnitRow::SCHEMA_VERSION)
+            UnitManifestRow::to_batch(&rows).expect("Given no rows, the batch should always build");
+        let result = UnitManifestRow::from_batch(&batch, UnitManifestRow::SCHEMA_VERSION)
             .expect("Given a batch that `to_batch` built, the read should always succeed");
 
         assert_eq!(result, expected_result);
@@ -1016,7 +1016,7 @@ mod tests {
             reason: "the files hold '7' rows".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -1032,7 +1032,7 @@ mod tests {
             reason: "unknown unit kind 'notes'".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -1048,7 +1048,7 @@ mod tests {
             reason: "not 'notes' or 'instance'".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -1064,7 +1064,7 @@ mod tests {
             reason: "not 'stream' or 'buckets'".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -1084,7 +1084,7 @@ mod tests {
             reason: "not 'backfill' or 'incremental'".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
@@ -1104,7 +1104,7 @@ mod tests {
             reason: "not a base-10 number".to_owned(),
         });
 
-        let result = WrittenUnitRow::from_batch(&batch, 1);
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
