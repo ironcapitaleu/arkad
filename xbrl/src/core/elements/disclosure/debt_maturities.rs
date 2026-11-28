@@ -31,7 +31,7 @@ innermost_concepts! {
 
 impl Summed for DebtMaturityConcept {
     const SUM_NAME: &'static str = "debt-maturities";
-    // ADR 0028 records the tolerance: the buckets hold principal, the total the carrying amount.
+    // The tolerance is wide, because the buckets hold principal and the total the carrying amount.
     const TOLERANCE_BASIS_POINTS: u32 = 500;
 
     fn role(self) -> SumRole {

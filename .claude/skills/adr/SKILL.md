@@ -51,8 +51,10 @@ To write an ADR:
    and use four digits. Name the file `NNNN-<short-description>.md`, with a few kebab-case
    words that name the subject.
 5. **Write the ADR** from the template. Follow the `plain-english` skill.
-6. **Link it.** Each design doc that describes the affected code links to the ADR. If the decision
-   adds a rule for all code, add the rule to `AGENTS.md` with a link to the ADR.
+6. **Link it.** Each design doc that describes the affected code links to the ADR. No `.rs` file
+   links or names it. If the code looks wrong without the reason, its doc states the reason in its
+   own words. If the decision adds a rule for all code, add the rule to `AGENTS.md` with a link to
+   the ADR.
 7. **Ship it** in the PR that first acts on the decision. A decision from a ticket without a PR,
    such as a SPIKE, ships in the first PR that changes the code. A past decision that leaves a
    document ships in the PR that removes it. Name the ADR in the PR description, and say who

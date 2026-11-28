@@ -6,8 +6,7 @@
 /// The Arrow time zone of every timestamp column of the datasets: UTC, written as an offset.
 ///
 /// `arrow` reads an offset such as `+00:00` without its `chrono-tz` feature. It reads the name
-/// `UTC` only with that feature. [ADR 0051](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0051-utc-offset-as-arrow-time-zone.md)
-/// records the choice.
+/// `UTC` only with that feature, which the workspace does not turn on.
 pub const UTC_TIME_ZONE: &str = "+00:00";
 
 /// The folder labels of the path of a dataset other than `unit_manifests`.

@@ -25,8 +25,7 @@ use crate::datasets::{ArrowRow, ArrowRowError, SourceKind};
 
 /// One row of `unit_manifests`: the manifest of one unit of a dataset.
 ///
-/// `sec/design/pipeline/silver_layer.md`, `unit_manifests`, names the columns. A reader finds the
-/// current files of a dataset through these rows. The writer writes the row last.
+/// A reader finds the current files of a dataset through these rows. The writer writes the row last.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct UnitManifestRow {
     /// The dataset of the unit, for example `as_is_facts`.
@@ -159,7 +158,8 @@ pub struct UnitInput {
 /// One Parquet file of a unit: an item of the `files` column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UnitFile {
-    /// The path of the file, as `sec/design/pipeline/silver_layer.md`, "Paths", gives it.
+    /// The path of the file below the bucket, for example
+    /// `as_is_facts/source=notes/unit_key=2024q1/<digest>-v1/<execution_id>-0/part-0.parquet`.
     pub path: String,
     /// The size of the file.
     pub bytes: u64,

@@ -215,8 +215,7 @@ async fn should_store_the_label_file_when_the_filing_has_no_inline_xbrl() {
 }
 
 /// The status codes the SEC answers for a filing folder that does not exist. Observed on
-/// 2026-11-01: the same URL answered 404, then 503, then 404 again. See `ingestion_paths.md`,
-/// "Fetch of Each Filing".
+/// 2026-11-01: the same URL answered 404, then 503, then 404 again.
 const MISSING_FOLDER_STATUS_CODES: [&str; 2] = ["Status code '404'", "Status code '503'"];
 
 #[tokio::test]

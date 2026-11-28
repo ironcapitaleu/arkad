@@ -3,11 +3,10 @@
 //! Provides [`standardize_series`], which runs the rules that need every filing of one entity, and
 //! its output [`SeriesOutcome`].
 //!
-//! The rules run in the dedup order of `xbrl/DESIGN.md`, "Dedup Rules": step 3, step 4, the checks,
+//! The rules run in this order: step 3 of the dedup order, step 4, the checks,
 //! the check of the required concepts, then chronology. Values with dimensions pass step 3 and
 //! reach the output. The later rules read only values without dimensions. No rule here builds the
-//! segment reconciliation, so the output holds no line of it
-//! (`docs/adr/0030-segment-reconciliation-per-report.md`).
+//! segment reconciliation, so the output holds no line of it.
 
 use super::candidate::Candidate;
 use super::chronology::check_chronology;

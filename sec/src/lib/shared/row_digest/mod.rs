@@ -14,13 +14,6 @@
 //! - [`traits`]: The [`DigestRow`] contract of a row that enters the digest.
 //! - [`implementations`]: The [`ByteForm`] of the values of a row.
 //! - [`duplicate_digest_group`]: The [`DuplicateDigestGroup`] for two group hashes with one ID.
-//!
-//! ## See Also
-//!
-//! - [ADR 0033](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0033-byte-form-of-content-digest.md):
-//!   the byte form and the sort order.
-//! - `sec/design/pipeline/silver_writer_and_jobs.md`, "Byte Form of `content_digest`": how the
-//!   writer uses the digest.
 
 use std::collections::BTreeMap;
 

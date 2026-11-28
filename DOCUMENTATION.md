@@ -22,6 +22,7 @@ The document is organized as follows:
 - When tightening documentation that is already good, **blend** rather than replace: keep the established, well-worded opening and enrich it, instead of rewriting it wholesale.
 - Use each business term, such as "filing", "write unit", or "source", in the meaning that [`GLOSSARY.md`](GLOSSARY.md) gives it. If a document adds a term that a reader can misread, add an entry to the glossary in the same PR.
 - Name no storage layer in a `.rs` file: no "bronze", "silver", "gold", or "raw store", in a doc comment or anywhere else. Say what the item is, for example "dataset", "write unit", "transform output", or "document store". Markdown files keep the layer names, except in a Rust code block, which follows the rule of a `.rs` file.
+- Name no Markdown file and no ADR in a `.rs` file, not by path, link, or number. The code and its docs explain themselves. If a reason is critical, because the code looks wrong without it, state the reason in the doc in its own words. Design docs and ADRs stay the record of decisions, and a reader opens them when needed. A Rust code block in a Markdown file follows this rule too.
 
 ### Documentable Items
 

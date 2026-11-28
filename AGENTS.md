@@ -111,8 +111,8 @@ before you write or amend an ADR.
   documents, READMEs, and skills, says what an item is and does now. It never says what the item
   or a cited standard replaced, or what changed from an earlier version. Commits and PRs hold that
   history. If a decision behind the change passes the test in "Architecture Decision Records",
-  record it in an ADR, and link the ADR from the document. To learn why the code is as it is,
-  read the current docs and the ADRs.
+  record it in an ADR, and link the ADR from the design doc. A `.rs` file names no ADR. To learn
+  why the code is as it is, read the current docs and the ADRs.
   [`DOCUMENTATION.md`](DOCUMENTATION.md), "Temporal references", gives examples.
 - **Date each external link.** Each link to a page outside the repository names the date you read
   the page: `([Title](https://…), accessed YYYY-MM-DD)`. So does each link to a ticket or a pull

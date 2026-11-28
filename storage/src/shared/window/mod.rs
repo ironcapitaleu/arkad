@@ -28,7 +28,7 @@ pub enum Window {
 impl Window {
     /// Returns the name of the window: `day` or `minute`.
     ///
-    /// `docs/adr/0045-stored-names-of-access-enums.md` records the names.
+    /// Stored rows hold these names, so a changed name breaks them.
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {

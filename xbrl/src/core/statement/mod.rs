@@ -562,8 +562,6 @@ impl Tree {
 
     /// Returns the group that makes `parent` when it has no value: its step, or else its first
     /// group.
-    ///
-    /// `docs/adr/0020-missing-start-uses-the-step.md` records why the step wins.
     fn source_of(&self, parent: CanonicalElementKind) -> Option<Group> {
         self.groups_of(parent)
             .find(|group| matches!(group.kind, GroupKind::Step { .. }))

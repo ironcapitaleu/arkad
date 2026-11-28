@@ -1,8 +1,7 @@
 //! Deprecated example: extracts every Notes period up to last month.
 //!
 //! It runs `Extraction::backfill().notes()` against the live SEC and stores each file under
-//! `ARKAD_STORAGE_ROOT`. The binary `backfill` replaces it. See "Deprecated Binaries" in
-//! `sec/design/pipeline/ingestion_paths.md`.
+//! `ARKAD_STORAGE_ROOT`. The binary `backfill` replaces it.
 //!
 //! Run it with `cargo run -p sec --features tracing-logging --example notes_backfill`.
 

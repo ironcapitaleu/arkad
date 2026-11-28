@@ -28,7 +28,7 @@ pub enum Channel {
 impl Channel {
     /// Returns the name of the channel as Postgres stores it: `api_key` or `login`.
     ///
-    /// `docs/adr/0045-stored-names-of-access-enums.md` records the names.
+    /// Stored rows hold these names, so a changed name breaks them.
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {

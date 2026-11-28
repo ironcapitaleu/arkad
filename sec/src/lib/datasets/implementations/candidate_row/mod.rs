@@ -36,8 +36,7 @@ use crate::shared::row_digest::{ByteForm, DigestRow};
 
 /// One row of `candidates`: the value that one filing gives for one standard concept.
 ///
-/// `sec/design/pipeline/silver_layer.md`, `candidates`, names the columns. The `scope` column is
-/// always null, because a [`Candidate`] has no scope yet.
+/// The `scope` column is always null, because a [`Candidate`] has no scope yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateRow {
     /// The candidate of the filing.

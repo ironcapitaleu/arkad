@@ -46,7 +46,6 @@ static GLOBAL_RATE_LIMITER: OnceLock<SecRateLimiter> = OnceLock::new();
 /// A request that fails with a transient failure, as [`FailedSecRequest::is_transient`] decides,
 /// is sent again under the [`RetryPolicy`] of the client. [`SecClient::new`] sets the default
 /// policy. Each attempt takes its own permit of the rate limiter.
-/// `docs/adr/0012-request-retry-policy.md` records the policy.
 ///
 /// # Cloning
 ///

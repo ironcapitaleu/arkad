@@ -115,7 +115,7 @@ impl Placed for IncomeStatementConcept {
 /// The groups whose parent is an income statement concept.
 ///
 /// The list follows the order of the first row that names each group in the table of the income
-/// statement. `docs/adr/0013-order-of-the-groups.md` records the order.
+/// statement.
 pub const GROUPS: &[Group] = &[
     Group {
         name: IncomeStatementGroup::GrossProfit.name(),

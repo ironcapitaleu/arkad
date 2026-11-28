@@ -144,7 +144,7 @@ impl Placed for BalanceSheetConcept {
 /// The groups whose parent is a balance sheet concept.
 ///
 /// The list follows the order of the first row that names each group in the table of the balance
-/// sheet. `docs/adr/0013-order-of-the-groups.md` records the order.
+/// sheet.
 pub const GROUPS: &[Group] = &[
     Group {
         name: BalanceSheetGroup::Assets.name(),

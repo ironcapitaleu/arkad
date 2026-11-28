@@ -270,7 +270,8 @@ impl AsIsFact {
 ///
 /// The key holds the exact end and the length in quarters, not the exact start. So two durations
 /// with one end and one rounded length, such as a 61-day stub and a 91-day quarter, differ only in
-/// `copy_rank`. `docs/adr/0025-exact-start-splits-copies.md` records why.
+/// `copy_rank`. The key leaves out the start, so a Notes value and an instance value of one period
+/// get one key.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 pub struct FactKey {
     /// The filing.

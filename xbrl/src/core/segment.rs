@@ -8,9 +8,6 @@
 //! [`SegmentAxes::member_roles`] of the plug-in that resolved each candidate, so this module names no
 //! axis and no member of a taxonomy. The datasets store no line of a reconciliation, and
 //! [`reconcile`] gives no finding.
-//!
-//! `docs/adr/0030-segment-reconciliation-per-report.md` records why the reconciliation runs per
-//! report.
 
 use std::collections::BTreeMap;
 use std::str::FromStr;

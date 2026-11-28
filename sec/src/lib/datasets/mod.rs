@@ -15,12 +15,6 @@
 //! - [`schema_text`](mod@schema_text): The text form of a schema.
 //! - [`constants`]: The Arrow time zone, the type of the decimal columns, and the folder labels of
 //!   the dataset paths.
-//!
-//! ## See Also
-//!
-//! - `sec/design/pipeline/silver_layer.md`, "Datasets": the columns of each dataset.
-//! - `sec/design/pipeline/silver_writer_and_jobs.md`, "`ArrowRow` and `DigestRow`" and
-//!   "Schema Tests".
 
 pub mod arrow_row_error;
 mod columns;
