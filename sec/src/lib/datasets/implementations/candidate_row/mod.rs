@@ -21,6 +21,7 @@ use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::invalid_value::InvalidValue;
 use xbrl::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
 use xbrl::core::rule::RuleId;
+use xbrl::core::scope::Scope;
 use xbrl::core::unit::Unit;
 
 use crate::datasets::columns::{
@@ -35,9 +36,6 @@ use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
 /// One row of `candidates`: the value that one filing gives for one standard concept.
-///
-/// `sec/design/pipeline/silver_layer.md`, `candidates`, names the columns. The `scope` column is
-/// always null, because a [`Candidate`] has no scope yet.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateRow {
     /// The candidate of the filing.
@@ -93,7 +91,7 @@ impl ArrowRow for CandidateRow {
             text(|candidate| Some(candidate.release.id.to_string())),
             text(|candidate| Some(candidate.release.checksum.to_string())),
             inputs_array(rows)?,
-            Arc::new(StringArray::from(vec![None::<&str>; rows.len()])),
+            text(|candidate| candidate.scope.map(|scope| scope.to_string())),
             text(|candidate| Some(candidate.source.filing.to_string())),
             Arc::new(Date32Array::from_iter_values(
                 candidates().map(|candidate| date32(candidate.source.filed)),
@@ -177,8 +175,11 @@ impl DigestRow for CandidateRow {
         for key in &candidate.inputs {
             write_fact_key(byte_form, key);
         }
+        match candidate.scope {
+            Some(scope) => byte_form.utf8(&scope.to_string()),
+            None => byte_form.null(),
+        };
         byte_form
-            .null()
             .utf8(&candidate.source.filing.to_string())
             .date(candidate.source.filed);
         match candidate.source.accepted {
@@ -384,9 +385,6 @@ impl<'a> CandidateColumns<'a> {
         let unexpected = |column: &'static str| {
             move |reason| unexpected_value(self.dataset, column, row, reason)
         };
-        if let Some(scope) = nullable(self.scopes, row) {
-            return Err(unexpected("scope")(format!("unknown scope '{scope}'")));
-        }
         Ok(Candidate {
             source: FilingSource {
                 filing: FilingId::from_str(self.filing_ids.value(row))
@@ -421,6 +419,10 @@ impl<'a> CandidateColumns<'a> {
             inputs: item_range(self.inputs, row)
                 .map(|item| self.input_keys.key(self.dataset, row, item))
                 .collect::<Result<_, _>>()?,
+            scope: nullable(self.scopes, row)
+                .map(Scope::from_str)
+                .transpose()
+                .map_err(invalid("scope"))?,
         })
     }
 
@@ -554,6 +556,7 @@ mod tests {
     use super::*;
     use crate::datasets::implementations::run_columns::sample_run_columns;
     use crate::datasets::{FOLDER_LABELS, schema_text};
+    use xbrl::core::invalid_value::InvalidValueReason;
 
     const PARSE: &str = "Given hardcoded valid parts, the creation should always succeed";
 
@@ -614,6 +617,7 @@ mod tests {
                 .expect(PARSE),
             },
             inputs: vec![full_key()],
+            scope: None,
         }
     }
 
@@ -627,8 +631,8 @@ mod tests {
         }
     }
 
-    /// The fixture rows: 38 digits with two keys, a non-ASCII member with `Infinite` decimals,
-    /// and a blocked instant with every nullable field empty.
+    /// The fixture rows: 38 digits with two keys, a non-ASCII member with `Infinite` decimals and
+    /// a scope, and a blocked instant with every nullable field empty.
     fn sample_rows() -> Vec<CandidateRow> {
         let row = |candidate, entity_bucket| CandidateRow {
             candidate,
@@ -649,6 +653,7 @@ mod tests {
         segment.dimensions =
             Dimensions::new([("StatementGeographicalAxis", "SociétéGénérale株式会社Member")])
                 .expect(PARSE);
+        segment.scope = Some(Scope::ExcludesRestrictedCash);
         let mut blocked = candidate(CandidateValue::Blocked);
         blocked.source.accepted = None;
         blocked.period = Period::Instant {
@@ -931,17 +936,39 @@ mod tests {
     }
 
     #[test]
-    fn should_fail_when_a_row_has_a_scope() {
+    fn should_read_the_scope_when_a_row_has_a_scope() {
         let batch = batch_with(
             "scope",
             Arc::new(StringArray::from(vec!["ExcludesRestrictedCash"])),
         );
 
-        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+        let expected_result = vec![Some(Scope::ExcludesRestrictedCash)];
+
+        let result: Vec<Option<Scope>> = CandidateRow::from_batch(&batch, 1)
+            .expect("Given a batch with a known scope, the read should always succeed")
+            .into_iter()
+            .map(|row| row.candidate.scope)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_the_scope_is_unknown() {
+        let batch = batch_with(
+            "scope",
+            Arc::new(StringArray::from(vec!["IncludesRestrictedCash"])),
+        );
+
+        let expected_result = Err(ArrowRowError::InvalidColumnValue {
             dataset: "candidates",
             column: "scope",
             row: 0,
-            reason: "unknown scope 'ExcludesRestrictedCash'".to_owned(),
+            source: InvalidValue::new(
+                "Scope",
+                InvalidValueReason::NoMatchingName("scope"),
+                "IncludesRestrictedCash",
+            ),
         });
 
         let result = CandidateRow::from_batch(&batch, 1);
@@ -1196,7 +1223,8 @@ mod tests {
 
         // As the blocked row, but with period_start 2025-09-28, quarters 4, one dimension pair
         // with a non-ASCII member, value -6.11, confidence Synonym, a value key with every field
-        // set, accepted, decimals null, decimals_infinite true, blocked false, entity_bucket 7
+        // set, scope ExcludesRestrictedCash, accepted, decimals null, decimals_infinite true,
+        // blocked false, entity_bucket 7
         let expected_result: &[u8] = b"\x01\x00\x00\x00\x16http://www.sec.gov/CIK\
 \x01\x00\x00\x00\x0a0000320193\
 \x01\x00\x00\x00\x07Revenue\
@@ -1211,7 +1239,7 @@ mod tests {
 \x01\x00\x00\x00\x0cus-gaap/2026\
 \x01\x00\x00\x00\x40a92083bfe2d99f604c258a3a192602c4e8c8292d08f51cd3d34db30b80353b3c\
 \x01\x00\x00\x00\x01\x01\x00\x00\x00\x09\x01\x00\x00\x00\x18sec:0000320193-26-000001\x01\x00\x00\x00\x07us-gaap\x01\x00\x00\x00\x08Revenues\x01\x00\x00\x00\x0cus-gaap/2026\x01\x00\x00\x00\x0a2026-09-26\x01\x00\x00\x00\x014\x01\x00\x00\x00\x03USD\x01\x00\x00\x00\x01\x01\x00\x00\x00\x02\x01\x00\x00\x00\x1dStatementBusinessSegmentsAxis\x01\x00\x00\x00\x0cIPhoneMember\x01\x00\x00\x00\x010\
-\x00\
+\x01\x00\x00\x00\x16ExcludesRestrictedCash\
 \x01\x00\x00\x00\x18sec:0000320193-26-000001\
 \x01\x00\x00\x00\x0a2026-11-06\
 \x01\x00\x00\x00\x182026-11-06T12:05:00.000Z\

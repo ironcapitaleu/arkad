@@ -36,6 +36,7 @@
 //! - [`required_check`]: The check for required standard concepts without a value.
 //! - [`roll_up_check`]: The checks of the roll-up tree on a standardized series.
 //! - [`rule`]: The ID of a rule.
+//! - [`scope`]: The part of a standard concept that a value covers.
 //! - [`segment`]: The segment reconciliation of one filing.
 //! - [`series`]: The rules that run on every filing of one entity, in the dedup order.
 //! - [`standardized`]: One value of one standard concept.
@@ -73,6 +74,7 @@ pub mod release;
 pub mod required_check;
 pub mod roll_up_check;
 pub mod rule;
+pub mod scope;
 pub mod segment;
 pub mod series;
 pub mod standardized;
