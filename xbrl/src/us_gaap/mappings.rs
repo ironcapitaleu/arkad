@@ -1277,9 +1277,9 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         NET_CHANGE_IN_CASH_PART_RULE,
     ),
-    // Each part has its own other part: the effect on disposal groups, and before 2018 the effect
-    // on discontinued operations. The two share one list, so a filing that mixes the eras gets no
-    // value, not a part without its discontinued operations.
+    // The other parts are the effect on disposal groups, and before 2018 the effect on
+    // discontinued operations. Both parts share one list, so a filing that mixes the eras gets
+    // no value, not a part without its discontinued operations.
     PartDefinition::new(
         CashFlowConcept::ExchangeRateEffect.element(),
         &[
