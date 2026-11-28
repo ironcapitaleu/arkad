@@ -12,14 +12,14 @@ pub const UTC_TIME_ZONE: &str = "+00:00";
 
 /// The folder labels of the path of a dataset other than `unit_manifests`.
 ///
-/// `DuckDB` reads a `name=value` folder as a column, so no field of the dataset has one of these
-/// names.
+/// A reader with Hive partitioning reads each `name=value` folder of a path as a column. So no
+/// field of the dataset has one of these names, or the field and the folder column clash.
 pub const FOLDER_LABELS: [&str; 2] = ["source", "unit_key"];
 
 /// The folder labels of the path of `unit_manifests`.
 ///
-/// `DuckDB` reads a `name=value` folder as a column, so no field of `unit_manifests` has one of these
-/// names.
+/// A reader with Hive partitioning reads each `name=value` folder of a path as a column. So no
+/// field of `unit_manifests` has one of these names, or the field and the folder column clash.
 pub const UNIT_MANIFEST_FOLDER_LABELS: [&str; 2] = ["execution", "task"];
 
 /// The digits of a decimal column, such as `value_numeric` of `as_is_facts`.
