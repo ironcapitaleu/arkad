@@ -2312,6 +2312,7 @@ dependencies = [
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
+ "twox-hash",
  "url",
  "uuid",
  "xbrl",

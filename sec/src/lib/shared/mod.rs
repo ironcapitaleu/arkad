@@ -10,6 +10,7 @@
 //! - [`company_data`]: Provides [`CompanyData`](company_data::CompanyData), the as-is facts and the filings of one company.
 //! - [`document_storage`]: Provides [`FailedDocumentStorage`](document_storage::FailedDocumentStorage), the error for a document that the store did not keep.
 //! - [`edgar_exchange_code`]: Provides [`mic_of`](edgar_exchange_code::mic_of), the map from an EDGAR exchange code to the MIC of the exchange it names.
+//! - [`entity_bucket`]: Provides [`entity_bucket`](entity_bucket::entity_bucket), the bucket of an entity in the rows of `candidates`, and the bucket count.
 //! - [`filing_context`]: Provides [`FilingContext`](filing_context::FilingContext), the context of every state of the filing machine, and [`RegistryHandle`](filing_context::RegistryHandle), the taxonomy registry inside it.
 //! - [`filing_documents`]: Provides [`FilingDocuments`](filing_documents::FilingDocuments), the XBRL instance and the label file of one filing, picked from its folder index.
 //! - [`filing_documents_ref`]: Provides [`FilingDocumentsRef`](filing_documents_ref::FilingDocumentsRef), the filing and the keys of its stored XBRL instance and label file.
@@ -53,6 +54,7 @@ pub mod company_data;
 pub mod content_type;
 pub mod document_storage;
 pub mod edgar_exchange_code;
+pub mod entity_bucket;
 pub mod filing_context;
 pub mod filing_documents;
 pub mod filing_documents_ref;
