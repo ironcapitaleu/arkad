@@ -851,7 +851,7 @@ The changes are to comments and to the new lists.
 
 | List | Verdict |
 | ---- | ------- |
-| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an own other part of the other ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2). `RevenuesNetOfInterestExpense` gets no mapping |
+| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an own other part of the other ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2). The concepts of banks, utilities, and producers follow "Revenue of Banks, Utilities, and Producers" |
 | `OperatingIncome`, `Assets`, `Liabilities` | stays |
 | `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part. `NetCashProvidedByUsedInDiscontinuedOperations` is the total of other parts ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 1) |
 | `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
@@ -878,6 +878,64 @@ returns the set, and the completeness check of "5) Validation" reads it
 `CashAndDueFromBanks` and `DueFromBanks` get no mapping. A bank reports `InterestBearingDepositsInBanks`
 next to `CashAndDueFromBanks`, so neither is the whole of `CashAndEquivalents`. The concepts of
 filings before 2018 and the cash of banks follow [ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md).
+
+#### Revenue of Banks, Utilities, and Producers
+
+> **Status:** decided in [ADR 0056](../docs/adr/0056-revenue-of-banks-utilities-and-producers.md).
+> The code does not apply these rules: a bank, a utility before 2018, and a producer before 2018
+> with no total get no `Revenue`.
+
+Some filers report their own revenue lines and no concept of the alias list or the parts. The
+`Revenue` of each kind of filer comes from one rule:
+
+| Filer | Concepts | Rule | Confidence |
+| ----- | -------- | ---- | ---------- |
+| Bank with a total | `Revenues`, then `RevenuesNetOfInterestExpense` | `us-gaap/alias/revenue@1` | `Exact`, or `Synonym` for `RevenuesNetOfInterestExpense` |
+| Bank with no total | `InterestIncomeExpenseNet` + `NoninterestIncome` | `us-gaap/total/revenue@1`, the line total | `Computed` |
+| Utility before 2018 | `UtilityRevenue`, then `ElectricUtilityRevenue` | `us-gaap/part/revenue@1` | `Synonym` |
+| Oil and gas producer before 2018 | `OilAndGasRevenue` | `us-gaap/part/revenue@1` | `Synonym` |
+
+- The `Revenue` of a bank is its net revenue: net interest income plus noninterest income, before
+  the provision for credit losses.
+- **Line total.** The rule runs only if no alias and no part gives a value in the period and set of
+  dimensions. Each line must have a value in the same period, unit, and dimensions. The value is
+  the sum of the lines,
+  and `inputs` holds the value key of each line. A conflict on a line blocks the candidate, as a
+  conflict on a part does.
+- `InterestRevenueExpenseNet` is not a line: it also holds the interest outside operations.
+- The line total needs both lines. Commercial filers report `InterestIncomeExpenseNet` outside
+  revenue. In the fixtures, only banks report `NoninterestIncome`. A non-bank filer that reports
+  both lines gets their sum as `Revenue`, with no finding.
+- The line total runs with the parts, on each set of dimensions, so a bank segment gets a
+  `Computed` value (see "Resolution of a Segment Value").
+- The new parts follow the existing parts, in the order `UtilityRevenue`,
+  `ElectricUtilityRevenue`, `OilAndGasRevenue`. A filer that reports a goods or services line next
+  to a new part gets the goods or services line, because the new parts are not own other parts of
+  the goods and services lines.
+- **Own other parts.** The own other parts of each new part are its siblings, and the siblings of
+  each concept between it and `Revenues`, in the trees of 2013 and 2017. Of the siblings below
+  `UtilityRevenue`, only `GasDomesticRegulatedRevenue` exists, an own other part of
+  `ElectricUtilityRevenue`. Left out, because filers also report them outside revenue or as a
+  subset of revenue: `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`,
+  `RevenueFromRelatedParties`, `ShippingAndHandlingRevenue`, and
+  `PhaseInPlanAmountOfCapitalizedCostsRecovered`.
+- `ExplorationAndProductionRevenue` is no part. It sits below `OilAndGasRevenue`.
+- No value of these rules carries a scope.
+- `NoninterestIncome` stays an other part of `Revenue`. It blocks a contract revenue part of a bank,
+  because that part covers noninterest income only. The line total then gives the value.
+- Revenue that a filer reports only with its own concepts, such as APA 2025 and KKR 2013, stays
+  open.
+
+The fixture 10-Ks show the rules (values in million USD, annual, without dimensions):
+
+| Filing | `Revenue` | Source |
+| ------ | --------- | ------ |
+| Regions Financial 2013 | 5,281 | 3,262 + 2,019, line total |
+| Regions Financial 2021 | 6,438 | 3,914 + 2,524, line total |
+| Regions Financial 2025 | 7,526 | 4,991 + 2,535, line total |
+| JPMorgan Chase 2025 | 182,447 | `Revenues`. Net interest income + noninterest income gives the same value |
+| Evergy 2013 | 2,446.3 | `ElectricUtilityRevenue`, part rule |
+| APA 2013 | open | `OtherSalesRevenueNet` blocks `OilAndGasRevenue` |
 
 #### Names in Silver
 
@@ -1318,7 +1376,8 @@ segments. No standard concept holds them, so they stay as-is facts.
   dimensions: `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`,
   the sums along the calculation tree of a plug-in, and the checks of "Checks the Tree Gives". A
   segment value gets no derived or computed value, no check, no other line, and no `MixedStarts`
-  finding.
+  finding. The line total of "Revenue of Banks, Utilities, and Producers" is the one exception: it
+  runs with the parts, on each set of dimensions.
 - **Chronology** runs only on values without dimensions. A segment value still gets `restated`.
 - `FactSet` and the statement output types take only values without dimensions. A segment value
   enters no statement.
@@ -1835,6 +1894,9 @@ ticket decides where the removed elements live.
     that leaves the income out.
   - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
     parts. So the filing reports no other part, and the check passes with the wrong value.
+- A line total, `us-gaap/total/<standard concept>@1`, adds lines that a filing reports in place of
+  a total. It runs only if no alias and no part gives a value in the period and set of dimensions.
+  `Revenue` of a bank is the one line total (see "Revenue of Banks, Utilities, and Producers").
 - `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the
   `Equity` of `Assets = Liabilities + Equity`. `NetIncomeLoss`, the part of the parent, stands for
   it only if the filing reports no `NetIncomeLossAttributableToNoncontrollingInterest`.
@@ -2057,6 +2119,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `us-gaap/alias/revenue@1`: the alias list of a plug-in.
 - `us-gaap/part/equity@1`: the parts of a standard concept that stand for the whole if the filing
   reports no other part.
+- `us-gaap/total/revenue@1`: the line total of a plug-in, the sum of the lines that a filing
+  reports in place of a total.
 - `core/identity/balance-sheet@1`: an accounting identity.
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
@@ -2095,7 +2159,7 @@ Each element has a tiered resolution chain:
 | 1 | `Exact` | The first concept of the alias list of a plug-in |
 | 2 | `Synonym` | A later concept of the alias list, a part with no other part reported, or an ESEF anchor |
 | 3 | `Derived` | An identity the core knows: an accounting identity or a period identity |
-| 4 | `Computed` | A sum along the calculation tree of a plug-in |
+| 4 | `Computed` | A sum along the calculation tree of a plug-in, or the line total of a plug-in |
 
 ```
 Element: "Revenue"
@@ -2108,7 +2172,9 @@ Element: "Total Assets"
   Tier 4  Computed:  AssetsCurrent + AssetsNoncurrent       -> confidence: Computed
 ```
 
-First tier that resolves wins. Every resolved value carries which tier produced it.
+The first tier that resolves wins. The line total is the one exception: it reads as-is facts, so
+it runs with tiers 1 and 2, after the parts, and its `Computed` value wins over tier 3 (see
+"Revenue of Banks, Utilities, and Producers"). Every resolved value carries which tier produced it.
 
 The level of a derived or computed fact is the weakest of its own level and the levels of its
 inputs. `Confidence` orders from `Exact` to `Computed`, so this is the maximum.
