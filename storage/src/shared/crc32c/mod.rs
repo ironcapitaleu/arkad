@@ -64,7 +64,8 @@ impl FromStr for Crc32c {
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidCrc32c`] if the string is not padded base64 of exactly 4 bytes.
+    /// Returns an [`InvalidCrc32c`] if the string is not the padded base64 of exactly 4 bytes, or if
+    /// its unused bits are set.
     ///
     /// # Examples
     ///
@@ -82,18 +83,13 @@ impl FromStr for Crc32c {
     /// assert_eq!(result, expected_result);
     /// ```
     fn from_str(value: &str) -> Result<Self, Self::Err> {
+        // `STANDARD` requires the padding and rejects set unused bits, so each value has one text.
         let bytes: [u8; 4] = STANDARD
             .decode(value)
             .ok()
             .and_then(|bytes| bytes.try_into().ok())
             .ok_or_else(|| InvalidCrc32c::new(value))?;
-        let crc32c = Self(u32::from_be_bytes(bytes));
-        // Base64 can spell the same bytes in more than one way. Only the form that `Display`
-        // prints passes, so every value has one text.
-        if crc32c.to_string() != value {
-            return Err(InvalidCrc32c::new(value));
-        }
-        Ok(crc32c)
+        Ok(Self(u32::from_be_bytes(bytes)))
     }
 }
 
@@ -171,6 +167,17 @@ mod tests {
         let text = "4waSgw";
 
         let expected_result = Err(InvalidCrc32c::new("4waSgw"));
+
+        let result = text.parse::<Crc32c>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_text_when_its_padding_is_partial() {
+        let text = "4waSgw=";
+
+        let expected_result = Err(InvalidCrc32c::new("4waSgw="));
 
         let result = text.parse::<Crc32c>();
 
