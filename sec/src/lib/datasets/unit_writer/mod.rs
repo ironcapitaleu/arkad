@@ -683,6 +683,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_keep_no_group_of_a_call_when_the_call_repeats_a_digest_group() {
+        let (_directory, store) = store();
+        let mut writer = writer(&store, spec(1, 1)).await;
+        writer
+            .push_groups(vec![row(FILING_A, "Assets")])
+            .await
+            .expect("Given an empty attempt folder, the push should always succeed");
+        writer
+            .push_groups(vec![row(FILING_A, "Liabilities"), row(FILING_B, "Assets")])
+            .await
+            .expect_err("Given a repeated digest group, the push should always fail");
+        let retry_rows = vec![row(FILING_B, "Assets")];
+
+        let expected_result = Ok(());
+
+        let result = writer.push_groups(retry_rows).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
     async fn should_return_split_digest_group_when_two_calls_hold_one_digest_group() {
         let (_directory, store) = store();
         let mut writer = writer(&store, spec(1, 1)).await;
