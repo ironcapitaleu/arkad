@@ -26,7 +26,7 @@ use crate::datasets::columns::{
     write_dimensions,
 };
 use crate::datasets::constants::{DECIMAL_PRECISION, DECIMAL_SCALE};
-use crate::datasets::{ArrowRow, ArrowRowError, Provenance};
+use crate::datasets::{ArrowRow, ArrowRowError, PartOrder, Provenance};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
 pub mod constants;
@@ -123,6 +123,13 @@ impl ArrowRow for AsIsFactRow {
                 })
             })
             .collect()
+    }
+}
+
+/// Sorts by the value key, which starts with `filing_id`.
+impl PartOrder for AsIsFactRow {
+    fn write_sort_key(&self, byte_form: &mut ByteForm) {
+        self.write_row_key(byte_form);
     }
 }
 

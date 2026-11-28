@@ -851,7 +851,7 @@ The changes are to comments and to the new lists.
 
 | List | Verdict |
 | ---- | ------- |
-| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an other part of the other. `RevenuesNetOfInterestExpense` gets no mapping |
+| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an own other part of the other ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2). `RevenuesNetOfInterestExpense` gets no mapping |
 | `OperatingIncome`, `Assets`, `Liabilities` | stays |
 | `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part. `NetCashProvidedByUsedInDiscontinuedOperations` is the total of other parts ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 1) |
 | `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
@@ -1817,6 +1817,10 @@ ticket decides where the removed elements live.
     the other. A part never blocks itself. So a part of zero loses to a sibling with a value. The
     concepts below the two parts do not count, because filers report them in the notes next to
     the part.
+  - A part can have its own other parts, which block that part only. A definition names them
+    with `with_own_other_parts`. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` are each an
+    own other part of the other, so neither blocks the contract revenue parts of `Revenue`
+    ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2).
   - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
     `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
     equivalents.
