@@ -151,7 +151,7 @@ pub struct UnitInput {
     /// The URL of the request that fetched a raw document. `None` for a dataset file and the
     /// vendored release.
     pub requested_url: Option<String>,
-    /// The time the raw store wrote a raw document. `None` for a dataset file and the vendored
+    /// The time the document store wrote a raw document. `None` for a dataset file and the vendored
     /// release. The part below one millisecond does not reach the batch.
     pub produced_at: Option<Timestamp>,
 }

@@ -57,7 +57,7 @@ impl fmt::Display for SourceKind {
 pub struct Provenance {
     /// The kind of the raw document.
     pub source_kind: SourceKind,
-    /// The key of the raw document in the raw store.
+    /// The key of the raw document in the document store.
     pub source_key: String,
     /// The SHA-256 of the raw document.
     pub source_sha256: Sha256Digest,
