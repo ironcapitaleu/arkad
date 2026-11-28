@@ -55,8 +55,8 @@ mod tests {
     }
 
     // The expected buckets come from the reference implementation of XXH3-64 (the `xxhash`
-    // package of Python): `sec:320193` hashes to 2757253951275582447, and `sec:1048911` to
-    // 12058489201547411460.
+    // package of Python): `sec:320193` hashes to 2757253951275582447, and
+    // `http://www.sec.gov/CIK:0002082247` to 2481830158971776855.
 
     #[test]
     fn should_return_bucket_47_for_the_entity_sec_320193() {
@@ -70,10 +70,10 @@ mod tests {
     }
 
     #[test]
-    fn should_return_bucket_4_for_the_entity_of_the_fixture_filing() {
-        let fixture_entity = entity("sec", "1048911");
+    fn should_return_bucket_23_for_the_entity_of_the_notes_fixture_filing() {
+        let fixture_entity = entity("http://www.sec.gov/CIK", "0002082247");
 
-        let expected_result = 4;
+        let expected_result = 23;
 
         let result = entity_bucket(&fixture_entity);
 
