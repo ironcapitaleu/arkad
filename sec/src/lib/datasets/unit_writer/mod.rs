@@ -16,6 +16,7 @@
 //!
 //! - [`constants`]: The size at which the writer flushes a part.
 
+use std::collections::BTreeSet;
 use std::mem;
 
 use jiff::Timestamp;
@@ -34,7 +35,8 @@ use crate::datasets::{
     current_units, write_part,
 };
 use crate::shared::row_digest::{
-    ByteForm, DigestRow, GroupHash, content_digest, group_hashes_and_row_bytes,
+    ByteForm, DigestRow, DuplicateDigestGroup, GroupHash, content_digest,
+    group_hashes_and_row_bytes,
 };
 
 pub mod constants;
@@ -102,6 +104,7 @@ pub struct UnitWriter<'s, R, S> {
     flush_bytes: usize,
     files: Vec<UnitFile>,
     groups: Vec<GroupHash>,
+    group_ids: BTreeSet<Vec<u8>>,
 }
 
 impl<'s, R, S> UnitWriter<'s, R, S>
@@ -158,6 +161,7 @@ where
             flush_bytes: PART_FLUSH_BYTES,
             files: Vec::new(),
             groups: Vec::new(),
+            group_ids: BTreeSet::new(),
         }))
     }
 
@@ -170,9 +174,20 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`UnitWriteError::FailedPartWrite`] if [`write_part()`] does not write the part.
+    /// Returns:
+    /// - [`UnitWriteError::SplitDigestGroup`] if an earlier call held rows of a digest group of
+    ///   these rows. The writer then keeps none of these rows.
+    /// - [`UnitWriteError::FailedPartWrite`] if [`write_part()`] does not write the part.
     pub async fn push_groups(&mut self, rows: Vec<R>) -> Result<(), UnitWriteError> {
         let (groups, row_bytes) = group_hashes_and_row_bytes(&rows);
+        if let Some(group) = groups
+            .iter()
+            .find(|group| self.group_ids.contains(group.group_id()))
+        {
+            return Err(DuplicateDigestGroup::new(group.group_id()).into());
+        }
+        self.group_ids
+            .extend(groups.iter().map(|group| group.group_id().to_vec()));
         self.groups.extend(groups);
         self.row_bytes += row_bytes;
         self.rows.extend(rows);
@@ -191,8 +206,8 @@ where
     ///
     /// Returns:
     /// - [`UnitWriteError::FailedPartWrite`] if [`write_part()`] does not write the last part.
-    /// - [`UnitWriteError::SplitDigestGroup`] if two calls of [`push_groups`](Self::push_groups)
-    ///   held rows of one digest group.
+    /// - [`UnitWriteError::SplitDigestGroup`] if a group ID repeats. [`push_groups`](Self::push_groups)
+    ///   rejects a repeated group ID first, so this is a second check.
     pub async fn finish(
         mut self,
         source_rows: Vec<TableRows>,
@@ -292,7 +307,6 @@ mod tests {
 
     use super::*;
     use crate::datasets::{ArrowRowError, CurrentUnits, TaskLocation, write_task_manifest};
-    use crate::shared::row_digest::DuplicateDigestGroup;
 
     /// A fact of a test dataset: one digest group per filing.
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -676,16 +690,13 @@ mod tests {
             .push_groups(vec![row(FILING_A, "Assets")])
             .await
             .expect("Given an empty attempt folder, the push should always succeed");
-        writer
-            .push_groups(vec![row(FILING_A, "Liabilities")])
-            .await
-            .expect("Given an empty attempt folder, the push should always succeed");
+        let split_rows = vec![row(FILING_A, "Liabilities")];
 
         let expected_result = Err(UnitWriteError::SplitDigestGroup(DuplicateDigestGroup::new(
             b"\x01\x00\x00\x00\x140000320193-24-000006",
         )));
 
-        let result = writer.finish(Vec::new(), Vec::new()).await;
+        let result = writer.push_groups(split_rows).await;
 
         assert_eq!(result, expected_result);
     }
