@@ -316,7 +316,7 @@ pub enum FilingOutcome {
 pub struct RejectedFiling {
     pub filing: String,                 // the adsh, or the accession number
     pub error: StateMachine,            // the error of the state or the transition that failed
-    pub counts: SourceCounts,           // every source row of the filing, dropped as RejectedFiling
+    pub counts: SourceCounts,           // every source row of the filing, dropped with the reason RejectedFiling
 }
 ```
 

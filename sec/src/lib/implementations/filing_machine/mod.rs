@@ -43,7 +43,8 @@ pub struct RejectedFiling {
     pub filing: String,
     /// The error of the state or the transition that failed.
     pub error: StateMachineError,
-    /// Every source row of the filing, dropped under `RejectedFiling`.
+    /// Every source row of the filing, dropped under
+    /// [`DropReason::RejectedFiling`](crate::shared::source_counts::DropReason::RejectedFiling).
     pub counts: SourceCounts,
 }
 
