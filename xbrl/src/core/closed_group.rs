@@ -20,6 +20,7 @@ use super::elements::{
 use super::fact::Dimensions;
 use super::filing::EntityId;
 use super::rule::RuleId;
+use super::scope::Scope;
 use super::standardized::StandardizedFact;
 use super::statement::mixed_starts;
 
@@ -31,12 +32,19 @@ const NEVER_DERIVED: [CanonicalElementKind; 1] = [IncomeStatementConcept::GrossP
 
 /// The children that are zero if absent only in the check, not in the derivation.
 ///
-/// Filings before 2018 report the exchange rate effect under
-/// `EffectOfExchangeRateOnCashAndCashEquivalents`, which leaves out restricted cash and is no
-/// alias. If the effect counted as zero, the rule would derive a wrong `NetChangeInCash` for every
-/// multinational before 2018.
+/// A filer that reports no exchange rate effect can still have one under a concept outside the
+/// alias list. If the effect counted as zero, the rule would derive a wrong `NetChangeInCash`.
 const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
     [CashFlowConcept::ExchangeRateEffect.element()];
+
+/// The concepts whose values carry a scope. A value with no scope covers the full scope.
+///
+/// The three cash flow totals carry no scope: each is the total of one activity in either scope.
+/// So a value of another concept counts with either scope.
+const SCOPED: [CanonicalElementKind; 2] = [
+    CashFlowConcept::NetChangeInCash.element(),
+    CashFlowConcept::ExchangeRateEffect.element(),
+];
 
 /// Applies the rules `core/roll-up/<group>@1` to the series of one entity, and returns the derived
 /// facts.
@@ -58,6 +66,8 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 /// that [`Statement`](super::statement::Statement) counts in the group have different exact
 /// starts, such as a quarter and a 4-month stub. A member with no value counts as the members of
 /// the group that makes it, so the group derives nothing even if its own inputs share one start.
+/// The group also derives nothing if two members with a value differ in scope, such as a
+/// `NetChangeInCash` with no scope and an `ExchangeRateEffect` with `ExcludesRestrictedCash`.
 /// [`check_roll_ups`](super::roll_up_check::check_roll_ups) reports such a group.
 ///
 /// The rule repeats until no group gives a new value, so a derived value can feed another group. In
@@ -66,7 +76,8 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 ///
 /// The fact takes the period, the unit, and the release of its first known member. The confidence
 /// is [`Confidence::Derived`], or the weakest confidence of an input. The fact has `restated` if an
-/// input has it.
+/// input has it. A derived `NetChangeInCash` or `ExchangeRateEffect` takes the scope of the
+/// input that carries one. Any other derived fact has no scope.
 #[must_use]
 pub fn derive_from_closed_groups(
     series: &Series,
@@ -152,6 +163,41 @@ const fn opposite(weight: Weight) -> Weight {
         Weight::Minus => Weight::Plus,
         Weight::Plus => Weight::Minus,
     }
+}
+
+/// Returns the concepts of the members of `group` with a value, if two of the members differ in
+/// scope. Returns `None` if the members share one scope.
+///
+/// `value_of` gives the fact of a concept in one period. Only the concepts of [`SCOPED`] carry a
+/// scope. The concepts keep the order of [`members`].
+pub(super) fn mixed_scopes<'a>(
+    group: Group,
+    value_of: impl Fn(CanonicalElementKind) -> Option<&'a StandardizedFact>,
+) -> Option<Vec<CanonicalElementKind>> {
+    let facts: Vec<&StandardizedFact> = members(group)
+        .iter()
+        .filter_map(|member| value_of(member.concept))
+        .collect();
+    let mut scopes = facts
+        .iter()
+        .filter(|fact| SCOPED.contains(&fact.concept))
+        .map(|fact| fact.scope);
+    let first = scopes.next()?;
+    scopes
+        .any(|scope| scope != first)
+        .then(|| facts.iter().map(|fact| fact.concept).collect())
+}
+
+/// Returns the scope of a value of `concept` derived from `inputs`: the scope of the first input
+/// that carries one, if `concept` carries a scope, and `None` otherwise.
+fn derived_scope(concept: CanonicalElementKind, inputs: &[&StandardizedFact]) -> Option<Scope> {
+    if !SCOPED.contains(&concept) {
+        return None;
+    }
+    inputs
+        .iter()
+        .find(|fact| SCOPED.contains(&fact.concept))
+        .and_then(|fact| fact.scope)
 }
 
 /// Returns `value` with the sign `sign`.
@@ -240,7 +286,7 @@ impl KnownValues {
             Some([fact]) => Some(fact),
             _ => None,
         };
-        if mixed_starts(*group, value_of).is_some() {
+        if mixed_starts(*group, value_of).is_some() || mixed_scopes(*group, value_of).is_some() {
             return None;
         }
         let blocked = self.blocked.get(slot);
@@ -266,6 +312,7 @@ impl KnownValues {
             .iter()
             .map(|(sign, fact)| signed(*sign, &fact.value))
             .sum();
+        let facts: Vec<&StandardizedFact> = inputs.iter().map(|(_, fact)| *fact).collect();
         Some(StandardizedFact {
             entity: first.entity.clone(),
             concept: unknown.concept,
@@ -284,12 +331,7 @@ impl KnownValues {
                 .flat_map(|(_, fact)| fact.inputs.iter().cloned())
                 .collect(),
             restated: inputs.iter().any(|(_, fact)| fact.restated),
-            // Deviation: a closed group must give a derived value the scope of the members that
-            // carry one. If two members differ in scope, the group gets no check, derives nothing,
-            // and reports `MixedScopes`. No alias or part names a scope, so no member carries one,
-            // and the value carries none. The first alias or part with a scope must bring this
-            // rule.
-            scope: None,
+            scope: derived_scope(unknown.concept, &facts),
         })
     }
 }
@@ -558,6 +600,124 @@ mod tests {
             137,
             "core/roll-up/net-change-in-cash@1",
         )];
+
+        let result = summary(derive_from_closed_groups(&facts, &[]));
+
+        assert_eq!(result, expected_result);
+    }
+
+    /// Returns `fact` with the scope `ExcludesRestrictedCash`.
+    fn without_restricted_cash(mut fact: StandardizedFact) -> StandardizedFact {
+        fact.scope = Some(Scope::ExcludesRestrictedCash);
+        fact
+    }
+
+    /// Returns the three cash flow totals of the quarter, with no scope.
+    fn cash_flow_totals() -> Vec<StandardizedFact> {
+        vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                quarter(),
+                "-114",
+            ),
+        ]
+    }
+
+    #[test]
+    fn should_give_the_derived_net_change_in_cash_the_scope_of_the_exchange_rate_effect_when_the_effect_leaves_out_restricted_cash()
+     {
+        let mut facts = cash_flow_totals();
+        facts.push(without_restricted_cash(value(
+            CashFlowConcept::ExchangeRateEffect.element(),
+            quarter(),
+            "-1",
+        )));
+        let facts = series(facts);
+
+        let expected_result = vec![(
+            CashFlowConcept::NetChangeInCash.element(),
+            Some(Scope::ExcludesRestrictedCash),
+        )];
+
+        let result: Vec<(CanonicalElementKind, Option<Scope>)> =
+            derive_from_closed_groups(&facts, &[])
+                .into_iter()
+                .map(|fact| (fact.concept, fact.scope))
+                .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_scope_to_a_derived_cash_flow_total_when_the_change_in_cash_leaves_out_restricted_cash()
+     {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            without_restricted_cash(value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                quarter(),
+                "-1",
+            )),
+            without_restricted_cash(value(
+                CashFlowConcept::NetChangeInCash.element(),
+                quarter(),
+                "137",
+            )),
+        ]);
+
+        let expected_result = vec![(CashFlowConcept::FinancingCashFlow.element(), None)];
+
+        let result: Vec<(CanonicalElementKind, Option<Scope>)> =
+            derive_from_closed_groups(&facts, &[])
+                .into_iter()
+                .map(|fact| (fact.concept, fact.scope))
+                .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_derive_nothing_when_the_change_in_cash_and_the_exchange_rate_effect_differ_in_scope()
+    {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            without_restricted_cash(value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                quarter(),
+                "-1",
+            )),
+            value(CashFlowConcept::NetChangeInCash.element(), quarter(), "137"),
+        ]);
+
+        let expected_result: Vec<Summary> = Vec::new();
 
         let result = summary(derive_from_closed_groups(&facts, &[]));
 

@@ -178,6 +178,25 @@ pub enum Finding {
         /// The group that mixes the starts.
         reason: GroupName,
     },
+    /// Two members of a closed group of the roll-up tree differ in scope, such as a
+    /// `NetChangeInCash` with no scope and an `ExchangeRateEffect` that leaves out restricted cash.
+    /// The group gets no check and no derived value.
+    MixedScopes {
+        /// The entity the values are about.
+        entity: EntityId,
+        /// The period of the first value of the slot. The values share the end, the length in
+        /// quarters, and the period type.
+        period: Period,
+        /// The unit of the values.
+        unit: Unit,
+        /// The axis and member pairs of the values.
+        dimensions: Dimensions,
+        /// The concepts with a value: the parent, then the start of a step, then the children in
+        /// the order of their enum.
+        concepts: Vec<CanonicalElementKind>,
+        /// The group that mixes the scopes.
+        reason: GroupName,
+    },
     /// The parts of a sum of a disclosure do not add up to its total. The difference exceeds the
     /// tolerance of the sum. The tolerance is in basis points of the largest absolute value of the
     /// check.

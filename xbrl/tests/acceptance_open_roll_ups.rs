@@ -8,7 +8,7 @@
 //!   `liabilities-and-equity` derives it with the redeemable interest of 967.5 million USD, which
 //!   the part rule of `TemporaryEquity` resolves.
 //! - APA reports revenue with `ExplorationAndProductionRevenue` in 2013 and with extension concepts
-//!   in 2025. KKR reports no revenue total in 2013.
+//!   in 2025. KKR reports no revenue total and no change in cash in 2013.
 //! - The 2013 rows of `JPMorgan Chase`, Simon Property, and `ExxonMobil` carry `Revenues`, and the alias
 //!   resolves it. Evergy reports `ElectricUtilityRevenue` in 2013, and `Revenues` in 2025. Regions
 //!   Financial reports interest income and noninterest income, and no revenue total.
@@ -65,12 +65,9 @@ macro_rules! open_roll_up_tests {
 }
 
 open_roll_up_tests! {
-    should_list_the_open_roll_ups_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [
-        "NetChangeInCash",
-    ],
+    should_list_the_open_roll_ups_for_general_mills_10_k_2013_fy: "0001193125-13-282371" => [],
     should_list_the_open_roll_ups_for_apa_10_k_2013_fy: "0001193125-14-077668" => [
         "Revenue",
-        "NetChangeInCash",
     ],
     should_list_the_open_roll_ups_for_apa_10_k_2025_fy: "0001841666-26-000015" => [
         "Revenue",
@@ -79,26 +76,18 @@ open_roll_up_tests! {
         "Revenue",
         "NetChangeInCash",
     ],
-    should_list_the_open_roll_ups_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [
-        "NetChangeInCash",
-    ],
+    should_list_the_open_roll_ups_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [],
     should_list_the_open_roll_ups_for_jpmorgan_chase_10_k_2025_fy: "0001628280-26-008131" => [],
-    should_list_the_open_roll_ups_for_simon_property_10_k_2013_fy: "0001047469-14-001416" => [
-        "NetChangeInCash",
-    ],
+    should_list_the_open_roll_ups_for_simon_property_10_k_2013_fy: "0001047469-14-001416" => [],
     should_list_the_open_roll_ups_for_simon_property_10_k_2025_fy: "0001104659-26-019419" => [],
     should_list_the_open_roll_ups_for_evergy_10_k_2013_fy: "0001143068-14-000021" => [
         "Revenue",
-        "NetChangeInCash",
     ],
     should_list_the_open_roll_ups_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [],
-    should_list_the_open_roll_ups_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [
-        "NetChangeInCash",
-    ],
+    should_list_the_open_roll_ups_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [],
     should_list_the_open_roll_ups_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [],
     should_list_the_open_roll_ups_for_regions_financial_10_k_2013_fy: "0001281761-14-000009" => [
         "Revenue",
-        "NetChangeInCash",
     ],
     should_list_the_open_roll_ups_for_regions_financial_10_k_2025_fy: "0001281761-26-000019" => [
         "Revenue",

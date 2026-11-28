@@ -3,20 +3,19 @@
 //! Runs the rules of the standardized layer on each fixture 10-K alone: `core/dedup/more-precise@1`,
 //! tiers 1 and 2 with [`UsGaap`], `core/dedup/newest-filing@1`, `core/period/q4-from-fy@1`, and the
 //! derivation from a closed group. For the fiscal year of the 10-K, each test lists the 11 roll-ups
-//! of the spike that map to a standard concept, with the confidence, the rule, and the value in
-//! USD, or `open` if no rule gives one. A roll-up of the balance sheet is the value at the end of the fiscal
-//! year. Any other roll-up is the value of the fiscal year.
+//! of the spike that map to a standard concept, with the confidence, the rule, the value in USD,
+//! and the scope if the value has one, or `open` if no rule gives one. A roll-up of the balance
+//! sheet is the value at the end of the fiscal year. Any other roll-up is the value of the fiscal
+//! year.
 //!
 //! The tests show the gain of each rule: an alias or a derivation that lands changes a line from
-//! `open` to its rule. The open lines come from five causes:
+//! `open` to its rule. The open lines come from four causes:
 //!
 //! - The filing reports a cash flow total of continuing operations next to a flow of discontinued
 //!   operations other than zero, as Air Products does for 2013. The flow blocks the part.
-//! - The filing reports a concept of the years before 2018, such as
-//!   `CashAndCashEquivalentsPeriodIncreaseDecrease`.
 //! - The filer is a bank, a utility, or an energy company, and reports its own revenue lines.
 //! - The filing reports revenue with an extension concept of the filer.
-//! - The filing reports no total, as KKR reports no revenue for 2013.
+//! - The filing reports no total, as KKR reports no revenue and no change in cash for 2013.
 //!
 //! ## External Dependencies
 //!
@@ -49,8 +48,11 @@ fn roll_up_lines(series: &Series, derived: &[StandardizedFact], year_end: Date) 
             fiscal_year_value(series.facts.iter().chain(derived), *concept, year_end).map_or_else(
                 || format!("{}: open", concept.name()),
                 |fact| {
+                    let scope = fact
+                        .scope
+                        .map_or_else(String::new, |scope| format!(" {scope}"));
                     format!(
-                        "{}: {} {} {}",
+                        "{}: {} {} {}{scope}",
                         concept.name(),
                         fact.confidence,
                         fact.rule,
@@ -104,7 +106,7 @@ roll_up_tests! {
         "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 5817000000.0000",
         "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -856000000.0000",
         "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -5246000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -302000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_3m_10_k_2025_fy: "0000066740-26-000014" => [
         "Assets: Exact us-gaap/alias/assets@1 37733000000.0000",
@@ -130,7 +132,7 @@ roll_up_tests! {
         "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 6267000000.0000",
         "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 879000000.0000",
         "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -3442000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Derived core/roll-up/net-change-in-cash@1 3694000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_abbvie_10_k_2025_fy: "0001551152-26-000008" => [
         "Assets: Exact us-gaap/alias/assets@1 133960000000.0000",
@@ -156,7 +158,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 2715000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -1774000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -1136000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -258000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_aes_10_k_2025_fy: "0000874761-26-000063" => [
         "Assets: Exact us-gaap/alias/assets@1 51768000000.0000",
@@ -182,7 +184,7 @@ roll_up_tests! {
         "OperatingCashFlow: open",
         "InvestingCashFlow: open",
         "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 115400000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -4000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_air_products_10_k_2025_fy: "0000002969-25-000055" => [
         "Assets: Exact us-gaap/alias/assets@1 41059500000.0000",
@@ -208,7 +210,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 18659000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -13679000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -857000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 4120000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_alphabet_10_k_2025_fy: "0001652044-26-000018" => [
         "Assets: Exact us-gaap/alias/assets@1 595281000000.0000",
@@ -234,7 +236,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 6842000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -5065000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 4432000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 5899000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_amazon_10_k_2025_fy: "0001018724-26-000004" => [
         "Assets: Exact us-gaap/alias/assets@1 818042000000.0000",
@@ -260,7 +262,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 -148000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 455000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 13000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 320000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_amd_10_k_2025_fy: "0000002488-26-000018" => [
         "Assets: Exact us-gaap/alias/assets@1 76926000000.0000",
@@ -286,7 +288,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 1693000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -1723000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -149000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -179000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_ameren_10_k_2025_fy: "0001002910-26-000009" => [
         "Assets: Exact us-gaap/alias/assets@1 48476000000.0000",
@@ -312,7 +314,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 9835000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -7116000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -973000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 1746000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_apa_10_k_2025_fy: "0001841666-26-000015" => [
         "Assets: Exact us-gaap/alias/assets@1 17761000000.0000",
@@ -338,7 +340,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 53666000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -33774000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -16379000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 3513000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_apple_10_k_2025_fy: "0000320193-25-000079" => [
         "Assets: Exact us-gaap/alias/assets@1 359241000000.0000",
@@ -364,7 +366,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 3161000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -1663000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -1103000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 384000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_baker_hughes_10_k_2025_fy: "0001701605-26-000007" => [
         "Assets: Exact us-gaap/alias/assets@1 40881000000.0000",
@@ -390,7 +392,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 10542000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -4214000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -3745000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 1972000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_coca_cola_10_k_2025_fy: "0001628280-26-010047" => [
         "Assets: Exact us-gaap/alias/assets@1 104816000000.0000",
@@ -416,7 +418,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 3437000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -2251000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 44000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 1116000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_costco_10_k_2025_fy: "0000909832-25-000101" => [
         "Assets: Exact us-gaap/alias/assets@1 77099000000.0000",
@@ -442,7 +444,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 1237656000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -5520969000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 4063133000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -217970000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_crown_castle_10_k_2025_fy: "0001051470-26-000016" => [
         "Assets: Exact us-gaap/alias/assets@1 31518000000.0000",
@@ -468,7 +470,7 @@ roll_up_tests! {
         "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 262125000.0000",
         "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -85197000.0000",
         "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -50513000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Derived core/roll-up/net-change-in-cash@1 126878000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_deckers_10_k_2025_fy: "0000910521-25-000017" => [
         "Assets: Exact us-gaap/alias/assets@1 3570252000.0000",
@@ -494,7 +496,7 @@ roll_up_tests! {
         "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 656390000.0000",
         "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -1060609000.0000",
         "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 404746000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 527000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_digital_realty_10_k_2025_fy: "0001104659-26-015365" => [
         "Assets: Exact us-gaap/alias/assets@1 49410468000.0000",
@@ -520,7 +522,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 9452000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -4676000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -4214000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 544000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_disney_10_k_2025_fy: "0001744489-25-000155" => [
         "Assets: Exact us-gaap/alias/assets@1 197514000000.0000",
@@ -546,7 +548,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 7823000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -1469000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -4731000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 1622000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_dow_10_k_2025_fy: "0001751788-26-000018" => [
         "Assets: Exact us-gaap/alias/assets@1 58538000000.0000",
@@ -572,7 +574,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 3649000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -789000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -1933000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 908000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_emerson_10_k_2025_fy: "0000032604-25-000087" => [
         "Assets: Exact us-gaap/alias/assets@1 41964000000.0000",
@@ -598,7 +600,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 776800000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -705800000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -69700000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 1300000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [
         "Assets: Exact us-gaap/alias/assets@1 33948500000.0000",
@@ -624,7 +626,7 @@ roll_up_tests! {
         "OperatingCashFlow: Synonym us-gaap/part/operating-cash-flow@1 44914000000.0000",
         "InvestingCashFlow: Synonym us-gaap/part/investing-cash-flow@1 -34201000000.0000",
         "FinancingCashFlow: Synonym us-gaap/part/financing-cash-flow@1 -15476000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -4938000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [
         "Assets: Exact us-gaap/alias/assets@1 448980000000.0000",
@@ -650,7 +652,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 2926000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -1515400000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -1140200000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 270200000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_general_mills_10_k_2025_fy: "0001193125-25-147079" => [
         "Assets: Exact us-gaap/alias/assets@1 33071100000.0000",
@@ -676,7 +678,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 880000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 259000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -910600000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 228400000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_intuitive_surgical_10_k_2025_fy: "0001035267-26-000010" => [
         "Assets: Exact us-gaap/alias/assets@1 20458700000.0000",
@@ -702,7 +704,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 107953000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -150501000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 28324000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -13952000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_jpmorgan_chase_10_k_2025_fy: "0001628280-26-008131" => [
         "Assets: Exact us-gaap/alias/assets@1 4424900000000.0000",
@@ -754,7 +756,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 4883000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -3101000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -2101000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -312000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_medtronic_10_k_2025_fy: "0001613103-25-000091" => [
         "Assets: Exact us-gaap/alias/assets@1 91680000000.0000",
@@ -780,7 +782,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 14873000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -6295000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -7071000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 1511000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_procter_and_gamble_10_k_2025_fy: "0000080424-25-000076" => [
         "Assets: Exact us-gaap/alias/assets@1 125231000000.0000",
@@ -819,7 +821,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 8445000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -16334000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 2242000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -6661000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_prudential_10_k_2025_fy: "0001137774-26-000048" => [
         "Assets: Exact us-gaap/alias/assets@1 773740000000.0000",
@@ -845,7 +847,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 3799000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -125000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -3890000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -216000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_regions_financial_10_k_2021_fy: "0001281761-22-000016" => [
         "Assets: Exact us-gaap/alias/assets@1 162938000000.0000",
@@ -884,7 +886,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 2700996000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -948088000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -1220563000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 532345000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_simon_property_10_k_2025_fy: "0001104659-26-019419" => [
         "Assets: Exact us-gaap/alias/assets@1 40606466000.0000",
@@ -910,7 +912,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 13583000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -5113000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 3762000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 12212000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_supermicro_10_k_2017_fy: "0001375365-19-000039" => [
         "Assets: Exact us-gaap/alias/assets@1 1515130000.0000",
@@ -923,7 +925,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 -96188000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -29705000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 57724000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -68214000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_supermicro_10_k_2019_fy: "0001375365-19-000079" => [
         "Assets: Exact us-gaap/alias/assets@1 1682594000.0000",
@@ -962,7 +964,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 6991000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -3089000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -4946000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -1130000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_unitedhealth_10_k_2025_fy: "0000731766-26-000062" => [
         "Assets: Exact us-gaap/alias/assets@1 309581000000.0000",
@@ -988,7 +990,7 @@ roll_up_tests! {
         "OperatingCashFlow: Exact us-gaap/alias/operating-cash-flow@1 23257000000.0000",
         "InvestingCashFlow: Exact us-gaap/alias/investing-cash-flow@1 -12298000000.0000",
         "FinancingCashFlow: Exact us-gaap/alias/financing-cash-flow@1 -11017000000.0000",
-        "NetChangeInCash: open",
+        "NetChangeInCash: Synonym us-gaap/alias/net-change-in-cash@1 -500000000.0000 ExcludesRestrictedCash",
     ],
     should_resolve_the_roll_ups_for_walmart_10_k_2025_fy: "0000104169-25-000021" => [
         "Assets: Exact us-gaap/alias/assets@1 260823000000.0000",

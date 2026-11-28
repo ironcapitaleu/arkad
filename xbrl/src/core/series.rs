@@ -253,6 +253,7 @@ mod tests {
                 Finding::RollUpMismatch { .. } => "RollUpMismatch",
                 Finding::NegativeOther { .. } => "NegativeOther",
                 Finding::MixedStarts { .. } => "MixedStarts",
+                Finding::MixedScopes { .. } => "MixedScopes",
                 Finding::SumMismatch { .. } => "SumMismatch",
             })
             .collect()

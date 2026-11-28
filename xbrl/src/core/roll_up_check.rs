@@ -9,7 +9,7 @@ use bigdecimal::{BigDecimal, Signed};
 use jiff::civil::Date;
 
 use super::check_tolerance::{exceeds_tolerance, weakest};
-use super::closed_group::{members, roll_up_rule, signed};
+use super::closed_group::{members, mixed_scopes, roll_up_rule, signed};
 use super::dedup::Series;
 use super::elements::statement::balance_sheet::BalanceSheetGroup;
 use super::elements::statement::groups;
@@ -69,11 +69,20 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 /// Before these checks, each group of the slot, open or closed, gets a [`Finding::MixedStarts`] if
 /// two of the facts that [`Statement`] counts in it have different exact starts. Such a group gets
 /// no other check and no other line. The other groups of the slot keep their checks.
+///
+/// Each closed group of the slot also gets a [`Finding::MixedScopes`] if two of its members with a
+/// value differ in scope. Only `NetChangeInCash` and `ExchangeRateEffect` carry a scope. Such a
+/// group gets no check.
 #[must_use]
 pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Finding> {
     let mut findings = Vec::new();
     for slot in Slot::all(series, added) {
         findings.extend(groups().filter_map(|group| slot.check_starts(*group)));
+        findings.extend(
+            groups()
+                .filter(|group| group.closed)
+                .filter_map(|group| slot.check_scopes(*group)),
+        );
         findings.extend(
             groups()
                 .filter(|group| group.closed)
@@ -180,13 +189,27 @@ impl<'a> Slot<'a> {
         })
     }
 
+    /// Returns a [`Finding::MixedScopes`] if two members of `group` with a value differ in scope.
+    fn check_scopes(&self, group: Group) -> Option<Finding> {
+        let concepts = mixed_scopes(group, |concept| self.values.get(&concept).copied())?;
+        Some(Finding::MixedScopes {
+            entity: self.entity.clone(),
+            period: self.period,
+            unit: self.unit.clone(),
+            dimensions: self.dimensions.clone(),
+            concepts,
+            reason: group.name,
+        })
+    }
+
     /// Checks the closed group `group`, and returns a [`Finding::RollUpMismatch`] if it fails.
     fn check_closed_group(&self, group: Group) -> Option<Finding> {
         let rule = roll_up_rule(group.name);
         if self.values.values().any(|fact| fact.rule == rule) {
             return None;
         }
-        if mixed_starts(group, |concept| self.values.get(&concept).copied()).is_some() {
+        let value_of = |concept| self.values.get(&concept).copied();
+        if mixed_starts(group, value_of).is_some() || mixed_scopes(group, value_of).is_some() {
             return None;
         }
         let mut inputs = Vec::new();
@@ -319,6 +342,7 @@ mod tests {
     use crate::core::elements::{CashFlowConcept, IncomeStatementConcept};
     use crate::core::period::Duration;
     use crate::core::rule::RuleId;
+    use crate::core::scope::Scope;
     use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
 
     /// Returns the entity of [`standardized`].
@@ -624,6 +648,55 @@ mod tests {
                 Confidence::Exact,
             ),
         ];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_one_mixed_scopes_and_no_roll_up_mismatch_when_the_change_in_cash_and_the_exchange_rate_effect_differ_in_scope()
+     {
+        let mut exchange_rate_effect = value(
+            CashFlowConcept::ExchangeRateEffect.element(),
+            quarter(),
+            "-1",
+        );
+        exchange_rate_effect.scope = Some(Scope::ExcludesRestrictedCash);
+        let facts = series(vec![
+            value(CashFlowConcept::NetChangeInCash.element(), quarter(), "200"),
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                quarter(),
+                "-114",
+            ),
+            exchange_rate_effect,
+        ]);
+
+        let expected_result = vec![Finding::MixedScopes {
+            entity: entity(),
+            period: quarter(),
+            unit: unit(),
+            dimensions: Dimensions::default(),
+            concepts: vec![
+                CashFlowConcept::NetChangeInCash.element(),
+                CashFlowConcept::OperatingCashFlow.element(),
+                CashFlowConcept::InvestingCashFlow.element(),
+                CashFlowConcept::FinancingCashFlow.element(),
+                CashFlowConcept::ExchangeRateEffect.element(),
+            ],
+            reason: CashFlowGroup::NetChangeInCash.name(),
+        }];
 
         let result = check_roll_ups(&facts, &[]);
 
