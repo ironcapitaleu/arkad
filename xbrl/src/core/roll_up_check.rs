@@ -83,6 +83,9 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 /// Each closed group of the slot without a [`Finding::MixedStarts`] gets a
 /// [`Finding::MixedScopes`] if two of its members with a value differ in scope. Such a group gets
 /// no check.
+///
+/// Neither finding stops the cash roll forward of the slot. It reads only the change and the
+/// balances of the scope of the change.
 #[must_use]
 pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Finding> {
     let balances = Balances::all(series, added);
@@ -801,6 +804,31 @@ mod tests {
         )];
 
         let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_mixed_scopes_and_a_roll_forward_mismatch_when_the_scopes_differ_and_the_balances_miss()
+     {
+        let mut facts = cash_roll_forward("251", "389");
+        facts.push(without_restricted_cash(value(
+            CashFlowConcept::ExchangeRateEffect.element(),
+            four_months(),
+            "-1",
+        )));
+        let facts = series(facts);
+
+        let expected_result = vec!["MixedScopes", "RollForwardMismatch"];
+
+        let result: Vec<&str> = check_roll_ups(&facts, &[])
+            .iter()
+            .map(|finding| match finding {
+                Finding::MixedScopes { .. } => "MixedScopes",
+                Finding::RollForwardMismatch { .. } => "RollForwardMismatch",
+                _ => "other",
+            })
+            .collect();
 
         assert_eq!(result, expected_result);
     }
