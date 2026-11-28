@@ -209,10 +209,18 @@ impl ArrowRow for FakeRow {
     }
 
     fn from_batch(batch: &RecordBatch, version: u16) -> Result<Vec<Self>, ArrowRowError> {
-        if fake_schema(version).is_none() {
+        let Some(schema) = fake_schema(version) else {
             return Err(ArrowRowError::UnknownSchemaVersion {
                 dataset: DATASET,
                 version,
+            });
+        };
+        // Like a real row type, the fake rejects a batch of another version.
+        if batch.schema().fields() != schema.fields() {
+            return Err(ArrowRowError::UnexpectedSchema {
+                dataset: DATASET,
+                version,
+                reason: "the fields differ".to_owned(),
             });
         }
         let text = |name: &str| {
