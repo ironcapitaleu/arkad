@@ -16,8 +16,8 @@ use xbrl::core::finding::Finding;
 #[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DropReason {
-    /// The parser could not map the row into a fact, and gave an `UnmappedRow` finding, as ADR
-    /// 0041 sets.
+    /// The parser could not map the row into a fact, and gave an `UnmappedRow` finding. The
+    /// `dropped_rows` count of the unit manifest counts the row, so the row counts still add up.
     UnmappedRow,
 }
 

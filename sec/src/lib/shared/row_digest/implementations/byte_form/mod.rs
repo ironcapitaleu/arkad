@@ -26,7 +26,7 @@ pub mod constants;
 /// 4-byte big-endian length and its UTF-8 text. A list or a struct enters as a 4-byte
 /// big-endian count, and its elements or fields follow in their own byte form.
 ///
-/// The form is fixed. A change of a print rule changes every digest, and needs a new
+/// A change of a print rule changes every digest, and needs a new
 /// [`TRANSFORM_VERSION`](crate::shared::transform_version::TRANSFORM_VERSION).
 ///
 /// # Examples

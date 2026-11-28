@@ -3,9 +3,9 @@
 //! Provides [`standardize_series`], which runs the rules that need every filing of one entity, and
 //! its output [`SeriesOutcome`].
 //!
-//! The rules run in this order: step 3 of the dedup order, step 4, the checks,
-//! the check of the required concepts, then chronology. Values with dimensions pass step 3 and
-//! reach the output. The later rules read only values without dimensions. No rule here builds the
+//! The rules run in the order that [`standardize_series`] lists: [`newest_filing`], [`derive_q4`],
+//! the checks, the check of the required concepts, then chronology. Values with dimensions pass
+//! [`newest_filing`] and reach the output. The later rules read only values without dimensions. No rule here builds the
 //! segment reconciliation, so the output holds no line of it.
 
 use super::candidate::Candidate;

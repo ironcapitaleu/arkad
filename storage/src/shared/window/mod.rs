@@ -28,7 +28,7 @@ pub enum Window {
 impl Window {
     /// Returns the name of the window: `day` or `minute`.
     ///
-    /// Stored rows hold these names, so a changed name breaks them.
+    /// The `RateLimit` headers hold these names, so a changed name breaks a client that reads them.
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {

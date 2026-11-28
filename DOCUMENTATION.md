@@ -96,7 +96,7 @@ Module docs follow a fixed structure:
 After the introductory prose, include structured sections:
 
 4. **`## Modules`** — List of child modules with one-line descriptions. Use intra-doc links. (Only for grouping modules.)
-5. **`## See Also`** *(optional)* — Links to related modules, external crates, or design documents.
+5. **`## See Also`** *(optional)* — Links to related modules or external crates.
 
 Optional additional sections:
 

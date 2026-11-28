@@ -14,8 +14,8 @@
 //!   value keys differ.
 //!
 //! The Notes data set loses some content on the way from the instance. The comparison allows the
-//! losses below. "readme" is `readme.htm` in each Notes ZIP, and "measured" is a comparison of
-//! the two sources.
+//! losses below. "readme" is `readme.htm` in each Notes ZIP, and "measured" means a count over
+//! filings that both sources hold.
 //!
 //! - Notes rounds a number to 4 decimals (readme, measured).
 //! - Notes drops non-ASCII characters, except some accented letters, which it writes without the
