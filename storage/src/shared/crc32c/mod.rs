@@ -64,7 +64,8 @@ impl FromStr for Crc32c {
     ///
     /// # Errors
     ///
-    /// Returns an [`InvalidCrc32c`] if the string is not padded base64 of exactly 4 bytes.
+    /// Returns an [`InvalidCrc32c`] if the string is not the padded base64 of exactly 4 bytes, or if
+    /// its unused bits are set.
     ///
     /// # Examples
     ///
@@ -166,6 +167,17 @@ mod tests {
         let text = "4waSgw";
 
         let expected_result = Err(InvalidCrc32c::new("4waSgw"));
+
+        let result = text.parse::<Crc32c>();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_text_when_its_padding_is_partial() {
+        let text = "4waSgw=";
+
+        let expected_result = Err(InvalidCrc32c::new("4waSgw="));
 
         let result = text.parse::<Crc32c>();
 
