@@ -105,14 +105,14 @@ mod tests {
                 number: 1,
                 is_bucket_split: true,
             },
-            task_execution_id: Uuid::nil(),
+            task_execution_id: Uuid::from_u128(1),
             task_attempt: TaskAttempt {
                 number: 1,
                 is_bucket_split: false,
             },
         };
 
-        let expected_result = "[InvalidTaskLocation] Unit '2024q1' names execution '00000000-0000-0000-0000-000000000000', attempt '1-b', but the list file is for execution '00000000-0000-0000-0000-000000000000', attempt '1'";
+        let expected_result = "[InvalidTaskLocation] Unit '2024q1' names execution '00000000-0000-0000-0000-000000000000', attempt '1-b', but the list file is for execution '00000000-0000-0000-0000-000000000001', attempt '1'";
 
         let result = error.to_string();
 
