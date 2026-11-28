@@ -52,7 +52,8 @@ const SHORT_YEAR_DAYS: i64 = 357;
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
 /// `restated` if an input has it. It carries the release of the fiscal year value and the scope of
 /// the inputs. If the two inputs differ in scope, the rule derives nothing, because the difference
-/// of two scopes is a value of neither.
+/// of two scopes is a value of neither. No finding reports such a quarter, and the gap check does
+/// not see it, because the fiscal year value fills its end.
 #[must_use]
 pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
     let known: BTreeSet<SeriesKey> = series
