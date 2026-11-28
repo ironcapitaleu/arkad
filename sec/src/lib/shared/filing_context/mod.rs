@@ -17,7 +17,8 @@ use crate::traits::state_machine::state::Context;
 ///
 /// The task builds one [`Registry`] at its start and keeps it for its whole run, so the handle
 /// holds a `&'static` reference. Its `Eq`, `Ord`, and `Hash` compare the release IDs of the
-/// plug-ins, in the order of the registry. So two registries of the same releases are equal.
+/// plug-ins, in the order of the registry. So two registries of the same releases in the same
+/// order are equal. They do not compare whether a plug-in names its segment axes.
 #[derive(Clone, Copy)]
 pub struct RegistryHandle(&'static Registry<'static>);
 
@@ -149,11 +150,37 @@ mod tests {
     }
 
     #[test]
+    const fn should_implement_auto_traits_for_registry_handle() {
+        implements_auto_traits::<RegistryHandle>();
+    }
+
+    const fn implements_value_traits<
+        T: std::fmt::Debug + Clone + PartialEq + Eq + PartialOrd + Ord + Hash,
+    >() {
+    }
+    #[test]
+    const fn should_implement_value_traits_for_filing_context() {
+        implements_value_traits::<FilingContext>();
+    }
+
+    #[test]
     fn should_equal_when_two_registries_hold_the_same_releases() {
         let handle = handle(&["us-gaap/2026", "srt/2026"]);
         let other = self::handle(&["us-gaap/2026", "srt/2026"]);
 
         let expected_result = true;
+
+        let result = handle == other;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_differ_when_the_same_releases_come_in_another_order() {
+        let handle = handle(&["us-gaap/2026", "srt/2026"]);
+        let other = self::handle(&["srt/2026", "us-gaap/2026"]);
+
+        let expected_result = false;
 
         let result = handle == other;
 

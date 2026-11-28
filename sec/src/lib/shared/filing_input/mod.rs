@@ -107,7 +107,7 @@ mod tests {
     use xbrl::adapter::edgar::notes::row::{NumRow, SubRow};
 
     use super::*;
-    use crate::tests::fixtures::sample_source_document::notes_source;
+    use crate::tests::fixtures::sample_source_document::{instance_source, notes_source};
 
     fn notes_input(adsh: &str, num: Vec<NumRow>) -> NotesFilingInput {
         NotesFilingInput {
@@ -149,6 +149,21 @@ mod tests {
         let other = notes_input("0000320193-26-000001", vec![NumRow::default()]);
 
         let expected_result = true;
+
+        let result = input == other;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_differ_when_notes_inputs_share_the_adsh_but_not_the_source() {
+        let input = notes_input("0000320193-26-000001", Vec::new());
+        let other = NotesFilingInput {
+            source: instance_source(),
+            ..notes_input("0000320193-26-000001", Vec::new())
+        };
+
+        let expected_result = false;
 
         let result = input == other;
 

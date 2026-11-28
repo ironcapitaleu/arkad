@@ -33,7 +33,8 @@ pub struct ParsedFiling {
 
 // Deviation: `AsIsFact`, `Filing`, and `Finding` implement no `Ord`, and `Finding` no `Hash`, but a
 // state data type must implement both. So equality, hashing, and order use the raw document and
-// the filing ID only, and agree. The pair names one parse of one filing.
+// the filing ID only, and agree. The pair names one parse of one filing. A test of a parse state
+// compares `facts`, `findings`, and `counts` field by field, since `==` does not compare them.
 impl PartialEq for ParsedFiling {
     fn eq(&self, other: &Self) -> bool {
         self.source == other.source && self.filing.id == other.filing.id
