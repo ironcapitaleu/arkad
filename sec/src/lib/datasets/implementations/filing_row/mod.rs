@@ -577,7 +577,7 @@ mod tests {
 
     /// Returns the column that the error of the read of `batch` names, or `None` if the read
     /// passes or fails with another error.
-    fn failed_column(batch: &RecordBatch) -> Option<&'static str> {
+    fn failing_column(batch: &RecordBatch) -> Option<&'static str> {
         match FilingRow::from_batch(batch, 1) {
             Err(
                 ArrowRowError::UnexpectedColumnValue { column, .. }
@@ -934,7 +934,7 @@ mod tests {
 
         let expected_result = Some("filing_id");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
@@ -945,7 +945,7 @@ mod tests {
 
         let expected_result = Some("form");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
@@ -956,7 +956,7 @@ mod tests {
 
         let expected_result = Some("fiscal_period");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
@@ -970,7 +970,7 @@ mod tests {
 
         let expected_result = Some("fiscal_year_end_raw");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
@@ -981,7 +981,7 @@ mod tests {
 
         let expected_result = Some("industry_code");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
@@ -995,7 +995,7 @@ mod tests {
 
         let expected_result = Some("sic_source_sha256");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
@@ -1009,7 +1009,7 @@ mod tests {
 
         let expected_result = Some("sic_retrieved_at");
 
-        let result = failed_column(&batch);
+        let result = failing_column(&batch);
 
         assert_eq!(result, expected_result);
     }
