@@ -72,10 +72,11 @@ struct SourceRelease {
 ///
 /// # Errors
 ///
-/// Returns [`GeneratorError::UnexpectedChecksum`] if a source file differs from the `MANIFEST`,
-/// [`GeneratorError::InvalidManifestLine`], [`GeneratorError::RepeatedSourceFile`], or
-/// [`GeneratorError::MissingSourceFile`] if the `MANIFEST` breaks its form, [`GeneratorError::InvalidDeprecationDate`] if a label ends with a
-/// deprecation date of an unknown form, and the errors of reading and parsing a file.
+/// - [`GeneratorError::UnexpectedChecksum`] if a source file differs from the `MANIFEST`.
+/// - [`GeneratorError::InvalidManifestLine`], [`GeneratorError::RepeatedSourceFile`], or
+///   [`GeneratorError::MissingSourceFile`] if the `MANIFEST` breaks its form.
+/// - [`GeneratorError::InvalidDeprecationDate`] if a label ends with a date of an unknown form.
+/// - The errors of reading and parsing a file.
 pub fn generate_removed(xbrl_crate: &Path, sources: &Path) -> Result<String, GeneratorError> {
     let manifest_path = xbrl_crate.join(REMOVED_MANIFEST_FILE);
     let releases = source_releases(&manifest_path, &read(&manifest_path)?)?;
@@ -87,7 +88,7 @@ pub fn generate_removed(xbrl_crate: &Path, sources: &Path) -> Result<String, Gen
         .map(|concept| concept.name)
         .collect();
     let mut read_releases = Vec::new();
-    for (year, release) in releases.iter().rev() {
+    for (year, release) in &releases {
         read_releases.push(read_release(sources, year, release)?);
     }
     let elements = removed_lines(known, read_releases)?;
@@ -134,8 +135,8 @@ fn read_release(
 
 /// Returns one line per concept of `releases` that `known` lacks, sorted by name.
 ///
-/// `releases` runs from the newest to the oldest, so each line takes the data of the newest
-/// release that defines its concept. `known` holds the concepts of the release in use.
+/// Each line takes the data of the newest release that defines its concept. `known` holds the
+/// concepts of the release in use.
 ///
 /// # Errors
 ///
@@ -143,8 +144,9 @@ fn read_release(
 /// [`GeneratorError::InvalidDeprecationDate`] if a label ends with a date of an unknown form.
 fn removed_lines(
     mut known: BTreeSet<String>,
-    releases: Vec<ReadRelease>,
+    mut releases: Vec<ReadRelease>,
 ) -> Result<Vec<RemovedElementLine>, GeneratorError> {
+    releases.sort_by(|first, second| second.id.cmp(&first.id));
     let mut elements = Vec::new();
     for mut release in releases {
         for concept in release.concepts {
@@ -272,6 +274,32 @@ mod tests {
     use super::*;
     use crate::core::taxonomy::reference::PeriodType;
 
+    fn concept(name: &str) -> Concept {
+        Concept {
+            name: name.to_string(),
+            data_type: "xbrli:monetaryItemType".to_string(),
+            balance: None,
+            period_type: PeriodType::Duration,
+        }
+    }
+
+    fn release(id: &str, names: &[&str], label_suffix: &str) -> ReadRelease {
+        ReadRelease {
+            id: id.to_string(),
+            concepts: names.iter().map(|name| concept(name)).collect(),
+            labels: names
+                .iter()
+                .map(|name| {
+                    let key = ConceptRef {
+                        family: FAMILY.to_string(),
+                        name: (*name).to_string(),
+                    };
+                    (key, format!("{name} {label_suffix}"))
+                })
+                .collect(),
+        }
+    }
+
     fn sales_revenue_net() -> ConceptRef {
         ConceptRef {
             family: FAMILY.to_string(),
@@ -334,16 +362,37 @@ mod tests {
 
     #[test]
     fn should_return_invalid_manifest_line_when_url_is_not_an_element_file() {
-        let manifest = "ab  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd";
-
-        let expected_result = Some(
-            "[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: \
-             'ab  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd', Line: \
-             '1', Path: 'MANIFEST'"
-                .to_string(),
+        let digest = "0".repeat(64);
+        let manifest = format!(
+            "{digest}  https://xbrl.fasb.org/us-gaap/2020/stm/us-gaap-stm-soi-2020-01-31.xsd"
         );
 
-        let result = source_releases(Path::new("MANIFEST"), manifest)
+        let expected_result = Some(format!(
+            "[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: \
+             '{digest}  https://xbrl.fasb.org/us-gaap/2020/stm/us-gaap-stm-soi-2020-01-31.xsd', \
+             Line: '1', Path: 'MANIFEST'"
+        ));
+
+        let result = source_releases(Path::new("MANIFEST"), &manifest)
+            .err()
+            .map(|error| error.to_string());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_invalid_manifest_line_when_digest_is_not_a_lowercase_sha256() {
+        let digest = "A".repeat(64);
+        let manifest =
+            format!("{digest}  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd");
+
+        let expected_result = Some(format!(
+            "[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: \
+             '{digest}  https://xbrl.fasb.org/us-gaap/2020/elts/us-gaap-2020-01-31.xsd', Line: \
+             '1', Path: 'MANIFEST'"
+        ));
+
+        let result = source_releases(Path::new("MANIFEST"), &manifest)
             .err()
             .map(|error| error.to_string());
 
@@ -373,41 +422,15 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    fn concept(name: &str) -> Concept {
-        Concept {
-            name: name.to_string(),
-            data_type: "xbrli:monetaryItemType".to_string(),
-            balance: None,
-            period_type: PeriodType::Duration,
-        }
-    }
-
-    fn release(id: &str, names: &[&str], label_suffix: &str) -> ReadRelease {
-        ReadRelease {
-            id: id.to_string(),
-            concepts: names.iter().map(|name| concept(name)).collect(),
-            labels: names
-                .iter()
-                .map(|name| {
-                    let key = ConceptRef {
-                        family: FAMILY.to_string(),
-                        name: (*name).to_string(),
-                    };
-                    (key, format!("{name} {label_suffix}"))
-                })
-                .collect(),
-        }
-    }
-
     #[test]
     fn should_take_data_of_the_newest_release_when_two_releases_define_the_concept() {
         let releases = vec![
+            release("us-gaap/2019", &["SalesRevenueNet"], "old"),
             release(
                 "us-gaap/2020",
                 &["SalesRevenueNet"],
                 "(Deprecated 2018-01-31)",
             ),
-            release("us-gaap/2019", &["SalesRevenueNet"], "old"),
         ];
 
         let expected_result = vec![RemovedElementLine {
