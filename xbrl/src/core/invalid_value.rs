@@ -197,12 +197,46 @@ mod tests {
     }
 
     #[test]
-    fn should_return_the_variant_name_without_the_field_for_no_matching_row() {
-        let reason = InvalidValueReason::NoMatchingRow("dim.tsv");
+    fn should_return_the_variant_name_without_the_field_for_each_reason() {
+        let reasons = [
+            InvalidValueReason::Empty,
+            InvalidValueReason::ContainsWhitespace,
+            InvalidValueReason::ContainsSeparator(':'),
+            InvalidValueReason::MissingSeparator(':'),
+            InvalidValueReason::DuplicateAxis,
+            InvalidValueReason::EndBeforeStart,
+            InvalidValueReason::NotANumber,
+            InvalidValueReason::OutOfRange,
+            InvalidValueReason::WrongPlaceholderCount("{release}"),
+            InvalidValueReason::MissingPart("URI pattern"),
+            InvalidValueReason::NotHexDigest,
+            InvalidValueReason::NotADate("%Y%m%d"),
+            InvalidValueReason::NoMatchingRow("dim.tsv"),
+            InvalidValueReason::NoMatchingElement("context"),
+            InvalidValueReason::NoMatchingName("standard concept"),
+            InvalidValueReason::Truncated("value"),
+        ];
 
-        let expected_result = "NoMatchingRow";
+        let expected_result = vec![
+            "Empty",
+            "ContainsWhitespace",
+            "ContainsSeparator",
+            "MissingSeparator",
+            "DuplicateAxis",
+            "EndBeforeStart",
+            "NotANumber",
+            "OutOfRange",
+            "WrongPlaceholderCount",
+            "MissingPart",
+            "NotHexDigest",
+            "NotADate",
+            "NoMatchingRow",
+            "NoMatchingElement",
+            "NoMatchingName",
+            "Truncated",
+        ];
 
-        let result = reason.name();
+        let result: Vec<&str> = reasons.iter().map(InvalidValueReason::name).collect();
 
         assert_eq!(result, expected_result);
     }

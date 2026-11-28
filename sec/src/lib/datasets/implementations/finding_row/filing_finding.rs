@@ -18,7 +18,8 @@ impl FindingRow {
     /// - `Conflict`: `concepts` holds the as-is concept, then the standard concept if a plug-in
     ///   maps it. `periods` holds the period of the value key.
     ///
-    /// A parser finding names no entity, so its row takes `entity`, the entity of the filing.
+    /// A parser finding names no entity, so its row takes `entity`, the entity of the filing. A
+    /// `Conflict` row takes the entity of the finding.
     /// Returns `None` for a kind of the series step, such as `Gap`.
     #[must_use]
     pub fn from_filing_finding(
@@ -56,7 +57,7 @@ impl FindingRow {
                 ..row(FindingKind::UnmappedRow, entity)
             }),
             Finding::Conflict {
-                entity,
+                entity: conflict_entity,
                 key,
                 standard_concept,
                 ..
@@ -69,7 +70,7 @@ impl FindingRow {
                     quarters: key.quarters,
                 }],
                 filing: Some(key.filing.clone()),
-                ..row(FindingKind::Conflict, entity)
+                ..row(FindingKind::Conflict, conflict_entity)
             }),
             _ => None,
         }
@@ -207,6 +208,19 @@ mod tests {
 
         let result = FindingRow::from_filing_finding(&finding, &entity(), sample_run_columns())
             .map(|row| row.concepts);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_entity_of_the_finding_for_a_conflict() {
+        let finding = conflict(true);
+        let other_entity = EntityId::new("sec", "1").expect(PARSE);
+
+        let expected_result = Some(entity());
+
+        let result = FindingRow::from_filing_finding(&finding, &other_entity, sample_run_columns())
+            .map(|row| row.entity);
 
         assert_eq!(result, expected_result);
     }

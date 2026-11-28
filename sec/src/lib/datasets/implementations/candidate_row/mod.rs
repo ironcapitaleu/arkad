@@ -43,7 +43,8 @@ pub struct CandidateRow {
     pub candidate: Candidate,
     /// The entity bucket of the entity, from 0 to 63, as
     /// [`entity_bucket`](crate::shared::entity_bucket::entity_bucket) computes it. A series task
-    /// reads the row groups of its buckets. [`CandidateRow::from_batch`] rejects 64 or more.
+    /// reads the row groups of its buckets. [`CandidateRow::to_batch`] and
+    /// [`CandidateRow::from_batch`] reject 64 or more.
     pub entity_bucket: u8,
     /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
@@ -58,6 +59,12 @@ impl ArrowRow for CandidateRow {
     }
 
     fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError> {
+        if let Some(row) = rows
+            .iter()
+            .position(|row| row.entity_bucket >= ENTITY_BUCKET_COUNT)
+        {
+            return Err(bucket_out_of_range(row, rows[row].entity_bucket));
+        }
         let candidates = || rows.iter().map(|row| &row.candidate);
         let text = |value: fn(&Candidate) -> Option<String>| -> ArrayRef {
             Arc::new(StringArray::from_iter(candidates().map(value)))
@@ -123,14 +130,7 @@ impl ArrowRow for CandidateRow {
             .map(|(row, run)| {
                 let entity_bucket = reader.entity_buckets.value(row);
                 if entity_bucket >= ENTITY_BUCKET_COUNT {
-                    return Err(unexpected_value(
-                        Self::DATASET,
-                        "entity_bucket",
-                        row,
-                        format!(
-                            "'{entity_bucket}' is not below the bucket count {ENTITY_BUCKET_COUNT}"
-                        ),
-                    ));
+                    return Err(bucket_out_of_range(row, entity_bucket));
                 }
                 Ok(Self {
                     candidate: reader.candidate(row)?,
@@ -140,6 +140,16 @@ impl ArrowRow for CandidateRow {
             })
             .collect()
     }
+}
+
+/// Returns the error for row `row`, whose entity bucket is not below [`ENTITY_BUCKET_COUNT`].
+fn bucket_out_of_range(row: usize, entity_bucket: u8) -> ArrowRowError {
+    unexpected_value(
+        CandidateRow::DATASET,
+        "entity_bucket",
+        row,
+        format!("'{entity_bucket}' is not below the bucket count {ENTITY_BUCKET_COUNT}"),
+    )
 }
 
 impl DigestRow for CandidateRow {
@@ -854,6 +864,25 @@ mod tests {
         });
 
         let result = CandidateRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_to_write_when_the_entity_bucket_is_64() {
+        let rows = vec![CandidateRow {
+            entity_bucket: 64,
+            ..sample_rows()[0].clone()
+        }];
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "candidates",
+            column: "entity_bucket",
+            row: 0,
+            reason: "'64' is not below the bucket count 64".to_owned(),
+        });
+
+        let result = CandidateRow::to_batch(&rows);
 
         assert_eq!(result, expected_result);
     }
