@@ -174,6 +174,7 @@ mod tests {
     use xbrl::core::candidate::CandidateValue;
     use xbrl::core::concept::ConceptName;
     use xbrl::core::fact::FactValue;
+    use xbrl::core::fiscal_period::FiscalPeriod;
     use xbrl::tests::fixtures::data::notes::notes_fixture_rows;
 
     use super::*;
@@ -209,18 +210,20 @@ mod tests {
             .find(|fact| fact.key() == key)
             .expect("Given the input key of a candidate, the filing should always hold the fact")
             .clone();
+        let FactValue::Numeric(value) = &copy.value else {
+            panic!("Given the input of a candidate, the fact should always hold a numeric value")
+        };
+        copy.value = FactValue::Numeric(value + BigDecimal::from(1_000_000_000));
         copy.copy_rank = 1;
-        if let FactValue::Numeric(value) = &copy.value {
-            copy.value = FactValue::Numeric(value + BigDecimal::from(1_000_000_000));
-        }
         parsed.facts.push(copy);
         parsed
     }
 
-    /// Adds a debt maturity bucket to the 10-Q fixture filing, on the period and the value of its
-    /// long-term debt without dimensions.
+    /// Adds a debt maturity bucket to the 10-Q fixture filing, on the period of report and the
+    /// value of its long-term debt without dimensions.
     async fn parsed_filing_with_debt_maturity_bucket() -> ParsedFiling {
         let mut parsed = fixture_parsed_filing().await;
+        let report = parsed.filing.period_of_report;
         let mut bucket = parsed
             .facts
             .iter()
@@ -228,8 +231,11 @@ mod tests {
                 fact.concept.local_name()
                     == "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities"
                     && fact.context.dimensions.is_empty()
+                    && Some(fact.context.period.end()) == report
             })
-            .expect("Given the fixture 10-Q, the filing should always report its long-term debt")
+            .expect(
+                "Given the fixture 10-Q, the filing should always report its long-term debt at the period of report",
+            )
             .clone();
         bucket.concept = ConceptName::new(
             bucket.concept.family().clone(),
@@ -292,6 +298,21 @@ mod tests {
         let input = parsed_filing_with_debt_maturity_bucket().await;
 
         let expected_result = 88;
+
+        let result = output_of(input).await.candidates.len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_debt_maturity_bucket_when_the_filing_reports_a_fiscal_year() {
+        let mut input = parsed_filing_with_debt_maturity_bucket().await;
+        input.filing.fiscal_period = Some(
+            FiscalPeriod::new("FY")
+                .expect("Given a hardcoded fiscal period, the creation should always succeed"),
+        );
+
+        let expected_result = 89;
 
         let result = output_of(input).await.candidates.len();
 
