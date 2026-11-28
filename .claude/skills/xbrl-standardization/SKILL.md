@@ -6,7 +6,7 @@ description: >
   checks, the calculation tree, period identities such as Q4 from FY, dedup, the gap check, or
   adding a standard concept. Also use when the user asks "which concept is X", "add an alias", or
   "why is this value Derived". Not for parsers, I/O, or error types.
-version: 0.3.6
+version: 0.3.7
 ---
 
 # XBRL Standardization
@@ -43,6 +43,10 @@ When mapping a US GAAP concept to a standard concept (`CanonicalElementKind`):
    `OPTIONAL_CONCEPTS`), use it (Tier 1: Exact)
 2. If it is a later concept of that alias list, a part that the filing reports with no other part
    (the part rule), or an ESEF anchor (planned `ifrs` plug-in), use it (Tier 2: Synonym)
+   - If no alias and no part resolves in the period and set of dimensions, add the lines of the
+     line total of the plug-in, `us-gaap/total/<standard concept>@1` (`LINE_TOTAL_CONCEPTS`). Each
+     line needs a value in the same period, unit, and dimensions. The sum gets `Computed`, and it
+     runs with tiers 1 and 2, so it also runs on a segment and wins over Tier 3
 3. If no alias resolves, apply an identity the core knows: an accounting identity or a period identity,
    such as Q4 = FY − 9-month year to date (Tier 3: Derived)
 4. If still unresolved, sum the children of the concept along the calculation tree of a plug-in.
@@ -83,6 +87,9 @@ When a company does not report a parent concept, sum its children along the calc
 2. Check that the filing reports ALL children
 3. Compute: `parent = Σ(child_i × weight_i)`, where the weight is +1 or −1
 4. Store with `confidence: Computed`
+
+The line total of a plug-in also gets `Computed`, but it runs with tiers 1 and 2 (see "Resolution
+Procedure"). It adds a fixed list of lines from the plug-in, not the children of the tree.
 
 Tier 4 is not built. It must fill only a concept that Tier 3 leaves without a value. For example, `core/roll-up/liabilities@1`
 derives `Liabilities` from `CurrentLiabilities` and `NonCurrentLiabilities`, so Tier 4 must not

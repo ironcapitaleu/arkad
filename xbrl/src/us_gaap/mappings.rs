@@ -1,6 +1,7 @@
 //! # US-GAAP Concept Mappings
 //!
-//! Rule IDs, alias lists, and part lists that map US GAAP concept names to standard concepts.
+//! Rule IDs, alias lists, part lists, and line totals that map US GAAP concept names to standard
+//! concepts.
 //!
 //! An alias list holds only concepts that equal the whole standard concept, such as the names of
 //! one total across releases. It holds no wider concept and no part of the total. A concept that
@@ -1326,3 +1327,55 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         COMPREHENSIVE_INCOME_PART_RULE,
     ),
 ];
+
+/// The lines that a filing reports in place of the total of a standard concept.
+///
+/// The sum of the lines stands for the whole only if no concept of the alias list and no part
+/// resolves. [`resolve_aliases`](crate::core::alias::resolve_aliases) gives the full rule.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LineTotalDefinition {
+    /// The standard concept the lines add up to.
+    canonical_element: CanonicalElementKind,
+    /// The US GAAP local names of the lines.
+    lines: &'static [&'static str],
+    /// The ID of the line total rule, for example `us-gaap/total/revenue@1`.
+    total_rule: &'static str,
+}
+
+impl LineTotalDefinition {
+    /// Creates a new [`LineTotalDefinition`].
+    #[must_use]
+    pub const fn new(
+        canonical_element: CanonicalElementKind,
+        lines: &'static [&'static str],
+        total_rule: &'static str,
+    ) -> Self {
+        Self {
+            canonical_element,
+            lines,
+            total_rule,
+        }
+    }
+
+    /// Returns the standard concept the lines add up to.
+    #[must_use]
+    pub const fn canonical_element(&self) -> CanonicalElementKind {
+        self.canonical_element
+    }
+
+    /// Returns the US GAAP local names of the lines.
+    #[must_use]
+    pub const fn lines(&self) -> &'static [&'static str] {
+        self.lines
+    }
+
+    /// Returns the ID of the line total rule, for example `us-gaap/total/revenue@1`.
+    #[must_use]
+    pub const fn total_rule(&self) -> &'static str {
+        self.total_rule
+    }
+}
+
+/// The line totals of the standard concepts. Each element has an alias list in
+/// [`REQUIRED_CONCEPTS`] or [`OPTIONAL_CONCEPTS`].
+pub const LINE_TOTAL_CONCEPTS: &[LineTotalDefinition] = &[];

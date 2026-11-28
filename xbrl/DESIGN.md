@@ -54,7 +54,7 @@ xbrl/
       taxonomy/
         mod.rs             <- trait Taxonomy
         family.rs          <- FamilyDeclaration, UriPattern
-        reference.rs       <- ConceptAliases, CalculationTree, ElementReference
+        reference.rs       <- ConceptAliases, PartAliases, LineTotal, CalculationTree, ElementReference
         registry.rs        <- Registry, Plugin, RegistryError
         segment.rs         <- trait SegmentAxes, SegmentAxis, MemberRole
       fact_set.rs          <- working set of resolution for one entity and one period
@@ -882,8 +882,9 @@ filings before 2018 and the cash of banks follow [ADR 0049](../docs/adr/0049-con
 #### Revenue of Banks, Utilities, and Producers
 
 > **Status:** decided in [ADR 0056](../docs/adr/0056-revenue-of-banks-utilities-and-producers.md).
-> The code does not apply these rules: a bank, a utility before 2018, and a producer before 2018
-> with no total get no `Revenue`.
+> The code has the line total rule, but `LINE_TOTAL_CONCEPTS` holds no line total. The code does not
+> apply the other rules: a bank, a utility before 2018, and a producer before 2018 with no total get
+> no `Revenue`.
 
 Some filers report their own revenue lines and no concept of the alias list or the parts. The
 `Revenue` of each kind of filer comes from one rule:
@@ -2356,8 +2357,11 @@ Rules the code fixes where the table above leaves a choice:
   that the filing reports, the first that no other part blocks wins, with `Synonym`. An other part
   in the same period and unit blocks a part, in any dimension. A value of zero does not block. A
   conflict does.
+- If no alias and no part resolves, the line total runs on `ConceptAliases::line_total`, in the
+  same period, unit, and set of dimensions. The candidate holds the sum of the lines, with
+  `Computed`. A conflict on a line blocks it.
 - The candidate takes the scope that `ConceptAliases::scopes` names for the winning concept or
-  part, or no scope. A definition of `us_gaap::mappings` names its scopes with `with_scopes`. Step 3
+  part, or no scope. A candidate of the line total carries no scope. A definition of `us_gaap::mappings` names its scopes with `with_scopes`. Step 3
   copies the scope to the value.
 
 Other cases:

@@ -1,7 +1,7 @@
 //! # Reference Data
 //!
 //! Provides the tables a plug-in hands to the core: [`ConceptAliases`], [`PartAliases`],
-//! [`CalculationTree`], and [`ElementReference`].
+//! [`LineTotal`], [`CalculationTree`], and [`ElementReference`].
 //!
 //! The types are records. A plug-in fills them from static data compiled into the binary, so every
 //! field is public.
@@ -30,6 +30,9 @@ pub struct ConceptAliases {
     pub concepts: Vec<ConceptName>,
     /// The parts that stand for the whole standard concept when no concept of the list resolves.
     pub parts: Option<PartAliases>,
+    /// The lines whose sum stands for the standard concept when no concept of the list and no part
+    /// resolves.
+    pub line_total: Option<LineTotal>,
     /// The scope of each concept of the list or of the parts that covers less than the standard
     /// concept. A concept that is not here covers the full scope.
     pub scopes: Vec<(ConceptName, Scope)>,
@@ -89,6 +92,19 @@ impl PartAliases {
             .chain(own)
             .filter(move |other| *other != part)
     }
+}
+
+/// The lines that a filing reports in place of the total of one standard concept.
+///
+/// The sum of the lines stands for the standard concept, for example `InterestIncomeExpenseNet`
+/// plus `NoninterestIncome` for the net revenue of a bank. Each line must have a value in the same
+/// period, unit, and dimensions.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+pub struct LineTotal {
+    /// The ID of the line total rule, for example `us-gaap/total/revenue@1`.
+    pub rule: RuleId,
+    /// The lines that add up to the standard concept.
+    pub lines: Vec<ConceptName>,
 }
 
 /// One arc of a calculation linkbase: within one role, the parent sums its children, each times its
@@ -229,6 +245,11 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_concept_aliases() {
         implements_auto_traits::<ConceptAliases>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_line_total() {
+        implements_auto_traits::<LineTotal>();
     }
 
     #[test]

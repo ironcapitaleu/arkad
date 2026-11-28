@@ -8,8 +8,18 @@ use crate::core::release::{Sha256, TaxonomyRelease, TaxonomyReleaseId};
 use crate::core::taxonomy::Taxonomy;
 use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{CalculationTree, ConceptAliases, ElementReference};
+use crate::core::taxonomy::segment::{MemberRole, SegmentAxes, SegmentAxis, SegmentAxisKind};
+
+/// The segment axis of every [`FakeTaxonomy`]: `BusinessSegments`.
+const SEGMENT_AXES: &[SegmentAxis] = &[SegmentAxis::new(
+    "BusinessSegments",
+    SegmentAxisKind::BusinessSegment,
+)];
 
 /// A plug-in with a release, family declarations, and alias lists, and with no tree or elements.
+///
+/// Its one segment axis is `BusinessSegments`. A registry reads it only if the plug-in is a
+/// [`Plugin::WithSegmentAxes`](crate::core::taxonomy::registry::Plugin::WithSegmentAxes).
 pub struct FakeTaxonomy {
     release: TaxonomyRelease,
     families: Vec<FamilyDeclaration>,
@@ -39,6 +49,16 @@ impl Taxonomy for FakeTaxonomy {
     }
 
     fn elements(&self) -> &[ElementReference] {
+        &[]
+    }
+}
+
+impl SegmentAxes for FakeTaxonomy {
+    fn segment_axes(&self) -> &[SegmentAxis] {
+        SEGMENT_AXES
+    }
+
+    fn member_roles(&self) -> &[MemberRole] {
         &[]
     }
 }
