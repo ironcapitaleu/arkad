@@ -70,8 +70,8 @@ the plug-in, the type `ConceptAliases`, and the confidence of a sum of reported 
 ## Decision
 
 1. **The `Revenue` of a bank is its net revenue.** It is net interest income plus noninterest
-   income, before the provision for credit losses. It is the measure that the bank filers report as
-   `Revenues`.
+   income, before the provision for credit losses. JPMorgan Chase, the one fixture bank with
+   `Revenues`, reports this measure as `Revenues` in 2013 and 2025.
 2. **A line total rule gives the net revenue of a bank.** The rule `us-gaap/total/revenue@1` adds
    `InterestIncomeExpenseNet` and `NoninterestIncome`. It runs only if no alias and no part gives a
    value in the period. Both lines must have a value in the same period, unit, and dimensions.
@@ -83,7 +83,8 @@ the plug-in, the type `ConceptAliases`, and the confidence of a sum of reported 
 5. **`UtilityRevenue`, `ElectricUtilityRevenue`, and `OilAndGasRevenue` become parts of
    `Revenue`.** The own other parts of each are its siblings, and the siblings of each concept
    between it and `Revenues`, in the trees of 2013 and 2017. The siblings that filers also report
-   outside revenue stay out, as for the other parts of `Revenue` today.
+   outside revenue stay out, as for the other parts of `Revenue` today. The new parts follow the
+   existing parts, in the order `UtilityRevenue`, `ElectricUtilityRevenue`, `OilAndGasRevenue`.
    `ExplorationAndProductionRevenue` stays out: it is a part of a part.
 6. **No value of this decision carries a scope.** Each value measures the revenue that the filers
    report as `Revenues`.
@@ -170,8 +171,18 @@ Values in million USD. Each of A to C fills the 3 lines of Regions Financial in 
 - Not covered: a bank that reports a contract revenue part and `InterestIncomeExpenseNet`, but no
   `NoninterestIncome`. The part gives only the contract revenue as `Revenue`. Commercial filers
   report `InterestIncomeExpenseNet` outside revenue, so it cannot block the part.
+- The line total needs both lines. Commercial filers report `InterestIncomeExpenseNet` outside
+  revenue, but only the bank filings report `NoninterestIncome`: 8 of the 105 Notes fixture
+  filings, all of JPMorgan Chase and Regions Financial.
+- Not covered: a non-bank filer, such as a broker or an insurer, with no alias and no part, that
+  reports `InterestIncomeExpenseNet` outside operations and `NoninterestIncome`. Its `Revenue` is
+  the sum of the two, with no finding.
 - Not covered: a filer that reports `Revenues` as gross revenue next to
-  `RevenuesNetOfInterestExpense`. `Revenues` comes first in the list, so the value is gross.
+  `RevenuesNetOfInterestExpense`. `Revenues` comes first in the list, so the value is gross. If its
+  10-Qs report only `RevenuesNetOfInterestExpense`, the fourth quarter subtracts a net nine months
+  from a gross year.
+- Not covered: a filer that reports `SalesRevenueGoodsNet` or `SalesRevenueServicesNet` next to a
+  new part. The goods or services line comes first in the list, so `Revenue` is that line alone.
 - Not covered: a utility that reports `ElectricUtilityRevenue` and a gas line, but no
   `UtilityRevenue`. The gas line blocks the part, and `Revenue` stays open.
 
@@ -185,7 +196,7 @@ Values in million USD. Each of A to C fills the 3 lines of Regions Financial in 
 - A check of `Revenues` against the line total of a bank, as JPMorgan Chase allows, waits for a
   rule that compares two values of one standard concept.
 - A filer type that reports revenue in lines with no total, such as an insurer or an asset
-  manager, reopens decision 2 for a new list of lines.
+  manager, needs an amendment of decision 2 for a new list of lines.
 
 ## Sources
 

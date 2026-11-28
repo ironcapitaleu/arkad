@@ -902,6 +902,12 @@ Some filers report their own revenue lines and no concept of the alias list or t
   and `inputs` holds the value key of each line. A conflict on a line blocks the candidate, as a
   conflict on a part does.
 - `InterestRevenueExpenseNet` is not a line: it also holds the interest outside operations.
+- The line total needs both lines. Commercial filers report `InterestIncomeExpenseNet` outside
+  revenue, but only banks report `NoninterestIncome`.
+- The new parts follow the existing parts, in the order `UtilityRevenue`,
+  `ElectricUtilityRevenue`, `OilAndGasRevenue`. A filer that reports a goods or services line next
+  to a new part gets the goods or services line, because the new parts are not own other parts of
+  the goods and services lines.
 - **Own other parts.** The own other parts of each new part are its siblings, and the siblings of
   each concept between it and `Revenues`, in the trees of 2013 and 2017. Of the siblings below
   `UtilityRevenue`, only `GasDomesticRegulatedRevenue` exists, an own other part of
@@ -2161,11 +2167,9 @@ Element: "Total Assets"
   Tier 4  Computed:  AssetsCurrent + AssetsNoncurrent       -> confidence: Computed
 ```
 
-First tier that resolves wins. Every resolved value carries which tier produced it.
-
-The line total reads as-is facts, so it runs with tiers 1 and 2, after the parts. Its value still
-has the confidence `Computed`, because no concept of the filing holds it (see "Revenue of Banks,
-Utilities, and Producers").
+The first tier that resolves wins. The line total is the one exception: it reads as-is facts, so
+it runs with tiers 1 and 2, after the parts, and its `Computed` value wins over tier 3 (see
+"Revenue of Banks, Utilities, and Producers"). Every resolved value carries which tier produced it.
 
 The level of a derived or computed fact is the weakest of its own level and the levels of its
 inputs. `Confidence` orders from `Exact` to `Computed`, so this is the maximum.
