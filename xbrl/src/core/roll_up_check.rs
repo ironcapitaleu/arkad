@@ -100,7 +100,7 @@ pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Findin
 /// The key of a balance in [`Balances`]: the entity, the concept, the instant, and the unit.
 type BalanceKey<'a> = (&'a EntityId, CanonicalElementKind, Date, &'a Unit);
 
-/// The instant values without dimensions of one entity, and the instants that dedup blocks.
+/// The instant values without dimensions of each entity, and the instants that dedup blocks.
 struct Balances<'a> {
     values: BTreeMap<BalanceKey<'a>, &'a StandardizedFact>,
     blocked: BTreeSet<BalanceKey<'a>>,
@@ -931,8 +931,8 @@ mod tests {
     #[test]
     fn should_return_no_finding_when_the_balance_sheet_identity_misses_by_exactly_the_tolerance() {
         let facts = series(vec![
-            balance_sheet(BalanceSheetConcept::Assets, "1000000"),
-            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "1001001"),
+            balance_sheet(BalanceSheetConcept::Assets, "999000"),
+            balance_sheet(BalanceSheetConcept::LiabilitiesAndEquity, "1000000"),
         ]);
 
         let expected_result: Vec<Finding> = Vec::new();
@@ -1159,12 +1159,12 @@ mod tests {
             balance_at(
                 CashFlowConcept::CashAndRestrictedCash.element(),
                 date(2026, 5, 31),
-                "1000",
+                "999",
             ),
             balance_at(
                 CashFlowConcept::CashAndRestrictedCash.element(),
                 date(2026, 9, 30),
-                "1001",
+                "1000",
             ),
         ]);
 
@@ -1245,7 +1245,49 @@ mod tests {
     }
 
     #[test]
-    fn should_return_no_finding_when_the_balances_have_another_unit_than_the_change() {
+    fn should_return_no_finding_when_dedup_blocks_the_change_in_cash() {
+        let mut facts = series(cash_roll_forward("251", "389"));
+        facts.blocked = vec![facts.facts[0].series_key()];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_dedup_blocks_the_closing_cash() {
+        let mut facts = series(cash_roll_forward("251", "389"));
+        facts.blocked = vec![facts.facts[2].series_key()];
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_a_balance_that_breaks_the_roll_forward_carries_a_business_segment()
+     {
+        let mut facts = cash_roll_forward("251", "388");
+        facts.extend(in_cloud_segment(vec![balance_at(
+            CashFlowConcept::CashAndRestrictedCash.element(),
+            date(2026, 9, 30),
+            "500",
+        )]));
+        let facts = series(facts);
+
+        let expected_result: Vec<Finding> = Vec::new();
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_finding_when_the_change_has_another_unit_than_the_balances() {
         let mut facts = cash_roll_forward("251", "389");
         facts[0].unit = Unit::from_str("EUR")
             .expect("Given a hardcoded ISO 4217 code, the parse should always succeed");
