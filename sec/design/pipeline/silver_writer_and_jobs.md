@@ -138,6 +138,12 @@ pub trait DigestRow {
     fn write_row_key(&self, out: &mut ByteForm);
     fn write_row(&self, out: &mut ByteForm);
 }
+
+/// The order of the rows of one dataset in a part.
+pub trait PartOrder {
+    fn write_sort_key(&self, out: &mut ByteForm);
+    fn write_row_group_key(&self, _out: &mut ByteForm) {}
+}
 ```
 
 - One row type per dataset: `AsIsFactRow`, `FilingRow`, `CandidateRow`, `StandardizedFactRow`,
@@ -156,6 +162,11 @@ pub trait DigestRow {
   `None` for a unit of that version.
 - `DigestRow` is a separate trait. A type can have a digest without an Arrow form, for example the
   fixture rows of the golden test.
+- `PartOrder` is a separate trait too. It gives the sort key of a row in a part, and the row group
+  key, where a part starts a new row group. Both are `ByteForm` bytes. `candidates` sorts by
+  `entity_bucket`, then by its value key, and its row group key is `entity_bucket`. The other row
+  types sort by their digest group and row key, which start with `filing_id`, and have no row group
+  key.
 
 ### Schema Tests
 
@@ -188,6 +199,8 @@ rules of the contract in this form:
    - uses zstd at level 3.
    - holds the footer entries `dataset`, `schema_version`, `unit_key`, and `transform_version`,
      through `WriterProperties::set_key_value_metadata`.
+   - `write_part` writes one part and returns its `UnitFile`: the path, the row count, the size,
+     and the CRC32C in base64 of its 4 big-endian bytes, the form that GCS stores.
 4. **List row.** It writes the `unit_manifests` row last, to
    `unit_manifests/execution=<execution_id>/task=<n>-<attempt>.parquet`, with the size and CRC32C of
    each part as the writer computed them. It sets `written_at` to the later of the time now and the
