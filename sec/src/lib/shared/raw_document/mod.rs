@@ -256,6 +256,12 @@ impl<S: RawSource> RawDocument<S> {
         }
     }
 
+    /// Returns the bytes of this document, without a copy, and drops the key and the metadata.
+    #[must_use]
+    pub fn into_bytes(self) -> Bytes {
+        self.bytes
+    }
+
     /// Creates a [`RawDocument`] of the raw body of `response` with the metadata `context`.
     fn from_response_with_context(
         key: DocumentKey,
@@ -917,6 +923,18 @@ mod tests {
         let expected_result = SAMPLE_NOTES_ZIP;
 
         let result = document.bytes();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_body_without_a_copy_when_taking_the_bytes_of_a_document() {
+        let document = sample_document_from_file();
+        let body = document.bytes().as_ptr();
+
+        let expected_result = body;
+
+        let result = document.into_bytes().as_ptr();
 
         assert_eq!(result, expected_result);
     }
