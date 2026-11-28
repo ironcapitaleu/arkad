@@ -10,14 +10,15 @@ use parquet::arrow::arrow_reader::{
 use storage::ReadRepository;
 use storage::implementations::repository::filesystem::DocumentKey;
 use storage::implementations::repository::write_once::Blob;
+use storage::shared::Crc32c;
 
 use super::RowFilter;
 use crate::datasets::{ArrowRow, UnitManifestRow, UnitReadError};
 
 /// Returns the rows of the unit that the filter keeps, as rows of type `R`.
 ///
-/// Reads each part of `unit.files` whole through [`ReadRepository`], in the order of the list. It
-/// skips the row groups that the filter excludes by their statistics, and decodes the other row
+/// Reads each part of `unit.files` whole through [`ReadRepository`], in the order of the list, and
+/// checks its size and CRC32C against the entry of the list. It skips the row groups that the filter excludes by their statistics, and decodes the other row
 /// groups with the `schema_version` of the unit. So a unit of an older schema version reads into
 /// the current row type.
 ///
@@ -27,6 +28,8 @@ use crate::datasets::{ArrowRow, UnitManifestRow, UnitReadError};
 /// - [`UnitReadError::UnexpectedDataset`] if the unit belongs to another dataset than `R`.
 /// - [`UnitReadError::FailedPartRead`] if the store does not read a part.
 /// - [`UnitReadError::MissingPartFile`] if a part of the unit is not in the store.
+/// - [`UnitReadError::InvalidPartChecksum`] if the size or the CRC32C of a part differs from the
+///   entry of the unit.
 /// - [`UnitReadError::FailedPartDecoding`] if a part is not Parquet, or lacks the column of the
 ///   filter.
 /// - [`UnitReadError::FailedPartRowConversion`] if the batches of a part do not turn into rows.
@@ -91,6 +94,11 @@ where
                 source,
             })?
             .ok_or_else(missing)?;
+        if blob.bytes.len() as u64 != file.bytes || Crc32c::of(&blob.bytes) != file.crc32c {
+            return Err(UnitReadError::InvalidPartChecksum {
+                path: file.path.clone(),
+            });
+        }
         rows.extend(decode_part(
             &file.path,
             blob.bytes,
@@ -142,7 +150,6 @@ mod tests {
 
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::write_once::WriteOnceFilesystemRepository;
-    use storage::shared::Crc32c;
 
     use super::*;
     use crate::datasets::implementations::UnitFile;
@@ -284,6 +291,23 @@ mod tests {
         });
 
         let result = decode_part::<FakeRow>("fake_rows/part-0.parquet", bytes, 1, &filter);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_part_checksum_when_the_part_differs_from_its_entry() {
+        let (_directory, store) = store();
+        let rows = vec![fake_row(FILING_A, 3, None)];
+        let unit = unit_with_part(&store, notes_unit("2024q1", 1), rows).await;
+        let path = unit.files[0].path.clone();
+        let mut files = unit.files.clone();
+        files[0].crc32c = Crc32c::of(b"other bytes");
+        let unit = UnitManifestRow { files, ..unit };
+
+        let expected_result = Err(UnitReadError::InvalidPartChecksum { path });
+
+        let result = read(&store, &unit, &RowFilter::All).await;
 
         assert_eq!(result, expected_result);
     }

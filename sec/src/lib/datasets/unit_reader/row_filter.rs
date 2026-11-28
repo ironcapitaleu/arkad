@@ -21,7 +21,7 @@ pub enum RowFilter {
     ///
     /// The reader skips each row group whose minimum and maximum `entity_bucket` hold no bucket of
     /// the set. A part of `candidates` starts a new row group at each bucket, so the reader decodes
-    /// only the row groups of the set. The part must have the column.
+    /// only the row groups of those buckets. The part must have the column.
     EntityBuckets(BTreeSet<u8>),
 }
 
@@ -107,6 +107,7 @@ mod tests {
     use storage::implementations::repository::filesystem::DocumentKey;
 
     use super::*;
+    use crate::datasets::ArrowRow;
     use crate::datasets::unit_reader::fixtures::{FakeRow, notes_unit, store, unit_with_part};
 
     #[tokio::test]
@@ -135,6 +136,34 @@ mod tests {
         let expected_result = Ok(Some(vec![1]));
 
         let result = filter.row_groups(&metadata);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_drop_the_rows_of_other_buckets_when_a_batch_holds_several_buckets() {
+        let rows = [3, 5]
+            .map(|entity_bucket| FakeRow {
+                filing_id: "0000320193-24-000006".to_owned(),
+                entity_bucket,
+                unit: None,
+            })
+            .to_vec();
+        let batch =
+            FakeRow::to_batch(&rows).expect("Given fake rows, the batch should always build");
+        let filter = RowFilter::EntityBuckets(BTreeSet::from([5]));
+
+        let expected_result = vec![FakeRow {
+            filing_id: "0000320193-24-000006".to_owned(),
+            entity_bucket: 5,
+            unit: None,
+        }];
+
+        let kept = filter
+            .apply(batch)
+            .expect("Given a batch with the bucket column, the filter should always apply");
+        let result = FakeRow::from_batch(&kept, FakeRow::SCHEMA_VERSION)
+            .expect("Given a batch of the current version, the rows should always read");
 
         assert_eq!(result, expected_result);
     }

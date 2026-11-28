@@ -203,17 +203,17 @@ where
         .filter(run_counts)
         .flat_map(BTreeMap::into_values)
         .collect();
-    let base_computed_at = units
+    let base = units
         .iter()
         .filter(|unit| unit.unit_kind == UnitKind::SeriesBase)
-        .filter_map(|unit| unit.computed_at)
-        .max();
-    let Some(base_computed_at) = base_computed_at else {
+        .max_by_key(|unit| unit.computed_at)
+        .map(|unit| (unit.execution_id, unit.computed_at));
+    let Some((base_execution, base_computed_at)) = base else {
         return Ok(Vec::new());
     };
     units.retain(|unit| match unit.unit_kind {
-        UnitKind::SeriesBase => unit.computed_at == Some(base_computed_at),
-        _ => unit.computed_at > Some(base_computed_at),
+        UnitKind::SeriesBase => unit.execution_id == base_execution,
+        _ => unit.computed_at > base_computed_at,
     });
     units.sort_by(|left, right| {
         (left.computed_at, &left.unit_key).cmp(&(right.computed_at, &right.unit_key))
