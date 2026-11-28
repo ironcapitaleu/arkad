@@ -21,7 +21,7 @@ use roxmltree::Node;
 
 use self::document::{Document, PREFIX_SEPARATOR, XML_TRUE, name as xml_name};
 use crate::adapter::edgar::as_is::{
-    Candidate, number_copies, undeclared_families, unsplit_namespace,
+    Candidate, NumberedCopies, number_copies, undeclared_families, unsplit_namespace,
 };
 use crate::core::concept::ConceptName;
 use crate::core::fact::{AsIsFact, Decimals, FactValue, FilingSource, TaxonomyVersion};
@@ -78,6 +78,11 @@ pub struct InstanceFacts {
     pub filing: Filing,
     /// One finding per fact element the parser dropped, then one per undeclared family.
     pub findings: Vec<Finding>,
+    /// The fact elements the parser read: the children of the root with a `contextRef`.
+    pub rows_in: u64,
+    /// The fact elements that repeat a fact of an earlier element, and that give no fact and no
+    /// finding.
+    pub duplicate_rows: u64,
 }
 
 /// Parses one instance document into as-is facts, one filing, and findings.
@@ -124,13 +129,19 @@ pub fn parse(
     };
     let mut findings = Vec::new();
     let mut candidates = Vec::new();
+    let mut rows_in = 0;
     for element in document.facts() {
+        rows_in += 1;
         match parser.candidate(element) {
             Ok(candidate) => candidates.push(candidate),
             Err(reason) => findings.push(parser.unmapped(element, reason)),
         }
     }
-    let (facts, overflow) = number_copies(candidates);
+    let NumberedCopies {
+        facts,
+        overflow,
+        duplicate_rows,
+    } = number_copies(candidates);
     findings.extend(
         overflow
             .into_iter()
@@ -141,6 +152,8 @@ pub fn parse(
         facts,
         filing,
         findings,
+        rows_in,
+        duplicate_rows,
     })
 }
 
@@ -575,6 +588,38 @@ mod tests {
         let expected_result = 1;
 
         let result = facts(body).len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_one_duplicate_row_when_two_facts_are_equal_in_key_value_and_decimals() {
+        let body = r#"<context id="same"><entity><identifier scheme="http://www.sec.gov/CIK">1</identifier></entity>
+            <period><startDate>2026-07-01</startDate><endDate>2026-09-30</endDate></period></context>
+            <us-gaap:Revenues contextRef="q3" unitRef="usd" decimals="-6">100</us-gaap:Revenues>
+            <us-gaap:Revenues contextRef="same" unitRef="usd" decimals="-6">100</us-gaap:Revenues>"#;
+
+        let expected_result = 1;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .duplicate_rows;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_each_element_with_a_context_ref_as_a_row_in_when_two_facts_repeat() {
+        let body = r#"<context id="same"><entity><identifier scheme="http://www.sec.gov/CIK">1</identifier></entity>
+            <period><startDate>2026-07-01</startDate><endDate>2026-09-30</endDate></period></context>
+            <us-gaap:Revenues contextRef="q3" unitRef="usd" decimals="-6">100</us-gaap:Revenues>
+            <us-gaap:Revenues contextRef="same" unitRef="usd" decimals="-6">100</us-gaap:Revenues>"#;
+
+        let expected_result = 3;
+
+        let result = parse_body(body)
+            .expect("Given a document with a document type, the parse should always succeed")
+            .rows_in;
 
         assert_eq!(result, expected_result);
     }

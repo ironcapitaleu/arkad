@@ -16,7 +16,7 @@ use std::fmt;
 
 use self::row::{DimRow, NumRow, SubRow, TagRow, TxtRow};
 use crate::adapter::edgar::as_is::{
-    Candidate, number_copies, undeclared_families, unsplit_namespace,
+    Candidate, NumberedCopies, number_copies, undeclared_families, unsplit_namespace,
 };
 use crate::core::concept::ConceptName;
 use crate::core::fact::{
@@ -58,6 +58,10 @@ pub struct NotesFacts {
     pub filing: Filing,
     /// One finding per row the parser dropped, then one per undeclared family.
     pub findings: Vec<Finding>,
+    /// The `num` and `txt` rows the parser read.
+    pub rows_in: u64,
+    /// The rows that repeat a fact of an earlier row, and that give no fact and no finding.
+    pub duplicate_rows: u64,
 }
 
 /// Parses the rows of one Notes filing into as-is facts, one filing, and findings.
@@ -99,18 +103,24 @@ pub fn parse(rows: &NotesFiling, registry: &Registry<'_>) -> Result<NotesFacts, 
     };
     let mut findings = Vec::new();
     let mut candidates = Vec::new();
+    let mut rows_in = 0;
     let fact_rows = rows
         .num
         .iter()
         .map(|row| row as &dyn FactRow)
         .chain(rows.txt.iter().map(|row| row as &dyn FactRow));
     for row in fact_rows {
+        rows_in += 1;
         match parser.candidate(row) {
             Ok(candidate) => candidates.push(candidate),
             Err(reason) => findings.push(parser.unmapped(row, reason)),
         }
     }
-    let (facts, overflow) = number_copies(candidates);
+    let NumberedCopies {
+        facts,
+        overflow,
+        duplicate_rows,
+    } = number_copies(candidates);
     findings.extend(
         overflow
             .into_iter()
@@ -121,6 +131,8 @@ pub fn parse(rows: &NotesFiling, registry: &Registry<'_>) -> Result<NotesFacts, 
         facts,
         filing,
         findings,
+        rows_in,
+        duplicate_rows,
     })
 }
 
@@ -389,6 +401,44 @@ mod tests {
             .expect("Given a valid sub row, the parse should always succeed")
             .facts
             .len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_one_duplicate_row_when_two_rows_are_equal_in_value_and_decimals() {
+        let num = vec![
+            num_row("Revenues", "us-gaap/2026", "0", "100.0000"),
+            num_row("Revenues", "us-gaap/2026", "1", "100.0000"),
+        ];
+        let rows = notes_filing(num);
+        let plugin = us_gaap();
+        let registry = registry(&plugin);
+
+        let expected_result = 1;
+
+        let result = parse(&rows, &registry)
+            .expect("Given a valid sub row, the parse should always succeed")
+            .duplicate_rows;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_every_num_row_as_a_row_in_when_two_rows_repeat_a_fact() {
+        let num = vec![
+            num_row("Revenues", "us-gaap/2026", "0", "100.0000"),
+            num_row("Revenues", "us-gaap/2026", "1", "100.0000"),
+        ];
+        let rows = notes_filing(num);
+        let plugin = us_gaap();
+        let registry = registry(&plugin);
+
+        let expected_result = 2;
+
+        let result = parse(&rows, &registry)
+            .expect("Given a valid sub row, the parse should always succeed")
+            .rows_in;
 
         assert_eq!(result, expected_result);
     }
