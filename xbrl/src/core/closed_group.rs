@@ -285,6 +285,12 @@ impl KnownValues {
                 .flat_map(|(_, fact)| fact.inputs.iter().cloned())
                 .collect(),
             restated: inputs.iter().any(|(_, fact)| fact.restated),
+            // Deviation: a closed group must give a derived value the scope of the members that
+            // carry one. If two members differ in scope, the group gets no check, derives nothing,
+            // and reports `MixedScopes`. No alias or part names a scope, so no member carries one,
+            // and the value carries none. The first alias or part with a scope must bring this
+            // rule.
+            scope: None,
         })
     }
 }
