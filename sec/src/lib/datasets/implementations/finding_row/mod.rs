@@ -19,9 +19,9 @@ use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::invalid_value::InvalidValue;
 
 use crate::datasets::columns::{
-    BatchColumns, confidence_from_name, date_from_days, date32, failed_batch, list_array,
-    list_item, list_type, nullable, string_list, timestamp_array, timestamp_from_milliseconds,
-    timestamp_type, unexpected_value, utf8_or_null,
+    BatchColumns, confidence_from_name, date_from_days, date32, failed_batch, item_range,
+    list_array, list_item, list_type, nullable, string_list, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null,
 };
 use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
 use crate::shared::row_digest::{ByteForm, DigestRow};
@@ -504,11 +504,7 @@ impl<'a> FindingColumns<'a> {
 
     /// Reads the periods of one row from the items of `periods` that its offsets give.
     fn periods(&self, row: usize) -> Result<Vec<FindingPeriod>, ArrowRowError> {
-        let offsets = self.periods.value_offsets();
-        // The offsets of a list array never fall, and never lie past the item arrays.
-        let first = usize::try_from(offsets[row]).unwrap_or_default();
-        let end = usize::try_from(offsets[row + 1]).unwrap_or_default();
-        (first..end)
+        item_range(self.periods, row)
             .map(|item| {
                 Ok(FindingPeriod {
                     period_end: date_from_days(self.period_ends.value(item))

@@ -59,6 +59,7 @@ fn type_text(data_type: &DataType) -> String {
         DataType::Int32 => "int32".to_owned(),
         DataType::UInt8 => "uint8".to_owned(),
         DataType::UInt16 => "uint16".to_owned(),
+        DataType::UInt64 => "uint64".to_owned(),
         DataType::Utf8 => "utf8".to_owned(),
         DataType::Date32 => "date32".to_owned(),
         DataType::Decimal128(precision, scale) => format!("decimal128({precision}, {scale})"),
@@ -129,6 +130,17 @@ mod tests {
         )]);
 
         let expected_result = "accepted: timestamp[ms, +00:00] nullable\n";
+
+        let result = schema_text(&schema);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_print_uint64_for_an_unsigned_64_bit_integer() {
+        let schema = Schema::new(vec![Field::new("bytes", DataType::UInt64, false)]);
+
+        let expected_result = "bytes: uint64\n";
 
         let result = schema_text(&schema);
 

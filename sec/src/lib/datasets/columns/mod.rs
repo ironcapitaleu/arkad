@@ -3,6 +3,7 @@
 //! Provides the conversions between the values of a silver row and the Arrow arrays of its
 //! columns, and the schema check of a batch that every row type shares.
 
+use std::ops::Range;
 use std::sync::Arc;
 
 use arrow::array::{
@@ -423,6 +424,15 @@ pub const fn unexpected_value(
         row,
         reason,
     }
+}
+
+/// Returns the indexes of the items of row `row` in the item arrays of a list column.
+pub fn item_range(array: &ListArray, row: usize) -> Range<usize> {
+    let offsets = array.value_offsets();
+    // The offsets of a list array never fall, and never lie past the item arrays.
+    let first = usize::try_from(offsets[row]).unwrap_or_default();
+    let end = usize::try_from(offsets[row + 1]).unwrap_or_default();
+    first..end
 }
 
 /// Returns the strings of row `row` of a list column of strings.
