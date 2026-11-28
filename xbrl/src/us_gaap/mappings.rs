@@ -102,8 +102,9 @@ impl ConceptDefinition {
 /// The parts of a standard concept that stand for the whole when a filing reports no other part.
 ///
 /// A part counts only if no concept of the alias list resolves, and only if the filing reports
-/// none of the other parts in the period. A part never blocks itself, so two parts can each be an
-/// other part of the other. [`resolve_aliases`](crate::core::alias::resolve_aliases) gives the
+/// none of its other parts in the period. The other parts of a part are the other parts of all
+/// parts and its own other parts. A part never blocks itself, so two parts can each be an other
+/// part of the other. [`resolve_aliases`](crate::core::alias::resolve_aliases) gives the
 /// full rule.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct PartDefinition {
@@ -117,6 +118,8 @@ pub struct PartDefinition {
     other_part_trees: &'static [&'static str],
     /// The totals of other parts that block only if the filing reports none of the other parts.
     other_part_totals: &'static [&'static str],
+    /// The other parts of one part only, which count alone, next to the other parts of all parts.
+    own_other_parts: &'static [(&'static str, &'static [&'static str])],
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     part_rule: &'static str,
     /// The scope of each part that covers less than the standard concept.
@@ -139,6 +142,7 @@ impl PartDefinition {
             other_parts,
             other_part_trees,
             other_part_totals: &[],
+            own_other_parts: &[],
             part_rule,
             scopes: &[],
         }
@@ -157,6 +161,19 @@ impl PartDefinition {
     pub const fn with_other_part_totals(self, other_part_totals: &'static [&'static str]) -> Self {
         Self {
             other_part_totals,
+            ..self
+        }
+    }
+
+    /// Returns the definition with `own_other_parts`. Each entry names a part and the other parts
+    /// of that part only. They count alone, next to the other parts of all parts.
+    #[must_use]
+    pub const fn with_own_other_parts(
+        self,
+        own_other_parts: &'static [(&'static str, &'static [&'static str])],
+    ) -> Self {
+        Self {
+            own_other_parts,
             ..self
         }
     }
@@ -191,6 +208,12 @@ impl PartDefinition {
     #[must_use]
     pub const fn other_part_totals(&self) -> &'static [&'static str] {
         self.other_part_totals
+    }
+
+    /// Returns each part with the other parts of that part only.
+    #[must_use]
+    pub const fn own_other_parts(&self) -> &'static [(&'static str, &'static [&'static str])] {
+        self.own_other_parts
     }
 
     /// Returns the ID of the part rule, for example `us-gaap/part/equity@1`.
@@ -914,10 +937,9 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "SalesRevenueServicesNet",
         ],
         // The 2026 release does not hold `SalesRevenueGoodsNet` and `SalesRevenueServicesNet`.
-        // Each is an other part of the other. The other parts are one list, so each also blocks
-        // the contract revenue parts. Known gaps: goods next to a third line, such as
-        // `OtherSalesRevenueNet`, resolves to the goods line with no finding. Goods or services
-        // next to contract revenue resolves to that line with no finding.
+        // Each is an own other part of the other, so neither blocks the contract revenue parts.
+        // Known gap: goods next to a third line, such as `OtherSalesRevenueNet`, resolves to the
+        // goods line with no finding.
         //
         // The revenue lines below `Revenues` of banks, insurers, lessors, and servicers. Left out,
         // because filers also report them outside revenue: `GainsLossesOnSalesOfAssets`,
@@ -941,15 +963,17 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
             "RevenueNotFromContractWithCustomerExcludingInterestIncome",
             "RevenuesExcludingInterestAndDividends",
             "SaleOfTrustAssetsToPayExpenses",
-            "SalesRevenueGoodsNet",
-            "SalesRevenueServicesNet",
             "SalesTypeLeaseInterestIncome",
             "SalesTypeLeaseRevenue",
             "SalesTypeLeaseVariableLeaseIncome",
         ],
         &["OperatingLeaseLeaseIncome", "PremiumsEarnedNet"],
         REVENUE_PART_RULE,
-    ),
+    )
+    .with_own_other_parts(&[
+        ("SalesRevenueGoodsNet", &["SalesRevenueServicesNet"]),
+        ("SalesRevenueServicesNet", &["SalesRevenueGoodsNet"]),
+    ]),
     PartDefinition::new(
         IncomeStatementConcept::NetIncome.element(),
         &["NetIncomeLoss"],
@@ -1254,21 +1278,29 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         NET_CHANGE_IN_CASH_PART_RULE,
     ),
     // Each part has its own other part: the effect on disposal groups, and before 2018 the effect
-    // on discontinued operations. A filing reports the concepts of one era, so the other part of
-    // the other era blocks nothing.
+    // on discontinued operations.
     PartDefinition::new(
         CashFlowConcept::ExchangeRateEffect.element(),
         &[
             "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
             "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
         ],
-        &[
-            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
-            "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
-        ],
+        &[],
         &[],
         EXCHANGE_RATE_EFFECT_PART_RULE,
     )
+    .with_own_other_parts(&[
+        (
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            &[
+                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+            ],
+        ),
+        (
+            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+            &["EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations"],
+        ),
+    ])
     .with_scopes(&[(
         "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
         Scope::ExcludesRestrictedCash,

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28) |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-541](https://linear.app/state-machine/issue/STA-541), accessed 2026-11-27 |
@@ -129,6 +129,61 @@ Measured on 2026-11-27 on the branch of decision 3, at `fc75706`, with A1
   activities, even if the reported flows sum to the line. Those values stay open.
 - Not covered: a filer that reports discontinued operations with an extension concept of its own.
   No part rule sees that concept.
+
+## Amendment 2: Other Parts per Part
+
+> **Proposed and accepted by the project owner on 2026-11-28.** It narrows the other parts of the
+> contract revenue parts of decision 1. It keeps the parts and decisions 2 to 9.
+
+### Why
+
+A part definition holds one list of other parts for all its parts. Decision 1 puts
+`SalesRevenueGoodsNet` and `SalesRevenueServicesNet` in that list for `Revenue`, so each also
+blocks the two `RevenueFromContractWithCustomer…` parts. The contract revenue concepts are in no
+list. A filing that reports `RevenueFromContractWithCustomerExcludingAssessedTax` = 100 and
+`SalesRevenueGoodsNet` = 60, with no total, gets 60 as `Revenue`. The value is too low, and no
+finding shows it.
+
+### Decision
+
+1. **A part can have its own other parts.** They block that part only, next to the other parts of
+   all parts. A part never blocks itself.
+2. **`SalesRevenueGoodsNet` and `SalesRevenueServicesNet` are each an own other part of the
+   other.** They leave the list of all parts. So they no longer block the contract revenue parts,
+   and the filing above gets the contract revenue part, 100, as `Revenue`.
+
+### Options Considered
+
+| Option | The filing above | A1 to A4 lines that change |
+| ------ | ---------------- | -------------------------- |
+| **A. Contract revenue part (chosen)** | 100, `Synonym` | 0 |
+| B. No `Revenue`: each contract revenue part and each line block the other | open | 0 |
+| C. No change | 60, `Synonym` | 0 |
+
+Measured on 2026-11-28 on `main` at `2f8872d` with the code of decision 1 of this amendment, and
+with each option in `mappings.rs`. A1 (`xbrl/tests/acceptance_roll_ups.rs`), A2
+(`xbrl/tests/acceptance_open_roll_ups.rs`), A3, and A4 pass unchanged for each option. No fixture
+file in `xbrl/src/tests/fixtures/data/` holds a `RevenueFromContractWithCustomer…` concept and
+`SalesRevenueGoodsNet` or `SalesRevenueServicesNet`, so no fixture tells the options apart.
+
+Option A wins on the meaning of the concepts. `RevenueFromContractWithCustomer…` is the total of
+revenue from contracts. A goods or services line next to it in the same period is a split of that
+total, as in a note that splits revenue by product. So the contract revenue part is at least the
+goods line, and it is the closer value. Option B gives no value where A gives a value with
+`Synonym`. Option C keeps the low value.
+
+### Consequences of the Amendment
+
+- A1 to A4 do not change.
+- `PartAliases` gains the field `own_other_parts`. A part definition names them with
+  `with_own_other_parts`. The other part rules name none, except `ExchangeRateEffect`.
+- The two parts of `ExchangeRateEffect` each get their own other part of decision 4: the effect on
+  disposal groups for the part after 2018, and the effect on discontinued operations for the part
+  before 2018. A1 to A4 do not change.
+- A filer that reports contract revenue that leaves out a goods line gets the contract revenue
+  part as `Revenue`, too low, with `Synonym`. No fixture 10-K shows such a filer.
+- Not covered: goods next to a third line, such as `OtherSalesRevenueNet`. The open question on the
+  siblings of the two concepts stays.
 
 ## Options Considered
 

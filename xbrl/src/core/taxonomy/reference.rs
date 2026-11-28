@@ -62,10 +62,32 @@ pub struct PartAliases {
     /// The other parts of the standard concept. If a filing reports one of them in the period, no
     /// part stands for the whole. A part never blocks itself.
     pub other_parts: Vec<ConceptName>,
+    /// The other parts of one part only, next to [`PartAliases::other_parts`]. Each entry names the
+    /// part and its own other parts.
+    pub own_other_parts: Vec<(ConceptName, Vec<ConceptName>)>,
     /// The totals of other parts. A filer can report such a total in place of its other parts. A
     /// total blocks the part only if the filing reports none of
     /// [`PartAliases::other_parts`] in the period, with any value, zero included.
     pub other_part_totals: Vec<ConceptName>,
+}
+
+impl PartAliases {
+    /// Returns the other parts of `part`: each concept of [`PartAliases::other_parts`], then the
+    /// own other parts of `part`. The list leaves out `part` itself.
+    pub fn other_parts_of<'a>(
+        &'a self,
+        part: &'a ConceptName,
+    ) -> impl Iterator<Item = &'a ConceptName> {
+        let own = self
+            .own_other_parts
+            .iter()
+            .filter(move |(owner, _)| owner == part)
+            .flat_map(|(_, others)| others);
+        self.other_parts
+            .iter()
+            .chain(own)
+            .filter(move |other| *other != part)
+    }
 }
 
 /// One arc of a calculation linkbase: within one role, the parent sums its children, each times its
@@ -143,9 +165,12 @@ pub struct ElementReference {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
+    use crate::core::concept::NamespaceFamily;
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
 
@@ -156,6 +181,46 @@ mod tests {
         let expected_result = vec!["instant".to_string(), "duration".to_string()];
 
         let result: Vec<String> = period_types.iter().map(ToString::to_string).collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_list_the_other_parts_then_the_own_other_parts_without_the_part_for_one_part() {
+        let concept = |name: &str| {
+            ConceptName::new(
+                NamespaceFamily::new("us-gaap").expect(
+                    "Given a hardcoded family without whitespace, the creation should always succeed",
+                ),
+                name,
+            )
+            .expect("Given a hardcoded local name without a colon, the creation should always succeed")
+        };
+        let parts = PartAliases {
+            rule: RuleId::from_str("us-gaap/part/revenue@1")
+                .expect("Given a hardcoded rule ID, the parse should always succeed"),
+            parts: vec![
+                concept("SalesRevenueGoodsNet"),
+                concept("SalesRevenueServicesNet"),
+            ],
+            other_parts: vec![concept("SalesRevenueGoodsNet"), concept("FeeIncome")],
+            own_other_parts: vec![
+                (
+                    concept("SalesRevenueGoodsNet"),
+                    vec![concept("OtherSalesRevenueNet")],
+                ),
+                (
+                    concept("SalesRevenueServicesNet"),
+                    vec![concept("InterestIncome")],
+                ),
+            ],
+            other_part_totals: vec![],
+        };
+        let part = concept("SalesRevenueGoodsNet");
+
+        let expected_result = vec![concept("FeeIncome"), concept("OtherSalesRevenueNet")];
+
+        let result: Vec<ConceptName> = parts.other_parts_of(&part).cloned().collect();
 
         assert_eq!(result, expected_result);
     }

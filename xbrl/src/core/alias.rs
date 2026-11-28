@@ -48,8 +48,9 @@ pub struct FilingCandidates {
 /// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the
 /// parts that the filing reports, the first that no other part blocks wins, with the part rule and
 /// confidence [`Confidence::Synonym`]. If the filing reports an other part in the period, the other
-/// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
-/// other. A value of zero does not block. A conflict does. The check covers every dimension of the
+/// part blocks the part. The other parts of a part are [`PartAliases::other_parts`] and its own
+/// other parts, [`PartAliases::own_other_parts`]. A part never blocks itself, so two parts can each
+/// be an other part of the other. A value of zero does not block. A conflict does. The check covers every dimension of the
 /// period, so an other part with a member, such as the noncontrolling interest on the equity
 /// components axis, also stops the part. A total of [`PartAliases::other_part_totals`] blocks the
 /// part in the same way, but only if the filing reports none of the other parts in the period,
@@ -235,7 +236,7 @@ struct PartBlockers<'a> {
 impl PartBlockers<'_> {
     /// Returns `true` if an other part, or a total of other parts, stops `part`.
     fn block(&self, part: &ConceptName, parts: &PartAliases) -> bool {
-        let others = || parts.other_parts.iter().filter(|other| *other != part);
+        let others = || parts.other_parts_of(part);
         let blocked_by_total = || {
             !others().any(|other| (self.reported)(other))
                 && parts
@@ -441,6 +442,7 @@ mod tests {
                     concept_of("us-gaap", "StockholdersEquity"),
                     concept_of("us-gaap", "ParentEquity"),
                 ],
+                own_other_parts: vec![],
                 other_part_totals: vec![],
                 other_parts: vec![concept_of("us-gaap", "MinorityInterest")],
             }),
@@ -478,6 +480,7 @@ mod tests {
                     "us-gaap",
                     "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
                 )],
+                own_other_parts: vec![],
                 other_part_totals: vec![concept_of(
                     "us-gaap",
                     "NetCashProvidedByUsedInDiscontinuedOperations",
@@ -496,6 +499,42 @@ mod tests {
         )
     }
 
+    /// Returns a plug-in whose revenue list holds the total, with the contract revenue part and the
+    /// goods part. The services line is an own other part of the goods part only.
+    fn revenue_plugin() -> FakeTaxonomy {
+        let revenue = ConceptAliases {
+            element: IncomeStatementConcept::Revenue.element(),
+            rule: rule_of("us-gaap/alias/revenue@1"),
+            concepts: vec![concept_of("us-gaap", "Revenues")],
+            parts: Some(PartAliases {
+                rule: rule_of("us-gaap/part/revenue@1"),
+                parts: vec![
+                    concept_of(
+                        "us-gaap",
+                        "RevenueFromContractWithCustomerExcludingAssessedTax",
+                    ),
+                    concept_of("us-gaap", "SalesRevenueGoodsNet"),
+                ],
+                own_other_parts: vec![(
+                    concept_of("us-gaap", "SalesRevenueGoodsNet"),
+                    vec![concept_of("us-gaap", "SalesRevenueServicesNet")],
+                )],
+                other_part_totals: vec![],
+                other_parts: vec![],
+            }),
+            scopes: Vec::new(),
+        };
+        plugin_with_aliases(
+            "us-gaap/2026",
+            vec![declaration(
+                "us-gaap",
+                "http://fasb.org/us-gaap/{release}",
+                true,
+            )],
+            vec![revenue],
+        )
+    }
+
     /// Returns a plug-in whose short-term debt list holds the total, with two parts that are each
     /// an other part of the other.
     fn short_term_debt_plugin() -> FakeTaxonomy {
@@ -510,6 +549,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule_of("us-gaap/part/short-term-debt@1"),
                 parts: parts.clone(),
+                own_other_parts: vec![],
                 other_part_totals: vec![],
                 other_parts: parts,
             }),
@@ -552,6 +592,7 @@ mod tests {
                     "us-gaap",
                     "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
                 )],
+                own_other_parts: vec![],
                 other_part_totals: Vec::new(),
             }),
             scopes: vec![
@@ -1382,6 +1423,58 @@ mod tests {
                 "45000000",
             ),
             fact(&filing, "ShortTermBorrowings", "756000000"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_contract_revenue_part_when_the_filing_reports_it_next_to_an_own_other_part_of_another_part()
+     {
+        let plugin = revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "RevenueFromContractWithCustomerExcludingAssessedTax",
+                "100000000",
+            ),
+            fact(&filing, "SalesRevenueServicesNet", "40000000"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/revenue@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(100_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_filing_reports_a_part_next_to_its_own_other_part() {
+        let plugin = revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "SalesRevenueGoodsNet", "60000000"),
+            fact(&filing, "SalesRevenueServicesNet", "40000000"),
         ];
         let copies = more_precise(&facts);
 

@@ -411,7 +411,7 @@ fn concept_aliases(
 ///
 /// The other parts hold each concept of `other_parts` in table order. Then each root of
 /// `other_part_trees` follows, with the concepts below it in `tree` in name order. Each concept
-/// appears once.
+/// appears once. The own other parts of each part count alone, without the concepts below them.
 fn part_aliases(definition: &mappings::PartDefinition, tree: &CalculationTree) -> PartAliases {
     let concepts = |names: &[&str]| -> Vec<ConceptName> {
         names
@@ -432,6 +432,11 @@ fn part_aliases(definition: &mappings::PartDefinition, tree: &CalculationTree) -
             .expect("Given a rule ID of the definitions, the parse should always succeed"),
         parts: concepts(definition.parts()),
         other_parts,
+        own_other_parts: definition
+            .own_other_parts()
+            .iter()
+            .map(|(part, others)| (concept(US_GAAP_FAMILY, part), concepts(others)))
+            .collect(),
         other_part_totals: concepts(definition.other_part_totals()),
     }
 }
@@ -1055,10 +1060,10 @@ mod tests {
             .aliases()
             .iter()
             .flat_map(|aliases| {
-                let parts = aliases
-                    .parts
-                    .iter()
-                    .flat_map(|parts| parts.parts.iter().chain(&parts.other_parts));
+                let parts = aliases.parts.iter().flat_map(|parts| {
+                    let own = parts.own_other_parts.iter().flat_map(|(_, others)| others);
+                    parts.parts.iter().chain(&parts.other_parts).chain(own)
+                });
                 aliases.concepts.iter().chain(parts)
             })
             .filter(|concept| us_gaap.element(concept).is_none())
@@ -1093,10 +1098,13 @@ mod tests {
             .iter()
             .filter_map(|aliases| aliases.parts.as_ref())
             .flat_map(|parts| {
-                parts
-                    .parts
-                    .iter()
-                    .filter(|part| parts.other_parts.contains(part))
+                parts.parts.iter().filter(|part| {
+                    parts.other_parts.contains(part)
+                        || parts
+                            .own_other_parts
+                            .iter()
+                            .any(|(_, others)| others.contains(part))
+                })
             })
             .cloned()
             .collect();
@@ -1291,6 +1299,16 @@ mod tests {
                     concept("us-gaap", "SalesRevenueGoodsNet"),
                     concept("us-gaap", "SalesRevenueServicesNet"),
                 ],
+                own_other_parts: vec![
+                    (
+                        concept("us-gaap", "SalesRevenueGoodsNet"),
+                        vec![concept("us-gaap", "SalesRevenueServicesNet")],
+                    ),
+                    (
+                        concept("us-gaap", "SalesRevenueServicesNet"),
+                        vec![concept("us-gaap", "SalesRevenueGoodsNet")],
+                    ),
+                ],
                 other_part_totals: vec![],
                 other_parts: vec![
                     concept(
@@ -1313,8 +1331,6 @@ mod tests {
                     ),
                     concept("us-gaap", "RevenuesExcludingInterestAndDividends"),
                     concept("us-gaap", "SaleOfTrustAssetsToPayExpenses"),
-                    concept("us-gaap", "SalesRevenueGoodsNet"),
-                    concept("us-gaap", "SalesRevenueServicesNet"),
                     concept("us-gaap", "SalesTypeLeaseInterestIncome"),
                     concept("us-gaap", "SalesTypeLeaseRevenue"),
                     concept("us-gaap", "SalesTypeLeaseVariableLeaseIncome"),
@@ -1349,6 +1365,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/net-income@1"),
                 parts: vec![concept("us-gaap", "NetIncomeLoss")],
+                own_other_parts: vec![],
                 other_part_totals: vec![],
                 other_parts: vec![
                     concept("us-gaap", "ProfitLoss"),
@@ -1431,6 +1448,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/equity@1"),
                 parts: vec![concept("us-gaap", "StockholdersEquity")],
+                own_other_parts: vec![],
                 other_part_totals: vec![],
                 other_parts: vec![
                     concept(
@@ -1598,6 +1616,7 @@ mod tests {
         let expected_result = Some(PartAliases {
             rule: rule("us-gaap/part/depreciation-amortization@1"),
             parts: vec![concept("us-gaap", "Depreciation")],
+            own_other_parts: vec![],
             other_part_totals: vec![],
             other_parts: vec![
                 concept("us-gaap", "AdjustmentForAmortization"),
@@ -1657,6 +1676,7 @@ mod tests {
                         "us-gaap",
                         "PaymentsToAcquirePropertyPlantAndEquipment",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "PaymentForAcquisitionCryptoAsset"),
@@ -1674,6 +1694,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/dividends-paid@1"),
                     parts: vec![concept("us-gaap", "PaymentsOfDividendsCommonStock")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "PaymentsOfCapitalDistribution"),
@@ -1690,6 +1711,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/share-repurchases@1"),
                     parts: vec![concept("us-gaap", "PaymentsForRepurchaseOfCommonStock")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept(
@@ -1715,6 +1737,7 @@ mod tests {
                         "us-gaap",
                         "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![concept(
                         "us-gaap",
@@ -1757,6 +1780,7 @@ mod tests {
                         "us-gaap",
                         "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept(
@@ -1788,17 +1812,30 @@ mod tests {
                             "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
                         ),
                     ],
-                    other_part_totals: vec![],
-                    other_parts: vec![
-                        concept(
-                            "us-gaap",
-                            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+                    own_other_parts: vec![
+                        (
+                            concept(
+                                "us-gaap",
+                                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                            ),
+                            vec![concept(
+                                "us-gaap",
+                                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+                            )],
                         ),
-                        concept(
-                            "us-gaap",
-                            "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
+                        (
+                            concept(
+                                "us-gaap",
+                                "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+                            ),
+                            vec![concept(
+                                "us-gaap",
+                                "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
+                            )],
                         ),
                     ],
+                    other_part_totals: vec![],
+                    other_parts: vec![],
                 },
             ),
         ];
@@ -1830,6 +1867,7 @@ mod tests {
                     "us-gaap",
                     "OtherComprehensiveIncomeLossNetOfTaxPortionAttributableToParent",
                 )],
+                own_other_parts: vec![],
                 other_part_totals: vec![],
                 other_parts: vec![
                     concept("us-gaap", "OtherComprehensiveIncomeLossNetOfTax"),
@@ -1981,6 +2019,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule("us-gaap/part/comprehensive-income@1"),
                 parts: vec![concept("us-gaap", "ComprehensiveIncomeNetOfTax")],
+                own_other_parts: vec![],
                 other_part_totals: vec![],
                 other_parts: vec![
                     concept(
@@ -2501,6 +2540,7 @@ mod tests {
         let expected_result = Some(PartAliases {
             rule: rule("us-gaap/part/interest-expense@1"),
             parts: vec![concept("us-gaap", "InterestExpenseNonoperating")],
+            own_other_parts: vec![],
             other_part_totals: vec![],
             other_parts: vec![
                 concept("us-gaap", "InterestExpenseOperating"),
@@ -2550,6 +2590,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/cost-of-revenue@1"),
                     parts: vec![concept("us-gaap", "CostOfGoodsAndServicesSold")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "AmortizationOfMortgageServicingRightsMSRs"),
@@ -2577,6 +2618,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/selling-general-admin@1"),
                     parts: vec![concept("us-gaap", "GeneralAndAdministrativeExpense")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "MarketingExpense"),
@@ -2594,6 +2636,7 @@ mod tests {
                         "us-gaap",
                         "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept(
@@ -2615,6 +2658,7 @@ mod tests {
                         "us-gaap",
                         "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "IncomeLossFromEquityMethodInvestments"),
@@ -2795,6 +2839,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/cash-and-equivalents@1"),
                     parts: vec![concept("us-gaap", "Cash")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "DueFromBanks"),
@@ -2818,6 +2863,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/short-term-investments@1"),
                     parts: vec![concept("us-gaap", "MarketableSecuritiesCurrent")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "EquitySecuritiesFvNi"),
@@ -2842,6 +2888,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/intangible-assets@1"),
                     parts: vec![concept("us-gaap", "FiniteLivedIntangibleAssetsNet")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept(
@@ -2887,6 +2934,7 @@ mod tests {
                             "RedeemableNoncontrollingInterestEquityOtherFairValue",
                         ),
                     ],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept(
@@ -2908,6 +2956,7 @@ mod tests {
                         concept("us-gaap", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
                         concept("us-gaap", "ShortTermBorrowings"),
                     ],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![
                         concept("us-gaap", "LongTermDebtAndCapitalLeaseObligationsCurrent"),
@@ -2920,6 +2969,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/additional-paid-in-capital@1"),
                     parts: vec![concept("us-gaap", "AdditionalPaidInCapitalCommonStock")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![concept("us-gaap", "AdditionalPaidInCapitalPreferredStock")],
                 },
@@ -2929,6 +2979,7 @@ mod tests {
                 PartAliases {
                     rule: rule("us-gaap/part/treasury-stock@1"),
                     parts: vec![concept("us-gaap", "TreasuryStockCommonValue")],
+                    own_other_parts: vec![],
                     other_part_totals: vec![],
                     other_parts: vec![concept("us-gaap", "TreasuryStockPreferredValue")],
                 },
@@ -3268,6 +3319,7 @@ mod tests {
                         "us-gaap",
                         "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![concept(
                         "us-gaap",
                         "NetCashProvidedByUsedInDiscontinuedOperations",
@@ -3286,6 +3338,7 @@ mod tests {
                         "us-gaap",
                         "CashProvidedByUsedInInvestingActivitiesDiscontinuedOperations",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![concept(
                         "us-gaap",
                         "NetCashProvidedByUsedInDiscontinuedOperations",
@@ -3304,6 +3357,7 @@ mod tests {
                         "us-gaap",
                         "CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations",
                     )],
+                    own_other_parts: vec![],
                     other_part_totals: vec![concept(
                         "us-gaap",
                         "NetCashProvidedByUsedInDiscontinuedOperations",
@@ -3761,10 +3815,8 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
-    // A known gap: the goods line blocks the contract revenue part, but the contract revenue
-    // concepts are no other parts, so the goods line alone resolves `Revenue`.
     #[test]
-    fn should_give_the_goods_line_as_revenue_when_the_filing_reports_contract_revenue_next_to_sales_revenue_of_goods()
+    fn should_give_contract_revenue_as_revenue_when_the_filing_reports_contract_revenue_next_to_sales_revenue_of_goods()
      {
         let us_gaap = UsGaap::new();
         let registry = Registry::new(vec![&us_gaap])
@@ -3780,7 +3832,7 @@ mod tests {
         ];
 
         let expected_result = vec![CandidateValue::Reported {
-            value: BigDecimal::from(60_000_000_i64),
+            value: BigDecimal::from(100_000_000_i64),
             decimals: Some(Decimals::Finite(-6)),
             confidence: Confidence::Synonym,
         }];
