@@ -618,18 +618,15 @@ mod tests {
     #[test]
     fn should_fail_with_invalid_metadata_when_the_metadata_member_has_another_size() {
         let mut builder = NotesZipBuilder::sample();
-        let metadata = builder.member_mut("notes-metadata.json");
-        metadata.unzipped_size = Some(10);
+        builder.member_mut("notes-metadata.json").unzipped_size = Some(10);
+
+        let expected_result = Some(NotesArchiveError::InvalidMetadata {
+            reason: "Size: 11 bytes, Expected: 10 bytes".to_owned(),
+        });
 
         let result = open_error(&builder);
 
-        // The size of the metadata member depends on all sample headers, so the test leaves the
-        // count of bytes out.
-        assert!(matches!(
-            result,
-            Some(NotesArchiveError::InvalidMetadata { reason })
-                if reason == "Size: 11 bytes, Expected: 10 bytes"
-        ));
+        assert_eq!(result, expected_result);
     }
 
     #[test]

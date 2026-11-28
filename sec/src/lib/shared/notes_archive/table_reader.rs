@@ -21,9 +21,10 @@ use super::table_read_error::TableReadError;
 /// the first error. After an error, the reader returns `None`.
 ///
 /// The reader holds its own reference to the zipped bytes, so readers of two tables can run on two
-/// threads. It checks the CRC-32 and the unzipped size of the member after the last row, so a
-/// caller must read to the end to know that the table is valid. If an item is an error, a row
-/// before it can hold cut data.
+/// threads. It checks the CRC-32 and a member shorter than its unzipped size after the last row,
+/// so a caller must read to the end to know that the table is valid. If an item is an error, a row
+/// before it can hold cut data. A member longer than its unzipped size fails at the first row after
+/// the reader passes the size.
 #[derive(Debug)]
 pub struct TableReader {
     table: NotesTable,
@@ -48,6 +49,9 @@ impl TableReader {
         let mut header = StringRecord::new();
         rows.read_record(&mut header)
             .map_err(|error| read_error(table, rows.get_ref(), &error))?;
+        if let Some(mismatch) = rows.get_ref().overflow() {
+            return Err(mismatch.for_table(table));
+        }
         let actual: Vec<String> = header.iter().map(str::to_owned).collect();
         if actual != columns {
             return Err(TableReadError::UnexpectedHeader {
@@ -291,6 +295,8 @@ fn table_error(table: NotesTable, error: &csv::Error) -> TableReadError {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::Write as _;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -510,42 +516,47 @@ mod tests {
     }
 
     #[test]
-    fn should_stop_one_byte_after_the_size_when_the_member_unzips_to_more_bytes() {
-        let mut builder = NotesZipBuilder::sample();
-        builder.member_mut("dim.tsv").unzipped_size = Some(50);
-        let archive = open(&builder);
-        let reader = archive
-            .table(NotesTable::Dim)
-            .expect("Given the sample dim.tsv, its header should always match");
-
-        let expected_result = Some(TableReadError::InvalidMemberSize {
-            table: NotesTable::Dim,
-            expected: 50,
-            actual: 51,
+    fn should_return_no_cut_row_when_the_cut_falls_inside_the_last_field_of_a_row() {
+        let rows = (0..1_000_u32).fold(String::new(), |mut rows, hash| {
+            writeln!(rows, "0x{hash:08x}\t\t0")
+                .expect("Given a String, a write should always succeed");
+            rows
         });
+        let content = format!("dimhash\tsegments\tsegt\n{rows}");
+        let mut builder = sample_with_dim(content.as_bytes());
+        // 14,022 bytes. The size cuts `0\n` from the last row, so its last field reads empty.
+        builder.member_mut("dim.tsv").unzipped_size = Some(14_019);
+        let archive = open(&builder);
+        let reader = archive.table(NotesTable::Dim).expect(
+            "Given a header in the first 8 KiB, the start of the read should always succeed",
+        );
 
-        let result = reader.filter_map(Result::err).last();
+        let expected_result = vec![Err(TableReadError::InvalidMemberSize {
+            table: NotesTable::Dim,
+            expected: 14_019,
+            actual: 14_020,
+        })];
+
+        let result: Vec<Result<TableRow, TableReadError>> = reader
+            .filter(|item| !matches!(item, Ok(row) if row.get(2) == Some("0")))
+            .collect();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_fail_with_invalid_member_size_instead_of_the_row_when_the_cut_falls_inside_its_last_field()
-     {
+    fn should_fail_with_invalid_member_size_when_the_cut_falls_inside_the_header() {
         let mut builder = NotesZipBuilder::sample();
-        builder.member_mut("dim.tsv").unzipped_size = Some(58);
+        builder.member_mut("dim.tsv").unzipped_size = Some(5);
         let archive = open(&builder);
-        let mut reader = archive
-            .table(NotesTable::Dim)
-            .expect("Given the sample dim.tsv, its header should always match");
 
-        let expected_result = Some(Err(TableReadError::InvalidMemberSize {
+        let expected_result = Some(TableReadError::InvalidMemberSize {
             table: NotesTable::Dim,
-            expected: 58,
-            actual: 59,
-        }));
+            expected: 5,
+            actual: 6,
+        });
 
-        let result = reader.next();
+        let result = archive.table(NotesTable::Dim).err();
 
         assert_eq!(result, expected_result);
     }
