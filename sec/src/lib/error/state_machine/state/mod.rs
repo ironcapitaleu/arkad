@@ -2,10 +2,10 @@
 //!
 //! Provides the [`State`] error covering failures inside a state's own logic: CIK validation,
 //! Notes period validation, index date validation, daily index and full index parsing, SEC request execution, a missing daily index,
-//! the selection of filing documents, document writes, the Company Facts parse, the CIK of the Company Facts, data completeness, the Notes and instance parse, and input/context/output handling.
+//! the selection of filing documents, document writes, the Company Facts parse, the CIK of the Company Facts, data completeness, the Notes and instance parse, the rows of a filing, and input/context/output handling.
 //!
 //! The richer variants ([`InvalidCikFormat`], [`InvalidNotesPeriod`], [`InvalidIndexDate`], [`InvalidDailyIndex`], [`InvalidFullIndex`], [`FailedRequestExecution`],
-//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`FailedCompanyFactsParse`], [`FailedNotesParse`], [`FailedInstanceParse`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
+//! [`FailedDocumentSelection`], [`FailedDocumentWrite`], [`FailedCompanyFactsParse`], [`FailedNotesParse`], [`FailedInstanceParse`], [`FailedRowBuild`], [`IncompleteCompanyFacts`]) wrap a domain error with the failing state's name.
 //! [`UnexpectedCik`] carries the failing state's name, the CIK of the state, and the CIK of the body.
 //! [`InvalidInstanceText`] carries the failing state's name, the filing, and the decode error.
 //! [`MissingDailyIndex`] carries the failing state's name and the date. [`MissingFullIndexDate`]
@@ -33,6 +33,7 @@
 //! - [`failed_notes_parse`]: The [`FailedNotesParse`] error wrapping a Notes filing that does not parse.
 //! - [`invalid_instance_text`]: The [`InvalidInstanceText`] error for a stored instance that is not UTF-8.
 //! - [`failed_instance_parse`]: The [`FailedInstanceParse`] error wrapping an instance that does not parse.
+//! - [`failed_row_build`]: The [`FailedRowBuild`] error wrapping rows of a filing that do not fit their dataset.
 
 use thiserror::Error;
 
@@ -48,6 +49,8 @@ pub mod failed_notes_parse;
 pub use failed_notes_parse::FailedNotesParse;
 pub mod failed_request_execution;
 pub use failed_request_execution::FailedRequestExecution;
+pub mod failed_row_build;
+pub use failed_row_build::FailedRowBuild;
 pub mod incomplete_company_facts;
 pub use incomplete_company_facts::IncompleteCompanyFacts;
 pub mod invalid_cik_format;
@@ -176,6 +179,12 @@ pub enum State {
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
     #[error(transparent)]
     FailedInstanceParse(FailedInstanceParse),
+
+    /// Indicates that the rows of a filing do not fit the Arrow form of their dataset.
+    ///
+    /// Passes through: prints the inner error as it is, because this layer adds no fact.
+    #[error(transparent)]
+    FailedRowBuild(FailedRowBuild),
 
     /// Indicates that input data of a `State` is invalid and cannot be used to compute the output data.
     #[error(

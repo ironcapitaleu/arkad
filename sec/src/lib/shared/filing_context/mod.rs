@@ -7,6 +7,7 @@ use std::cmp::Ordering;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
+use jiff::Timestamp;
 use state_maschine::prelude::Context as SMContext;
 use uuid::Uuid;
 use xbrl::core::taxonomy::registry::Registry;
@@ -73,8 +74,8 @@ impl Ord for RegistryHandle {
     }
 }
 
-/// The context of every state of the filing machine: the registry, the `transform_version`, and
-/// the `execution_id` of the task.
+/// The context of every state of the filing machine: the registry, the `transform_version`, the
+/// `execution_id`, and the `loaded_at` of the task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FilingContext {
     /// The taxonomy registry of the task.
@@ -83,6 +84,8 @@ pub struct FilingContext {
     pub transform_version: u32,
     /// The ID of the job run.
     pub execution_id: Uuid,
+    /// The time the task started. Every row of the task carries it as `loaded_at`.
+    pub loaded_at: Timestamp,
 }
 
 impl SMContext for FilingContext {
@@ -229,6 +232,7 @@ mod tests {
             registry: handle(&["us-gaap/2026"]),
             transform_version: 1,
             execution_id: Uuid::nil(),
+            loaded_at: Timestamp::UNIX_EPOCH,
         };
 
         let expected_result = false;

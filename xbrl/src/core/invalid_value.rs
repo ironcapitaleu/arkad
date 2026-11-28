@@ -89,6 +89,31 @@ pub enum InvalidValueReason {
     Truncated(&'static str),
 }
 
+impl InvalidValueReason {
+    /// Returns the name of the variant, for example `NotANumber`, without its field.
+    #[must_use]
+    pub const fn name(&self) -> &'static str {
+        match self {
+            Self::Empty => "Empty",
+            Self::ContainsWhitespace => "ContainsWhitespace",
+            Self::ContainsSeparator(_) => "ContainsSeparator",
+            Self::MissingSeparator(_) => "MissingSeparator",
+            Self::DuplicateAxis => "DuplicateAxis",
+            Self::EndBeforeStart => "EndBeforeStart",
+            Self::NotANumber => "NotANumber",
+            Self::OutOfRange => "OutOfRange",
+            Self::WrongPlaceholderCount(_) => "WrongPlaceholderCount",
+            Self::MissingPart(_) => "MissingPart",
+            Self::NotHexDigest => "NotHexDigest",
+            Self::NotADate(_) => "NotADate",
+            Self::NoMatchingRow(_) => "NoMatchingRow",
+            Self::NoMatchingElement(_) => "NoMatchingElement",
+            Self::NoMatchingName(_) => "NoMatchingName",
+            Self::Truncated(_) => "Truncated",
+        }
+    }
+}
+
 impl fmt::Display for InvalidValueReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -167,6 +192,51 @@ mod tests {
         let expected_result = "[InvalidValue] Invalid 'Measure', Reason: 'The value holds the separator /', Input: 'USD/shares'";
 
         let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_variant_name_without_the_field_for_each_reason() {
+        let reasons = [
+            InvalidValueReason::Empty,
+            InvalidValueReason::ContainsWhitespace,
+            InvalidValueReason::ContainsSeparator(':'),
+            InvalidValueReason::MissingSeparator(':'),
+            InvalidValueReason::DuplicateAxis,
+            InvalidValueReason::EndBeforeStart,
+            InvalidValueReason::NotANumber,
+            InvalidValueReason::OutOfRange,
+            InvalidValueReason::WrongPlaceholderCount("{release}"),
+            InvalidValueReason::MissingPart("URI pattern"),
+            InvalidValueReason::NotHexDigest,
+            InvalidValueReason::NotADate("%Y%m%d"),
+            InvalidValueReason::NoMatchingRow("dim.tsv"),
+            InvalidValueReason::NoMatchingElement("context"),
+            InvalidValueReason::NoMatchingName("standard concept"),
+            InvalidValueReason::Truncated("value"),
+        ];
+
+        let expected_result = vec![
+            "Empty",
+            "ContainsWhitespace",
+            "ContainsSeparator",
+            "MissingSeparator",
+            "DuplicateAxis",
+            "EndBeforeStart",
+            "NotANumber",
+            "OutOfRange",
+            "WrongPlaceholderCount",
+            "MissingPart",
+            "NotHexDigest",
+            "NotADate",
+            "NoMatchingRow",
+            "NoMatchingElement",
+            "NoMatchingName",
+            "Truncated",
+        ];
+
+        let result: Vec<&str> = reasons.iter().map(InvalidValueReason::name).collect();
 
         assert_eq!(result, expected_result);
     }

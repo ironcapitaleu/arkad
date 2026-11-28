@@ -11,6 +11,7 @@
 //! ## Modules
 //!
 //! - [`extraction`]: The [`Extraction`](extraction::Extraction) entry point, which builds the extract super-states by ingestion mode and source.
+//! - [`filing_machine`]: [`run_filing`](filing_machine::run_filing), which runs the states of the filing machine on one filing.
 //! - [`states`]: The Extract, Transform, and Load states, each with its own input, output, and context.
 //! - [`transitions`]: The `TryFrom`/`From` conversions that assemble a successor state from a source state's data.
 //!
@@ -20,5 +21,6 @@
 //! - [`crate::shared`]: The shared domain types (e.g. [`Cik`](crate::shared::cik::Cik)) the states operate on.
 
 pub mod extraction;
+pub mod filing_machine;
 pub mod states;
 pub mod transitions;

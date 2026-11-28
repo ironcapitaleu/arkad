@@ -20,15 +20,19 @@ pub enum DropReason {
     /// The row repeats a fact of an earlier row in key, value, and `decimals`. The parser keeps one
     /// fact for both and gives no finding.
     DuplicateRow,
+    /// A state of the filing machine failed, so the unit drops every source row of the filing.
+    RejectedFiling,
 }
 
 impl DropReason {
-    /// Returns the text of the `reason` field of `dropped_rows`, for example `UnmappedRow`.
+    /// Returns the text of the `reason` field of `dropped_rows`: the name of the variant, for
+    /// example `UnmappedRow`.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::UnmappedRow => "UnmappedRow",
             Self::DuplicateRow => "DuplicateRow",
+            Self::RejectedFiling => "RejectedFiling",
         }
     }
 }
@@ -78,6 +82,17 @@ impl SourceCounts {
         .into_iter()
         .filter(|&(_, rows)| rows > 0)
         .collect();
+        Self { rows_in, dropped }
+    }
+
+    /// Creates the counts of a rejected filing with `rows_in` source rows: every row is dropped
+    /// under [`DropReason::RejectedFiling`].
+    #[must_use]
+    pub fn rejected(rows_in: u64) -> Self {
+        let dropped = (rows_in > 0)
+            .then_some((DropReason::RejectedFiling, rows_in))
+            .into_iter()
+            .collect();
         Self { rows_in, dropped }
     }
 
@@ -207,6 +222,40 @@ mod tests {
             BTreeMap::from([(DropReason::UnmappedRow, 1), (DropReason::DuplicateRow, 3)]);
 
         let result = SourceCounts::new(10, 3, &findings).dropped().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_drop_every_source_row_as_rejected_filing_when_the_filing_is_rejected() {
+        let rows_in = 701;
+
+        let expected_result = (701, BTreeMap::from([(DropReason::RejectedFiling, 701)]));
+
+        let counts = SourceCounts::rejected(rows_in);
+        let result = (counts.rows_in(), counts.dropped().clone());
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_list_no_reason_when_a_rejected_filing_has_no_source_row() {
+        let rows_in = 0;
+
+        let expected_result = BTreeMap::new();
+
+        let result = SourceCounts::rejected(rows_in).dropped().clone();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_display_reason_as_dropped_rows_text_for_rejected_filing() {
+        let reason = DropReason::RejectedFiling;
+
+        let expected_result = "RejectedFiling";
+
+        let result = reason.to_string();
 
         assert_eq!(result, expected_result);
     }
