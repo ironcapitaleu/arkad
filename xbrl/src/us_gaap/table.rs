@@ -45,6 +45,51 @@ impl ElementRow {
     }
 }
 
+/// One US GAAP element that the release in use removed, with the data of the last release that
+/// defines it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct RemovedElementRow {
+    /// The local name, for example `SalesRevenueNet`. The family is `us-gaap`.
+    pub name: &'static str,
+    /// The standard label, for example `Revenue, Net (Deprecated 2018-01-31)`.
+    pub label: &'static str,
+    /// The data type as the schema writes it, for example `xbrli:monetaryItemType`.
+    pub data_type: &'static str,
+    /// The balance, if the concept has one.
+    pub balance: Option<Balance>,
+    /// The period type.
+    pub period_type: PeriodType,
+    /// The ID of the last release that defines the element, for example `us-gaap/2020`.
+    pub last_release: &'static str,
+    /// The ID of the release that the label names as the deprecation date, for example
+    /// `us-gaap/2018`, or `None` if the label names none.
+    pub deprecated_in: Option<&'static str>,
+}
+
+impl RemovedElementRow {
+    /// Creates a [`RemovedElementRow`].
+    #[must_use]
+    pub const fn new(
+        name: &'static str,
+        label: &'static str,
+        data_type: &'static str,
+        balance: Option<Balance>,
+        period_type: PeriodType,
+        last_release: &'static str,
+        deprecated_in: Option<&'static str>,
+    ) -> Self {
+        Self {
+            name,
+            label,
+            data_type,
+            balance,
+            period_type,
+            last_release,
+            deprecated_in,
+        }
+    }
+}
+
 /// One summation arc of a calculation linkbase. Within one role, the parent is the weighted sum of
 /// its children.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -95,6 +140,11 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_element_row() {
         implements_auto_traits::<ElementRow>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_removed_element_row() {
+        implements_auto_traits::<RemovedElementRow>();
     }
 
     #[test]

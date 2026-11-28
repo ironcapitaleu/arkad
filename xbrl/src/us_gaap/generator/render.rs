@@ -1,6 +1,6 @@
 //! # Render
 //!
-//! Writes the Rust source of `us_gaap/taxonomy.rs` from the read tables.
+//! Writes the Rust source of `us_gaap/taxonomy.rs` and `us_gaap/removed.rs` from the read tables.
 
 use std::fmt::Write;
 
@@ -9,6 +9,9 @@ use crate::core::taxonomy::reference::{Balance, PeriodType};
 
 /// The text that the generated file writes for a concept without a balance.
 const NO_BALANCE: &str = "None";
+
+/// The text that the generated file writes for a removed element without a deprecation date.
+const NO_DEPRECATION: &str = "None";
 
 /// The text that the generated file writes for a debit balance.
 const DEBIT_BALANCE: &str = "Some(Balance::Debit)";
@@ -39,6 +42,27 @@ pub struct ElementLine {
     pub balance: Option<Balance>,
     /// The period type.
     pub period_type: PeriodType,
+}
+
+/// One element that the release in use removed, with the data of the last release that defines
+/// it, ready to render.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemovedElementLine {
+    /// The local name. The family is `us-gaap`.
+    pub name: String,
+    /// The standard label.
+    pub label: String,
+    /// The data type as the schema writes it.
+    pub data_type: String,
+    /// The balance, if the concept has one.
+    pub balance: Option<Balance>,
+    /// The period type.
+    pub period_type: PeriodType,
+    /// The ID of the last release that defines the element, for example `us-gaap/2020`.
+    pub last_release: String,
+    /// The ID of the release that the label names as the deprecation date, if the label names
+    /// one.
+    pub deprecated_in: Option<String>,
 }
 
 /// The tables of one release, ready to render.
@@ -142,15 +166,8 @@ pub static ELEMENTS: &[ElementRow] = &[
 ",
     );
     for element in elements {
-        let balance = match element.balance {
-            None => NO_BALANCE,
-            Some(Balance::Debit) => DEBIT_BALANCE,
-            Some(Balance::Credit) => CREDIT_BALANCE,
-        };
-        let period_type = match element.period_type {
-            PeriodType::Instant => INSTANT_PERIOD_TYPE,
-            PeriodType::Duration => DURATION_PERIOD_TYPE,
-        };
+        let balance = balance_text(element.balance);
+        let period_type = period_type_text(element.period_type);
         writeln!(
             source,
             "    ElementRow::new({:?}, {:?}, {:?}, {:?}, {balance}, {period_type}),",
@@ -159,6 +176,65 @@ pub static ELEMENTS: &[ElementRow] = &[
         .expect("Given a String, a write should never fail");
     }
     source.push_str("];\n");
+}
+
+/// Returns the Rust source of `us_gaap/removed.rs` for `elements`, which are sorted by name.
+///
+/// `release_in_use` is the ID of the release that does not define the elements.
+#[must_use]
+pub fn render_removed(release_in_use: &str, elements: &[RemovedElementLine]) -> String {
+    let mut source = format!(
+        "//! # US GAAP Removed Elements
+//!
+//! Provides the reference data of the US GAAP elements that the release `{release_in_use}` does
+//! not define and an earlier release does.
+//!
+//! The generator writes this file from the FASB files that `taxonomy/us-gaap-removed/MANIFEST`
+//! names. Do not edit it. The doc of the binary `generate_us_gaap_removed` says how to run it.
+
+use super::table::RemovedElementRow;
+use crate::core::taxonomy::reference::{{Balance, PeriodType}};
+
+/// The removed elements, sorted by name, with the data of the last release that defines each.
+pub static REMOVED_ELEMENTS: &[RemovedElementRow] = &[
+"
+    );
+    for element in elements {
+        let deprecated_in = element.deprecated_in.as_ref().map_or_else(
+            || NO_DEPRECATION.to_string(),
+            |release| format!("Some({release:?})"),
+        );
+        writeln!(
+            source,
+            "    RemovedElementRow::new({:?}, {:?}, {:?}, {}, {}, {:?}, {deprecated_in}),",
+            element.name,
+            element.label,
+            element.data_type,
+            balance_text(element.balance),
+            period_type_text(element.period_type),
+            element.last_release,
+        )
+        .expect("Given a String, a write should never fail");
+    }
+    source.push_str("];\n");
+    source
+}
+
+/// Returns the Rust source of `balance`.
+const fn balance_text(balance: Option<Balance>) -> &'static str {
+    match balance {
+        None => NO_BALANCE,
+        Some(Balance::Debit) => DEBIT_BALANCE,
+        Some(Balance::Credit) => CREDIT_BALANCE,
+    }
+}
+
+/// Returns the Rust source of `period_type`.
+const fn period_type_text(period_type: PeriodType) -> &'static str {
+    match period_type {
+        PeriodType::Instant => INSTANT_PERIOD_TYPE,
+        PeriodType::Duration => DURATION_PERIOD_TYPE,
+    }
 }
 
 #[cfg(test)]
@@ -232,6 +308,45 @@ pub static ELEMENTS: &[ElementRow] = &[
 "#;
 
         let result = render(&tables);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_write_rust_literals_for_one_removed_element_with_and_one_without_deprecation() {
+        let element = |name: &str, deprecated_in: Option<&str>| RemovedElementLine {
+            name: name.to_string(),
+            label: format!("{name} label"),
+            data_type: "xbrli:monetaryItemType".to_string(),
+            balance: Some(Balance::Credit),
+            period_type: PeriodType::Duration,
+            last_release: "us-gaap/2020".to_string(),
+            deprecated_in: deprecated_in.map(ToString::to_string),
+        };
+        let elements = vec![
+            element("SalesRevenueGoodsNet", Some("us-gaap/2018")),
+            element("TimberRevenue", None),
+        ];
+
+        let expected_result = r#"//! # US GAAP Removed Elements
+//!
+//! Provides the reference data of the US GAAP elements that the release `us-gaap/2026` does
+//! not define and an earlier release does.
+//!
+//! The generator writes this file from the FASB files that `taxonomy/us-gaap-removed/MANIFEST`
+//! names. Do not edit it. The doc of the binary `generate_us_gaap_removed` says how to run it.
+
+use super::table::RemovedElementRow;
+use crate::core::taxonomy::reference::{Balance, PeriodType};
+
+/// The removed elements, sorted by name, with the data of the last release that defines each.
+pub static REMOVED_ELEMENTS: &[RemovedElementRow] = &[
+    RemovedElementRow::new("SalesRevenueGoodsNet", "SalesRevenueGoodsNet label", "xbrli:monetaryItemType", Some(Balance::Credit), PeriodType::Duration, "us-gaap/2020", Some("us-gaap/2018")),
+    RemovedElementRow::new("TimberRevenue", "TimberRevenue label", "xbrli:monetaryItemType", Some(Balance::Credit), PeriodType::Duration, "us-gaap/2020", None),
+];
+"#;
+
+        let result = render_removed("us-gaap/2026", &elements);
 
         assert_eq!(result, expected_result);
     }

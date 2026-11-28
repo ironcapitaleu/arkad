@@ -10,6 +10,8 @@
 //! ## Modules
 //!
 //! - [`mappings`]: The alias lists of the standard concepts.
+//! - [`removed`]: The generated table of the elements that earlier releases define and the
+//!   release does not.
 //! - [`table`]: The row types of the generated tables.
 //! - [`taxonomy`]: The generated tables of the release: calculation arcs and element data.
 //! - [`generator`]: Writes [`taxonomy`] from the vendored FASB files. Only with the `generator`
@@ -29,6 +31,7 @@ use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{
     CalculationArc, CalculationTree, ConceptAliases, ElementReference, PartAliases,
 };
+use crate::core::taxonomy::removed::{RemovedElement, RemovedElements};
 use crate::core::taxonomy::segment::{
     MemberRole, ReconciliationRole, SegmentAxes, SegmentAxis, SegmentAxisKind,
 };
@@ -37,6 +40,10 @@ use crate::core::taxonomy::segment::{
 #[cfg(any(doc, feature = "generator"))]
 pub mod generator;
 pub mod mappings;
+// The generator writes this file. rustfmt must not reflow it, so a run of the generator gives the
+// checked-in bytes.
+#[rustfmt::skip]
+pub mod removed;
 pub mod table;
 // The generator writes this file. rustfmt must not reflow it, so a run of the generator gives the
 // checked-in bytes.
@@ -209,7 +216,8 @@ const FAMILIES: &[FamilySpec] = &[
 /// [`mappings::REQUIRED_CONCEPTS`] and [`mappings::OPTIONAL_CONCEPTS`], in that order.
 /// [`Taxonomy::elements`] holds the elements of the `us-gaap`, `srt`, and `dei` 2026 schemas,
 /// including the ones a schema marks as deprecated. It holds no element that an earlier release
-/// removed, such as `SalesRevenueNet`.
+/// removed, such as `SalesRevenueNet`. [`RemovedElements::removed_elements`] holds those, the
+/// elements of the `us-gaap` schemas 2012 to 2025 that the 2026 schema does not define.
 ///
 /// # Examples
 ///
@@ -232,6 +240,7 @@ pub struct UsGaap {
     aliases: Vec<ConceptAliases>,
     calculation_tree: CalculationTree,
     elements: Vec<ElementReference>,
+    removed_elements: Vec<RemovedElement>,
 }
 
 impl UsGaap {
@@ -274,6 +283,10 @@ impl UsGaap {
             elements: taxonomy::ELEMENTS
                 .iter()
                 .map(|row| element_reference(row, &release_id))
+                .collect(),
+            removed_elements: removed::REMOVED_ELEMENTS
+                .iter()
+                .map(removed_element)
                 .collect(),
         }
     }
@@ -337,6 +350,29 @@ impl Taxonomy for UsGaap {
 
     fn elements(&self) -> &[ElementReference] {
         &self.elements
+    }
+}
+
+impl RemovedElements for UsGaap {
+    /// Finds the element by a binary search, because the generator sorts the elements by name.
+    fn removed_element(&self, concept: &ConceptName) -> Option<&RemovedElement> {
+        if concept.family().as_str() != US_GAAP_FAMILY {
+            return None;
+        }
+        self.removed_elements
+            .binary_search_by(|element| {
+                element
+                    .reference
+                    .concept
+                    .local_name()
+                    .cmp(concept.local_name())
+            })
+            .ok()
+            .map(|index| &self.removed_elements[index])
+    }
+
+    fn removed_elements(&self) -> &[RemovedElement] {
+        &self.removed_elements
     }
 }
 
@@ -475,6 +511,25 @@ fn element_reference(row: &table::ElementRow, release: &TaxonomyReleaseId) -> El
         data_type: row.data_type.to_string(),
         balance: row.balance,
         period_type: row.period_type,
+    }
+}
+
+/// Returns the removed element of one row of the table of removed elements.
+fn removed_element(row: &table::RemovedElementRow) -> RemovedElement {
+    let release = |id: &str| {
+        TaxonomyReleaseId::new(id)
+            .expect("Given a release ID of the generated table, the creation should always succeed")
+    };
+    RemovedElement {
+        reference: ElementReference {
+            concept: concept(US_GAAP_FAMILY, row.name),
+            release: release(row.last_release),
+            label: row.label.to_string(),
+            data_type: row.data_type.to_string(),
+            balance: row.balance,
+            period_type: row.period_type,
+        },
+        deprecated_in: row.deprecated_in.map(release),
     }
 }
 
@@ -1029,6 +1084,31 @@ mod tests {
     }
 
     #[test]
+    fn should_find_removed_element_for_every_alias_and_part_that_the_release_lacks() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result: Vec<ConceptName> = Vec::new();
+
+        let result: Vec<ConceptName> = us_gaap
+            .aliases()
+            .iter()
+            .flat_map(|aliases| {
+                let parts = aliases.parts.iter().flat_map(|parts| {
+                    let own = parts.own_other_parts.iter().flat_map(|(_, others)| others);
+                    parts.parts.iter().chain(&parts.other_parts).chain(own)
+                });
+                aliases.concepts.iter().chain(parts)
+            })
+            .filter(|concept| {
+                us_gaap.element(concept).is_none() && us_gaap.removed_element(concept).is_none()
+            })
+            .cloned()
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created() {
         let us_gaap = UsGaap::new();
 
@@ -1048,7 +1128,6 @@ mod tests {
                 "us-gaap",
                 "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
             ),
-            concept("us-gaap", "IncomeLossFromOperations"),
             concept("us-gaap", "SalesRevenueGoodsNet"),
             concept("us-gaap", "SalesRevenueGoodsNet"),
             concept("us-gaap", "SalesRevenueNet"),
@@ -4754,6 +4833,56 @@ mod tests {
         let expected_result = None;
 
         let result = us_gaap.element(&removed);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_hold_one_row_per_concept_of_the_schemas_2012_to_2025_missing_from_2026() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = 6_628;
+
+        let result = us_gaap.removed_elements().len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_data_of_release_2020_when_removed_concept_is_sales_revenue_net() {
+        let us_gaap = UsGaap::new();
+        let removed = concept("us-gaap", "SalesRevenueNet");
+
+        let expected_result =
+            Some(RemovedElement {
+                reference: ElementReference {
+                    concept: concept("us-gaap", "SalesRevenueNet"),
+                    release: TaxonomyReleaseId::new("us-gaap/2020").expect(
+                        "Given a valid hardcoded release ID, the creation should always succeed",
+                    ),
+                    label: "Revenue, Net (Deprecated 2018-01-31)".to_string(),
+                    data_type: "xbrli:monetaryItemType".to_string(),
+                    balance: Some(Balance::Credit),
+                    period_type: PeriodType::Duration,
+                },
+                deprecated_in: Some(TaxonomyReleaseId::new("us-gaap/2018").expect(
+                    "Given a valid hardcoded release ID, the creation should always succeed",
+                )),
+            });
+
+        let result = us_gaap.removed_element(&removed).cloned();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_no_removed_element_when_release_defines_the_concept() {
+        let us_gaap = UsGaap::new();
+        let defined = concept("us-gaap", "Revenues");
+
+        let expected_result = None;
+
+        let result = us_gaap.removed_element(&defined);
 
         assert_eq!(result, expected_result);
     }

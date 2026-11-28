@@ -8,6 +8,9 @@
 //! the tables as Rust source into `src/us_gaap/taxonomy.rs`, which is checked in. A developer runs
 //! it once per release, with `cargo run -p xbrl --features generator --bin generate_us_gaap`.
 //!
+//! [`removed`] writes the table of the elements that earlier releases removed into
+//! `src/us_gaap/removed.rs`, from FASB files that are not vendored.
+//!
 //! The module is compiled only with the `generator` feature, so a normal build of `xbrl` or of a
 //! crate that depends on it leaves it out.
 //!
@@ -15,6 +18,7 @@
 //!
 //! - [`error`]: The error of a run.
 //! - [`linkbase`]: Reads labels and calculation arcs.
+//! - [`removed`]: Reads the elements that earlier releases removed.
 //! - [`render`]: Writes the Rust source of the tables.
 //! - [`schema`]: Reads the concepts of the element schema.
 
@@ -31,6 +35,7 @@ use self::render::{ElementLine, Tables};
 
 pub mod error;
 pub mod linkbase;
+pub mod removed;
 pub mod render;
 pub mod schema;
 
@@ -57,7 +62,8 @@ const SRT_FOLDER: &str = "taxonomy/srt/2026";
 /// The folder of the vendored `dei` release, relative to the `xbrl` crate.
 const DEI_FOLDER: &str = "taxonomy/dei/2026";
 
-/// The element schemas that the generator reads, with the family of their concepts.
+/// The element schemas that the generator reads, with the family of their concepts. The first one
+/// is the US GAAP schema.
 const ELEMENT_SCHEMAS: &[ElementSchema] = &[
     ElementSchema {
         family: "us-gaap",
@@ -226,11 +232,16 @@ fn release_checksum(xbrl_crate: &Path) -> Result<String, GeneratorError> {
         })?;
         hasher.update(&bytes);
     }
-    let mut checksum = String::new();
-    for byte in hasher.finalize() {
-        write!(checksum, "{byte:02x}").expect("Given a String, a write should never fail");
+    Ok(hex(&hasher.finalize()))
+}
+
+/// Returns `digest` as lowercase hex digits.
+fn hex(digest: &[u8]) -> String {
+    let mut text = String::new();
+    for byte in digest {
+        write!(text, "{byte:02x}").expect("Given a String, a write should never fail");
     }
-    Ok(checksum)
+    text
 }
 
 /// Returns the text of the file at `path`.

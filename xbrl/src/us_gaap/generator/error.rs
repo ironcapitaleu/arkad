@@ -115,6 +115,49 @@ pub enum GeneratorError {
         concept: String,
     },
 
+    /// A source file has another SHA-256 than its line of the `MANIFEST`.
+    #[error("[UnexpectedChecksum] Source file differs from the MANIFEST, Expected: '{expected}', Actual: '{actual}', Path: '{}'", path.display())]
+    UnexpectedChecksum {
+        /// The path of the file.
+        path: PathBuf,
+        /// The SHA-256 that the `MANIFEST` names.
+        expected: String,
+        /// The SHA-256 of the file.
+        actual: String,
+    },
+
+    /// A line of the `MANIFEST` does not name a SHA-256 and the FASB URL of a US GAAP element
+    /// schema or label linkbase.
+    #[error("[InvalidManifestLine] Line does not name a SHA-256 and a FASB element file, Text: '{text}', Line: '{line}', Path: '{}'", path.display())]
+    InvalidManifestLine {
+        /// The path of the `MANIFEST`.
+        path: PathBuf,
+        /// The number of the line, from 1.
+        line: usize,
+        /// The text of the line.
+        text: String,
+    },
+
+    /// The `MANIFEST` names a release without its element schema or without its label linkbase.
+    #[error("[MissingSourceFile] No {file} found in the MANIFEST for release '{release}'")]
+    MissingSourceFile {
+        /// The release, for example `us-gaap/2020`.
+        release: String,
+        /// The missing file, `element schema` or `label linkbase`.
+        file: &'static str,
+    },
+
+    /// A standard label ends with a deprecation date in an unknown form.
+    #[error(
+        "[InvalidDeprecationDate] Label of concept '{concept}' ends with an unknown deprecation date, Label: '{label}'"
+    )]
+    InvalidDeprecationDate {
+        /// The concept, as `<family>:<name>`.
+        concept: String,
+        /// The standard label.
+        label: String,
+    },
+
     /// Two arcs of one network join the same parent and child with different weights.
     #[error(
         "[ConflictingWeight] Arc '{parent}' to '{child}' has two weights, Weights: '{first}' and '{second}', Role: '{role}'"
