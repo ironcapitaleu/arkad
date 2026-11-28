@@ -57,7 +57,7 @@ impl fmt::Display for Measure {
 ///
 /// The set of units is open. A filer can report in any currency, for example `EUR`, and an XBRL
 /// unit can divide or multiply measures, for example `USD/shares`. The text form is the canonical
-/// form of silver: the numerator measures joined by `*`, then `/` and the denominator measures if
+/// form that the datasets store: the numerator measures joined by `*`, then `/` and the denominator measures if
 /// there are any. The measures of each side are sorted, so one unit has one text.
 ///
 /// # Examples

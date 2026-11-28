@@ -6,7 +6,7 @@
 //! The reconciliation shows how the business segments add up to the consolidated value. It runs
 //! only on the axes of kind [`SegmentAxisKind::BusinessSegment`]. The roles come from
 //! [`SegmentAxes::member_roles`] of the plug-in that resolved each candidate, so this module names no
-//! axis and no member of a taxonomy. Silver stores no line of a reconciliation, and
+//! axis and no member of a taxonomy. The datasets store no line of a reconciliation, and
 //! [`reconcile`] gives no finding.
 //!
 //! `docs/adr/0030-segment-reconciliation-per-report.md` records why the reconciliation runs per

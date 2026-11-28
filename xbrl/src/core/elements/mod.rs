@@ -53,8 +53,8 @@ pub use statement::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept
 
 /// A standard concept: the top of the concept hierarchy.
 ///
-/// Silver stores the name of the innermost variant, from [`Concept::name`], such as `NetIncome`.
-/// It never stores the label of `Display`, such as `Net Income`. `Serialize` writes the name, and
+/// The datasets store the name of the innermost variant, from [`Concept::name`], such as
+/// `NetIncome`. They never store the label of `Display`, such as `Net Income`. `Serialize` writes the name, and
 /// [`FromStr`] parses it back.
 ///
 /// `Ord` sorts by statement first, then by the order of the variants in the enum of the concept.
@@ -86,7 +86,7 @@ pub trait Concept: Copy + Eq + 'static {
     /// Every variant, in the order of the enum.
     const ALL: &'static [Self];
 
-    /// Returns the name in silver, such as `NetIncome`: the name of the variant.
+    /// Returns the stored name, such as `NetIncome`: the name of the variant.
     fn name(self) -> &'static str;
 
     /// Returns the label for people, such as `Net Income`.
@@ -163,7 +163,7 @@ middle_concepts! {
 }
 
 impl CanonicalElementKind {
-    /// Returns the name in silver of the concept, such as `NetIncome`.
+    /// Returns the stored name of the concept, such as `NetIncome`.
     #[must_use]
     pub fn name(self) -> &'static str {
         match self {
@@ -190,7 +190,7 @@ impl fmt::Display for CanonicalElementKind {
 }
 
 impl Serialize for CanonicalElementKind {
-    /// Writes the name in silver, such as `NetIncome`.
+    /// Writes the stored name, such as `NetIncome`.
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(self.name())
     }
@@ -199,7 +199,7 @@ impl Serialize for CanonicalElementKind {
 impl FromStr for CanonicalElementKind {
     type Err = InvalidValue;
 
-    /// Parses the name in silver, such as `NetIncome`, back to its concept.
+    /// Parses the stored name, such as `NetIncome`, back to its concept.
     ///
     /// # Errors
     ///

@@ -29,12 +29,12 @@
 //! - [`rate_limiter`]: Provides a leaky-bucket rate limiter for pacing outgoing SEC API requests.
 //! - [`request`]: Provides utilities for constructing SEC API requests, ensuring proper URL formatting.
 //! - [`response`]: Provides utilities for handling HTTP responses from SEC endpoints.
-//! - [`row_digest`]: Provides [`content_digest`](row_digest::content_digest), the SHA-256 of the rows of a silver unit, and [`ByteForm`](row_digest::ByteForm), the byte form of the values it hashes.
+//! - [`row_digest`]: Provides [`content_digest`](row_digest::content_digest), the SHA-256 of the rows of a write unit, and [`ByteForm`](row_digest::ByteForm), the byte form of the values it hashes.
 //! - [`run_fields`]: Provides [`RunFields`](run_fields::RunFields), the metadata fields that name the run that produced a stored document.
 //! - [`source_counts`]: Provides [`SourceCounts`](source_counts::SourceCounts), the source rows of one filing and the rows the parse dropped, by reason.
 //! - [`source_document`]: Provides [`SourceDocument`](source_document::SourceDocument), the raw document that the rows of one filing come from.
 //! - [`stored_form_index`]: Provides [`StoredFormIndex`](stored_form_index::StoredFormIndex), the key, the SHA-256, and the text of one stored daily index or full index.
-//! - [`transform_version`]: Provides [`TRANSFORM_VERSION`](transform_version::TRANSFORM_VERSION), the version of the silver output that this build writes.
+//! - [`transform_version`]: Provides [`TRANSFORM_VERSION`](transform_version::TRANSFORM_VERSION), the version of the transform output that this build writes.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
 //!
 //! ## Usage

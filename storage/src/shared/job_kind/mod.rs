@@ -1,6 +1,6 @@
 //! # Job Kind
 //!
-//! Provides [`JobKind`], the name of the jobs that write one silver unit key, such as
+//! Provides [`JobKind`], the name of the jobs that write one unit key of a dataset, such as
 //! `transform-notes`.
 //!
 //! ## Modules
@@ -13,7 +13,7 @@ pub mod invalid_job_kind;
 
 pub use invalid_job_kind::InvalidJobKind;
 
-/// The name of the jobs that write one silver unit key, such as `transform-notes`: lower-case
+/// The name of the jobs that write one unit key of a dataset, such as `transform-notes`: lower-case
 /// ASCII letters, digits, and `-`.
 ///
 /// A [`LeaseRepository`](crate::LeaseRepository) holds one lease per job kind. A backend uses the

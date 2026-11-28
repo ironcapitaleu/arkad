@@ -4,7 +4,7 @@
 //! standardized facts, and a typed view of each kind of statement.
 //!
 //! A statement lays out the lines of its roll-up tree and computes the other line of each open
-//! group at read time. Silver stores no statement and no other line, so a statement always matches
+//! group at read time. The datasets store no statement and no other line, so a statement always matches
 //! the stored facts and the tree. A view takes only the concepts of its statement, so the compiler
 //! rejects a concept of another statement.
 //!

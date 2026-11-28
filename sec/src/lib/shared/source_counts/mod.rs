@@ -4,7 +4,7 @@
 //! by [`DropReason`].
 //!
 //! The writer adds the counts of each filing into `source_rows` and `dropped_rows` of the
-//! `as_is_facts` unit, so that check 3 of the silver contract, "Row counts", holds.
+//! `as_is_facts` unit, so that check 3 of `silver_layer.md`, "Row counts", holds.
 
 use std::collections::BTreeMap;
 use std::fmt;
