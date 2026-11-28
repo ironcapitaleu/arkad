@@ -24,10 +24,11 @@ use xbrl::core::rule::RuleId;
 use xbrl::core::unit::Unit;
 
 use crate::datasets::columns::{
-    BatchColumns, date_from_days, date32, decimal128_array, decimals_arrays, decimals_from_columns,
-    dimensions_array, dimensions_at, dimensions_item, failed_batch, list_array, nullable,
-    number_from_decimal128, period_from_columns, timestamp_array, timestamp_from_milliseconds,
-    timestamp_type, unexpected_value, utf8_or_null, write_decimals, write_dimensions,
+    BatchColumns, confidence_from_name, date_from_days, date32, decimal128_array, decimals_arrays,
+    decimals_from_columns, dimensions_array, dimensions_at, dimensions_item, failed_batch,
+    list_array, nullable, number_from_decimal128, period_from_columns, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null, write_decimals,
+    write_dimensions,
 };
 use crate::datasets::constants::{DECIMAL_PRECISION, DECIMAL_SCALE};
 use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
@@ -309,18 +310,6 @@ const fn reported(candidate: &Candidate) -> Option<(&BigDecimal, Option<Decimals
         } => Some((value, *decimals, *confidence)),
         CandidateValue::Blocked => None,
     }
-}
-
-/// Returns the confidence whose name is `text`, for example `Exact`.
-fn confidence_from_name(text: &str) -> Option<Confidence> {
-    [
-        Confidence::Exact,
-        Confidence::Synonym,
-        Confidence::Derived,
-        Confidence::Computed,
-    ]
-    .into_iter()
-    .find(|confidence| confidence.to_string() == text)
 }
 
 /// The arrays of the candidate columns of one batch.

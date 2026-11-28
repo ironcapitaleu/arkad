@@ -9,8 +9,8 @@
 //! ## Modules
 //!
 //! - [`traits`]: The [`ArrowRow`] contract of a row type.
-//! - [`implementations`]: The row types, such as [`AsIsFactRow`] and [`CandidateRow`], and their
-//!   [`Provenance`] and [`RunColumns`].
+//! - [`implementations`]: The row types, such as [`AsIsFactRow`], [`CandidateRow`], and
+//!   [`FindingRow`], and their [`Provenance`] and [`RunColumns`].
 //! - [`arrow_row_error`]: The [`ArrowRowError`] of a row type.
 //! - [`schema_text`](mod@schema_text): The text form of a schema.
 //! - [`constants`]: The Arrow time zone, the type of the decimal columns, and the folder labels of
@@ -31,6 +31,9 @@ pub mod traits;
 
 pub use arrow_row_error::ArrowRowError;
 pub use constants::{FOLDER_LABELS, UTC_TIME_ZONE};
-pub use implementations::{AsIsFactRow, CandidateRow, Provenance, RunColumns, SourceKind};
+pub use implementations::{
+    AsIsFactRow, CandidateRow, FindingChange, FindingKind, FindingPeriod, FindingRow, FindingStep,
+    Provenance, RunColumns, SourceKind,
+};
 pub use schema_text::schema_text;
 pub use traits::ArrowRow;
