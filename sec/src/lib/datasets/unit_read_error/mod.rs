@@ -105,10 +105,10 @@ mod tests {
     fn should_print_the_reason_when_a_manifest_does_not_decode() {
         let error = UnitReadError::FailedManifestDecoding {
             path: "unit_manifests/execution=e/task=0-0.parquet".to_owned(),
-            reason: "the footer holds no 'schema_version'".to_owned(),
+            reason: "the footer holds no valid schema_version".to_owned(),
         };
 
-        let expected_result = "[FailedManifestDecoding] Failed to decode the unit manifest 'unit_manifests/execution=e/task=0-0.parquet', Reason: 'the footer holds no 'schema_version''";
+        let expected_result = "[FailedManifestDecoding] Failed to decode the unit manifest 'unit_manifests/execution=e/task=0-0.parquet', Reason: 'the footer holds no valid schema_version'";
 
         let result = error.to_string();
 

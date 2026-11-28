@@ -44,6 +44,8 @@ pub struct TaskLocation {
 /// # Errors
 ///
 /// Returns:
+/// - [`UnitWriteError::InvalidTaskLocation`] if a unit names another execution or attempt than
+///   `task`.
 /// - [`UnitWriteError::FailedManifestConversion`] if the rows do not turn into a record batch.
 /// - [`UnitWriteError::FailedManifestEncoding`] if Parquet rejects the batch.
 /// - [`UnitWriteError::FailedManifestWrite`] if the store does not write the file, for example
@@ -59,6 +61,16 @@ where
 {
     if units.is_empty() {
         return Ok(());
+    }
+    if let Some(unit) = units
+        .iter()
+        .find(|unit| unit.row.execution_id != task.execution_id || unit.attempt != task.attempt)
+    {
+        return Err(UnitWriteError::InvalidTaskLocation {
+            unit_key: unit.row.unit_key.clone(),
+            execution_id: unit.row.execution_id,
+            attempt: unit.attempt,
+        });
     }
     let rows: Vec<UnitManifestRow> = units
         .into_iter()

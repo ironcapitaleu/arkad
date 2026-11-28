@@ -33,7 +33,9 @@ use crate::datasets::{
     ArrowRow, PartLocation, PartOrder, SourceKind, TaskAttempt, UnitManifestRow, UnitWriteError,
     current_units, write_part,
 };
-use crate::shared::row_digest::{ByteForm, DigestRow, GroupHash, content_digest, group_hashes};
+use crate::shared::row_digest::{
+    ByteForm, DigestRow, GroupHash, content_digest, group_hashes_and_row_bytes,
+};
 
 pub mod constants;
 
@@ -81,6 +83,8 @@ pub struct WrittenUnit {
     pub(crate) row: UnitManifestRow,
     /// The `written_at` of the current unit of the key, if the key has one.
     pub(crate) current_written_at: Option<Timestamp>,
+    /// The attempt of the task that wrote the parts.
+    pub(crate) attempt: TaskAttempt,
 }
 
 /// The writer of the parts of one unit of the dataset of `R`.
@@ -168,12 +172,9 @@ where
     ///
     /// Returns [`UnitWriteError::FailedPartWrite`] if [`write_part()`] does not write the part.
     pub async fn push_groups(&mut self, rows: Vec<R>) -> Result<(), UnitWriteError> {
-        self.groups.extend(group_hashes(&rows));
-        for row in &rows {
-            let mut byte_form = ByteForm::new();
-            row.write_row(&mut byte_form);
-            self.row_bytes += byte_form.as_bytes().len();
-        }
+        let (groups, row_bytes) = group_hashes_and_row_bytes(&rows);
+        self.groups.extend(groups);
+        self.row_bytes += row_bytes;
         self.rows.extend(rows);
         if self.row_bytes >= self.flush_bytes {
             self.flush().await?;
@@ -227,6 +228,7 @@ where
         Ok(WrittenUnit {
             row,
             current_written_at: self.current_written_at,
+            attempt: spec.attempt,
         })
     }
 
@@ -283,6 +285,7 @@ mod tests {
 
     use arrow::array::{RecordBatch, StringArray};
     use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
+    use futures_util::TryStreamExt;
     use pretty_assertions::assert_eq;
     use storage::implementations::repository::write_once::WriteOnceFilesystemRepository;
     use tempfile::TempDir;
@@ -477,6 +480,103 @@ mod tests {
             .into_iter()
             .map(|(key, unit)| (key, unit.transform_version))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_keep_the_latest_written_at_when_the_newer_unit_is_listed_first() {
+        let (_directory, store) = store();
+        // The list file of execution 2 sorts after that of execution 1, but holds the older unit.
+        write_unit(&store, spec(1, 2), time("2026-11-28T12:00:00Z")).await;
+        write_unit(&store, spec(2, 1), time("2026-11-28T13:00:00Z")).await;
+
+        let expected_result = vec![2];
+
+        let result: Vec<u32> = current(&store)
+            .await
+            .into_values()
+            .map(|unit| unit.transform_version)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_start_a_write_when_the_inputs_change_at_the_same_version() {
+        let (_directory, store) = store();
+        write_unit(&store, spec(1, 1), time("2026-11-28T12:00:00Z")).await;
+        let mut changed = spec(1, 2);
+        changed.inputs = vec![input("sec/notes/2024q1_notes.zip", "corrected zip")];
+
+        let expected_result = "write";
+
+        let start = FakeWriter::start(&store, changed)
+            .await
+            .expect("Given list files that the writer wrote, the start should always succeed");
+        let result = match start {
+            UnitStart::Skipped(_) => "skip",
+            UnitStart::Write(_) => "write",
+        };
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_no_unit_of_another_source_when_reading_the_current_units() {
+        let (_directory, store) = store();
+        write_unit(&store, spec(1, 1), time("2026-11-28T12:00:00Z")).await;
+
+        let expected_result = CurrentUnits::new();
+
+        let result = current_units(&store, FakeRow::DATASET, Some(SourceKind::Instance))
+            .await
+            .expect("Given list files that the writer wrote, the read should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_write_no_list_file_when_the_task_has_no_unit() {
+        let (_directory, store) = store();
+        let task = TaskLocation {
+            execution_id: Uuid::from_u128(1),
+            task_index: 0,
+            attempt: spec(1, 1).attempt,
+        };
+        write_task_manifest(&store, &task, Vec::new(), time("2026-11-28T12:00:00Z"))
+            .await
+            .expect("Given no unit, the call should always succeed");
+
+        let expected_result: Vec<DocumentKey> = Vec::new();
+
+        let result: Vec<DocumentKey> = store
+            .list_keys(KeyPrefix::root())
+            .try_collect()
+            .await
+            .expect("Given a readable root, the listing should always succeed");
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_task_location_when_a_unit_names_another_execution() {
+        let (_directory, store) = store();
+        let unit = written_unit(&store, spec(1, 1)).await;
+        let task = TaskLocation {
+            execution_id: Uuid::from_u128(2),
+            task_index: 0,
+            attempt: unit.attempt,
+        };
+
+        let expected_result = Err(UnitWriteError::InvalidTaskLocation {
+            unit_key: "2024q1".to_owned(),
+            execution_id: Uuid::from_u128(1),
+            attempt: unit.attempt,
+        });
+
+        let result =
+            write_task_manifest(&store, &task, vec![unit], time("2026-11-28T12:00:00Z")).await;
 
         assert_eq!(result, expected_result);
     }

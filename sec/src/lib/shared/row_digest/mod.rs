@@ -104,20 +104,29 @@ type KeyedRow = (Vec<u8>, Vec<u8>);
 /// assert_eq!(result, expected_result);
 /// ```
 pub fn group_hashes<R: DigestRow>(rows: &[R]) -> Vec<GroupHash> {
+    group_hashes_and_row_bytes(rows).0
+}
+
+/// Returns the [`group_hashes`] of the rows, and the bytes of the byte form of the rows.
+///
+/// The writer of a unit flushes a part by the second value, so it prints each row once.
+pub(crate) fn group_hashes_and_row_bytes<R: DigestRow>(rows: &[R]) -> (Vec<GroupHash>, usize) {
+    let mut row_bytes = 0;
     let mut groups: BTreeMap<Vec<u8>, Vec<KeyedRow>> = BTreeMap::new();
     for row in rows {
         let mut group_id = ByteForm::new();
         row.write_group_id(&mut group_id);
         let mut row_key = ByteForm::new();
         row.write_row_key(&mut row_key);
-        let mut row_bytes = ByteForm::new();
-        row.write_row(&mut row_bytes);
+        let mut row_form = ByteForm::new();
+        row.write_row(&mut row_form);
+        row_bytes += row_form.as_bytes().len();
         groups
             .entry(group_id.into_bytes())
             .or_default()
-            .push((row_key.into_bytes(), row_bytes.into_bytes()));
+            .push((row_key.into_bytes(), row_form.into_bytes()));
     }
-    groups
+    let hashes = groups
         .into_iter()
         .map(|(group_id, mut keyed_rows)| {
             keyed_rows.sort_unstable();
@@ -130,7 +139,8 @@ pub fn group_hashes<R: DigestRow>(rows: &[R]) -> Vec<GroupHash> {
                 hash: hasher.finalize().into(),
             }
         })
-        .collect()
+        .collect();
+    (hashes, row_bytes)
 }
 
 /// Returns the `content_digest` of a write unit from the hashes of its digest groups.
@@ -429,6 +439,18 @@ mod tests {
         let expected_result = Err(DuplicateDigestGroup::new(&group_id));
 
         let result = content_digest(groups);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_return_the_byte_form_length_of_the_rows_with_their_group_hashes() {
+        let rows = [row("a", "b", 1), row("a", "c", 2)];
+
+        // Each row prints three values of one character: marker, 4-byte length, text.
+        let expected_result = 36;
+
+        let (_, result) = group_hashes_and_row_bytes(&rows);
 
         assert_eq!(result, expected_result);
     }

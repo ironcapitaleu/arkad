@@ -6,8 +6,9 @@
 
 use storage::WriteError;
 use thiserror::Error;
+use uuid::Uuid;
 
-use crate::datasets::{ArrowRowError, PartWriteError, UnitReadError};
+use crate::datasets::{ArrowRowError, PartWriteError, TaskAttempt, UnitReadError};
 use crate::shared::row_digest::DuplicateDigestGroup;
 
 /// Error of a unit, or of the list file of a task, that the writer did not write.
@@ -33,6 +34,19 @@ pub enum UnitWriteError {
     /// Passes through: prints the inner error as it is, because this layer adds no fact.
     #[error(transparent)]
     FailedManifestConversion(#[from] ArrowRowError),
+
+    /// A unit was written by another execution or attempt than the task of the list file.
+    #[error(
+        "[InvalidTaskLocation] Unit '{unit_key}' was written by execution '{execution_id}', attempt '{attempt}', not by the task of the list file"
+    )]
+    InvalidTaskLocation {
+        /// The key of the unit, for example `2024q1`.
+        unit_key: String,
+        /// The execution that wrote the parts of the unit.
+        execution_id: Uuid,
+        /// The attempt that wrote the parts of the unit.
+        attempt: TaskAttempt,
+    },
 
     /// Parquet rejects the batch or the properties of the list file.
     #[error(
@@ -72,6 +86,24 @@ mod tests {
         });
 
         let expected_result = "[InvalidUnitKey] Unit key '2024/q1' is not one component of a key";
+
+        let result = error.to_string();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_unit_and_its_attempt_when_the_task_location_differs() {
+        let error = UnitWriteError::InvalidTaskLocation {
+            unit_key: "2024q1".to_owned(),
+            execution_id: Uuid::nil(),
+            attempt: TaskAttempt {
+                number: 1,
+                is_bucket_split: true,
+            },
+        };
+
+        let expected_result = "[InvalidTaskLocation] Unit '2024q1' was written by execution '00000000-0000-0000-0000-000000000000', attempt '1-b', not by the task of the list file";
 
         let result = error.to_string();
 

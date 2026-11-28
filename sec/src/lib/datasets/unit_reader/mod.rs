@@ -137,9 +137,7 @@ fn decode_manifest(path: &str, bytes: Bytes) -> Result<Vec<UnitManifestRow>, Uni
         })
         .and_then(|entry| entry.value.as_deref()?.parse::<u16>().ok())
         .ok_or_else(|| {
-            failed_decoding(format!(
-                "the footer holds no valid '{FOOTER_SCHEMA_VERSION}'"
-            ))
+            failed_decoding(format!("the footer holds no valid {FOOTER_SCHEMA_VERSION}"))
         })?;
     let reader = builder
         .build()
@@ -161,9 +159,35 @@ fn decode_manifest(path: &str, bytes: Bytes) -> Result<Vec<UnitManifestRow>, Uni
 
 #[cfg(test)]
 mod tests {
+    use parquet::arrow::ArrowWriter;
     use pretty_assertions::assert_eq;
 
     use super::*;
+
+    #[test]
+    fn should_return_failed_manifest_decoding_when_the_footer_has_no_schema_version() {
+        let batch =
+            UnitManifestRow::to_batch(&[]).expect("Given no rows, the batch should always build");
+        let mut writer = ArrowWriter::try_new(Vec::new(), batch.schema(), None)
+            .expect("Given the schema of a batch, the writer should always build");
+        writer
+            .write(&batch)
+            .expect("Given a batch of the schema, the write should always succeed");
+        let bytes = Bytes::from(
+            writer
+                .into_inner()
+                .expect("Given a written batch, the file should always close"),
+        );
+
+        let expected_result = Err(UnitReadError::FailedManifestDecoding {
+            path: "unit_manifests/execution=e/task=0-0.parquet".to_owned(),
+            reason: "the footer holds no valid schema_version".to_owned(),
+        });
+
+        let result = decode_manifest("unit_manifests/execution=e/task=0-0.parquet", bytes);
+
+        assert_eq!(result, expected_result);
+    }
 
     #[test]
     fn should_return_failed_manifest_decoding_when_the_bytes_are_not_parquet() {
