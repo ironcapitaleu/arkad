@@ -56,7 +56,6 @@ pub use summary::{FailedBackfill, MissingCutOverDate, NotesRunSummary};
 /// [`NotesBatchBuilder::in_flight`].
 ///
 /// The rate limiter limits requests per second, not files in memory, so this cap bounds memory.
-/// See "Memory and the Cap on Files in Flight" in `sec/design/pipeline/ingestion_paths.md`.
 pub const DEFAULT_FILES_IN_FLIGHT: usize = 2;
 
 /// The most periods at the end of a run that the run summary counts as unpublished.

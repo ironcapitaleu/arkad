@@ -17,8 +17,7 @@ use crate::shared::row_digest::ByteForm;
 
 /// The version of the transform output and the run that wrote a dataset row.
 ///
-/// Every row of a dataset ends with these columns. `sec/design/pipeline/silver_layer.md`,
-/// "Provenance", names them.
+/// Every row of a dataset ends with these columns.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RunColumns {
     /// The version of the transform output, as in

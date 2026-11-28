@@ -63,7 +63,6 @@ const ZERO_IN_CHECK_ONLY: [CanonicalElementKind; 1] =
 /// The rule repeats until no group gives a new value, so a derived value can feed another group. In
 /// each pass, it visits the closed groups in the order of
 /// [`groups`]. The first group that gives a value wins.
-/// `docs/adr/0013-order-of-the-groups.md` records the order.
 ///
 /// The fact takes the period, the unit, and the release of its first known member. The confidence
 /// is [`Confidence::Derived`], or the weakest confidence of an input. The fact has `restated` if an

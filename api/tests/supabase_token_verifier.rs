@@ -65,7 +65,7 @@ async fn sign_in(
 }
 
 #[tokio::test]
-#[ignore = "needs the local Supabase stack, see the README section \"Local Supabase Stack\""]
+#[ignore = "needs the local Supabase stack: `supabase start`, with an ES256 key in `supabase/signing_keys.json`"]
 async fn should_return_the_account_of_the_user_when_the_local_stack_signed_the_token() {
     let supabase_url = env("SUPABASE_URL");
     let client = reqwest::Client::new();

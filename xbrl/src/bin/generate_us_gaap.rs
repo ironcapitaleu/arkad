@@ -9,7 +9,7 @@ use std::process::ExitCode;
 use xbrl::us_gaap::generator::error::GeneratorError;
 use xbrl::us_gaap::generator::{OUTPUT_FILE, generate};
 
-// Deviation from the logging rules of AGENTS.md: this is a developer tool that runs once per
+// Deviation from the logging rules of the project: this is a developer tool that runs once per
 // release on a laptop, never in a container. It prints the error chain to stderr and needs no
 // structured log.
 fn main() -> ExitCode {

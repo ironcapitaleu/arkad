@@ -28,7 +28,7 @@ pub use income_statement::IncomeStatementConcept;
 /// The groups of the balance sheet come first, then those of the income statement, then those of
 /// the cash flow statement. Each statement lists its groups in the order of the first row that
 /// names each group in the table of the statement. The derivation from a closed group visits the
-/// groups in this order. `docs/adr/0013-order-of-the-groups.md` records the order.
+/// groups in this order.
 ///
 /// The list holds a group only if its parent, its start if it is a step, and at least one child
 /// are standard concepts.

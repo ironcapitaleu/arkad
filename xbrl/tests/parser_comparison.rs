@@ -14,15 +14,15 @@
 //!   value keys differ.
 //!
 //! The Notes data set loses some content on the way from the instance. The comparison allows the
-//! losses below. "readme" is `readme.htm` in each Notes ZIP. "Measured Result" is the section of
-//! `sec/design/pipeline/ingestion_paths.md`.
+//! losses below. "readme" is `readme.htm` in each Notes ZIP, and "measured" means a count over
+//! filings that both sources hold.
 //!
-//! - Notes rounds a number to 4 decimals (readme and "Measured Result").
+//! - Notes rounds a number to 4 decimals (readme, measured).
 //! - Notes drops non-ASCII characters, except some accented letters, which it writes without the
-//!   accent ("Measured Result").
+//!   accent (measured).
 //! - Notes collapses whitespace and removes the markup of a text block (readme).
 //! - Notes cuts a footnote at 512 characters (readme), and drops a footnote that no statement page
-//!   shows ("Measured Result").
+//!   shows (measured).
 //! - Notes writes a duration whose start equals its end with `qtrs` 0 and `durp` 0, as an instant.
 //!
 //! Any other difference is a difference in parser logic, and fails the test. The Notes parser

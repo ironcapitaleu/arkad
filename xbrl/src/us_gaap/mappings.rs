@@ -275,7 +275,7 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
         true,
     ),
     // Cash Flow backbone. The totals of continuing operations are parts. `PART_CONCEPTS` holds
-    // them. `NetCashProvidedByUsedInContinuingOperations` gets no mapping, as ADR 0049 decides.
+    // them. `NetCashProvidedByUsedInContinuingOperations` gets no mapping.
     ConceptDefinition::new(
         CashFlowConcept::OperatingCashFlow.element(),
         &["NetCashProvidedByUsedInOperatingActivities"],

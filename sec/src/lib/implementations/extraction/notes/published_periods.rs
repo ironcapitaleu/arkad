@@ -4,8 +4,7 @@
 //! and its error [`FailedNotesProbe`].
 //!
 //! About a year after a quarter ends, the SEC merges the three monthly files of the quarter into
-//! one quarterly file and removes the monthly files (assumption A4 in
-//! `sec/design/pipeline/ingestion_paths.md`). The merge came 367 to 458 days after the quarter end
+//! one quarterly file and removes the monthly files. The merge came 367 to 458 days after the quarter end
 //! in the last 10 quarters. Within 24 months, the date does not tell whether a quarter is merged,
 //! so the run asks the SEC with a `HEAD` request.
 

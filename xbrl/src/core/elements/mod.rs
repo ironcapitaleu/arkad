@@ -10,8 +10,7 @@
 //!   [`CashFlowConcept`].
 //! - [`DisclosureConcept`] holds a [`PerShareConcept`] or a [`DebtMaturityConcept`].
 //!
-//! Each level converts up with `From` and down with `TryFrom`. `docs/adr/0011-concept-hierarchy.md`
-//! records why the concepts nest this way.
+//! Each level converts up with `From` and down with `TryFrom`.
 //!
 //! ## Modules
 //!

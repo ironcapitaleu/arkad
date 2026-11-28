@@ -59,8 +59,7 @@ const DISPLAY_PREFIX_LENGTH: usize = PREFIX_LENGTH + 4;
 ///
 /// The API stores only the [`ApiKey::digest`]. [`Debug`] and [`Display`] print the
 /// [`ApiKey::display_prefix`], never the secret. Only [`ApiKey::expose_secret`] returns the full
-/// key. A drop overwrites the key in memory with zeros. `docs/adr/0046-api-key-format.md` records
-/// the format.
+/// key. A drop overwrites the key in memory with zeros.
 #[derive(Clone)]
 pub struct ApiKey {
     environment: KeyEnvironment,

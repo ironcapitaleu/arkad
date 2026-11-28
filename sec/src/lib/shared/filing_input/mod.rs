@@ -4,8 +4,6 @@
 //! [`NotesFilingInput`] from a Notes file and [`InstanceFilingInput`] from a filing day.
 //!
 //! A unit reader fills these values, and the parse state of each source reads them.
-//! `sec/design/pipeline/transform_per_filing.md`, "The Notes Reader" and "The Filing Day Reader",
-//! says how each reader fills them.
 
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};

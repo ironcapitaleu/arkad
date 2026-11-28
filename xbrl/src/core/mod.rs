@@ -38,7 +38,7 @@
 //! - [`rule`]: The ID of a rule.
 //! - [`scope`]: The part of a standard concept that a value covers.
 //! - [`segment`]: The segment reconciliation of one filing.
-//! - [`series`]: The rules that run on every filing of one entity, in the dedup order.
+//! - [`series`]: The rules that run on every filing of one entity.
 //! - [`standardized`]: One value of one standard concept.
 //! - [`statement`]: The financial statements, laid out by their roll-up trees.
 //! - [`sum_check`]: The checks of the sums of disclosures on a standardized series.

@@ -29,15 +29,15 @@ use crate::shared::row_digest::{ByteForm, DigestRow};
 /// One row of `findings`: a finding of the parser, the standardize filing step, or the series
 /// step.
 ///
-/// `sec/design/pipeline/silver_layer.md`, `findings`, names the columns. A row holds the columns,
-/// not an `xbrl` finding, because the columns hold less than a finding.
+/// A row holds the columns, not an `xbrl` finding, because the columns hold less than a finding.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FindingRow {
     /// The kind of the finding.
     pub kind: FindingKind,
     /// The entity the finding is about.
     pub entity: EntityId,
-    /// The concepts of the finding, in the order that `silver_layer.md` gives for its kind.
+    /// The concepts of the finding, in a fixed order for its kind. The order enters the key of the
+    /// finding, so it must not change from run to run.
     pub concepts: Vec<String>,
     /// The periods of the finding, sorted by `period_end`, then `quarters`.
     ///
@@ -94,7 +94,7 @@ pub enum FindingKind {
 }
 
 impl FindingKind {
-    /// Every kind, in the order of the `kind` column in `silver_layer.md`.
+    /// Every kind.
     const ALL: [Self; 14] = [
         Self::UndeclaredFamily,
         Self::UnmappedRow,

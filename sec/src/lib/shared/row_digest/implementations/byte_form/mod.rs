@@ -26,8 +26,7 @@ pub mod constants;
 /// 4-byte big-endian length and its UTF-8 text. A list or a struct enters as a 4-byte
 /// big-endian count, and its elements or fields follow in their own byte form.
 ///
-/// [ADR 0033](https://github.com/ironcapitaleu/arkad/blob/main/docs/adr/0033-byte-form-of-content-digest.md)
-/// fixes the form. A change of a print rule changes every digest, and needs a new
+/// A change of a print rule changes every digest, and needs a new
 /// [`TRANSFORM_VERSION`](crate::shared::transform_version::TRANSFORM_VERSION).
 ///
 /// # Examples

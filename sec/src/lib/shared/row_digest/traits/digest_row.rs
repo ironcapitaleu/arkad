@@ -10,9 +10,6 @@ use crate::shared::row_digest::ByteForm;
 /// [`group_hashes`] take the rows of any dataset. Each row type of a dataset implements it. Each
 /// method appends values to the [`ByteForm`] with the methods of [`ByteForm`], one per column.
 ///
-/// The digest group and the row key of each dataset are in `sec/design/pipeline/silver_layer.md`,
-/// `unit_manifests`, column `content_digest`.
-///
 /// [`content_digest`]: crate::shared::row_digest::content_digest()
 /// [`group_hashes`]: crate::shared::row_digest::group_hashes
 pub trait DigestRow {

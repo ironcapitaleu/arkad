@@ -97,7 +97,7 @@ impl Placed for CashFlowConcept {
 /// The groups whose parent is a cash flow concept.
 ///
 /// The list follows the order of the first row that names each group in the table of the cash
-/// flow statement. `docs/adr/0013-order-of-the-groups.md` records the order.
+/// flow statement.
 ///
 /// `operating-cash-flow` starts from `NetIncome` of the income statement, because the indirect
 /// method starts from net income.

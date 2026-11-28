@@ -51,8 +51,6 @@ impl fmt::Display for SourceKind {
 }
 
 /// The raw document of a dataset row, and the run that wrote the row.
-///
-/// `sec/design/pipeline/silver_layer.md`, "Provenance", names the columns.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Provenance {
     /// The kind of the raw document.

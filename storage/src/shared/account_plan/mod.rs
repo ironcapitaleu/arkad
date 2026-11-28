@@ -32,7 +32,7 @@ pub enum AccountPlan {
 impl AccountPlan {
     /// Returns the name of the plan as Postgres stores it, such as `screener_pro`.
     ///
-    /// `docs/adr/0045-stored-names-of-access-enums.md` records the names.
+    /// Stored rows hold these names, so a changed name breaks them.
     #[must_use]
     pub const fn as_str(&self) -> &'static str {
         match self {

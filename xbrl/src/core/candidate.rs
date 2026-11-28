@@ -18,9 +18,10 @@ use super::unit::Unit;
 
 /// The value that one filing gives for one standard concept and one period.
 ///
-/// Steps 1 and 2 of the dedup order produce at most one candidate per standard concept, period,
-/// and filing. Step 3 picks one candidate across filings and turns it into a
-/// [`StandardizedFact`](super::standardized::StandardizedFact).
+/// [`more_precise`](super::dedup::more_precise), then
+/// [`resolve_aliases`](super::alias::resolve_aliases), produce at most one candidate per standard
+/// concept, period, and filing. [`newest_filing`](super::dedup::newest_filing) picks one candidate
+/// across filings and turns it into a [`StandardizedFact`](super::standardized::StandardizedFact).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct Candidate {
     /// The filing and when it was filed.

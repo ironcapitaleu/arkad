@@ -32,8 +32,6 @@ use crate::shared::row_digest::{ByteForm, DigestRow};
 pub mod constants;
 
 /// One row of `as_is_facts`: a reported value, its filing, and the raw document it comes from.
-///
-/// `sec/design/pipeline/silver_layer.md`, `as_is_facts`, names the columns and their Arrow types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AsIsFactRow {
     /// The fact as the source reports it.

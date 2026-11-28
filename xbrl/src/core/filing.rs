@@ -20,8 +20,8 @@ use super::invalid_value::{InvalidValue, InvalidValueReason, require_token};
 /// The ID of a filing: a source and an ID within that source, for example
 /// `sec:0000320193-26-000001`.
 ///
-/// The text form is the same text as `source_ref` in the storage design. An extension concept of a
-/// filing has this text as its namespace family.
+/// The text form is `<source>:<id>`, as above. An extension concept of a filing has this text as
+/// its namespace family.
 ///
 /// # Examples
 ///
