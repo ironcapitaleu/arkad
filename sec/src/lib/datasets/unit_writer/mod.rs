@@ -683,7 +683,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn should_keep_no_group_of_a_call_when_the_call_repeats_a_digest_group() {
+    async fn should_keep_no_row_or_group_of_a_call_when_the_call_repeats_a_digest_group() {
         let (_directory, store) = store();
         let mut writer = writer(&store, spec(1, 1)).await;
         writer
@@ -694,11 +694,19 @@ mod tests {
             .push_groups(vec![row(FILING_A, "Liabilities"), row(FILING_B, "Assets")])
             .await
             .expect_err("Given a repeated digest group, the push should always fail");
-        let retry_rows = vec![row(FILING_B, "Assets")];
+        writer
+            .push_groups(vec![row(FILING_B, "Assets")])
+            .await
+            .expect("Given that the rejected call left group B out, the retry should succeed");
 
-        let expected_result = Ok(());
+        // The first call and the retry hold one row each. The rejected call adds none.
+        let expected_result = 2;
 
-        let result = writer.push_groups(retry_rows).await;
+        let unit = writer
+            .finish(Vec::new(), Vec::new())
+            .await
+            .expect("Given unique digest groups, the unit should always finish");
+        let result = unit.row.row_count;
 
         assert_eq!(result, expected_result);
     }
