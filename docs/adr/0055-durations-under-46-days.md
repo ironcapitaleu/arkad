@@ -1,4 +1,4 @@
-# ADR 0054: A Duration Under 46 Days Keeps Its Value and Its Own Series
+# ADR 0055: A Duration Under 46 Days Keeps Its Value and Its Own Series
 
 | Field | Value |
 | ----- | ----- |

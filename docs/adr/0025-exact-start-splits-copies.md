@@ -101,7 +101,7 @@ Date: 2026-11-28.
 **Reason.** Decision 2 compares the distance of each length to its whole number of quarters. A
 duration of 45 days or less has 0 quarters, so its distance is its length. A shorter rank is then
 always nearer, and a one-week rank next to a one-month rank 0 blocks the concept.
-[ADR 0054](0054-durations-under-46-days.md) gives each such duration its own series.
+[ADR 0055](0055-durations-under-46-days.md) gives each such duration its own series.
 
 **Decision.** If the value key has 0 quarters, a rank with another exact start never conflicts by
 its length. It gets no candidate, as decision 1 says, and rank 0 enters the series. Decision 2

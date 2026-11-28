@@ -39,7 +39,7 @@ that `Filing::period_of_report` holds.
 
 Date: 2026-11-28.
 
-**Reason.** [ADR 0054](0054-durations-under-46-days.md) lets a duration of 45 days or less fill
+**Reason.** [ADR 0055](0055-durations-under-46-days.md) lets a duration of 45 days or less fill
 only an expected period of 0 quarters in the gap check. Decision 2 lets a value of any length fill
 the period of report. So a 10-Q that tags revenue only for its last month gets a `Gap` for the
 quarter and no `MissingRequired`. The two checks disagree on one period.

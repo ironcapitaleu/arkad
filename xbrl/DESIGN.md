@@ -2317,7 +2317,7 @@ restatement, it sets `restated`, and chronology reports it.
 
 ### Durations Under 46 Days
 
-> **Status:** decided in [ADR 0054](../docs/adr/0054-durations-under-46-days.md). The code applies
+> **Status:** decided in [ADR 0055](../docs/adr/0055-durations-under-46-days.md). The code applies
 > these rules with STA-620. Until then, the series key of a short duration holds no start.
 
 A **short duration** lasts 45 days or less from its exact start to its end. It has 0 quarters, the
