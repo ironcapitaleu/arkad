@@ -1,0 +1,26 @@
+filing_id: utf8
+entity_scheme: utf8
+entity_id: utf8
+form: utf8
+is_amendment: bool
+filed: date32
+accepted: timestamp[ms, +00:00] nullable
+period_of_report: date32 nullable
+fiscal_year: int16 nullable
+fiscal_period: utf8 nullable
+company_name: utf8 nullable
+industry_scheme: utf8 nullable
+industry_code: utf8 nullable
+tickers: list<item: struct<symbol: utf8, exchange: utf8 nullable>>
+fiscal_year_end_raw: utf8 nullable
+fiscal_year_end_month: uint8 nullable
+sic_source_key: utf8 nullable
+sic_source_sha256: utf8 nullable
+sic_retrieved_at: timestamp[ms, +00:00] nullable
+source_kind: utf8
+source_key: utf8
+source_sha256: utf8
+ingestion_mode: utf8
+transform_version: utf8
+execution_id: utf8
+loaded_at: timestamp[ms, +00:00]
