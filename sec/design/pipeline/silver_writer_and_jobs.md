@@ -189,7 +189,9 @@ Each dataset has three tests:
 The writer takes the unit key, the inputs, the row stream, and the run context. It follows the four
 rules of the contract in this form:
 
-1. **Digest.** It computes `input_digest` from the sorted list of input keys and SHA-256 values.
+1. **Digest.** It computes `input_digest` from the sorted list of input keys and SHA-256 values:
+   the SHA-256 over the `ByteForm` of a list of structs, one per input, each with its key and the
+   hex text of its SHA-256, sorted by key, then by SHA-256.
 2. **Skip.** It reads the current unit of the key through the silver reader. If that unit has the
    same `input_digest` and `transform_version`, it writes nothing and reports the unit as skipped.
 3. **Parts.** It writes each part to
@@ -216,6 +218,12 @@ in its one list file, at its end. So the units of one task appear together, or n
 
 The writer never holds a whole unit. It flushes a part when the rows of the part reach about 256
 MB of input text, and drops them. For each digest group, it keeps only the 32-byte hash.
+
+In the code, `UnitWriter::start` runs rules 1 and 2, `UnitWriter::push_groups` takes the rows of
+whole digest groups, and `UnitWriter::finish` writes the last part and computes `content_digest`.
+The size of the rows is the length of their `ByteForm`, so a part flushes at 256,000,000 bytes of
+that form, after a call and so on a group boundary. `write_task_manifest` runs rule 4 for the units
+of one task. The caller passes the time of the write, so a test controls `written_at`.
 
 ### The Silver Reader
 
