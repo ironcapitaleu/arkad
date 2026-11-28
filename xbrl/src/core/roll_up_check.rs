@@ -70,9 +70,9 @@ const TOLERANCE_BASIS_POINTS: u32 = 10;
 /// two of the facts that [`Statement`] counts in it have different exact starts. Such a group gets
 /// no other check and no other line. The other groups of the slot keep their checks.
 ///
-/// Each closed group of the slot also gets a [`Finding::MixedScopes`] if two of its members with a
-/// value differ in scope. Only `NetChangeInCash` and `ExchangeRateEffect` carry a scope. Such a
-/// group gets no check.
+/// Each closed group of the slot without a [`Finding::MixedStarts`] gets a
+/// [`Finding::MixedScopes`] if two of its members with a value differ in scope. Such a group gets
+/// no check.
 #[must_use]
 pub fn check_roll_ups(series: &Series, added: &[StandardizedFact]) -> Vec<Finding> {
     let mut findings = Vec::new();
@@ -190,8 +190,14 @@ impl<'a> Slot<'a> {
     }
 
     /// Returns a [`Finding::MixedScopes`] if two members of `group` with a value differ in scope.
+    /// A group with two exact starts gets no [`Finding::MixedScopes`], because
+    /// [`Self::check_starts`] reports it.
     fn check_scopes(&self, group: Group) -> Option<Finding> {
-        let concepts = mixed_scopes(group, |concept| self.values.get(&concept).copied())?;
+        let value_of = |concept| self.values.get(&concept).copied();
+        if mixed_starts(group, value_of).is_some() {
+            return None;
+        }
+        let concepts = mixed_scopes(group, value_of)?;
         Some(Finding::MixedScopes {
             entity: self.entity.clone(),
             period: self.period,
@@ -654,15 +660,113 @@ mod tests {
         assert_eq!(result, expected_result);
     }
 
+    /// Returns `fact` with the scope `ExcludesRestrictedCash`.
+    fn without_restricted_cash(mut fact: StandardizedFact) -> StandardizedFact {
+        fact.scope = Some(Scope::ExcludesRestrictedCash);
+        fact
+    }
+
+    #[test]
+    fn should_report_a_roll_up_mismatch_and_no_mixed_scopes_when_the_change_in_cash_and_the_exchange_rate_effect_both_leave_out_restricted_cash()
+     {
+        let facts = series(vec![
+            without_restricted_cash(value(
+                CashFlowConcept::NetChangeInCash.element(),
+                quarter(),
+                "200",
+            )),
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                quarter(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                quarter(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                quarter(),
+                "-114",
+            ),
+            without_restricted_cash(value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                quarter(),
+                "-1",
+            )),
+        ]);
+
+        let expected_result = vec![mismatch(
+            quarter(),
+            vec![
+                CashFlowConcept::NetChangeInCash.element(),
+                CashFlowConcept::OperatingCashFlow.element(),
+                CashFlowConcept::InvestingCashFlow.element(),
+                CashFlowConcept::FinancingCashFlow.element(),
+                CashFlowConcept::ExchangeRateEffect.element(),
+            ],
+            RollUpCheck::Group(CashFlowGroup::NetChangeInCash.name()),
+            Confidence::Exact,
+        )];
+
+        let result = check_roll_ups(&facts, &[]);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_report_only_mixed_starts_when_a_closed_group_has_two_starts_and_two_scopes() {
+        let facts = series(vec![
+            value(
+                CashFlowConcept::NetChangeInCash.element(),
+                three_months(),
+                "137",
+            ),
+            value(
+                CashFlowConcept::OperatingCashFlow.element(),
+                four_months(),
+                "390",
+            ),
+            value(
+                CashFlowConcept::InvestingCashFlow.element(),
+                three_months(),
+                "-138",
+            ),
+            value(
+                CashFlowConcept::FinancingCashFlow.element(),
+                three_months(),
+                "-114",
+            ),
+            without_restricted_cash(value(
+                CashFlowConcept::ExchangeRateEffect.element(),
+                three_months(),
+                "-1",
+            )),
+        ]);
+
+        let expected_result = vec!["MixedStarts"];
+
+        let result: Vec<&str> = check_roll_ups(&facts, &[])
+            .iter()
+            .map(|finding| match finding {
+                Finding::MixedStarts { .. } => "MixedStarts",
+                Finding::MixedScopes { .. } => "MixedScopes",
+                _ => "other",
+            })
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
     #[test]
     fn should_report_one_mixed_scopes_and_no_roll_up_mismatch_when_the_change_in_cash_and_the_exchange_rate_effect_differ_in_scope()
      {
-        let mut exchange_rate_effect = value(
+        let exchange_rate_effect = without_restricted_cash(value(
             CashFlowConcept::ExchangeRateEffect.element(),
             quarter(),
             "-1",
-        );
-        exchange_rate_effect.scope = Some(Scope::ExcludesRestrictedCash);
+        ));
         let facts = series(vec![
             value(CashFlowConcept::NetChangeInCash.element(), quarter(), "200"),
             value(

@@ -659,6 +659,31 @@ mod tests {
     }
 
     #[test]
+    fn should_give_the_derived_exchange_rate_effect_the_scope_of_the_change_in_cash_when_the_change_leaves_out_restricted_cash()
+     {
+        let mut facts = cash_flow_totals();
+        facts.push(without_restricted_cash(value(
+            CashFlowConcept::NetChangeInCash.element(),
+            quarter(),
+            "137",
+        )));
+        let facts = series(facts);
+
+        let expected_result = vec![(
+            CashFlowConcept::ExchangeRateEffect.element(),
+            Some(Scope::ExcludesRestrictedCash),
+        )];
+
+        let result: Vec<(CanonicalElementKind, Option<Scope>)> =
+            derive_from_closed_groups(&facts, &[])
+                .into_iter()
+                .map(|fact| (fact.concept, fact.scope))
+                .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_give_no_scope_to_a_derived_cash_flow_total_when_the_change_in_cash_leaves_out_restricted_cash()
      {
         let facts = series(vec![
