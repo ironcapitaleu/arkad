@@ -233,9 +233,18 @@ One reader serves every Rust caller. It reads `unit_manifests` and never lists a
 - `current_units(dataset, source)` takes, per unit key, the unit with the latest `written_at`.
 - `current_units_as_of(dataset, source, t)` takes the units with `written_at` at or before `t`.
 - `series_units(dataset)` takes the newest `series_base` of a run that counts, and every
-  `series_delta` of a run that counts after it, as "Series Deltas" of the contract says.
-- `read_rows::<R>(unit, filter)` reads each part whole through `ReadRepository`, skips the row
-  groups that the filter excludes by their statistics, and returns rows of type `R`.
+  `series_delta` of a run that counts after it, as "Series Deltas" of the contract says. It groups
+  the series units of the dataset by `execution_id`, and keeps per `unit_key` the unit with the
+  latest `written_at`. A run counts when each unit has a `computed_at` and a `run_tasks` equal to
+  the count of its unit keys. If two base runs share the newest `computed_at`, the run with the
+  larger `execution_id` wins. If no `series_base` run counts, the call returns no unit.
+- `read_rows::<R>(unit, filter)` reads each part whole through `ReadRepository`, checks its size
+  and CRC32C against its entry in `files`, skips the row groups that the filter excludes by their
+  statistics, and returns rows of type `R`. It decodes
+  with the `schema_version` of the unit, so a unit of an older version reads into `R`.
+- The filter is `RowFilter::All` or `RowFilter::EntityBuckets(set)`. The bucket filter skips each
+  row group whose minimum and maximum `entity_bucket` hold no bucket of the set, and drops the
+  other rows of the kept row groups. `ReadSeriesInputs` uses it on the `candidates` parts.
 - The current facts rule of the contract, one unit per filing, runs on top of these calls.
 
 ## Byte Form of `content_digest`
