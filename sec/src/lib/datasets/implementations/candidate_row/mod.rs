@@ -1,6 +1,6 @@
 //! # Candidate Row
 //!
-//! Provides [`CandidateRow`], one row of the silver dataset `candidates`: a [`Candidate`], its
+//! Provides [`CandidateRow`], one row of the dataset `candidates`: a [`Candidate`], its
 //! entity bucket, and its [`RunColumns`].
 
 use std::str::FromStr;
@@ -26,7 +26,7 @@ use xbrl::core::unit::Unit;
 use crate::datasets::columns::{
     BatchColumns, confidence_from_name, date_from_days, date32, decimal128_array, decimals_arrays,
     decimals_from_columns, dimensions_array, dimensions_at, dimensions_item, failed_batch,
-    list_array, nullable, number_from_decimal128, period_from_columns, timestamp_array,
+    item_range, list_array, nullable, number_from_decimal128, period_from_columns, timestamp_array,
     timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null, write_decimals,
     write_dimensions,
 };
@@ -45,7 +45,7 @@ pub struct CandidateRow {
     /// The entity bucket of the entity, from 0 to 63. A series task reads the row groups of its
     /// buckets.
     pub entity_bucket: u8,
-    /// The version of the silver output and the run that wrote the row.
+    /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
 }
 
@@ -387,10 +387,6 @@ impl<'a> CandidateColumns<'a> {
         if let Some(scope) = nullable(self.scopes, row) {
             return Err(unexpected("scope")(format!("unknown scope '{scope}'")));
         }
-        let offsets = self.inputs.value_offsets();
-        // The offsets of a list array never fall, and never lie past the item arrays.
-        let first_input = usize::try_from(offsets[row]).unwrap_or_default();
-        let end_input = usize::try_from(offsets[row + 1]).unwrap_or_default();
         Ok(Candidate {
             source: FilingSource {
                 filing: FilingId::from_str(self.filing_ids.value(row))
@@ -422,7 +418,7 @@ impl<'a> CandidateColumns<'a> {
                 checksum: Sha256::from_str(self.release_checksums.value(row))
                     .map_err(invalid("release_checksum"))?,
             },
-            inputs: (first_input..end_input)
+            inputs: item_range(self.inputs, row)
                 .map(|item| self.input_keys.key(self.dataset, row, item))
                 .collect::<Result<_, _>>()?,
         })

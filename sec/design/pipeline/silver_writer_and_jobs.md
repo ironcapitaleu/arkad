@@ -55,7 +55,7 @@ flowchart TB
 
     subgraph S["Silver bucket"]
         DS[("datasets")]:::store
-        SF[("silver_files")]:::store
+        SF[("unit_manifests")]:::store
     end
 
     TP -- "take" --> LT
@@ -141,15 +141,15 @@ pub trait DigestRow {
 ```
 
 - One row type per dataset: `AsIsFactRow`, `FilingRow`, `CandidateRow`, `StandardizedFactRow`,
-  `FindingRow`, `TaxonomyElementRow`, and `SilverFileRow`. A row type wraps its `xbrl` type and
+  `FindingRow`, `TaxonomyElementRow`, and `UnitManifestRow`, the row type of `unit_manifests`. A row type wraps its `xbrl` type and
   adds the provenance and run columns of the contract. `FindingRow` holds the columns instead,
   because a `Finding` holds more fields than `findings` stores. The steps that write findings,
-  `BuildFilingRows` and the series step, map a `Finding` to a `FindingRow`. `SilverFileRow` has no
+  `BuildFilingRows` and the series step, map a `Finding` to a `FindingRow`. `UnitManifestRow` has no
   `xbrl` type.
 - `to_batch` builds the Arrow arrays column by column. It does not go through JSON. The prototype
   found that the `arbitrary_precision` feature of `serde_json`, which `xbrl` turns on, breaks the
   Arrow JSON decoder.
-- `from_batch` takes the `schema_version` of the unit from its `silver_files` row. It rejects a
+- `from_batch` takes the `schema_version` of the unit from its `unit_manifests` row. It rejects a
   batch whose fields differ from the schema of that version. Each row type keeps the schema of
   every version that a stored unit can hold, because a unit stays current until a replay.
 - A field that an older version lacks is an `Option` in the row type, and `from_batch` sets it to
@@ -168,7 +168,7 @@ Each dataset has three tests:
    printer belongs to `sec::datasets`, not to the `Display` of Arrow, which changes between releases.
    The text is checked in. A change of the text needs a new `SCHEMA_VERSION`.
 3. **Folder labels.** No field name equals a folder label of the path of the dataset: `source` and
-   `unit_key`, or `execution` and `task` for `silver_files`.
+   `unit_key`, or `execution` and `task` for `unit_manifests`.
 
 ### Rules of a Write
 
@@ -188,14 +188,14 @@ rules of the contract in this form:
    - uses zstd at level 3.
    - holds the footer entries `dataset`, `schema_version`, `unit_key`, and `transform_version`,
      through `WriterProperties::set_key_value_metadata`.
-4. **List row.** It writes the `silver_files` row last, to
-   `silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet`, with the size and CRC32C of
+4. **List row.** It writes the `unit_manifests` row last, to
+   `unit_manifests/execution=<execution_id>/task=<n>-<attempt>.parquet`, with the size and CRC32C of
    each part as the writer computed them. It sets `written_at` to the later of the time now and the
    `written_at` of the current unit plus 1 ms ([ADR 0032](../../../docs/adr/0032-one-writer-per-silver-unit-key.md)).
 
 A transform task writes one unit key in each of four datasets: `as_is_facts`, `filings`,
 `candidates`, and the filing rows of `findings`. A series task writes one unit key in
-`standardized_facts` and one in `findings`. Each task writes the `silver_files` rows of its units
+`standardized_facts` and one in `findings`. Each task writes the `unit_manifests` rows of its units
 in its one list file, at its end. So the units of one task appear together, or not at all.
 
 The writer never holds a whole unit. It flushes a part when the rows of the part reach about 256
@@ -203,7 +203,7 @@ MB of input text, and drops them. For each digest group, it keeps only the 32-by
 
 ### The Silver Reader
 
-One reader serves every Rust caller. It reads `silver_files` and never lists a dataset folder.
+One reader serves every Rust caller. It reads `unit_manifests` and never lists a dataset folder.
 
 - `current_units(dataset, source)` takes, per unit key, the unit with the latest `written_at`.
 - `current_units_as_of(dataset, source, t)` takes the units with `written_at` at or before `t`.
@@ -283,7 +283,7 @@ The series step is a super-state per set of buckets, run once per task:
 | `ReadSeriesInputs` | The plan, the task index | The candidates, filings, conflicts, and current series rows of the entities of the task |
 | `StandardizeSeries` | The inputs per entity | One `SeriesOutcome` per entity |
 | `CompareWithCurrent` | The outcomes and the current rows | The rows to write, with `change` and `computed_at` |
-| `WriteSeriesUnit` | The rows to write | The `silver_files` row of the unit |
+| `WriteSeriesUnit` | The rows to write | The `unit_manifests` row of the unit |
 
 - `ReadSeriesInputs` reads every `candidates` part of the plan, and decodes only the row groups
   of the buckets of the task. It reads `filings` and the `Conflict` rows with a column projection, and keeps the
@@ -297,7 +297,7 @@ The series step is a super-state per set of buckets, run once per task:
 
 ### The Series Plan
 
-The plan step of a series run takes the lease `series`, reads `silver_files`, and writes the plan:
+The plan step of a series run takes the lease `series`, reads `unit_manifests`, and writes the plan:
 
 | Field | Meaning |
 | ----- | ------- |
@@ -308,7 +308,7 @@ The plan step of a series run takes the lease `series`, reads `silver_files`, an
 | `inputs` | The current `candidates` and `filings` units, and the units of the current series rows, by their `files` |
 | `entities` | The entities to compute, with their bucket |
 
-Every task reads the plan, not `silver_files`. So every task of a run reads the same units, even if
+Every task reads the plan, not `unit_manifests`. So every task of a run reads the same units, even if
 a transform run writes during the series run.
 
 ### Mode
@@ -323,7 +323,7 @@ The plan step picks `base` if one of these holds. Otherwise it picks `delta`.
 - The operator sets `ARKAD_SERIES_MODE=base`.
 
 A base run computes every entity with a current `candidates` unit. It writes each row with
-`change = new`, and each open finding again with `change = new`. If `silver_files` holds no
+`change = new`, and each open finding again with `change = new`. If `unit_manifests` holds no
 `series_base` unit, the run has the unit keys `base-t<n>`. Otherwise it has
 `base-<computed_at>-t<n>`, as the contract gives them. So a base that follows a failed base gets new
 keys, and rule 2 of a write cannot skip its tasks. A test of the plan step covers this case.
@@ -335,7 +335,7 @@ The plan step compares two sets of `candidates` units:
 - **Now:** the current units, by the current facts rule.
 - **Then:** the `candidates` units in the `inputs` field of the plan of the latest run that counts.
   The plan ID of a series run is its `computed_at`, so the plan step finds that plan from the
-  `computed_at` of the run in `silver_files`. The control bucket keeps every plan.
+  `computed_at` of the run in `unit_manifests`. The control bucket keeps every plan.
 
 The entity set is the entities of each unit in "now" and not in "then", plus the entities of each
 unit in "then" and not in "now". The second part covers a unit that a replay replaced, so an entity
@@ -344,7 +344,7 @@ that the replay drops gets `removed` rows. The plan step reads the entities of a
 
 Each unit with a `written_at` after the `computed_at` of the latest run that counts is in "now" and
 not in "then". So the set holds every unit that the contract asks for. It also holds a unit whose
-`written_at` lies before that `computed_at` but whose `silver_files` row appeared after the plan
+`written_at` lies before that `computed_at` but whose `unit_manifests` row appeared after the plan
 of that run read the list. A rule by time alone misses such a unit.
 
 ### Compare
@@ -366,7 +366,7 @@ of that run read the list. A rule by time alone misses such a unit.
 - Every written row gets the `computed_at` of the plan.
 - Each task writes its `series_delta` unit with the key `<computed_at>-t<n>`, also with no changed
   row. `<computed_at>` prints as `YYYY-MM-DDTHHMMSS.mmmZ`, so two runs in one minute get two keys.
-- The run counts when `silver_files` holds `run_tasks` distinct unit keys of its `execution_id`.
+- The run counts when `unit_manifests` holds `run_tasks` distinct unit keys of its `execution_id`.
   Until then, no read takes its units, and the next plan compares against the run before it.
 
 ## One Writer per Unit Key
@@ -524,7 +524,7 @@ holds the measurement.
 - If the decision reopens, the fallback splits a Notes file into T tasks by hash bucket of `adsh`.
   Each task writes its parts and a part manifest to the control bucket: its `files`, its counts,
   and the group IDs and hashes of its filings. A finalize step, after a barrier, checks that all T
-  manifests exist. It merges the pairs, sums the counts, and writes the one `silver_files` row of
+  manifests exist. It merges the pairs, sums the counts, and writes the one `unit_manifests` row of
   the unit.
 
 | Job | Task timeout | Memory | Parallel tasks |
@@ -588,7 +588,7 @@ Each ticket fits one PR under 400 reviewable lines (estimate). Proposed. The lis
    feature `gcs`.
 3. FEATURE: `ByteForm`, `DigestRow`, and `content_digest`, with the golden test.
 4. FEATURE: `ArrowRow` for `as_is_facts` and `filings`, with the schema tests.
-5. FEATURE: `ArrowRow` for `candidates`, `findings`, and `silver_files`.
+5. FEATURE: `ArrowRow` for `candidates`, `findings`, and `unit_manifests`.
 6. FEATURE: `ArrowRow` for `standardized_facts` and `taxonomy_elements`.
 7. FEATURE: the silver writer and the silver reader, with a test that reads units of two schema
    versions.

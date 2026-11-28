@@ -488,7 +488,7 @@ The integrity design owns these checks. The listing gives them their input:
 - **Integrity:** `list` gives the metadata of each document with its size on disk. `inventory`
   gives the documents without metadata and the temporary files. The SHA-256 check reads the bytes
   with `get`, a sample or all, as that design decides.
-- **Silver:** silver keeps its own list of units in `silver_files`. Check 2 of "Integrity Checks"
+- **Silver:** silver keeps its own list of units in `unit_manifests`. Check 2 of "Integrity Checks"
   in [`silver_layer.md`](../../../sec/design/pipeline/silver_layer.md) joins the raw metadata (key,
   SHA-256) with the `inputs` of the current units. `list` gives that raw side.
 

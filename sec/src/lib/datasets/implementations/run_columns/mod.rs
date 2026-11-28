@@ -1,6 +1,6 @@
 //! # Run Columns
 //!
-//! Provides [`RunColumns`], the columns that name the run that wrote a silver row.
+//! Provides [`RunColumns`], the columns that name the run that wrote a dataset row.
 
 use std::sync::Arc;
 
@@ -15,13 +15,13 @@ use crate::datasets::columns::{
 };
 use crate::shared::row_digest::ByteForm;
 
-/// The version of the silver output and the run that wrote a silver row.
+/// The version of the transform output and the run that wrote a dataset row.
 ///
 /// Every row of a dataset ends with these columns. `sec/design/pipeline/silver_layer.md`,
 /// "Provenance", names them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RunColumns {
-    /// The version of the silver output, as in
+    /// The version of the transform output, as in
     /// [`TRANSFORM_VERSION`](crate::shared::transform_version::TRANSFORM_VERSION).
     pub transform_version: u32,
     /// The run that wrote the row.

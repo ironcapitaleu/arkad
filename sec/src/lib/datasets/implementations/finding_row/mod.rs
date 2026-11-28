@@ -1,6 +1,6 @@
 //! # Finding Row
 //!
-//! Provides [`FindingRow`], one row of the silver dataset `findings`, with its [`FindingKind`],
+//! Provides [`FindingRow`], one row of the dataset `findings`, with its [`FindingKind`],
 //! its [`FindingPeriod`] values, and its [`FindingStep`].
 
 use std::fmt;
@@ -19,9 +19,9 @@ use xbrl::core::filing::{EntityId, FilingId};
 use xbrl::core::invalid_value::InvalidValue;
 
 use crate::datasets::columns::{
-    BatchColumns, confidence_from_name, date_from_days, date32, failed_batch, list_array,
-    list_item, list_type, nullable, string_list, timestamp_array, timestamp_from_milliseconds,
-    timestamp_type, unexpected_value, utf8_or_null,
+    BatchColumns, confidence_from_name, date_from_days, date32, failed_batch, item_range,
+    list_array, list_item, list_type, nullable, string_list, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null,
 };
 use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
 use crate::shared::row_digest::{ByteForm, DigestRow};
@@ -55,7 +55,7 @@ pub struct FindingRow {
     pub confidence: Option<Confidence>,
     /// The step that wrote the row, with the change and the run time of a series row.
     pub step: FindingStep,
-    /// The version of the silver output and the run that wrote the row.
+    /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
 }
 
@@ -212,9 +212,6 @@ pub enum FindingChange {
 }
 
 impl FindingChange {
-    /// Every change.
-    const ALL: [Self; 3] = [Self::New, Self::Changed, Self::Resolved];
-
     /// Returns the text of the `change` column: `new`, `changed`, or `resolved`.
     #[must_use]
     pub const fn as_str(self) -> &'static str {
@@ -223,6 +220,14 @@ impl FindingChange {
             Self::Changed => "changed",
             Self::Resolved => "resolved",
         }
+    }
+
+    /// Returns the change whose text is `text`, or `None` if no change has it.
+    #[must_use]
+    pub fn from_name(text: &str) -> Option<Self> {
+        [Self::New, Self::Changed, Self::Resolved]
+            .into_iter()
+            .find(|change| change.as_str() == text)
     }
 }
 
@@ -504,11 +509,7 @@ impl<'a> FindingColumns<'a> {
 
     /// Reads the periods of one row from the items of `periods` that its offsets give.
     fn periods(&self, row: usize) -> Result<Vec<FindingPeriod>, ArrowRowError> {
-        let offsets = self.periods.value_offsets();
-        // The offsets of a list array never fall, and never lie past the item arrays.
-        let first = usize::try_from(offsets[row]).unwrap_or_default();
-        let end = usize::try_from(offsets[row + 1]).unwrap_or_default();
-        (first..end)
+        item_range(self.periods, row)
             .map(|item| {
                 Ok(FindingPeriod {
                     period_end: date_from_days(self.period_ends.value(item))
@@ -537,9 +538,7 @@ impl<'a> FindingColumns<'a> {
                 "a value in a filing row".to_owned(),
             )),
             ("series", Some(change), Some(milliseconds)) => Ok(FindingStep::Series {
-                change: FindingChange::ALL
-                    .into_iter()
-                    .find(|candidate| candidate.as_str() == change)
+                change: FindingChange::from_name(change)
                     .ok_or_else(|| unexpected("change", format!("unknown change '{change}'")))?,
                 computed_at: timestamp_from_milliseconds(milliseconds)
                     .map_err(|reason| unexpected("computed_at", reason))?,
@@ -727,6 +726,21 @@ mod tests {
         let expected_result = Some(FindingKind::RollForwardMismatch);
 
         let result = FindingKind::from_name(name);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_read_every_change_back_from_its_text() {
+        let texts = ["new", "changed", "resolved"];
+
+        let expected_result = [
+            Some(FindingChange::New),
+            Some(FindingChange::Changed),
+            Some(FindingChange::Resolved),
+        ];
+
+        let result = texts.map(FindingChange::from_name);
 
         assert_eq!(result, expected_result);
     }

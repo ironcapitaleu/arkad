@@ -1,22 +1,22 @@
 //! # Arrow Row
 //!
-//! Provides [`ArrowRow`], the trait of a row type of one silver dataset and its Arrow form.
+//! Provides [`ArrowRow`], the trait of a row type of one dataset and its Arrow form.
 
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
 
 use crate::datasets::ArrowRowError;
 
-/// A row type of one silver dataset and its Arrow form.
+/// A row type of one dataset and its Arrow form.
 ///
-/// A trait, because each silver dataset has its own row type, and the silver writer and reader take
+/// A trait, because each dataset has its own row type, and the dataset writer and reader take
 /// the rows of any dataset. The Rust type is the source of the schema. Each implementation builds
 /// the Arrow arrays column by column, with no JSON step.
 ///
 /// The columns of each dataset are in `sec/design/pipeline/silver_layer.md`, "Datasets".
 pub trait ArrowRow: Sized {
-    /// The name of the dataset, for example `as_is_facts`. The silver path and the `dataset`
-    /// column of `silver_files` hold it.
+    /// The name of the dataset, for example `as_is_facts`. The path of the dataset and the `dataset`
+    /// column of `unit_manifests` hold it.
     const DATASET: &'static str;
 
     /// The schema version that [`Self::to_batch`] writes.
@@ -33,13 +33,15 @@ pub trait ArrowRow: Sized {
     ///
     /// # Errors
     ///
-    /// Returns [`ArrowRowError`] if a value has no form in its column, for example a decimal with
-    /// more than 38 digits.
+    /// Returns [`ArrowRowError`] in two cases:
+    ///
+    /// - A value has no form in its column, for example a decimal with more than 38 digits.
+    /// - The values of a row contradict each other.
     fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError>;
 
     /// Reads the rows of a record batch that holds the schema of `version`.
     ///
-    /// `version` is the `schema_version` of the unit in its `silver_files` row. A field that the
+    /// `version` is the `schema_version` of the unit in its `unit_manifests` row. A field that the
     /// schema of `version` lacks is an `Option` in the row type, and is `None` in each row read.
     ///
     /// # Errors
