@@ -211,11 +211,21 @@ fn part_properties<R: ArrowRow>(
     location: &PartLocation,
     row_group_rows: usize,
 ) -> Result<WriterProperties, PartWriteError> {
-    let level = ZstdLevel::try_new(ZSTD_LEVEL).map_err(|error| failed_encoding(&error))?;
+    parquet_properties(footer::<R>(location), row_group_rows)
+        .map_err(|error| failed_encoding(&error))
+}
+
+/// Returns the writer properties of a Parquet file of a dataset: zstd at level [`ZSTD_LEVEL`], the
+/// row limit of a row group, and the footer entries.
+pub(crate) fn parquet_properties(
+    footer: Vec<KeyValue>,
+    row_group_rows: usize,
+) -> Result<WriterProperties, ParquetError> {
+    let level = ZstdLevel::try_new(ZSTD_LEVEL)?;
     Ok(WriterProperties::builder()
         .set_compression(Compression::ZSTD(level))
         .set_max_row_group_row_count(Some(row_group_rows))
-        .set_key_value_metadata(Some(footer::<R>(location)))
+        .set_key_value_metadata(Some(footer))
         .build())
 }
 
