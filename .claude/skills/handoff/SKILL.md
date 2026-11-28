@@ -125,9 +125,9 @@ apply, and any "never" from this session. State each as `must` or `never`.>
 - <If the end is a PR:> If "In flight" names an open PR for the branch, push to it and open no new
   PR. Otherwise, you must open the PR against `main` without asking. Then run `pr-iterate`. Never
   merge it.
-  <Never add a guardrail that changes a rule of `pr-iterate`. For example, a correct 🟣 finding
-  starts a push on its own.>
   <If the end is a document, a branch, or a report:> Open no PR.
+- <If the end is a PR:> <Never add a guardrail that changes a rule of `pr-iterate`, such as "A 🟣
+  finding never starts a push on its own".>
 
 # Reporting
 
