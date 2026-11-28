@@ -1368,6 +1368,11 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
   segment candidate, and neither the consolidated candidate nor a candidate with a role is blocked.
   A blocked candidate shows as blocked, so a reader tells a block from an untagged item.
 - The unreconciled line holds every reconciling item that the filer does not tag with a role.
+- A corporate value exactly equal to the sum of the segment lines repeats the segment total. It
+  gets no line, and the unreconciled line does not count it. If a segment is blocked, each
+  corporate value keeps its line. Some filers tag the segment total with
+  `MaterialReconcilingItems`, such as Coca-Cola in its 10-K for fiscal year 2025
+  ([ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md), "Amendment 1").
 - A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
   (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
 - A single-segment company gets the same reconciliation with one segment.
