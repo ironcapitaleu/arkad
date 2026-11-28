@@ -96,6 +96,9 @@ impl ReconciliationLine {
 /// alone and a value with a member of role [`ReconciliationRole::Segment`], the value alone counts,
 /// even if it is blocked.
 ///
+/// A corporate value exactly equal to the sum of the segment lines repeats the segment total, so it
+/// gets no line. If a segment is blocked, each corporate value keeps its line.
+///
 /// The unreconciled line exists only if the consolidated candidate and each candidate with a role
 /// are reported, and a segment line exists.
 #[must_use]
@@ -223,6 +226,7 @@ impl Group {
     }
 
     fn into_reconciliation(self, key: GroupKey) -> Reconciliation {
+        let segment_total = segment_total(self.segments.values().map(|(_, candidate)| candidate));
         let mut lines: Vec<ReconciliationLine> = self
             .segments
             .into_values()
@@ -235,6 +239,12 @@ impl Group {
             .chain(
                 self.corporate
                     .into_iter()
+                    .filter(
+                        |candidate| match (reported(candidate), segment_total.as_ref()) {
+                            (Some(value), Some(total)) => value != total,
+                            _ => true,
+                        },
+                    )
                     .map(ReconciliationLine::Corporate),
             )
             .collect();
@@ -252,6 +262,12 @@ impl Group {
             lines,
         }
     }
+}
+
+/// Returns the sum of `segments`, or `None` if no segment exists or a segment is blocked.
+fn segment_total<'a>(mut segments: impl Iterator<Item = &'a Candidate>) -> Option<BigDecimal> {
+    let first = reported(segments.next()?)?.clone();
+    segments.try_fold(first, |total, candidate| Some(total + reported(candidate)?))
 }
 
 /// Returns consolidated − Σ lines, or `None` if the consolidated candidate is absent or blocked, a
@@ -617,6 +633,110 @@ mod tests {
             .iter()
             .map(|line| line.role_rule().map(|rule| rule.as_str().to_string()))
             .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_unreconciled_zero_when_a_corporate_value_repeats_the_segment_total() {
+        let candidates = vec![
+            revenue("190", &[]),
+            revenue("100", &[("BusinessSegments", "Cloud")]),
+            revenue("100", &[("BusinessSegments", "Devices")]),
+            revenue("-10", &[("ConsolidationItems", "IntersegmentElimination")]),
+            revenue("200", &[("ConsolidationItems", "MaterialReconcilingItems")]),
+        ];
+
+        let expected_result = Some(unreconciled_line(0));
+
+        let result = last_line(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_line_to_a_corporate_value_when_it_repeats_the_segment_total() {
+        let cloud = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let corporate = revenue("5", &[("ConsolidationItems", "CorporateNonSegment")]);
+        let candidates = vec![
+            revenue("105", &[]),
+            cloud.clone(),
+            corporate.clone(),
+            revenue("100", &[("ConsolidationItems", "MaterialReconcilingItems")]),
+        ];
+
+        let expected_result = vec![
+            ReconciliationLine::Segment(cloud),
+            ReconciliationLine::Corporate(corporate),
+            unreconciled_line(0),
+        ];
+
+        let result = lines(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_count_a_material_reconciling_item_when_it_differs_from_the_segment_total() {
+        let candidates = vec![
+            revenue("190", &[]),
+            revenue("100", &[("BusinessSegments", "Cloud")]),
+            revenue("100", &[("BusinessSegments", "Devices")]),
+            revenue("-10", &[("ConsolidationItems", "MaterialReconcilingItems")]),
+        ];
+
+        let expected_result = Some(unreconciled_line(0));
+
+        let result = last_line(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_corporate_value_equal_to_a_segment_when_another_segment_is_blocked() {
+        let cloud = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let devices = blocked(revenue("100", &[("BusinessSegments", "Devices")]));
+        let corporate = revenue("100", &[("ConsolidationItems", "MaterialReconcilingItems")]);
+        let candidates = vec![
+            revenue("300", &[]),
+            cloud.clone(),
+            devices.clone(),
+            corporate.clone(),
+        ];
+
+        let expected_result = vec![
+            ReconciliationLine::Segment(cloud),
+            ReconciliationLine::Segment(devices),
+            ReconciliationLine::Corporate(corporate),
+        ];
+
+        let result = lines(&reconcile_with_us_gaap(&candidates));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_keep_a_blocked_corporate_value_when_a_segment_is_blocked() {
+        let cloud = revenue("100", &[("BusinessSegments", "Cloud")]);
+        let devices = blocked(revenue("100", &[("BusinessSegments", "Devices")]));
+        let corporate = blocked(revenue(
+            "5",
+            &[("ConsolidationItems", "CorporateNonSegment")],
+        ));
+        let candidates = vec![
+            revenue("205", &[]),
+            cloud.clone(),
+            devices.clone(),
+            corporate.clone(),
+        ];
+
+        let expected_result = vec![
+            ReconciliationLine::Segment(cloud),
+            ReconciliationLine::Segment(devices),
+            ReconciliationLine::Corporate(corporate),
+        ];
+
+        let result = lines(&reconcile_with_us_gaap(&candidates));
 
         assert_eq!(result, expected_result);
     }

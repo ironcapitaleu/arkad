@@ -656,8 +656,6 @@ So the check of that group is skipped for that period.
   their checks ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, `net-change-in-cash` gets no check
   and reports a `MixedScopes` finding. The three totals carry no scope and count with either. `derive_from_closed_groups` skips the group and reports nothing.
-- Neither `MixedStarts` nor `MixedScopes` stops the cash roll forward of the slot. It reads only
-  the change and the balances of the scope of the change.
 - `check_roll_ups` reports the `MixedStarts` finding. `derive_from_closed_groups` skips the group
   and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
@@ -665,6 +663,7 @@ So the check of that group is skipped for that period.
 - The cash roll forward reads a balance by the scope of the change. A change with no scope reads
   `CashAndRestrictedCash`. A change with the scope `ExcludesRestrictedCash` reads
   `CashAndEquivalents`.
+- Neither `MixedStarts` nor `MixedScopes` stops the cash roll forward of the slot.
 - The opening balance is the balance at the day before the exact start of the change, with no
   window. The closing balance is the balance at the end. A year-to-date change of a 10-Q starts on
   the first day of the fiscal year, so its opening balance is the balance at the end of the prior
@@ -1368,6 +1367,11 @@ unreconciled = consolidated − Σ segment − Σ elimination − Σ corporate
   segment candidate, and neither the consolidated candidate nor a candidate with a role is blocked.
   A blocked candidate shows as blocked, so a reader tells a block from an untagged item.
 - The unreconciled line holds every reconciling item that the filer does not tag with a role.
+- A corporate value exactly equal to the sum of the segment lines repeats the segment total. It
+  gets no line, and the unreconciled line does not count it. If a segment is blocked, each
+  corporate value keeps its line. Some filers tag the segment total with
+  `MaterialReconcilingItems`, such as Coca-Cola in its 10-K for fiscal year 2025
+  ([ADR 0030](../docs/adr/0030-segment-reconciliation-per-report.md), "Amendment 1").
 - A segment value with any other pair, such as `ConsolidationItems` = `IntersegmentElimination`
   (the inter-segment revenue of *m*), has no role. "Values With Two Axes" shows it below *m*.
 - A single-segment company gets the same reconciliation with one segment.
