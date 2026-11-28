@@ -14,6 +14,8 @@
 //!   state of the filing machine.
 //! - [`parse_instance_filing`]: Parses the main instance of one filing into a `ParsedFiling`. An
 //!   entry state of the filing machine.
+//! - [`standardize_filing`]: Turns the as-is facts of one source of one filing into a
+//!   `StandardizedFiling`.
 //!
 //! ## State Flow
 //!
@@ -52,6 +54,7 @@ pub mod create_financial_statements;
 pub mod parse_company_facts;
 pub mod parse_instance_filing;
 pub mod parse_notes_filing;
+pub mod standardize_filing;
 
 use std::fmt::{self, Display, Formatter};
 

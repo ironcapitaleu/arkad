@@ -273,7 +273,8 @@ pub struct FilingRows {
 ```
 
 - The transitions only move data, as in `xbrl/DESIGN.md`, "4a) Transform Integration". Each
-  `From` impl moves the output of one state into the input of the next.
+  `TryFrom` impl moves the output of one state into the input of the next, and keeps the context.
+  It fails with `MissingOutput` only if the state has no output.
 - `ParseInstanceFiling` sets `Filing::company.industry` from `industry`. The instance has no
   industry code.
 - `StandardizeFiling` runs once per source of a filing
