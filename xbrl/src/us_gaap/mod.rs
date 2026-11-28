@@ -27,7 +27,7 @@ use crate::core::rule::RuleId;
 use crate::core::taxonomy::Taxonomy;
 use crate::core::taxonomy::family::{FamilyDeclaration, UriPattern};
 use crate::core::taxonomy::reference::{
-    CalculationArc, CalculationTree, ConceptAliases, ElementReference, PartAliases,
+    CalculationArc, CalculationTree, ConceptAliases, ElementReference, LineTotal, PartAliases,
 };
 use crate::core::taxonomy::segment::{
     MemberRole, ReconciliationRole, SegmentAxes, SegmentAxis, SegmentAxisKind,
@@ -267,7 +267,10 @@ impl UsGaap {
                     let parts = mappings::PART_CONCEPTS
                         .iter()
                         .find(|parts| parts.canonical_element() == definition.canonical_element());
-                    concept_aliases(definition, parts, &calculation_tree)
+                    let line_total = mappings::LINE_TOTAL_CONCEPTS
+                        .iter()
+                        .find(|total| total.canonical_element() == definition.canonical_element());
+                    concept_aliases(definition, parts, line_total, &calculation_tree)
                 })
                 .collect(),
             calculation_tree,
@@ -376,12 +379,14 @@ fn declaration(spec: &FamilySpec) -> FamilyDeclaration {
         .expect("Given a declaration of the plug-in, the creation should always succeed")
 }
 
-/// Returns the alias list of one definition of [`mappings`], with the parts of `part_definition`.
+/// Returns the alias list of one definition of [`mappings`], with the parts of `part_definition`
+/// and the lines of `line_total_definition`.
 ///
 /// The scopes hold the scopes of the definition, then the scopes of the parts.
 fn concept_aliases(
     definition: &mappings::ConceptDefinition,
     part_definition: Option<&mappings::PartDefinition>,
+    line_total_definition: Option<&mappings::LineTotalDefinition>,
     tree: &CalculationTree,
 ) -> ConceptAliases {
     ConceptAliases {
@@ -394,6 +399,7 @@ fn concept_aliases(
             .map(|name| concept(US_GAAP_FAMILY, name))
             .collect(),
         parts: part_definition.map(|parts| part_aliases(parts, tree)),
+        line_total: line_total_definition.map(line_total),
         scopes: definition
             .scopes()
             .iter()
@@ -438,6 +444,19 @@ fn part_aliases(definition: &mappings::PartDefinition, tree: &CalculationTree) -
             .map(|(part, others)| (concept(US_GAAP_FAMILY, part), concepts(others)))
             .collect(),
         other_part_totals: concepts(definition.other_part_totals()),
+    }
+}
+
+/// Returns the line total of one definition of [`mappings::LINE_TOTAL_CONCEPTS`].
+fn line_total(definition: &mappings::LineTotalDefinition) -> LineTotal {
+    LineTotal {
+        rule: RuleId::from_str(definition.total_rule())
+            .expect("Given a rule ID of the definitions, the parse should always succeed"),
+        lines: definition
+            .lines()
+            .iter()
+            .map(|name| concept(US_GAAP_FAMILY, name))
+            .collect(),
     }
 }
 
@@ -1029,7 +1048,8 @@ mod tests {
     }
 
     #[test]
-    fn should_find_reference_data_for_every_alias_and_part_except_the_removed_ones_when_created() {
+    fn should_find_reference_data_for_every_alias_part_and_line_except_the_removed_ones_when_created()
+     {
         let us_gaap = UsGaap::new();
 
         // The 2026 release does not hold these concepts. The EPS concept and the two revenue parts
@@ -1064,7 +1084,8 @@ mod tests {
                     let own = parts.own_other_parts.iter().flat_map(|(_, others)| others);
                     parts.parts.iter().chain(&parts.other_parts).chain(own)
                 });
-                aliases.concepts.iter().chain(parts)
+                let lines = aliases.line_total.iter().flat_map(|total| &total.lines);
+                aliases.concepts.iter().chain(parts).chain(lines)
             })
             .filter(|concept| us_gaap.element(concept).is_none())
             .cloned()
@@ -1135,6 +1156,44 @@ mod tests {
         let expected_result: Vec<(CanonicalElementKind, RuleId, Option<Confidence>)> = Vec::new();
 
         let result = resolve(&facts, &registry);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_attach_a_line_total_to_no_alias_list_when_the_table_of_line_totals_is_empty() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result: Vec<CanonicalElementKind> = Vec::new();
+
+        let result: Vec<CanonicalElementKind> = us_gaap
+            .aliases()
+            .iter()
+            .filter(|aliases| aliases.line_total.is_some())
+            .map(|aliases| aliases.element)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_rule_and_the_us_gaap_lines_when_building_a_line_total() {
+        let definition = mappings::LineTotalDefinition::new(
+            IncomeStatementConcept::Revenue.element(),
+            &["InterestIncomeExpenseNet", "NoninterestIncome"],
+            "us-gaap/total/revenue@1",
+        );
+
+        let expected_result = LineTotal {
+            rule: RuleId::from_str("us-gaap/total/revenue@1")
+                .expect("Given a hardcoded rule ID, the parse should always succeed"),
+            lines: vec![
+                concept("us-gaap", "InterestIncomeExpenseNet"),
+                concept("us-gaap", "NoninterestIncome"),
+            ],
+        };
+
+        let result = line_total(&definition);
 
         assert_eq!(result, expected_result);
     }
@@ -1269,7 +1328,7 @@ mod tests {
             ),
         ];
 
-        let result = concept_aliases(&definition, Some(&parts), &tree).scopes;
+        let result = concept_aliases(&definition, Some(&parts), None, &tree).scopes;
 
         assert_eq!(result, expected_result);
     }
@@ -1343,6 +1402,7 @@ mod tests {
                     concept("us-gaap", "DirectPremiumsEarned"),
                 ],
             }),
+            line_total: None,
             scopes: Vec::new(),
         });
 
@@ -1423,6 +1483,7 @@ mod tests {
                     ),
                 ],
             }),
+            line_total: None,
             scopes: Vec::new(),
         });
 
@@ -1465,6 +1526,7 @@ mod tests {
                     concept("us-gaap", "OtherMinorityInterests"),
                 ],
             }),
+            line_total: None,
             scopes: Vec::new(),
         });
 
@@ -1981,6 +2043,7 @@ mod tests {
                     ),
                 ],
             }),
+            line_total: None,
             scopes: Vec::new(),
         });
 
@@ -2192,6 +2255,7 @@ mod tests {
                     ),
                 ],
             }),
+            line_total: None,
             scopes: Vec::new(),
         });
 

@@ -1,7 +1,7 @@
 //! # Alias
 //!
 //! Provides [`resolve_aliases`], tiers 1 and 2 of resolution: the alias lists of the plug-ins
-//! turn the as-is facts of one filing into candidates.
+//! turn the as-is facts of one filing into candidates. The line total of a plug-in runs with them.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -13,9 +13,11 @@ use super::concept::ConceptName;
 use super::confidence::Confidence;
 use super::dedup::{Copies, conflicts_with};
 use super::elements::CanonicalElementKind;
-use super::fact::{AsIsFact, Dimensions, FactValue};
+use super::fact::{AsIsFact, Dimensions, FactKey, FactValue};
 use super::filing::EntityId;
 use super::finding::Finding;
+use super::rule::RuleId;
+use super::scope::Scope;
 use super::taxonomy::Taxonomy;
 use super::taxonomy::reference::{ConceptAliases, PartAliases};
 use super::taxonomy::registry::Registry;
@@ -56,14 +58,20 @@ pub struct FilingCandidates {
 /// part in the same way, but only if the filing reports none of the other parts in the period,
 /// with any value, zero included.
 ///
+/// If no concept of the list and no part resolves, the line total rule runs on
+/// [`ConceptAliases::line_total`]. Each line must have a value in the period, unit, and set of
+/// dimensions. The candidate holds the sum of the lines, with the rule of the line total and
+/// confidence [`Confidence::Computed`], and `inputs` holds the value key of each line. A conflict on
+/// a line gives a blocked candidate. The line total runs on segment facts, as the part rule does.
+///
 /// The candidate takes the scope that [`ConceptAliases::scopes`] names for the winning concept or
-/// part.
+/// part. A candidate of the line total carries no scope.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate under the dimensions
 /// of the conflict. A conflict on a segment fact leaves the candidate without dimensions as it is.
 /// A conflict on a lower alias, or on a concept no plug-in maps, blocks nothing. Every conflict
 /// gives a [`Finding::Conflict`], with the standard concept if an alias list of its plug-in names
-/// the concept. If two plug-ins map one standard concept, the plug-in of the first family in name
+/// the concept as an alias, a part, or a line. If two plug-ins map one standard concept, the plug-in of the first family in name
 /// order wins.
 #[must_use]
 pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCandidates {
@@ -258,7 +266,7 @@ fn pick(
     resolves: &dyn Fn(&ConceptName) -> bool,
     blockers: &PartBlockers<'_>,
 ) -> Option<Candidate> {
-    let (confidence, reported, rule) = first_reported(&aliases.concepts, concepts, resolves)
+    let Some((confidence, reported, rule)) = first_reported(&aliases.concepts, concepts, resolves)
         .map(|(position, reported)| {
             let confidence = if position == 0 {
                 Confidence::Exact
@@ -276,7 +284,10 @@ fn pick(
                 .filter_map(|part| Some((part, *concepts.get(part)?)))
                 .find(|(part, _)| !blockers.block(part, parts))
                 .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
-        })?;
+        })
+    else {
+        return add_lines(plugin, aliases, concepts, resolves);
+    };
     let fact = reported.first();
     let (value, inputs) = match reported {
         Reported::Single(fact) => {
@@ -290,11 +301,89 @@ fn pick(
             };
             (value, vec![fact.key()])
         }
-        Reported::Conflict(ranks) => (
-            CandidateValue::Blocked,
-            ranks.iter().map(|rank| rank.key()).collect(),
-        ),
+        Reported::Conflict(ranks) => (CandidateValue::Blocked, keys_of(ranks)),
     };
+    let scope = aliases.scope_of(&fact.concept);
+    candidate(plugin, aliases, fact, value, rule, inputs, scope)
+}
+
+/// Adds the lines of [`ConceptAliases::line_total`] in one period. Gives no candidate if a line
+/// has no value in the period, or if two lines cover different periods.
+///
+/// The value is the sum, with confidence [`Confidence::Computed`] and the least precise
+/// `decimals` of the lines. A conflict on a line blocks the candidate, and `inputs` then names each
+/// rank of each line with a conflict.
+fn add_lines(
+    plugin: &dyn Taxonomy,
+    aliases: &ConceptAliases,
+    concepts: &BTreeMap<&ConceptName, Reported<'_>>,
+    resolves: &dyn Fn(&ConceptName) -> bool,
+) -> Option<Candidate> {
+    let total = aliases.line_total.as_ref()?;
+    let lines = total
+        .lines
+        .iter()
+        .map(|line| {
+            resolves(line)
+                .then(|| concepts.get(line).copied())
+                .flatten()
+        })
+        .collect::<Option<Vec<Reported<'_>>>>()?;
+    let first = lines.first()?.first();
+    if lines
+        .iter()
+        .any(|line| line.first().context.period != first.context.period)
+    {
+        return None;
+    }
+    let conflicts: Vec<FactKey> = lines
+        .iter()
+        .filter_map(|line| match line {
+            Reported::Single(_) => None,
+            Reported::Conflict(ranks) => Some(keys_of(ranks)),
+        })
+        .flatten()
+        .collect();
+    let (value, inputs) = if conflicts.is_empty() {
+        let mut sum = BigDecimal::from(0);
+        let mut decimals = first.decimals;
+        for line in &lines {
+            let fact = line.first();
+            let FactValue::Numeric(value) = &fact.value else {
+                return None;
+            };
+            sum += value;
+            decimals = decimals
+                .zip(fact.decimals)
+                .map(|(left, right)| left.min(right));
+        }
+        let value = CandidateValue::Reported {
+            value: sum,
+            decimals,
+            confidence: Confidence::Computed,
+        };
+        (value, lines.iter().map(|line| line.first().key()).collect())
+    } else {
+        (CandidateValue::Blocked, conflicts)
+    };
+    candidate(plugin, aliases, first, value, &total.rule, inputs, None)
+}
+
+/// Returns the value key of each rank of a conflict.
+fn keys_of(ranks: &[&AsIsFact]) -> Vec<FactKey> {
+    ranks.iter().map(|rank| rank.key()).collect()
+}
+
+/// Returns the candidate of `aliases` with the filing, period, unit, and dimensions of `fact`.
+fn candidate(
+    plugin: &dyn Taxonomy,
+    aliases: &ConceptAliases,
+    fact: &AsIsFact,
+    value: CandidateValue,
+    rule: &RuleId,
+    inputs: Vec<FactKey>,
+    scope: Option<Scope>,
+) -> Option<Candidate> {
     Some(Candidate {
         source: fact.source.clone(),
         entity: fact.context.entity.clone(),
@@ -306,7 +395,7 @@ fn pick(
         rule: rule.clone(),
         release: plugin.release().clone(),
         inputs,
-        scope: aliases.scope_of(&fact.concept),
+        scope,
     })
 }
 
@@ -369,6 +458,10 @@ fn conflict(ranks: &[&AsIsFact], registry: &Registry<'_>) -> Finding {
                             .parts
                             .as_ref()
                             .is_some_and(|parts| parts.parts.contains(&first.concept))
+                        || aliases
+                            .line_total
+                            .as_ref()
+                            .is_some_and(|total| total.lines.contains(&first.concept))
                 })
                 .map(|aliases| aliases.element)
         });
@@ -392,10 +485,12 @@ mod tests {
     use crate::core::dedup::{more_precise, newest_filing};
     use crate::core::elements::{BalanceSheetConcept, CashFlowConcept, IncomeStatementConcept};
     use crate::core::fact::{Decimals, FilingSource};
+    use crate::core::period::{Duration, Period};
     use crate::core::release::TaxonomyReleaseId;
     use crate::core::rule::RuleId;
     use crate::core::scope::Scope;
-    use crate::core::taxonomy::reference::PartAliases;
+    use crate::core::taxonomy::reference::{LineTotal, PartAliases};
+    use crate::core::taxonomy::registry::Plugin;
     use crate::tests::fixtures::sample_fact::{apple, date, fact, source, us_gaap_plugin};
     use crate::tests::fixtures::sample_taxonomy::{FakeTaxonomy, declaration, plugin_with_aliases};
 
@@ -416,6 +511,7 @@ mod tests {
             ),
             concepts,
             parts: None,
+            line_total: None,
             scopes: Vec::new(),
         }
     }
@@ -446,6 +542,7 @@ mod tests {
                 other_part_totals: vec![],
                 other_parts: vec![concept_of("us-gaap", "MinorityInterest")],
             }),
+            line_total: None,
             scopes: Vec::new(),
         };
         plugin_with_aliases(
@@ -486,6 +583,7 @@ mod tests {
                     "NetCashProvidedByUsedInDiscontinuedOperations",
                 )],
             }),
+            line_total: None,
             scopes: Vec::new(),
         };
         plugin_with_aliases(
@@ -523,6 +621,7 @@ mod tests {
                 other_part_totals: vec![concept_of("us-gaap", "OtherSalesRevenueNet")],
                 other_parts: vec![],
             }),
+            line_total: None,
             scopes: Vec::new(),
         };
         plugin_with_aliases(
@@ -554,6 +653,7 @@ mod tests {
                 other_part_totals: vec![],
                 other_parts: parts,
             }),
+            line_total: None,
             scopes: Vec::new(),
         };
         plugin_with_aliases(
@@ -596,6 +696,7 @@ mod tests {
                 own_other_parts: vec![],
                 other_part_totals: Vec::new(),
             }),
+            line_total: None,
             scopes: vec![
                 (narrow, Scope::ExcludesRestrictedCash),
                 (continuing, Scope::ExcludesRestrictedCash),
@@ -610,6 +711,51 @@ mod tests {
             )],
             vec![exchange_rate_effect],
         )
+    }
+
+    /// Returns a plug-in whose revenue list holds `Revenues`, with the contract revenue part and the
+    /// line total of `InterestIncomeExpenseNet` and `NoninterestIncome`.
+    fn bank_revenue_plugin() -> FakeTaxonomy {
+        let revenue = ConceptAliases {
+            element: IncomeStatementConcept::Revenue.element(),
+            rule: rule_of("us-gaap/alias/revenue@1"),
+            concepts: vec![concept_of("us-gaap", "Revenues")],
+            parts: Some(PartAliases {
+                rule: rule_of("us-gaap/part/revenue@1"),
+                parts: vec![concept_of(
+                    "us-gaap",
+                    "RevenueFromContractWithCustomerExcludingAssessedTax",
+                )],
+                other_parts: vec![],
+                own_other_parts: vec![],
+                other_part_totals: vec![],
+            }),
+            line_total: Some(LineTotal {
+                rule: rule_of("us-gaap/total/revenue@1"),
+                lines: vec![
+                    concept_of("us-gaap", "InterestIncomeExpenseNet"),
+                    concept_of("us-gaap", "NoninterestIncome"),
+                ],
+            }),
+            scopes: Vec::new(),
+        };
+        plugin_with_aliases(
+            "us-gaap/2026",
+            vec![declaration(
+                "us-gaap",
+                "http://fasb.org/us-gaap/{release}",
+                true,
+            )],
+            vec![revenue],
+        )
+    }
+
+    /// Returns the net interest income and the noninterest income of one bank filing.
+    fn bank_lines(filing: &FilingSource) -> Vec<AsIsFact> {
+        vec![
+            fact(filing, "InterestIncomeExpenseNet", "3262000000"),
+            fact(filing, "NoninterestIncome", "2019000000"),
+        ]
     }
 
     /// Returns the rule and the value of each candidate.
@@ -1581,6 +1727,262 @@ mod tests {
         }];
 
         let result = resolve_aliases(&copies, &registry).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_alias_when_the_filing_reports_an_alias_next_to_each_line() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts.push(fact(&filing, "Revenues", "5281000000"));
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/alias/revenue@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(5_281_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Exact,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_part_when_the_filing_reports_a_part_next_to_each_line() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts.push(fact(
+            &filing,
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "1500000000",
+        ));
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/revenue@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(1_500_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_computed_sum_with_the_line_total_rule_when_the_filing_reports_each_line() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = bank_lines(&filing);
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/total/revenue@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(5_281_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Computed,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_value_key_of_each_line_as_inputs_when_the_line_total_resolves() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = bank_lines(&filing);
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![vec![facts[0].key(), facts[1].key()]];
+
+        let result: Vec<Vec<FactKey>> = resolve_aliases(&copies, &registry)
+            .candidates
+            .into_iter()
+            .map(|candidate| candidate.inputs)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_least_precise_decimals_when_the_lines_differ_in_precision() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts[0].decimals = Some(Decimals::Finite(-3));
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(5_281_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Computed,
+        }];
+
+        let result = values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_filing_reports_one_line_only() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![fact(&filing, "InterestIncomeExpenseNet", "3262000000")];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_blocked_candidate_with_the_line_total_rule_when_a_line_has_a_conflict() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut stub = fact(&filing, "NoninterestIncome", "1000000000");
+        stub.copy_rank = 1;
+        let mut facts = bank_lines(&filing);
+        facts.push(stub);
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(rule_of("us-gaap/total/revenue@1"), CandidateValue::Blocked)];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_standard_concept_in_the_conflict_when_the_concept_is_a_line() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let line = fact(&filing, "NoninterestIncome", "2019000000");
+        let mut stub = fact(&filing, "NoninterestIncome", "1000000000");
+        stub.copy_rank = 1;
+        let facts = vec![line.clone(), stub];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![Finding::Conflict {
+            entity: apple(),
+            key: line.key(),
+            ranks: vec![1],
+            standard_concept: Some(IncomeStatementConcept::Revenue.element()),
+        }];
+
+        let result = resolve_aliases(&copies, &registry).findings;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_lines_have_different_dimensions() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts[1].context.dimensions = segment("ConsumerBankingMember");
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_lines_cover_different_periods() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts[1].context.period = Period::Duration(
+            Duration::from_dates(date(2023, 9, 30), date(2024, 9, 28))
+                .expect("Given an end after the start, the creation should always succeed"),
+        );
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_segment_its_own_line_total_when_the_alias_resolves_only_without_dimensions() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&plugin)]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts: Vec<AsIsFact> = bank_lines(&filing)
+            .into_iter()
+            .map(|mut line| {
+                line.context.dimensions = segment("ConsumerBankingMember");
+                line
+            })
+            .collect();
+        facts.push(fact(&filing, "Revenues", "7526000000"));
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![
+            (Dimensions::default(), rule_of("us-gaap/alias/revenue@1")),
+            (
+                segment("ConsumerBankingMember"),
+                rule_of("us-gaap/total/revenue@1"),
+            ),
+        ];
+
+        let result: Vec<(Dimensions, RuleId)> = resolve_aliases(&copies, &registry)
+            .candidates
+            .into_iter()
+            .map(|candidate| (candidate.dimensions, candidate.rule))
+            .collect();
 
         assert_eq!(result, expected_result);
     }

@@ -179,6 +179,7 @@ pub fn revenue_aliases() -> ConceptAliases {
             concept("RevenueFromContractWithCustomerExcludingAssessedTax"),
         ],
         parts: None,
+        line_total: None,
         scopes: Vec::new(),
     }
 }

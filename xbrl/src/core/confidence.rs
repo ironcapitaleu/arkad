@@ -16,7 +16,8 @@ pub enum Confidence {
     Synonym,
     /// Tier 3: Derived from other standardized values by an accounting identity or a period identity.
     Derived,
-    /// Tier 4: Computed as a sum along the calculation tree of a plug-in.
+    /// Tier 4: Computed as a sum along the calculation tree of a plug-in, or as the line total of a
+    /// plug-in. The line total runs with tiers 1 and 2.
     Computed,
 }
 
