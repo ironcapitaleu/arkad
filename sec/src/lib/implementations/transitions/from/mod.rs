@@ -11,6 +11,7 @@
 //! - [`parse_company_facts`]: Transitions out of the Company Facts parsing state.
 //! - [`parse_notes_filing`]: Transitions out of the Notes filing parsing state.
 //! - [`parse_instance_filing`]: Transitions out of the instance filing parsing state.
+//! - [`standardize_filing`]: Transitions out of the standardize filing state.
 //! - [`validate_notes_period`]: Transitions out of the Notes period validation state.
 //! - [`validate_index_date`]: Transitions out of the index date validation state.
 //! - [`download_daily_index`]: Transitions out of the daily index download state.
@@ -26,6 +27,7 @@ pub mod parse_instance_filing;
 pub mod parse_notes_filing;
 pub mod prepare_sec_request;
 pub mod select_filing_documents;
+pub mod standardize_filing;
 pub mod store_daily_index;
 pub mod store_filing_index;
 pub mod store_full_index;

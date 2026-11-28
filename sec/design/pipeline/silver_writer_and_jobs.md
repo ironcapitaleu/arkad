@@ -564,7 +564,7 @@ holds the measurement.
 | Failure | Example | Unit | Task and run | Retry |
 | ------- | ------- | ---- | ------------ | ----- |
 | Transient | GCS answers 429 or 503, a read times out, a connection drops | Fails if three attempts fail | The task exits with an error | Each request: 3 attempts, waits of 1 s and 2 s with jitter, as for SEC requests. Then Cloud Run retries the task once. A later run skips each written unit by rule 2 |
-| Bad filing | The parser rejects one filing | Written without the filing. `dropped_rows` counts it as `rejected_filing` | The run summary counts it | None |
+| Bad filing | The parser rejects one filing | Written without the filing. `dropped_rows` counts it as `RejectedFiling` | The run summary counts it | None |
 | Bad unit | The SHA-256 of the raw file differs from its metadata, the ZIP is damaged, a table is missing, too many filings rejected | Fails. Its attempt files stay unread | The task exits with an error. The run fails | Cloud Run retries the task once, and the unit fails again |
 | Timeout | A unit runs past one hour | Fails. Its attempt files stay unread | Cloud Run stops the task | Cloud Run retries the task once. A second timeout fails the execution. `unit_slow` warns at 15 minutes |
 | Out of memory | A task passes its memory limit | As a timeout | As a timeout | As a timeout |

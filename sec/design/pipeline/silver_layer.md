@@ -186,7 +186,7 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 | `ingestion_mode` | `utf8` | `backfill` or `incremental`, from the raw metadata |
 | `transform_version` | `utf8` | Version of the parser output, see [Units, Paths, and Replays](#units-paths-and-replays) |
 | `execution_id` | `utf8` | The run that wrote the row |
-| `loaded_at` | `timestamp[ms, +00:00]` | The time of the write |
+| `loaded_at` | `timestamp[ms, +00:00]` | The start time of the task that wrote the row |
 
 - The value key is `filing_id`, `concept_family`, `concept_name`, `taxonomy_version`, `period_end`,
   `quarters`, `unit`, `dimensions`, and `copy_rank`. The key is unique within one filing and one
@@ -359,7 +359,7 @@ The manifest of each unit: its files, inputs, digests, and run. Readers find the
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
 | `source_rows` | `list<struct<table: utf8, rows: uint64>>` | Rows of each input table that maps row to row, counted once per unit: `num.tsv` and `txt.tsv` for `as_is_facts`, `sub.tsv` for `filings`. Under option B, the first pass counts every row of the table, not the rows of its bucket. A `filing_day` unit has two entries. For `as_is_facts`, `instance_facts` counts the elements with a `contextRef`, as the instance parser reads them ([ADR 0053](../../../docs/adr/0053-duplicate-rows-and-row-counts-from-the-parsers.md)). For `filings`, `instances` counts one row per instance. Empty for the other datasets |
 | `split` | `utf8`, nullable | `stream` or `buckets` for a `notes_file` unit, see [Unit of Work and Memory](#unit-of-work-and-memory). Null otherwise |
-| `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason. The reason `UnmappedRow` counts the rows that gave an `UnmappedRow` finding. The reason `DuplicateRow` counts the rows that repeat a fact of an earlier row in key, value, and `decimals` ([ADR 0053](../../../docs/adr/0053-duplicate-rows-and-row-counts-from-the-parsers.md)) |
+| `dropped_rows` | `list<struct<reason: utf8, rows: uint64>>` | Rows the parser dropped on purpose, by reason. The reason `UnmappedRow` counts the rows that gave an `UnmappedRow` finding. The reason `DuplicateRow` counts the rows that repeat a fact of an earlier row in key, value, and `decimals` ([ADR 0053](../../../docs/adr/0053-duplicate-rows-and-row-counts-from-the-parsers.md)). The reason `RejectedFiling` counts every source row of a rejected filing. Each reason is the PascalCase name of its `DropReason` variant ([ADR 0042, Amendment 1](../../../docs/adr/0042-rejected-filing-and-unit-threshold.md#amendment-1-the-reason-text-rejectedfiling)) |
 | `content_digest` | `utf8` | SHA-256 over the list of digest group IDs and digest group hashes, sorted by digest group ID. A digest group is one filing, or the key that the list below names for rows without `filing_id`. A digest group hash is the SHA-256 over the rows of the digest group, sorted by the row key below. Each row enters in a fixed byte form, without `execution_id`, `loaded_at`, and `computed_at`. So the split, the bucket count, and the parts do not change the digest. The transform code prints the values, not the Arrow crate. An Arrow upgrade then leaves the digest as it is. [ADR 0033](../../../docs/adr/0033-byte-form-of-content-digest.md) fixes the exact form, and a golden test pins it to `transform_version` |
 | `computed_at` | `timestamp[ms, +00:00]`, nullable | The start time of the series run, for a series unit. Null otherwise |
 | `run_tasks` | `uint16`, nullable | The task count of the series run, for a series unit. Null otherwise |
@@ -633,7 +633,8 @@ the unit as "source replaced". No check can restore the old bytes.
 | ---- | ------- | -------- |
 | Period | `period_end`, `quarters`, `period_start` | Which period does the value describe? |
 | Public time | `filed`, `accepted` | Since when was the value public? |
-| Silver time | `loaded_at`, and `written_at` in `unit_manifests` | Since when did silver hold the value? |
+| Silver time | `written_at` in `unit_manifests` | Since when did silver hold the value? |
+| Run time | `loaded_at` | When did the task that wrote the row start? It is earlier than `written_at` ([ADR 0054](../../../docs/adr/0054-loaded-at-from-the-task-start.md)) |
 
 Queries this allows:
 

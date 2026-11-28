@@ -3,6 +3,7 @@
 //! Provides [`fixture_context`], a [`FilingContext`] on a registry of the families of the `xbrl`
 //! fixture filing, and [`us_gaap_context`], a [`FilingContext`] on the `us-gaap` plug-in.
 
+use jiff::Timestamp;
 use uuid::Uuid;
 use xbrl::core::taxonomy::Taxonomy;
 use xbrl::core::taxonomy::registry::Registry;
@@ -42,5 +43,6 @@ fn context_of(plugin: &'static dyn Taxonomy) -> FilingContext {
         registry: RegistryHandle::new(Box::leak(Box::new(registry))),
         transform_version: 1,
         execution_id: Uuid::nil(),
+        loaded_at: Timestamp::UNIX_EPOCH,
     }
 }

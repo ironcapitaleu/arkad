@@ -26,6 +26,8 @@ use crate::datasets::columns::{
 use crate::datasets::{ArrowRow, ArrowRowError, PartOrder, RunColumns};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
+mod filing_finding;
+
 /// One row of `findings`: a finding of the parser, the standardize filing step, or the series
 /// step.
 ///
