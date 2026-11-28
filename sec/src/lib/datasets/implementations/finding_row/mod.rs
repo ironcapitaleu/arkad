@@ -40,6 +40,8 @@ pub struct FindingRow {
     /// The concepts of the finding, in the order that `silver_layer.md` gives for its kind.
     pub concepts: Vec<String>,
     /// The periods of the finding, sorted by `period_end`, then `quarters`.
+    ///
+    /// The order enters the key of the finding. [`FindingRow::to_batch`] rejects another order.
     pub periods: Vec<FindingPeriod>,
     /// The family or the row of a parser finding. `None` for the other kinds.
     pub subject: Option<String>,
@@ -93,7 +95,7 @@ pub enum FindingKind {
 
 impl FindingKind {
     /// Every kind, in the order of the `kind` column in `silver_layer.md`.
-    pub const ALL: [Self; 14] = [
+    const ALL: [Self; 14] = [
         Self::UndeclaredFamily,
         Self::UnmappedRow,
         Self::Conflict,
@@ -233,6 +235,17 @@ impl ArrowRow for FindingRow {
     }
 
     fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError> {
+        if let Some(row) = rows
+            .iter()
+            .position(|row| row.periods.windows(2).any(|pair| pair[0] > pair[1]))
+        {
+            return Err(unexpected_value(
+                Self::DATASET,
+                "periods",
+                row,
+                "not sorted by 'period_end', then 'quarters'".to_owned(),
+            ));
+        }
         let schema = schema_v1();
         let text = |value: fn(&Self) -> Option<String>| -> ArrayRef {
             Arc::new(StringArray::from_iter(rows.iter().map(value)))
@@ -516,9 +529,12 @@ impl<'a> FindingColumns<'a> {
         let computed_at = nullable(self.computed_at, row);
         match (step, change, computed_at) {
             ("filing", None, None) => Ok(FindingStep::Filing),
-            ("filing", ..) => Err(unexpected(
-                "step",
-                "a filing row with a change or a computed_at".to_owned(),
+            ("filing", Some(_), _) => {
+                Err(unexpected("change", "a value in a filing row".to_owned()))
+            }
+            ("filing", None, Some(_)) => Err(unexpected(
+                "computed_at",
+                "a value in a filing row".to_owned(),
             )),
             ("series", Some(change), Some(milliseconds)) => Ok(FindingStep::Series {
                 change: FindingChange::ALL
@@ -528,10 +544,10 @@ impl<'a> FindingColumns<'a> {
                 computed_at: timestamp_from_milliseconds(milliseconds)
                     .map_err(|reason| unexpected("computed_at", reason))?,
             }),
-            ("series", ..) => Err(unexpected(
-                "step",
-                "a series row without a change or a computed_at".to_owned(),
-            )),
+            ("series", None, _) => Err(unexpected("change", "null in a series row".to_owned())),
+            ("series", Some(_), None) => {
+                Err(unexpected("computed_at", "null in a series row".to_owned()))
+            }
             _ => Err(unexpected("step", format!("unknown step '{step}'"))),
         }
     }
@@ -580,9 +596,12 @@ mod tests {
         }
     }
 
-    /// The fixture rows: a parser finding with non-ASCII text, a series row with every column
-    /// set, a series row of an entity without a filing, and a filing row with every nullable
-    /// column empty.
+    /// The fixture rows: a parser finding with non-ASCII text, a series row with two periods and a
+    /// confirming filing, a series row of an entity without a filing, and a filing row with every
+    /// nullable column empty.
+    ///
+    /// No step writes the last row, because each kind sets at least one nullable column. It tests
+    /// the empty columns of the schema.
     fn sample_rows() -> Vec<FindingRow> {
         let mut unmapped = finding(FindingKind::UnmappedRow, FindingStep::Filing);
         unmapped.subject = Some("us-gaap:Revenues c-1 Société Générale — 株式会社 ✓".to_owned());
@@ -609,7 +628,6 @@ mod tests {
         suspicious.reason = Some("StartBeforeEarliestYear,EndFarFromReport".to_owned());
         suspicious.filing = Some(filing("0000320193-26-000001"));
         suspicious.confirmed_by = Some(filing("0000320193-25-000079"));
-        suspicious.confidence = Some(Confidence::Exact);
         let mut roll_up = finding(
             FindingKind::RollUpMismatch,
             FindingStep::Series {
@@ -796,6 +814,24 @@ mod tests {
     }
 
     #[test]
+    fn should_fail_when_the_periods_are_not_sorted() {
+        let mut row = sample_rows().remove(1);
+        row.periods.reverse();
+        let rows = vec![row];
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "findings",
+            column: "periods",
+            row: 0,
+            reason: "not sorted by 'period_end', then 'quarters'".to_owned(),
+        });
+
+        let result = FindingRow::to_batch(&rows);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_when_the_kind_is_unknown() {
         let batch = batch_with(0, "kind", Arc::new(StringArray::from(vec!["Unmapped"])));
 
@@ -833,9 +869,9 @@ mod tests {
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "findings",
-            column: "step",
+            column: "change",
             row: 0,
-            reason: "a filing row with a change or a computed_at".to_owned(),
+            reason: "a value in a filing row".to_owned(),
         });
 
         let result = FindingRow::from_batch(&batch, 1);
@@ -853,9 +889,9 @@ mod tests {
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "findings",
-            column: "step",
+            column: "computed_at",
             row: 0,
-            reason: "a series row without a change or a computed_at".to_owned(),
+            reason: "null in a series row".to_owned(),
         });
 
         let result = FindingRow::from_batch(&batch, 1);
@@ -1028,7 +1064,7 @@ mod tests {
     }
 
     #[test]
-    fn should_write_the_key_of_the_finding_as_the_row_key() {
+    fn should_write_the_key_of_the_finding_when_the_row_key_is_written() {
         let row = sample_rows().remove(3);
 
         // kind | entity_scheme | entity_id | concepts empty | periods empty | filing_id null |
