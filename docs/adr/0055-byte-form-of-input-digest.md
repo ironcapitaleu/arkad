@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Proposed. The project owner confirms |
+| Status | Accepted by the project owner on 2026-11-28 ([STA-616 comment `127651ce`](https://linear.app/state-machine/issue/STA-616#comment-127651ce), accessed 2026-11-28) |
 | Date | 2026-11-28 |
 | Deciders | The project owner |
 | Ticket | [STA-616](https://linear.app/state-machine/issue/STA-616) (accessed 2026-11-28) |
