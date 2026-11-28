@@ -1,6 +1,6 @@
 //! # Row Digest
 //!
-//! Provides [`content_digest()`], the SHA-256 of the rows of a silver unit, and the byte form of
+//! Provides [`content_digest()`], the SHA-256 of the rows of a write unit, and the byte form of
 //! the rows that it hashes.
 //!
 //! Integrity check 4 runs the transform again on the same input and compares the digests of the
@@ -35,7 +35,7 @@ pub use duplicate_digest_group::DuplicateDigestGroup;
 pub use implementations::ByteForm;
 pub use traits::DigestRow;
 
-/// The ID and the hash of one digest group of a silver unit.
+/// The ID and the hash of one digest group of a write unit.
 ///
 /// The hash is the SHA-256 over the byte form of the rows of the group, sorted by the bytes of
 /// their row key, and then by the bytes of the whole row. [`group_hashes`] computes it.
@@ -140,7 +140,7 @@ pub fn group_hashes<R: DigestRow>(rows: &[R]) -> Vec<GroupHash> {
         .collect()
 }
 
-/// Returns the `content_digest` of a silver unit from the hashes of its digest groups.
+/// Returns the `content_digest` of a write unit from the hashes of its digest groups.
 ///
 /// Sorts the groups by the bytes of their ID. The digest is the SHA-256 over each group ID followed
 /// by its 32 hash bytes. A unit with no rows has no groups, so its digest is the SHA-256 of no

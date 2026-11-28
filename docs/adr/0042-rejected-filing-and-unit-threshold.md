@@ -20,7 +20,7 @@ date. A parser of `xbrl::adapter::edgar` can reject one filing as a whole:
 The failure table of the job design (STA-463, ironcapitaleu/arkad#603) already writes the unit
 without a rejected filing, and counts the filing in `dropped_rows` with the reason
 `rejected_filing`. It leaves two points to STA-332: which filing is rejected, and the share of
-rejected filings that fails a unit. `silver_files` has no `rejected` column.
+rejected filings that fails a unit. `unit_manifests` has no `rejected` column.
 
 A unit that fails stays in the next plan, so a unit that always fails runs again in each run. A
 unit that writes without its rejected filings keeps them out of silver until the unit is written
@@ -50,7 +50,7 @@ This choice binds the filing step, the silver writer, and the run summary of the
    row count check of silver still holds. The task logs one `filing_rejected` event as `warn`.
 3. **The unit fails if more than 5% of its selected filings are rejected and at least 3 are, or if
    every selected filing is rejected.**
-   The writer checks this after the last filing of the unit, before it writes the `silver_files`
+   The writer checks this after the last filing of the unit, before it writes the `unit_manifests`
    row. A unit that fails this way is a bad unit in the failure table of the job design.
 
 ## Options Considered

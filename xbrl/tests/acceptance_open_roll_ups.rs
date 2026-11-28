@@ -77,9 +77,6 @@ open_roll_up_tests! {
     ],
     should_list_the_open_roll_ups_for_kkr_10_k_2013_fy: "0001047469-14-001189" => [
         "Revenue",
-        "OperatingCashFlow",
-        "InvestingCashFlow",
-        "FinancingCashFlow",
         "NetChangeInCash",
     ],
     should_list_the_open_roll_ups_for_jpmorgan_chase_10_k_2013_fy: "0000019617-14-000289" => [
@@ -96,9 +93,6 @@ open_roll_up_tests! {
     ],
     should_list_the_open_roll_ups_for_evergy_10_k_2025_fy: "0001711269-26-000017" => [],
     should_list_the_open_roll_ups_for_exxonmobil_10_k_2013_fy: "0000034088-14-000012" => [
-        "OperatingCashFlow",
-        "InvestingCashFlow",
-        "FinancingCashFlow",
         "NetChangeInCash",
     ],
     should_list_the_open_roll_ups_for_exxonmobil_10_k_2025_fy: "0000034088-26-000045" => [],

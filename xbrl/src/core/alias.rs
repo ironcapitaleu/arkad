@@ -17,7 +17,7 @@ use super::fact::{AsIsFact, Dimensions, FactValue};
 use super::filing::EntityId;
 use super::finding::Finding;
 use super::taxonomy::Taxonomy;
-use super::taxonomy::reference::ConceptAliases;
+use super::taxonomy::reference::{ConceptAliases, PartAliases};
 use super::taxonomy::registry::Registry;
 use super::unit::Unit;
 
@@ -51,7 +51,9 @@ pub struct FilingCandidates {
 /// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
 /// other. A value of zero does not block. A conflict does. The check covers every dimension of the
 /// period, so an other part with a member, such as the noncontrolling interest on the equity
-/// components axis, also stops the part.
+/// components axis, also stops the part. A total of [`PartAliases::other_part_totals`] blocks the
+/// part in the same way, but only if the filing reports none of the other parts in the period,
+/// with any value, zero included.
 ///
 /// The candidate takes the scope that [`ConceptAliases::scopes`] names for the winning concept or
 /// part.
@@ -78,6 +80,7 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
         }
     }
     let present = present_in_any_dimension(&periods);
+    let reported = reported_in_any_dimension(&periods);
     let mut candidates = Vec::new();
     let mut taken = BTreeSet::new();
     for plugin in plugins(copies, registry) {
@@ -89,15 +92,15 @@ pub fn resolve_aliases(copies: &Copies<'_>, registry: &Registry<'_>) -> FilingCa
                 if taken.contains(&(aliases.element, period)) {
                     continue;
                 }
-                let other_part_reported =
-                    |other: &ConceptName| present.contains(&(period.span(), other));
+                let blockers = PartBlockers {
+                    present: &|other| present.contains(&(period.span(), other)),
+                    reported: &|other| reported.contains(&(period.span(), other)),
+                };
                 let resolves = |concept: &ConceptName| {
                     routes_to(concept, plugin, registry)
                         && names_each_axis(concept, &period.dimensions, registry)
                 };
-                if let Some(candidate) =
-                    pick(plugin, aliases, concepts, &resolves, &other_part_reported)
-                {
+                if let Some(candidate) = pick(plugin, aliases, concepts, &resolves, &blockers) {
                     taken.insert((aliases.element, period));
                     candidates.push(candidate);
                 }
@@ -210,6 +213,41 @@ fn present_in_any_dimension<'a>(
         .collect()
 }
 
+/// Returns the period without dimensions and the concept of each fact, zero included, and of each
+/// conflict.
+fn reported_in_any_dimension<'a>(
+    periods: &BTreeMap<PeriodKey, BTreeMap<&'a ConceptName, Reported<'_>>>,
+) -> BTreeSet<(PeriodSpan, &'a ConceptName)> {
+    periods
+        .iter()
+        .flat_map(|(period, concepts)| concepts.keys().map(|concept| (period.span(), *concept)))
+        .collect()
+}
+
+/// The checks of the part rule on the concepts of one period, in any dimension.
+struct PartBlockers<'a> {
+    /// Accepts a concept with a value other than zero, or with a conflict.
+    present: &'a dyn Fn(&ConceptName) -> bool,
+    /// Accepts a concept with any value, zero included, or with a conflict.
+    reported: &'a dyn Fn(&ConceptName) -> bool,
+}
+
+impl PartBlockers<'_> {
+    /// Returns `true` if an other part, or a total of other parts, stops `part`.
+    fn block(&self, part: &ConceptName, parts: &PartAliases) -> bool {
+        let others = || parts.other_parts.iter().filter(|other| *other != part);
+        let blocked_by_total = || {
+            !others().any(|other| (self.reported)(other))
+                && parts
+                    .other_part_totals
+                    .iter()
+                    .filter(|total| *total != part)
+                    .any(|total| (self.present)(total))
+        };
+        others().any(|other| (self.present)(other)) || blocked_by_total()
+    }
+}
+
 /// Picks the candidate of one alias list in one period. `resolves` accepts a concept that routes to
 /// `plugin` and whose plug-in names each axis of the period.
 fn pick(
@@ -217,7 +255,7 @@ fn pick(
     aliases: &ConceptAliases,
     concepts: &BTreeMap<&ConceptName, Reported<'_>>,
     resolves: &dyn Fn(&ConceptName) -> bool,
-    other_part_reported: &dyn Fn(&ConceptName) -> bool,
+    blockers: &PartBlockers<'_>,
 ) -> Option<Candidate> {
     let (confidence, reported, rule) = first_reported(&aliases.concepts, concepts, resolves)
         .map(|(position, reported)| {
@@ -235,13 +273,7 @@ fn pick(
                 .iter()
                 .filter(|part| resolves(part))
                 .filter_map(|part| Some((part, *concepts.get(part)?)))
-                .find(|(part, _)| {
-                    !parts
-                        .other_parts
-                        .iter()
-                        .filter(|other| other != part)
-                        .any(other_part_reported)
-                })
+                .find(|(part, _)| !blockers.block(part, parts))
                 .map(|(_, reported)| (Confidence::Synonym, reported, &parts.rule))
         })?;
     let fact = reported.first();
@@ -409,6 +441,7 @@ mod tests {
                     concept_of("us-gaap", "StockholdersEquity"),
                     concept_of("us-gaap", "ParentEquity"),
                 ],
+                other_part_totals: vec![],
                 other_parts: vec![concept_of("us-gaap", "MinorityInterest")],
             }),
             scopes: Vec::new(),
@@ -421,6 +454,45 @@ mod tests {
                 true,
             )],
             vec![equity],
+        )
+    }
+
+    /// Returns a plug-in whose operating cash flow list holds the total, with the total of
+    /// continuing operations as the part, the flow of discontinued operations as the other part,
+    /// and the discontinued operations of all activities as the total of other parts.
+    fn operating_cash_flow_plugin() -> FakeTaxonomy {
+        let operating_cash_flow = ConceptAliases {
+            element: CashFlowConcept::OperatingCashFlow.element(),
+            rule: rule_of("us-gaap/alias/operating-cash-flow@1"),
+            concepts: vec![concept_of(
+                "us-gaap",
+                "NetCashProvidedByUsedInOperatingActivities",
+            )],
+            parts: Some(PartAliases {
+                rule: rule_of("us-gaap/part/operating-cash-flow@1"),
+                parts: vec![concept_of(
+                    "us-gaap",
+                    "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                )],
+                other_parts: vec![concept_of(
+                    "us-gaap",
+                    "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
+                )],
+                other_part_totals: vec![concept_of(
+                    "us-gaap",
+                    "NetCashProvidedByUsedInDiscontinuedOperations",
+                )],
+            }),
+            scopes: Vec::new(),
+        };
+        plugin_with_aliases(
+            "us-gaap/2026",
+            vec![declaration(
+                "us-gaap",
+                "http://fasb.org/us-gaap/{release}",
+                true,
+            )],
+            vec![operating_cash_flow],
         )
     }
 
@@ -438,6 +510,7 @@ mod tests {
             parts: Some(PartAliases {
                 rule: rule_of("us-gaap/part/short-term-debt@1"),
                 parts: parts.clone(),
+                other_part_totals: vec![],
                 other_parts: parts,
             }),
             scopes: Vec::new(),
@@ -479,6 +552,7 @@ mod tests {
                     "us-gaap",
                     "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
                 )],
+                other_part_totals: Vec::new(),
             }),
             scopes: vec![
                 (narrow, Scope::ExcludesRestrictedCash),
@@ -1068,6 +1142,111 @@ mod tests {
             rule_of("us-gaap/part/equity@1"),
             CandidateValue::Reported {
                 value: BigDecimal::from(56_950_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_no_candidate_when_the_filing_reports_a_total_of_other_parts_and_none_of_the_other_parts()
+     {
+        let plugin = operating_cash_flow_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                "500000000",
+            ),
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInDiscontinuedOperations",
+                "40000000",
+            ),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_part_candidate_when_the_filing_reports_a_total_of_other_parts_next_to_an_other_part_of_zero()
+     {
+        let plugin = operating_cash_flow_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                "500000000",
+            ),
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInDiscontinuedOperations",
+                "40000000",
+            ),
+            fact(
+                &filing,
+                "CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations",
+                "0",
+            ),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/operating-cash-flow@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(500_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_a_part_candidate_when_the_total_of_other_parts_is_zero() {
+        let plugin = operating_cash_flow_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+                "500000000",
+            ),
+            fact(
+                &filing,
+                "NetCashProvidedByUsedInDiscontinuedOperations",
+                "0",
+            ),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/operating-cash-flow@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(500_000_000_i64),
                 decimals: Some(Decimals::Finite(-6)),
                 confidence: Confidence::Synonym,
             },

@@ -108,6 +108,13 @@ impl<'a> Registry<'a> {
         }
     }
 
+    /// Returns the release IDs of the plug-ins, in the order the registry received them.
+    pub fn release_ids(&self) -> impl Iterator<Item = &'a TaxonomyReleaseId> + '_ {
+        self.plugins
+            .iter()
+            .map(|plugin| &plugin.taxonomy().release().id)
+    }
+
     /// Returns the declaration of the family, or `None` if no plug-in declares it.
     #[must_use]
     pub fn declaration(&self, family: &NamespaceFamily) -> Option<&FamilyDeclaration> {
@@ -332,6 +339,24 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_plugin() {
         implements_auto_traits::<Plugin<'static>>();
+    }
+
+    #[test]
+    fn should_return_release_ids_in_plugin_order_when_registry_has_two_plugins() {
+        let us_gaap = us_gaap();
+        let srt = plugin(
+            "srt/2026",
+            vec![declaration("srt", "http://fasb.org/srt/{release}", true)],
+        );
+        let registry = Registry::new(vec![&us_gaap, &srt]).expect(
+            "Given two plug-ins with distinct families, the creation should always succeed",
+        );
+
+        let expected_result = vec![release_id("us-gaap/2026"), release_id("srt/2026")];
+
+        let result: Vec<TaxonomyReleaseId> = registry.release_ids().cloned().collect();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

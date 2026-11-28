@@ -12,7 +12,7 @@
 A `notes_file` unit holds every filing of one Notes file. STA-463 sets a task timeout of one
 hour and a target of 15 minutes for the largest Notes file, so the timeout is 4 times the target
 (STA-463, Definition of Done). If a file breaks the target, the transform must split it across
-tasks, and those tasks must write one `silver_files` row.
+tasks, and those tasks must write one `unit_manifests` row.
 
 Measured on 2026-11-08 in a container with 4 cores and 15 GB of memory, on one thread, from local
 disk (Linear document "STA-424 Findings: Silver Parquet Layer and Polars for the Transform Step",
@@ -28,7 +28,7 @@ section 3):
 Not measured: the reads from GCS and the standardize filing step. The findings estimate about one
 minute more for the 6.8 GB that 11 passes read through a bucket mount at 100 MB/s.
 
-The choice binds the transform job, the silver writer, and the `silver_files` row of a
+The choice binds the transform job, the silver writer, and the `unit_manifests` row of a
 `notes_file` unit.
 
 ## Decision
@@ -73,7 +73,7 @@ not rely on the order.
 
 Compared on 2026-11-16, on the measurements in "Context".
 
-| Option | Worst time of `2024q1` against the target | Code | `silver_files` row |
+| Option | Worst time of `2024q1` against the target | Code | `unit_manifests` row |
 | ------ | ----------------------------------------- | ---- | ------------------ |
 | **A (chosen). One task per Notes file** | About 2.4 minutes of 15, before GCS reads and standardize filing | None | Written by the one task |
 | B. Every Notes file split into T tasks by hash bucket of `adsh`, then a finalize step | Below A | A part manifest per task and a finalize step | Written by the finalize step |

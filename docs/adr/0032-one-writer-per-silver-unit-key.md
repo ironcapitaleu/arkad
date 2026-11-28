@@ -10,7 +10,7 @@
 ## Context
 
 Silver writes units. A unit key is the dataset, the source, the unit kind, and `unit_key`. A unit
-becomes visible when its `silver_files` row exists. The current unit of a unit key is the unit with
+becomes visible when its `unit_manifests` row exists. The current unit of a unit key is the unit with
 the latest `written_at`, a `timestamp[ms, UTC]`. Silver keeps every older unit.
 
 Two writers of one unit key at the same time can give two units with an equal `written_at`. Then
@@ -126,7 +126,7 @@ Checked on 2026-11-16 against the silver contract on `main` at commit `fa72cb3`.
 - A job execution started by hand, outside the orchestrator, has no plan of its own. Its tasks
   fail the lease check and write nothing.
 - Different job kinds can run at the same time. They write different unit keys. A series run that
-  meets a transform run reads only the units with a `silver_files` row, and the next series run
+  meets a transform run reads only the units with a `unit_manifests` row, and the next series run
   covers the units written during the run.
 
 ## Open Questions

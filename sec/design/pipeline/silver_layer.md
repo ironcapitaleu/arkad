@@ -1,7 +1,7 @@
 # Silver Layer
 
 > **Status:** the owner decided three points on 2026-11-08. Silver uses plain Parquet with the
-> `silver_files` list. `candidates` and `filings` are datasets of their own. The rest is proposed,
+> `unit_manifests` list. `candidates` and `filings` are datasets of their own. The rest is proposed,
 > for review by the lead. Inputs: the contract types and the transform
 > integration of [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md), the raw store of
 > [`ingestion_paths.md`](ingestion_paths.md), and the extraction of
@@ -63,7 +63,7 @@ flowchart LR
         ST[("standardized_facts")]:::silver
         FN[("findings")]:::silver
         TE[("taxonomy_elements")]:::silver
-        SF2[("silver_files")]:::silver
+        SF2[("unit_manifests")]:::silver
     end
 
     subgraph G["Gold: Postgres"]
@@ -89,7 +89,7 @@ flowchart LR
     TE --> LD
 ```
 
-Every write also adds rows to `silver_files`. The diagram leaves these edges out.
+Every write also adds rows to `unit_manifests`. The diagram leaves these edges out.
 
 ## Fixed Inputs
 
@@ -121,7 +121,7 @@ store holds today.
 | `standardized_facts` | `StandardizedFact` | `candidates` and `filings` | Standardize series |
 | `findings` | `UndeclaredFamily`, `UnmappedRow`, `Conflict`, `Gap`, `Overlap`, `Restatement`, `SuspiciousPeriod`, `RollUpMismatch`, `NegativeOther`, `MixedStarts`, `MixedScopes`, `RollForwardMismatch`, `SumMismatch`, or `MissingRequired` finding | The parser and both standardize steps | Parse filing, standardize filing, standardize series |
 | `taxonomy_elements` | Element of one taxonomy release | `Taxonomy::elements()` | A small job per release |
-| `silver_files` | Written unit: its files, inputs, and run | Every write | Every writer, last |
+| `unit_manifests` | Unit: its files, inputs, and run | Every write | Every writer, last |
 
 No separate dataset holds companies, tickers, or names over time. These are columns of `filings`,
 and a view builds the history (see [Company Attributes Over Time](#company-attributes-over-time)).
@@ -221,7 +221,7 @@ instead of every fact. The provenance of an attribute sits in one row per filing
 
 - Every attribute names its raw document. The name, the ticker, and the fiscal year end come from
   the raw document of the row. The SIC of a new filing comes from `submissions`, so it has its own
-  three columns. The URL and the retrieval time of each raw document sit in `silver_files`.
+  three columns. The URL and the retrieval time of each raw document sit in `unit_manifests`.
 - The raw store keeps one version of `submissions`. A later fetch replaces the bytes that
   `sic_source_sha256` names. This gap stays until the raw store keeps versions.
 
@@ -338,9 +338,9 @@ One row per release and element: `release_id`, `release_checksum`, `concept_fami
 the retired elements of option C in
 [`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#releases-over-time)). One file per release.
 
-### `silver_files`
+### `unit_manifests`
 
-The list of written units. Readers find the current files through it, and it holds the lineage.
+The manifest of each unit: its files, inputs, digests, and run. Readers find the current files through it, and it holds the lineage.
 
 | Column | Arrow type | Meaning |
 | ------ | ---------- | ------- |
@@ -349,7 +349,7 @@ The list of written units. Readers find the current files through it, and it hol
 | `source` | `utf8`, nullable | `notes` or `instance`. Null for the series datasets and `taxonomy_elements` |
 | `unit_kind`, `unit_key` | `utf8`, `utf8` | See [Units, Paths, and Replays](#units-paths-and-replays) |
 | `input_digest` | `utf8` | SHA-256 over the sorted list of input keys and digests |
-| `inputs` | `list<struct<key, sha256, requested_url, produced_at>>` | Each raw document or silver file read |
+| `inputs` | `list<struct<key: utf8, sha256: utf8, requested_url: utf8 nullable, produced_at: timestamp[ms, +00:00] nullable>>` | Each raw document or dataset file read. `requested_url` and `produced_at` come from the raw metadata, so they are null for a dataset file and the vendored release |
 | `transform_version` | `utf8` | |
 | `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, in the order of the part number `<n>`, with the size and CRC32C of each object as GCS stores them |
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |
@@ -394,23 +394,23 @@ columns with one value per file add 0.39%. `txt.tsv` writes 954.6 MB of text to 
 
 | Option | Pro | Con |
 | ------ | --- | --- |
-| A. Plain Parquet files and the `silver_files` list (decided) | No new dependency. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
+| A. Plain Parquet files and the `unit_manifests` list (decided) | No new dependency. The list is a Parquet dataset itself. A unit becomes visible with one write | No transaction over many files. Each reader must read the list. Compaction and file removal need code of our own |
 | B. Delta Lake through `delta-rs` | Transaction log, snapshots by version and time, `OPTIMIZE` and `VACUUM` | `deltalake` pins its own Arrow version, so it and the `arrow` crate of the writer must agree on one. Concurrent writers on GCS need the conditional-write support of the object store |
 | C. Apache Iceberg through `iceberg-rust` | Open standard, snapshots, hidden partitions, the Supabase Iceberg wrapper | Needs a catalog service. The Rust writer covers less than the Java one. The epic lists Iceberg as out of scope, and ADR 0001 adds Iceberg only next to Postgres, past about 50 GB |
 
 Decided by the owner on 2026-11-08: A. Two reasons:
 
 - **Time travel needs no table snapshot.** A point-in-time read filters on `accepted`, which every
-  row carries. "What silver held at time T" filters `silver_files` on `written_at`, or, for the series
+  row carries. "What silver held at time T" filters `unit_manifests` on `written_at`, or, for the series
   datasets, the rows on `computed_at`. Both work with
   plain files.
 - **Writes are units, not row updates.** Silver never updates a row. Each write adds a whole unit,
-  and the `silver_files` row makes the unit visible. That is the one transaction silver needs.
+  and the `unit_manifests` row makes the unit visible. That is the one transaction silver needs.
 
 Move to B when one of these holds:
 
 - Two jobs must write one dataset at the same time with a shared commit.
-- A reader needs a consistent snapshot over many units that `silver_files` cannot give.
+- A reader needs a consistent snapshot over many units that `unit_manifests` cannot give.
 - The file count makes the list slow to read.
 
 The switch keeps the Parquet files and replaces the list with a Delta log. The epic records these
@@ -439,7 +439,7 @@ daily path needs no compaction.
 
 ```text
 gs://<silver-bucket>/<dataset>/source=<notes|instance>/unit_key=<unit_key>/<digest>-v<transform_version>/<execution_id>-<attempt>/part-<n>.parquet
-gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.parquet
+gs://<silver-bucket>/unit_manifests/execution=<execution_id>/task=<n>-<attempt>.parquet
 ```
 
 - `<digest>` is the first 16 hex characters of `input_digest`.
@@ -447,7 +447,7 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
   retry writes to its own paths.
 - The series datasets use `unit_key=<unit_key>` with no `source=` level.
 - In a dataset, no column name equals a folder label of its own path: `source` or `unit_key` for
-  every dataset except `silver_files`, and `execution` or `task` for `silver_files`. DuckDB reads a
+  every dataset except `unit_manifests`, and `execution` or `task` for `unit_manifests`. DuckDB reads a
   `name=value` folder as a column by default, and Polars, pyarrow, and BigQuery do so with Hive
   partitioning on. A folder label `unit` overwrote the `unit` column of every row in a DuckDB read
   (measured). A schema test of the silver writer checks this rule.
@@ -462,13 +462,13 @@ gs://<silver-bucket>/silver_files/execution=<execution_id>/task=<n>-<attempt>.pa
    of the raw store.
 3. Otherwise, the writer writes the Parquet files of the unit to their paths. Each object write
    sets the GCS precondition `ifGenerationMatch=0`, so a second write to one path fails.
-4. The writer writes the `silver_files` row last, with the size and CRC32C that GCS returns for
-   each file, and the counts and `content_digest` of the unit. A unit without a `silver_files` row
+4. The writer writes the `unit_manifests` row last, with the size and CRC32C that GCS returns for
+   each file, and the counts and `content_digest` of the unit. A unit without a `unit_manifests` row
    does not exist for a reader.
 
 So silver never writes to an existing path. A file is written once. Only the cleanup of unread
 files below removes files. If an attempt fails
-between steps 3 and 4, its files stay unread, because no `silver_files` row names them. A cleanup
+between steps 3 and 4, its files stay unread, because no `unit_manifests` row names them. A cleanup
 can remove such files once no attempt of their execution runs.
 
 ### Replays
@@ -489,11 +489,11 @@ can remove such files once no attempt of their execution runs.
 - The **current unit** of a unit key is the one with the latest `written_at`. A default read takes
   only current units. `written_at` gives the order of runs. Silver uses it only between units of
   one key, because they hold the same filings.
-- **Every read takes its files from `silver_files`.** A data read never lists a dataset directory.
+- **Every read takes its files from `unit_manifests`.** A data read never lists a dataset directory.
   A listing also returns the replaced units and the files of failed attempts: a listing of one
   Notes unit key returned twice its rows (measured). Rust code reads silver through one reader
-  that takes its file list from `silver_files`. A view of the current units serves DuckDB and
-  other analysis tools. A scheduled cleanup removes files that no `silver_files` row names, once
+  that takes its file list from `unit_manifests`. A view of the current units serves DuckDB and
+  other analysis tools. A scheduled cleanup removes files that no `unit_manifests` row names, once
   no attempt of their execution runs (see [Rules of a Write](#rules-of-a-write)). Check 1 and the
   cleanup list objects on purpose. They read no data. This rule is the cost of plain Parquet: a
   Delta Lake or Iceberg log would list the current files.
@@ -524,13 +524,13 @@ Parquet file cannot grow. So an append writes a new file of changed rows next to
   new base writes each open finding again as a `new` row. The time a finding first opened is in
   the units before that base.
 - A later run recomputes the entities of every `candidates` unit with a `written_at` after the
-  latest `computed_at` in `silver_files` of a series run that counts. A unit written during a run
+  latest `computed_at` in `unit_manifests` of a series run that counts. A unit written during a run
   is new for the next run too.
-- A series run counts when `silver_files` holds `run_tasks` distinct `unit_key` values with its
+- A series run counts when `unit_manifests` holds `run_tasks` distinct `unit_key` values with its
   `execution_id`. Until then, no read takes its units, and the run does not move the recompute
   point. A retry of a task can add a second unit with the same key. A read takes, per `unit_key`
   of a run, only the unit with the latest `written_at`.
-- Each task writes its unit and its `silver_files` row, also if no row changed. A unit with no
+- Each task writes its unit and its `unit_manifests` row, also if no row changed. A unit with no
   changed row has `row_count` 0 and no Parquet file.
 - The run also recomputes the entities of each `candidates` unit that a new unit replaced. So an
   entity that a replay drops gets `removed` rows.
@@ -572,7 +572,7 @@ Proposal: A and C together.
 - **On every row:** `source_kind`, `source_key`, `source_sha256`, `ingestion_mode`,
   `transform_version`, `execution_id`, and `loaded_at`. Parquet stores each as one dictionary
   entry per file. The measured overhead is 0.39%.
-- **In `silver_files`:** the URL, the retrieval time (`produced_at` of the raw metadata), and the
+- **In `unit_manifests`:** the URL, the retrieval time (`produced_at` of the raw metadata), and the
   inputs of each unit.
 
 **Mode is a column, never a route.** No step branches on `ingestion_mode`. The source kind picks the
@@ -592,7 +592,7 @@ from. A join on these keys reaches the as-is rows and their provenance.
 ## Integrity Checks
 
 Bronze checks one document against the SHA-256 in its own metadata file. Silver has no metadata
-file per Parquet file, so `silver_files` holds what the checks compare against. The integrity
+file per Parquet file, so `unit_manifests` holds what the checks compare against. The integrity
 check job of the raw store runs these checks too.
 
 | Check | Finds | How | Cost |
@@ -600,7 +600,7 @@ check job of the raw store runs these checks too.
 | 1. Files | A missing or corrupted Parquet file | For each unit, compare `bytes` and `crc32c` of each file in `files` with the object in GCS. GCS stores a CRC32C per object, so a listing gives both | One listing |
 | 2. Coverage | A raw document with no current unit, or a unit read from older bytes | Join the raw metadata (key, SHA-256) with `inputs` of the current units | Small tables |
 | 3. Row counts | Rows lost or doubled inside a unit of `as_is_facts` or `filings` | `source_rows` minus `dropped_rows` must equal `row_count`, and `row_count` must equal the rows in the Parquet footers. The derived datasets map many rows to one, so they get no row count check | Footers only |
-| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced". For the series datasets, check 4 samples a `series_base` only. Its rebuild reads the `candidates` and `filings` files that `inputs` of its `silver_files` row lists, not the current units. A `series_delta` depends on the series state before its run | One transform per unit, so a sample of units each week |
+| 4. Rebuild | A wrong value, or a parser whose output changes from run to run | Run the transform again on the raw input with the same `transform_version`, and compare the `content_digest`. Skip a unit that check 2 reports as "source replaced". For the series datasets, check 4 samples a `series_base` only. Its rebuild reads the `candidates` and `filings` files that `inputs` of its `unit_manifests` row lists, not the current units. A `series_delta` depends on the series state before its run | One transform per unit, so a sample of units each week |
 
 Lineage checks join the datasets:
 
@@ -629,7 +629,7 @@ the unit as "source replaced". No check can restore the old bytes.
 | ---- | ------- | -------- |
 | Period | `period_end`, `quarters`, `period_start` | Which period does the value describe? |
 | Public time | `filed`, `accepted` | Since when was the value public? |
-| Silver time | `loaded_at`, and `written_at` in `silver_files` | Since when did silver hold the value? |
+| Silver time | `loaded_at`, and `written_at` in `unit_manifests` | Since when did silver hold the value? |
 
 Queries this allows:
 
@@ -779,8 +779,8 @@ one hour, and each replay of the backfill runs every Notes file again.
   `adsh`, as a merge of two sorted lists. It hands one filing at a time to the parse state.
 - **The switch.** If a row has a smaller `adsh` than the row before it in either table, the split
   stops C. It runs B on the same file and writes the parts of B under `<execution_id>-<attempt>-b`.
-  The parts that C wrote stay unread, because no `silver_files` row names them, and the cleanup of
-  unread files removes them. `split` in `silver_files` records which path wrote the unit. If the
+  The parts that C wrote stay unread, because no `unit_manifests` row names them, and the cleanup of
+  unread files removes them. `split` in `unit_manifests` records which path wrote the unit. If the
   current unit of the key has `split` = `buckets`, a rerun starts with B and skips C.
 - **B, the fallback.** It picks K so that one bucket holds about 256 MB of text of `num.tsv` and
   `txt.tsv` on average. For `2024q1`, with 2.7 GB of both, K is 11. Each pass keeps the rows where
@@ -814,7 +814,7 @@ parallel. With 80 files and 10 parallel tasks, a full backfill takes 8 rounds of
 - Target: at most 15 minutes for the largest file. The limit is then 4 times the target. The
   target applies to C and B together, because C can stop on the last row of an unsorted file.
 - Units differ in size: `2009q1` holds no filings, and `2024q1` holds 2.7 GB of text. The time of
-  the largest file bounds the job, not the mean. `silver_files` records `bytes` and `row_count` per
+  the largest file bounds the job, not the mean. `unit_manifests` records `bytes` and `row_count` per
   unit, so the integrity report can list units far above the median, and the job can start the
   largest files first.
 - [ADR 0035](../../../docs/adr/0035-one-task-per-notes-file.md) holds the choice of one task per

@@ -1,6 +1,6 @@
 //! # Byte Form
 //!
-//! Provides [`ByteForm`], the byte form of the values of a silver row that `content_digest` hashes.
+//! Provides [`ByteForm`], the byte form of the values of a dataset row that `content_digest` hashes.
 //!
 //! ## Modules
 //!

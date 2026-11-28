@@ -218,7 +218,7 @@ pub struct Context {
 ///
 /// The as-is layer holds every value of every filing, with no mapping to standard concepts and no
 /// dedup, so a point-in-time read stays possible. The ingestion provenance, such as the source
-/// document and its SHA-256, is not a field: silver stores it next to the fact.
+/// document and its SHA-256, is not a field: the datasets store it next to the fact.
 ///
 /// Every field is public, because a fact is a record of what the source says, and each field type
 /// checks its own rules.

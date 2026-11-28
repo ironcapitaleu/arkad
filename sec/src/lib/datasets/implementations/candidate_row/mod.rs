@@ -1,6 +1,6 @@
 //! # Candidate Row
 //!
-//! Provides [`CandidateRow`], one row of the silver dataset `candidates`: a [`Candidate`], its
+//! Provides [`CandidateRow`], one row of the dataset `candidates`: a [`Candidate`], its
 //! entity bucket, and its [`RunColumns`].
 
 use std::str::FromStr;
@@ -25,18 +25,17 @@ use xbrl::core::scope::Scope;
 use xbrl::core::unit::Unit;
 
 use crate::datasets::columns::{
-    BatchColumns, date_from_days, date32, decimal128_array, decimals_arrays, decimals_from_columns,
-    dimensions_array, dimensions_at, dimensions_item, failed_batch, list_array, nullable,
-    number_from_decimal128, period_from_columns, timestamp_array, timestamp_from_milliseconds,
-    timestamp_type, unexpected_value, utf8_or_null, write_decimals, write_dimensions,
+    BatchColumns, confidence_from_name, date_from_days, date32, decimal128_array, decimals_arrays,
+    decimals_from_columns, dimensions_array, dimensions_at, dimensions_item, failed_batch,
+    item_range, list_array, nullable, number_from_decimal128, period_from_columns, timestamp_array,
+    timestamp_from_milliseconds, timestamp_type, unexpected_value, utf8_or_null, write_decimals,
+    write_dimensions,
 };
 use crate::datasets::constants::{DECIMAL_PRECISION, DECIMAL_SCALE};
 use crate::datasets::{ArrowRow, ArrowRowError, RunColumns};
 use crate::shared::row_digest::{ByteForm, DigestRow};
 
 /// One row of `candidates`: the value that one filing gives for one standard concept.
-///
-/// `sec/design/pipeline/silver_layer.md`, `candidates`, names the columns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateRow {
     /// The candidate of the filing.
@@ -44,7 +43,7 @@ pub struct CandidateRow {
     /// The entity bucket of the entity, from 0 to 63. A series task reads the row groups of its
     /// buckets.
     pub entity_bucket: u8,
-    /// The version of the silver output and the run that wrote the row.
+    /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
 }
 
@@ -314,18 +313,6 @@ const fn reported(candidate: &Candidate) -> Option<(&BigDecimal, Option<Decimals
     }
 }
 
-/// Returns the confidence whose name is `text`, for example `Exact`.
-fn confidence_from_name(text: &str) -> Option<Confidence> {
-    [
-        Confidence::Exact,
-        Confidence::Synonym,
-        Confidence::Derived,
-        Confidence::Computed,
-    ]
-    .into_iter()
-    .find(|confidence| confidence.to_string() == text)
-}
-
 /// The arrays of the candidate columns of one batch.
 struct CandidateColumns<'a> {
     dataset: &'static str,
@@ -398,10 +385,6 @@ impl<'a> CandidateColumns<'a> {
         let unexpected = |column: &'static str| {
             move |reason| unexpected_value(self.dataset, column, row, reason)
         };
-        let offsets = self.inputs.value_offsets();
-        // The offsets of a list array never fall, and never lie past the item arrays.
-        let first_input = usize::try_from(offsets[row]).unwrap_or_default();
-        let end_input = usize::try_from(offsets[row + 1]).unwrap_or_default();
         Ok(Candidate {
             source: FilingSource {
                 filing: FilingId::from_str(self.filing_ids.value(row))
@@ -433,7 +416,7 @@ impl<'a> CandidateColumns<'a> {
                 checksum: Sha256::from_str(self.release_checksums.value(row))
                     .map_err(invalid("release_checksum"))?,
             },
-            inputs: (first_input..end_input)
+            inputs: item_range(self.inputs, row)
                 .map(|item| self.input_keys.key(self.dataset, row, item))
                 .collect::<Result<_, _>>()?,
             scope: nullable(self.scopes, row)

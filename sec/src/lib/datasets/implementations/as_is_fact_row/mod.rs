@@ -1,6 +1,6 @@
 //! # As-Is Fact Row
 //!
-//! Provides [`AsIsFactRow`], one row of the silver dataset `as_is_facts`: an [`AsIsFact`] and its
+//! Provides [`AsIsFactRow`], one row of the dataset `as_is_facts`: an [`AsIsFact`] and its
 //! [`Provenance`].
 
 use std::str::FromStr;

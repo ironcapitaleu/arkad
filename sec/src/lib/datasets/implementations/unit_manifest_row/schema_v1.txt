@@ -1,0 +1,19 @@
+dataset: utf8
+schema_version: uint16
+source: utf8 nullable
+unit_kind: utf8
+unit_key: utf8
+input_digest: utf8
+inputs: list<item: struct<key: utf8, sha256: utf8, requested_url: utf8 nullable, produced_at: timestamp[ms, +00:00] nullable>>
+transform_version: utf8
+files: list<item: struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>
+row_count: uint64
+source_rows: list<item: struct<table: utf8, rows: uint64>>
+split: utf8 nullable
+dropped_rows: list<item: struct<reason: utf8, rows: uint64>>
+content_digest: utf8
+computed_at: timestamp[ms, +00:00] nullable
+run_tasks: uint16 nullable
+execution_id: utf8
+ingestion_mode: utf8
+written_at: timestamp[ms, +00:00]

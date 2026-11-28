@@ -553,7 +553,7 @@ Two traits describe a concept. Each innermost enum, such as `BalanceSheetConcept
 pub trait Concept: Copy + Eq + 'static {
     /// Every variant, in the order of the enum.
     const ALL: &'static [Self];
-    /// The name in silver, such as `NetIncome`.
+    /// The stored name, such as `NetIncome`.
     fn name(self) -> &'static str;
     /// The label for people, such as `Net Income`.
     fn label(self) -> &'static str;
@@ -852,7 +852,7 @@ The changes are to comments and to the new lists.
 | ---- | ------- |
 | `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an other part of the other. `RevenuesNetOfInterestExpense` gets no mapping |
 | `OperatingIncome`, `Assets`, `Liabilities` | stays |
-| `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part |
+| `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part. `NetCashProvidedByUsedInDiscontinuedOperations` is the total of other parts ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 1) |
 | `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
 | `ExchangeRateEffect` | `EffectOfExchangeRateOnCashAndCashEquivalents` joins the list with the scope `ExcludesRestrictedCash`. `EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations` joins the parts with the same scope, and its other part is `EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations` |
 | `NetIncome`, `Equity` | stays. The part rule stays. `NetIncomeLoss` and `StockholdersEquity` also start the new lists |
@@ -1801,6 +1801,11 @@ ticket decides where the removed elements live.
   - An other part in the same period and unit blocks the part, in any dimension. Then the
     standard concept gets no value from tiers 1 and 2. A value of zero does not block, because
     then the part equals the whole.
+  - A total of other parts blocks the part only if the filing reports none of the other parts in
+    the period, with any value, zero included. A filer can report the total in place of its
+    other parts. The three cash flow totals name `NetCashProvidedByUsedInDiscontinuedOperations`,
+    the discontinued operations of all activities. A filer that reports the flow of an activity,
+    even as zero, reports the line as the sum of the flows, so the line does not block that part.
   - Two parts that are siblings, such as `ShortTermBorrowings` and
     `LongTermDebtAndCapitalLeaseObligationsCurrent` below `DebtCurrent`, are each an other part of
     the other. A part never blocks itself. So a part of zero loses to a sibling with a value. The

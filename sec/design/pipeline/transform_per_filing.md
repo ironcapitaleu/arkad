@@ -73,7 +73,7 @@ A transform task runs one unit. The work has three parts:
 | ---- | ---- | ----- | ----- |
 | Unit reader | Once per unit, on the reader threads of the task runner, outside the state machine | Every I/O of the step: the raw store reads, the ZIP, the tables, the daily index | The unit |
 | Filing machine | Once per filing, on the worker threads of the task runner | No I/O. Parse, standardize filing, and the provenance of the rows | The filing only. A failed filing is a rejected filing |
-| Silver writer | Once per unit, on one thread | The parts, the digest, the counts, the `silver_files` row | The unit |
+| Silver writer | Once per unit, on one thread | The parts, the digest, the counts, the `unit_manifests` row | The unit |
 
 The unit reader and the writer belong to the task runner of `silver_writer_and_jobs.md`, "Threads
 Inside a Transform Task". For a Notes file, the reader has one thread per table stream of `num.tsv`
@@ -169,7 +169,8 @@ pub struct NotesFilingInput {
     pub source: SourceDocument,
 }
 
-/// The raw document of a row, for the ingestion provenance of the silver contract.
+/// The raw document of a row, for the ingestion provenance of each row of `as_is_facts` and
+/// `filings`.
 pub struct SourceDocument {
     pub kind: SourceKind,           // Notes or Instance
     pub key: DocumentKey,

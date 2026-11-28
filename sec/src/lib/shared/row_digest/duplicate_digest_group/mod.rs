@@ -6,7 +6,7 @@ use std::fmt::Write;
 
 use thiserror::Error;
 
-/// Error indicating that two group hashes of one silver unit have the same group ID.
+/// Error indicating that two group hashes of one write unit have the same group ID.
 ///
 /// The rows of the group came in two calls of
 /// [`group_hashes`](crate::shared::row_digest::group_hashes), so the digest would depend on the

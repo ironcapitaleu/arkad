@@ -115,6 +115,8 @@ pub struct PartDefinition {
     other_parts: &'static [&'static str],
     /// The other parts that also count with each concept below them in the 2026 calculation tree.
     other_part_trees: &'static [&'static str],
+    /// The totals of other parts that block only if the filing reports none of the other parts.
+    other_part_totals: &'static [&'static str],
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     part_rule: &'static str,
     /// The scope of each part that covers less than the standard concept.
@@ -136,6 +138,7 @@ impl PartDefinition {
             parts,
             other_parts,
             other_part_trees,
+            other_part_totals: &[],
             part_rule,
             scopes: &[],
         }
@@ -146,6 +149,16 @@ impl PartDefinition {
     #[must_use]
     pub const fn with_scopes(self, scopes: &'static [(&'static str, Scope)]) -> Self {
         Self { scopes, ..self }
+    }
+
+    /// Returns the definition with `other_part_totals`, the totals of other parts. A total blocks
+    /// the part only if the filing reports none of the other parts in the period.
+    #[must_use]
+    pub const fn with_other_part_totals(self, other_part_totals: &'static [&'static str]) -> Self {
+        Self {
+            other_part_totals,
+            ..self
+        }
     }
 
     /// Returns the standard concept the parts stand for.
@@ -171,6 +184,13 @@ impl PartDefinition {
     #[must_use]
     pub const fn other_part_trees(&self) -> &'static [&'static str] {
         self.other_part_trees
+    }
+
+    /// Returns the totals of other parts that block only if the filing reports none of the other
+    /// parts.
+    #[must_use]
+    pub const fn other_part_totals(&self) -> &'static [&'static str] {
+        self.other_part_totals
     }
 
     /// Returns the ID of the part rule, for example `us-gaap/part/equity@1`.
@@ -254,7 +274,8 @@ pub const REQUIRED_CONCEPTS: &[ConceptDefinition] = &[
         EQUITY_RULE,
         true,
     ),
-    // Cash Flow backbone
+    // Cash Flow backbone. The totals of continuing operations are parts. `PART_CONCEPTS` holds
+    // them. `NetCashProvidedByUsedInContinuingOperations` gets no mapping, as ADR 0049 decides.
     ConceptDefinition::new(
         CashFlowConcept::OperatingCashFlow.element(),
         &["NetCashProvidedByUsedInOperatingActivities"],
@@ -844,6 +865,12 @@ pub const SHARE_REPURCHASES_PART_RULE: &str = "us-gaap/part/share-repurchases@1"
 pub const NET_CHANGE_IN_CASH_PART_RULE: &str = "us-gaap/part/net-change-in-cash@1";
 /// The ID of the part rule of [`CashFlowConcept::ExchangeRateEffect`].
 pub const EXCHANGE_RATE_EFFECT_PART_RULE: &str = "us-gaap/part/exchange-rate-effect@1";
+/// The ID of the part rule of [`CashFlowConcept::OperatingCashFlow`].
+pub const OPERATING_CASH_FLOW_PART_RULE: &str = "us-gaap/part/operating-cash-flow@1";
+/// The ID of the part rule of [`CashFlowConcept::InvestingCashFlow`].
+pub const INVESTING_CASH_FLOW_PART_RULE: &str = "us-gaap/part/investing-cash-flow@1";
+/// The ID of the part rule of [`CashFlowConcept::FinancingCashFlow`].
+pub const FINANCING_CASH_FLOW_PART_RULE: &str = "us-gaap/part/financing-cash-flow@1";
 /// The ID of the part rule of [`CashFlowConcept::CashAndRestrictedCash`].
 pub const CASH_AND_RESTRICTED_CASH_PART_RULE: &str = "us-gaap/part/cash-and-restricted-cash@1";
 /// The ID of the part rule of [`IncomeStatementConcept::OtherComprehensiveIncome`].
@@ -1091,6 +1118,36 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         &["IncomeLossFromEquityMethodInvestments"],
         PRETAX_INCOME_PART_RULE,
     ),
+    // The total of continuing operations is the part of each cash flow total. The flow of
+    // discontinued operations is its other part. Neither carries a scope. A filer can report the
+    // discontinued operations of all activities as one line,
+    // `NetCashProvidedByUsedInDiscontinuedOperations`. It blocks the part only if the filing
+    // reports no flow of discontinued operations for the activity, because a filer that reports
+    // the flows reports the line as their sum.
+    PartDefinition::new(
+        CashFlowConcept::OperatingCashFlow.element(),
+        &["NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"],
+        &["CashProvidedByUsedInOperatingActivitiesDiscontinuedOperations"],
+        &[],
+        OPERATING_CASH_FLOW_PART_RULE,
+    )
+    .with_other_part_totals(&["NetCashProvidedByUsedInDiscontinuedOperations"]),
+    PartDefinition::new(
+        CashFlowConcept::InvestingCashFlow.element(),
+        &["NetCashProvidedByUsedInInvestingActivitiesContinuingOperations"],
+        &["CashProvidedByUsedInInvestingActivitiesDiscontinuedOperations"],
+        &[],
+        INVESTING_CASH_FLOW_PART_RULE,
+    )
+    .with_other_part_totals(&["NetCashProvidedByUsedInDiscontinuedOperations"]),
+    PartDefinition::new(
+        CashFlowConcept::FinancingCashFlow.element(),
+        &["NetCashProvidedByUsedInFinancingActivitiesContinuingOperations"],
+        &["CashProvidedByUsedInFinancingActivitiesDiscontinuedOperations"],
+        &[],
+        FINANCING_CASH_FLOW_PART_RULE,
+    )
+    .with_other_part_totals(&["NetCashProvidedByUsedInDiscontinuedOperations"]),
     PartDefinition::new(
         CashFlowConcept::DepreciationAmortization.element(),
         &["Depreciation"],
