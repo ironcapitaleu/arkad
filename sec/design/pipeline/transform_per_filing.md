@@ -106,7 +106,9 @@ SHA-256 against the metadata on each read.
 
 1. **Open.** It reads the archive and runs the container checks of layer 2, see
    [Validation Layers](#validation-layers). It reads the metadata member for the column list of
-   each table.
+   each table. `sec::shared::notes_archive` holds this step and the table reads of step 2. `zip`
+   reads the ZIP index, `flate2` unzips each member, and `csv` reads the fields
+   ([ADR 0056](../../../docs/adr/0056-zip-flate2-and-csv-for-notes-files.md)).
 2. **Read the small tables whole.** It reads `sub.tsv`, `dim.tsv`, and `tag.tsv` into maps: `sub`
    by `adsh`, `dim` by `dimh`, and `tag` by `tag` and `version`. `sub.tsv` and `dim.tsv` hold about
    81 MB of text in `2025q3` (measured). The `dim.tsv` map takes most of the 463 MB peak of a read

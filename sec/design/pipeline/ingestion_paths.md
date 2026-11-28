@@ -889,7 +889,10 @@ files use `.tsv`.
 **Headers.** The column headers of all eight tables are identical in 2012q1, 2024q1, and 2026_09.
 The SEC regenerated the 2012q1 file in September 2024 (assumption A4), so this result does not prove that the format
 never changed. `notes-metadata.json` lists the columns, their types, and the primary key of each
-table.
+table. Its column names equal the headers, except one: the header of `dim.tsv` names its first
+column `dimhash`, and the metadata member names it `dimh`. Measured on 2026-11-28 in `2009q1` and
+`2026_10`. The header check of layer 3 holds this one alias
+([ADR 0057](../../../docs/adr/0057-dim-hash-header-alias.md)).
 
 **Quoting.** A field can be in double quotes and hold a tab. Two rows of `dim.tsv` in 2024q1 do
 this. A split on every tab reads them with 4 fields instead of 3. A reader that follows the CSVW

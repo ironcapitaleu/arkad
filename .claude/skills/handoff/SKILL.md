@@ -7,7 +7,7 @@ description: >
   a prompt for a fresh agent session, or a state-of-play note on the In Progress Linear ticket for
   a human takeover. Also posts the stale points of that ticket in a comment, and assigns an
   unassigned ticket to the user when the next session works for the user.
-version: 0.7.0
+version: 0.8.0
 argument-hint: "[what the next session will do]"
 allowed-tools: [Read, Write, Bash, AskUserQuestion]
 ---
@@ -117,7 +117,8 @@ ticket that records it. Reference — never restate the full content.>
 # Guardrails
 
 <The constraints the successor must hold: the branch it must push to, the AGENTS.md rules that
-apply, and any "never" from this session. State each as `must` or `never`.>
+apply, and any "never" from this session. State each as `must` or `never`. Never add a guardrail
+that changes a rule of `pr-iterate`, such as "A 🟣 finding never starts a push on its own".>
 
 - <If the work changes the repository:> You must push to `<branch name>`. If the session assigns
   another branch, such as `claude/*`, never push to it. If the push to `<branch name>` fails, stop

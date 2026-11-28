@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-15 ([STA-490 comment `4538cd45`](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key#comment-4538cd45)). Amendment 1: Accepted by the project lead on 2026-11-21 ([STA-546 comment `901891a8`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-901891a8)), and in its final wording ([STA-546 comment `9a7200b6`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-9a7200b6)). |
+| Status | Accepted by the project lead on 2026-11-15 ([STA-490 comment `4538cd45`](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key#comment-4538cd45)). Amendment 1: Accepted by the project lead on 2026-11-21 ([STA-546 comment `901891a8`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-901891a8)), and in its final wording ([STA-546 comment `9a7200b6`](https://linear.app/state-machine/issue/STA-546/refactor-make-the-exact-start-of-a-duration-required#comment-9a7200b6)). Amendment 2: Accepted by the project lead on 2026-11-28 ([STA-489 comment `bff1913b`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-bff1913b), accessed 2026-11-28). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-490](https://linear.app/state-machine/issue/STA-490/design-split-a-conflict-of-two-lengths-that-share-a-value-key) |
@@ -93,6 +93,25 @@ applies. An instant has no start, as before.
 - `StartBeforeEarliestYear` reads the exact start. Its estimate from the length is gone.
 - The `start` of a duration in the `/v1` API contract is a required date, not a nullable one.
 - `period_start` of `as_is_facts` stays nullable, because an instant has no start.
+
+## Amendment 2: No Conflict by Length for 0 Quarters
+
+Date: 2026-11-28.
+
+**Reason.** Decision 2 compares the distance of each length to its whole number of quarters. A
+duration of 45 days or less has 0 quarters, so its distance is its length. A shorter rank is then
+always nearer, and a one-week rank next to a one-month rank 0 blocks the concept.
+[ADR 0055](0055-durations-under-46-days.md) gives each such duration its own series.
+
+**Decision.** If the value key has 0 quarters, a rank with another exact start never conflicts by
+its length. It gets no candidate, as decision 1 says, and rank 0 enters the series. Decision 2
+holds as before for a value key of 1 quarter or more.
+
+**Consequences.**
+
+- A short rank next to a short rank 0 no longer blocks the concept.
+- The stub rule of decision 2 is unchanged: a 4-month stub still never takes the place of the
+  quarter.
 
 ## Options Considered
 

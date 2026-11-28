@@ -651,8 +651,8 @@ So the check of that group is skipped for that period.
 - A closed group gets no check for a period if a member has no value and is not zero if absent,
   or if dedup blocks a member. `ExchangeRateEffect` counts as zero in the check.
 - The values of one period end and length in quarters share a slot, which holds every group of
-  that period. If two members of one group have different exact starts, such as a quarter and a
-  4-month stub, that group gets no check, gives no derived value, gets no other line in the
+  that period. If two members of one group, or two values of one member, have different exact
+  starts, such as a quarter and a 4-month stub, that group gets no check, gives no derived value, gets no other line in the
   statement, and reports a `MixedStarts` finding. The members of a group are the values that the
   statement counts in it: the start of a step, the members that stand for a start with no value,
   and the children of a transparent parent that join the group. The other groups of the slot keep
@@ -854,7 +854,7 @@ The changes are to comments and to the new lists.
 
 | List | Verdict |
 | ---- | ------- |
-| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an own other part of the other ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2). `RevenuesNetOfInterestExpense` gets no mapping |
+| `Revenue` | stays. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` join the parts, each an own other part of the other ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2). The concepts of banks, utilities, and producers follow "Revenue of Banks, Utilities, and Producers" |
 | `OperatingIncome`, `Assets`, `Liabilities` | stays |
 | `OperatingCashFlow`, `InvestingCashFlow`, `FinancingCashFlow` | stays. Each gets a part rule: the `…ContinuingOperations` total is the part, and the `CashProvidedByUsedIn…ActivitiesDiscontinuedOperations` flow is the other part. `NetCashProvidedByUsedInDiscontinuedOperations` is the total of other parts ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 1) |
 | `NetChangeInCash` | `CashAndCashEquivalentsPeriodIncreaseDecrease` and `CashPeriodIncreaseDecrease` join the list with the scope `ExcludesRestrictedCash` |
@@ -882,6 +882,64 @@ returns the set, and the completeness check of "5) Validation" reads it
 next to `CashAndDueFromBanks`, so neither is the whole of `CashAndEquivalents`. The concepts of
 filings before 2018 and the cash of banks follow [ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md).
 
+#### Revenue of Banks, Utilities, and Producers
+
+> **Status:** decided in [ADR 0056](../docs/adr/0056-revenue-of-banks-utilities-and-producers.md).
+> The code does not apply these rules: a bank, a utility before 2018, and a producer before 2018
+> with no total get no `Revenue`.
+
+Some filers report their own revenue lines and no concept of the alias list or the parts. The
+`Revenue` of each kind of filer comes from one rule:
+
+| Filer | Concepts | Rule | Confidence |
+| ----- | -------- | ---- | ---------- |
+| Bank with a total | `Revenues`, then `RevenuesNetOfInterestExpense` | `us-gaap/alias/revenue@1` | `Exact`, or `Synonym` for `RevenuesNetOfInterestExpense` |
+| Bank with no total | `InterestIncomeExpenseNet` + `NoninterestIncome` | `us-gaap/total/revenue@1`, the line total | `Computed` |
+| Utility before 2018 | `UtilityRevenue`, then `ElectricUtilityRevenue` | `us-gaap/part/revenue@1` | `Synonym` |
+| Oil and gas producer before 2018 | `OilAndGasRevenue` | `us-gaap/part/revenue@1` | `Synonym` |
+
+- The `Revenue` of a bank is its net revenue: net interest income plus noninterest income, before
+  the provision for credit losses.
+- **Line total.** The rule runs only if no alias and no part gives a value in the period and set of
+  dimensions. Each line must have a value in the same period, unit, and dimensions. The value is
+  the sum of the lines,
+  and `inputs` holds the value key of each line. A conflict on a line blocks the candidate, as a
+  conflict on a part does.
+- `InterestRevenueExpenseNet` is not a line: it also holds the interest outside operations.
+- The line total needs both lines. Commercial filers report `InterestIncomeExpenseNet` outside
+  revenue. In the fixtures, only banks report `NoninterestIncome`. A non-bank filer that reports
+  both lines gets their sum as `Revenue`, with no finding.
+- The line total runs with the parts, on each set of dimensions, so a bank segment gets a
+  `Computed` value (see "Resolution of a Segment Value").
+- The new parts follow the existing parts, in the order `UtilityRevenue`,
+  `ElectricUtilityRevenue`, `OilAndGasRevenue`. A filer that reports a goods or services line next
+  to a new part gets the goods or services line, because the new parts are not own other parts of
+  the goods and services lines.
+- **Own other parts.** The own other parts of each new part are its siblings, and the siblings of
+  each concept between it and `Revenues`, in the trees of 2013 and 2017. Of the siblings below
+  `UtilityRevenue`, only `GasDomesticRegulatedRevenue` exists, an own other part of
+  `ElectricUtilityRevenue`. Left out, because filers also report them outside revenue or as a
+  subset of revenue: `OtherIncome`, `OtherOperatingIncome`, `RealizedInvestmentGainsLosses`,
+  `RevenueFromRelatedParties`, `ShippingAndHandlingRevenue`, and
+  `PhaseInPlanAmountOfCapitalizedCostsRecovered`.
+- `ExplorationAndProductionRevenue` is no part. It sits below `OilAndGasRevenue`.
+- No value of these rules carries a scope.
+- `NoninterestIncome` stays an other part of `Revenue`. It blocks a contract revenue part of a bank,
+  because that part covers noninterest income only. The line total then gives the value.
+- Revenue that a filer reports only with its own concepts, such as APA 2025 and KKR 2013, stays
+  open.
+
+The fixture 10-Ks show the rules (values in million USD, annual, without dimensions):
+
+| Filing | `Revenue` | Source |
+| ------ | --------- | ------ |
+| Regions Financial 2013 | 5,281 | 3,262 + 2,019, line total |
+| Regions Financial 2021 | 6,438 | 3,914 + 2,524, line total |
+| Regions Financial 2025 | 7,526 | 4,991 + 2,535, line total |
+| JPMorgan Chase 2025 | 182,447 | `Revenues`. Net interest income + noninterest income gives the same value |
+| Evergy 2013 | 2,446.3 | `ElectricUtilityRevenue`, part rule |
+| APA 2013 | open | `OtherSalesRevenueNet` blocks `OilAndGasRevenue` |
+
 #### Names in Silver
 
 The `concept` column of `standardized_facts` stores the variant name, such as `NetIncome`, not the
@@ -906,7 +964,7 @@ parses it.
   `ExchangeRateEffect` carry a scope. `reason` holds
   `net-change-in-cash`.
 - `MixedStarts` is a value of `findings.kind`. `concepts` holds the members of the group with a
-  value, in the order of `RollUpMismatch`. The members that stand for a start with no value take
+  value, each once, in the order of `RollUpMismatch`. The members that stand for a start with no value take
   the place of the start, in the order of their own table. `periods` holds the period end and length of the slot.
   `reason` holds the name of the group, such as `operating-cash-flow`
   ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
@@ -1321,7 +1379,8 @@ segments. No standard concept holds them, so they stay as-is facts.
   dimensions: `core/roll-up/<group>@1`, `core/identity/balance-sheet@1`, `core/period/q4-from-fy@1`,
   the sums along the calculation tree of a plug-in, and the checks of "Checks the Tree Gives". A
   segment value gets no derived or computed value, no check, no other line, and no `MixedStarts`
-  finding.
+  finding. The line total of "Revenue of Banks, Utilities, and Producers" is the one exception: it
+  runs with the parts, on each set of dimensions.
 - **Chronology** runs only on values without dimensions. A segment value still gets `restated`.
 - `FactSet` and the statement output types take only values without dimensions. A segment value
   enters no statement.
@@ -1854,6 +1913,9 @@ vendored ([ADR 0058](../docs/adr/0058-generated-table-of-removed-us-gaap-element
     that leaves the income out.
   - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
     parts. So the filing reports no other part, and the check passes with the wrong value.
+- A line total, `us-gaap/total/<standard concept>@1`, adds lines that a filing reports in place of
+  a total. It runs only if no alias and no part gives a value in the period and set of dimensions.
+  `Revenue` of a bank is the one line total (see "Revenue of Banks, Utilities, and Producers").
 - `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the
   `Equity` of `Assets = Liabilities + Equity`. `NetIncomeLoss`, the part of the parent, stands for
   it only if the filing reports no `NetIncomeLossAttributableToNoncontrollingInterest`.
@@ -2076,6 +2138,8 @@ A `RuleId` has the form `<owner>/<kind>/<name>@<version>`:
 - `us-gaap/alias/revenue@1`: the alias list of a plug-in.
 - `us-gaap/part/equity@1`: the parts of a standard concept that stand for the whole if the filing
   reports no other part.
+- `us-gaap/total/revenue@1`: the line total of a plug-in, the sum of the lines that a filing
+  reports in place of a total.
 - `core/identity/balance-sheet@1`: an accounting identity.
 - `core/roll-up/liabilities@1`: a closed group of the roll-up tree.
 - `core/period/q4-from-fy@1`: a period identity.
@@ -2114,7 +2178,7 @@ Each element has a tiered resolution chain:
 | 1 | `Exact` | The first concept of the alias list of a plug-in |
 | 2 | `Synonym` | A later concept of the alias list, a part with no other part reported, or an ESEF anchor |
 | 3 | `Derived` | An identity the core knows: an accounting identity or a period identity |
-| 4 | `Computed` | A sum along the calculation tree of a plug-in |
+| 4 | `Computed` | A sum along the calculation tree of a plug-in, or the line total of a plug-in |
 
 ```
 Element: "Revenue"
@@ -2127,7 +2191,9 @@ Element: "Total Assets"
   Tier 4  Computed:  AssetsCurrent + AssetsNoncurrent       -> confidence: Computed
 ```
 
-First tier that resolves wins. Every resolved value carries which tier produced it.
+The first tier that resolves wins. The line total is the one exception: it reads as-is facts, so
+it runs with tiers 1 and 2, after the parts, and its `Computed` value wins over tier 3 (see
+"Revenue of Banks, Utilities, and Producers"). Every resolved value carries which tier produced it.
 
 The level of a derived or computed fact is the weakest of its own level and the levels of its
 inputs. `Confidence` orders from `Exact` to `Computed`, so this is the maximum.
@@ -2231,7 +2297,7 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
 | `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree with rank 0 (see "Agreement of copies") | Take `copy_rank` 0 |
-| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions, and the same exact start for a short duration (see "Durations Under 46 Days") | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
 Agreement of copies:
 
@@ -2247,7 +2313,8 @@ Agreement of copies:
 - A rank with another exact start whose length lies nearer to its whole number of quarters than
   the length of rank 0 (`Period::distance_to_full_quarters`) is a `Conflict`, as for disagreeing
   copies. So a stub never enters the series in place of
-  the quarter. The parsers rank by precision first, so a more precise stub can be rank 0.
+  the quarter. A value key of 0 quarters is the exception: a rank with another exact start never
+  conflicts by its length (see "Durations Under 46 Days"). The parsers rank by precision first, so a more precise stub can be rank 0.
 - For `adapter::edgar` facts, rank 0 is the first copy in the JSON, not the most precise one.
 
 The order of resolution and dedup, per entity and period. A period here is an exact period end
@@ -2333,6 +2400,32 @@ Both are the same fact in a later filing. The value tells them apart:
 The as-is layer keeps both in either case. The standardized layer takes the newest value. For a
 restatement, it sets `restated`, and chronology reports it.
 
+### Durations Under 46 Days
+
+> **Status:** decided in [ADR 0055](../docs/adr/0055-durations-under-46-days.md). The code does
+> not apply these rules: the series key of a short duration holds no start.
+
+A **short duration** lasts 45 days or less from its exact start to its end. It has 0 quarters, the
+same length as an instant. An example is June alone in the fixture 10-Q `0001628280-26-068246`. The
+standardized layer keeps a short duration and adds no finding. The rules below stop a short
+duration from replacing an instant, a quarter, or another short duration:
+
+| Rule | A short duration |
+| ---- | ---------------- |
+| Series key | Holds the exact start. The key of an instant or of a duration of 1 quarter or more holds no start |
+| `core/dedup/more-precise@1` | A rank with another exact start is another fact with no candidate, and never a `Conflict` by its length. Rank 0 enters the series |
+| Chronology | Fills only an expected period of 0 quarters, such as a `10-KT` within 45 days of the previous fiscal year end. It fills no expected quarter or fiscal year. A blocked short key gives the reason `Conflict` only to a gap of 0 quarters |
+| Required check | Fills the period of report only of a `10-KT` within 45 days of the previous fiscal year end. A blocked short key gives the reason `Conflict` only to such a period |
+| `core/period/q4-from-fy@1` | Reads only 4 and 3 quarters, so it never reads a short duration |
+| Closed groups and the roll-up check | Keep their slots on the end and the length in quarters. A slot keeps every value of a concept. If a group holds two values of one concept, or two members, with different starts, it gives `MixedStarts`, no derived value, and no other check. The blocked balances are the blocked keys without a start |
+
+- A duration of 1 quarter or more has a series key without the start, so a 52-53 week quarter of
+  two filings stays one series.
+- The value key holds no start. A valid filing cannot report one element as both an instant and a
+  duration, so the value key of a short duration never meets an instant of a valid filing.
+- Silver keys a row of `standardized_facts` of a short duration on `period_start` too
+  ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "`standardized_facts`").
+
 ### Gap Check
 
 The gap check runs on the standardized series of one entity and one concept. It reports findings.
@@ -2360,7 +2453,8 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 
 - **Timeline.** One entity, standard concept, unit, and dimensions. Values of every length belong
   to it. A value of any length fills an expected period if its end lies within 7 days of the
-  expected end. A 52-53 week year ends up to 6 days away from the end of its month.
+  expected end. A short duration is the exception: it fills only an expected period of 0
+  quarters (see "Durations Under 46 Days"). A 52-53 week year ends up to 6 days away from the end of its month.
 - **Forms.** The form counts without its `/A` suffix. `10-Q` and `10-QT` make a quarterly filer.
   `10-K`, `10-KT`, `20-F`, and `40-F` are annual reports. A `T` form reports a transition period.
   An entity with neither expects no period.
@@ -2488,7 +2582,7 @@ The measurement also counted four cases that the signals do not catch. Each has 
 | ---- | ----- | -------- |
 | Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule skips a short year ("Period identities" in "Three Layers") |
 | Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | The guard above reads the day count of the year, so it needs none of these filings |
-| Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
+| Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | Keep the value with no finding, and key its series on the exact start ("Durations Under 46 Days") |
 | Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | The exact start splits them into two facts ("Dedup Rules", "Agreement of copies") |
 
 Notes `durp` is `qtrs` less the true length in quarters, where a quarter is 91.25 days. June
@@ -2678,7 +2772,8 @@ never fails. The shape of its finding follows
 - **Filings.** The check covers each annual report (`10-K`, `10-KT`, `20-F`, `40-F`) and quarterly
   report (`10-Q`, `10-QT`) that is no amendment and has a period of report.
 - **Filled.** A value without dimensions of the concept fills the period of report if its end lies
-  within 7 days of it. A value of any length fills it. A value of the series counts, from any
+  within 7 days of it. A value of any length fills it, except a short duration (see "Durations
+  Under 46 Days"). A value of the series counts, from any
   filing, and so does a value of Tier 3 or of `core/period/q4-from-fy@1`.
 - **Finding.** Each required concept that no value fills gives one `MissingRequired` finding with
   the entity, the filing, the concept, and the period of report.
@@ -3012,5 +3107,5 @@ The `AsIsFact` and `StandardizedFact` types and the `Taxonomy` trait are decided
 - The FASB calculation linkbase is universal (one tree, same for every company)
 - Sub-item data (COGS, SG&A, R&D, PP&E, etc.) is available in the JSON API — sufficient for the lines below the top lines
 - Segment data requires the Notes data set or the instance XML
-- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. 3 of its 150 tags are not in the 2026 release
+- No FASB release is behind `us_gaap/mappings.rs`. Its aliases span releases by design. A tag that the 2026 release lacks gets its data from the table of removed elements
 - The FASB 2026 files in the repository lack the element schema, which holds the data type and balance of each element

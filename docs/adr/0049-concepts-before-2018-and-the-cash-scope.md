@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28), confirmed with one list for `ExchangeRateEffect` ([STA-610 comment `50ed6d43`](https://linear.app/state-machine/issue/STA-610#comment-50ed6d43), accessed 2026-11-28). [Amendment 3](#amendment-3-the-placement-in-the-releases-2014-and-2017) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-619 comment `b118ce56`](https://linear.app/state-machine/issue/STA-619#comment-b118ce56), accessed 2026-11-28) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28), confirmed with one list for `ExchangeRateEffect` ([STA-610 comment `50ed6d43`](https://linear.app/state-machine/issue/STA-610#comment-50ed6d43), accessed 2026-11-28). Decision 2 superseded by [ADR 0056](0056-revenue-of-banks-utilities-and-producers.md). [Amendment 3](#amendment-3-the-placement-in-the-releases-2014-and-2017) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-619 comment `b118ce56`](https://linear.app/state-machine/issue/STA-619#comment-b118ce56), accessed 2026-11-28). |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-541](https://linear.app/state-machine/issue/STA-541), accessed 2026-11-27 |
@@ -188,8 +188,8 @@ goods line, and it is nearer to `Revenue`. Option B gives no value where A gives
 
 ## Amendment 3: The Placement in the Releases 2014 and 2017
 
-> **Proposed and accepted by the project owner on 2026-11-28.** It answers open questions 1 and 3. It keeps decisions 1 to 9 and
-> amendments 1 and 2.
+> **Proposed and accepted by the project owner on 2026-11-28.** It answers open questions 1 and 3. It changes no decision and no
+> amendment.
 
 ### Why
 
