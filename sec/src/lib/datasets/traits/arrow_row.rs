@@ -33,8 +33,10 @@ pub trait ArrowRow: Sized {
     ///
     /// # Errors
     ///
-    /// Returns [`ArrowRowError`] if a value has no form in its column, for example a decimal with
-    /// more than 38 digits, or if the values of a row contradict each other.
+    /// Returns [`ArrowRowError`] in two cases:
+    ///
+    /// - A value has no form in its column, for example a decimal with more than 38 digits.
+    /// - The values of a row contradict each other.
     fn to_batch(rows: &[Self]) -> Result<RecordBatch, ArrowRowError>;
 
     /// Reads the rows of a record batch that holds the schema of `version`.
