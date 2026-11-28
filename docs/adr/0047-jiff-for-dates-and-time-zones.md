@@ -112,10 +112,10 @@ not optional, in 57.3.3, 58.4.2, and 59.3.3 too. No release of `arrow` from 57 t
 ### Decision
 
 1. **Decision 1 holds.** No crate of the workspace names `chrono` in its own `Cargo.toml`.
-2. **`chrono` stays in `Cargo.lock` as a dependency of `arrow` and `parquet`.** `cargo audit`
-   reports RUSTSEC-2026-0543 as a warning until a release of `arrow` builds without `chrono`.
-   [STA-612](https://linear.app/state-machine/issue/STA-612), accessed 2026-11-28, upgrades
-   `arrow` and `parquet` when such a release exists.
+2. **`chrono` stays in `Cargo.lock` as a dependency of the `arrow-*` crates and `parquet`.**
+   `cargo audit` reports RUSTSEC-2026-0543 as a warning until a release of `arrow` builds
+   without `chrono`. [STA-612](https://linear.app/state-machine/issue/STA-612), accessed
+   2026-11-28, upgrades `arrow` and `parquet` when such a release exists.
 
 Options considered:
 
