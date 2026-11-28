@@ -197,6 +197,26 @@ pub enum Finding {
         /// The group that mixes the scopes.
         reason: GroupName,
     },
+    /// The opening balance plus the change of a period does not equal the closing balance. The
+    /// difference exceeds 0.1% of the largest absolute value of the three. The opening balance
+    /// sits at the day before the exact start of the change.
+    RollForwardMismatch {
+        /// The entity the values are about.
+        entity: EntityId,
+        /// The period of the change.
+        period: Period,
+        /// The unit of the values.
+        unit: Unit,
+        /// The axis and member pairs of the values.
+        dimensions: Dimensions,
+        /// The balance concept, then the change, such as `CashAndRestrictedCash`, then
+        /// `NetChangeInCash`.
+        concepts: Vec<CanonicalElementKind>,
+        /// The roll forward that failed.
+        reason: RollForward,
+        /// The weakest confidence of the opening balance, the change, and the closing balance.
+        confidence: Confidence,
+    },
     /// The parts of a sum of a disclosure do not add up to its total. The difference exceeds the
     /// tolerance of the sum. The tolerance is in basis points of the largest absolute value of the
     /// check.
@@ -242,6 +262,31 @@ impl RollUpCheck {
 
 impl fmt::Display for RollUpCheck {
     /// Writes the name of the check, such as `liabilities` or `balance-sheet`.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// The roll forward that a [`Finding::RollForwardMismatch`] fails.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RollForward {
+    /// The cash roll forward: the opening cash plus `NetChangeInCash` equals the closing cash.
+    Cash,
+}
+
+impl RollForward {
+    /// Returns the name of the roll forward in findings, such as `cash`.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Cash => "cash",
+        }
+    }
+}
+
+impl fmt::Display for RollForward {
+    /// Writes the name of the roll forward, such as `cash`.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
@@ -312,6 +357,22 @@ mod tests {
     #[test]
     const fn should_implement_auto_traits_for_roll_up_check() {
         implements_auto_traits::<RollUpCheck>();
+    }
+
+    #[test]
+    const fn should_implement_auto_traits_for_roll_forward() {
+        implements_auto_traits::<RollForward>();
+    }
+
+    #[test]
+    fn should_write_cash_for_the_cash_roll_forward() {
+        let roll_forward = RollForward::Cash;
+
+        let expected_result = "cash";
+
+        let result = roll_forward.to_string();
+
+        assert_eq!(result, expected_result);
     }
 
     #[test]

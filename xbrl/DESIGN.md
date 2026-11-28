@@ -2132,8 +2132,7 @@ year-to-date only. The result has confidence `Derived`.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values. It
   carries the scope of its inputs. If the two inputs differ in scope, the rule derives nothing: the
   difference of two scopes is a value of neither. No finding reports such a quarter, and the gap
-  check does not see it, because the fiscal year value fills its end. The year and the nine months
-  keep their values and their scopes.
+  check does not see it, because the fiscal year value fills its end.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
   apart.

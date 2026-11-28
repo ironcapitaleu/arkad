@@ -254,6 +254,7 @@ mod tests {
                 Finding::NegativeOther { .. } => "NegativeOther",
                 Finding::MixedStarts { .. } => "MixedStarts",
                 Finding::MixedScopes { .. } => "MixedScopes",
+                Finding::RollForwardMismatch { .. } => "RollForwardMismatch",
                 Finding::SumMismatch { .. } => "SumMismatch",
             })
             .collect()
