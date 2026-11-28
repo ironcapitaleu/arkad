@@ -1895,8 +1895,8 @@ ticket decides where the removed elements live.
   - A wider concept gets no such rule. A filer picks a wider concept because its line mixes the
     parts. So the filing reports no other part, and the check passes with the wrong value.
 - A line total, `us-gaap/total/<standard concept>@1`, adds lines that a filing reports in place of
-  a total. It runs only if no alias and no part gives a value. `Revenue` of a bank is the one line
-  total (see "Revenue of Banks, Utilities, and Producers").
+  a total. It runs only if no alias and no part gives a value in the period and set of dimensions.
+  `Revenue` of a bank is the one line total (see "Revenue of Banks, Utilities, and Producers").
 - `NetIncome` is `ProfitLoss`, the net income with the noncontrolling interest, so it matches the
   `Equity` of `Assets = Liabilities + Equity`. `NetIncomeLoss`, the part of the parent, stands for
   it only if the filing reports no `NetIncomeLossAttributableToNoncontrollingInterest`.
