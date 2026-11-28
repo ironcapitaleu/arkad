@@ -224,8 +224,8 @@ instead of every fact. The provenance of an attribute sits in one row per filing
   three columns. The URL and the retrieval time of each raw document sit in `unit_manifests`.
 - The raw store keeps one version of `submissions`. A later fetch replaces the bytes that
   `sic_source_sha256` names. This gap stays until the raw store keeps versions.
-- The three `sic_*` columns are all set or all null. `FilingRow` in `sec::datasets` holds them as
-  one `Option<SicSource>`, and holds the order of the schema. A read rejects a row with a mix.
+- The three `sic_*` columns are all set or all null. `FilingRow` in `sec::datasets` holds the
+  three columns as one `Option<SicSource>`. A read rejects a row with a mix.
 - A read takes the fiscal year end from `fiscal_year_end_raw` only, because
   `fiscal_year_end_month` follows from it.
 

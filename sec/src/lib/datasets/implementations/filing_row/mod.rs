@@ -43,7 +43,7 @@ pub struct FilingRow {
 }
 
 /// The `submissions` document that gives the industry code of a filing: the columns `sic_*`.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SicSource {
     /// The key of the document in the document store.
     pub source_key: String,
@@ -391,8 +391,17 @@ impl<'a> FilingColumns<'a> {
 
     /// Reads the industry code of one row from `industry_scheme` and `industry_code`.
     ///
-    /// Fails if one of the two columns is set and the other is null.
+    /// Fails if one of the two columns is set and the other is null. The error names the null
+    /// column.
     fn industry(&self, row: usize) -> Result<Option<IndustryCode>, ArrowRowError> {
+        let mix = |column| {
+            Err(unexpected_value(
+                self.dataset,
+                column,
+                row,
+                "'industry_scheme' and 'industry_code' are not both set or both null".to_owned(),
+            ))
+        };
         match (
             nullable(self.industry_schemes, row),
             nullable(self.industry_codes, row),
@@ -408,12 +417,8 @@ impl<'a> FilingColumns<'a> {
                 })
             }
             (None, None) => Ok(None),
-            _ => Err(unexpected_value(
-                self.dataset,
-                "industry_code",
-                row,
-                "'industry_scheme' and 'industry_code' are not both set or both null".to_owned(),
-            )),
+            (None, Some(_)) => mix("industry_scheme"),
+            (Some(_), None) => mix("industry_code"),
         }
     }
 
@@ -434,14 +439,16 @@ impl<'a> FilingColumns<'a> {
 
     /// Reads the `sic_*` columns of one row.
     ///
-    /// Fails if some of the three columns are set and others are null.
+    /// Fails if some of the three columns are set and others are null. The error names the first
+    /// null column.
     fn sic_source(&self, row: usize) -> Result<Option<SicSource>, ArrowRowError> {
         let unexpected = |column, reason| unexpected_value(self.dataset, column, row, reason);
-        match (
+        let values = (
             nullable(self.sic_source_keys, row),
             nullable(self.sic_source_digests, row),
             nullable(self.sic_retrieved_times, row),
-        ) {
+        );
+        match values {
             (Some(key), Some(digest), Some(milliseconds)) => Ok(Some(SicSource {
                 source_key: key.to_owned(),
                 source_sha256: Sha256Digest::from_str(digest)
@@ -450,10 +457,22 @@ impl<'a> FilingColumns<'a> {
                     .map_err(|reason| unexpected("sic_retrieved_at", reason))?,
             })),
             (None, None, None) => Ok(None),
-            _ => Err(unexpected(
-                "sic_source_key",
-                "the 'sic_*' columns are not all set or all null".to_owned(),
-            )),
+            (key, digest, milliseconds) => {
+                let nulls = [
+                    ("sic_source_key", key.is_none()),
+                    ("sic_source_sha256", digest.is_none()),
+                    ("sic_retrieved_at", milliseconds.is_none()),
+                ];
+                // This arm holds at least one null column, so the default never applies.
+                let column = nulls
+                    .into_iter()
+                    .find_map(|(name, is_null)| is_null.then_some(name))
+                    .unwrap_or("sic_source_key");
+                Err(unexpected(
+                    column,
+                    "the 'sic_*' columns are not all set or all null".to_owned(),
+                ))
+            }
         }
     }
 }
@@ -469,7 +488,7 @@ mod tests {
 
     use super::*;
     use crate::datasets::implementations::provenance::sample_provenance;
-    use crate::datasets::{FOLDER_LABELS, schema_text};
+    use crate::datasets::{FOLDER_LABELS, UTC_TIME_ZONE, schema_text};
 
     const PARSE: &str = "Given hardcoded valid parts, the creation should always succeed";
 
@@ -554,6 +573,18 @@ mod tests {
         rows.truncate(1);
         rows[0].filing.fiscal_year = Some(FiscalYear::new(year));
         rows
+    }
+
+    /// Returns the column that the error of the read of `batch` names, or `None` if the read
+    /// passes or fails with another error.
+    fn failed_column(batch: &RecordBatch) -> Option<&'static str> {
+        match FilingRow::from_batch(batch, 1) {
+            Err(
+                ArrowRowError::UnexpectedColumnValue { column, .. }
+                | ArrowRowError::InvalidColumnValue { column, .. },
+            ) => Some(column),
+            _ => None,
+        }
     }
 
     const fn implements_auto_traits<T: Sized + Send + Sync + Unpin>() {}
@@ -661,7 +692,7 @@ mod tests {
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "filings",
-            column: "sic_source_key",
+            column: "sic_retrieved_at",
             row: 0,
             reason: "the 'sic_*' columns are not all set or all null".to_owned(),
         });
@@ -680,7 +711,7 @@ mod tests {
 
         let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
             dataset: "filings",
-            column: "industry_code",
+            column: "industry_scheme",
             row: 0,
             reason: "'industry_scheme' and 'industry_code' are not both set or both null"
                 .to_owned(),
@@ -891,6 +922,94 @@ mod tests {
         let mut byte_form = ByteForm::new();
         row.write_row(&mut byte_form);
         let result = byte_form.as_bytes();
+
+        assert_eq!(result, expected_result);
+    }
+    #[test]
+    fn should_name_the_column_when_the_filing_id_has_no_source() {
+        let batch = batch_with(
+            "filing_id",
+            Arc::new(StringArray::from(vec!["0000320193-26-000001"])),
+        );
+
+        let expected_result = Some("filing_id");
+
+        let result = failed_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_form_is_empty() {
+        let batch = batch_with("form", Arc::new(StringArray::from(vec![""])));
+
+        let expected_result = Some("form");
+
+        let result = failed_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_fiscal_period_is_empty() {
+        let batch = batch_with("fiscal_period", Arc::new(StringArray::from(vec![""])));
+
+        let expected_result = Some("fiscal_period");
+
+        let result = failed_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_fiscal_year_end_is_not_a_day_of_the_year() {
+        let batch = batch_with(
+            "fiscal_year_end_raw",
+            Arc::new(StringArray::from(vec!["1332"])),
+        );
+
+        let expected_result = Some("fiscal_year_end_raw");
+
+        let result = failed_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_industry_code_holds_whitespace() {
+        let batch = batch_with("industry_code", Arc::new(StringArray::from(vec!["35 71"])));
+
+        let expected_result = Some("industry_code");
+
+        let result = failed_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_the_sic_source_sha256_is_not_a_digest() {
+        let batch = batch_with(
+            "sic_source_sha256",
+            Arc::new(StringArray::from(vec!["abc"])),
+        );
+
+        let expected_result = Some("sic_source_sha256");
+
+        let result = failed_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_column_when_sic_retrieved_at_lies_past_the_times_of_jiff() {
+        let batch = batch_with(
+            "sic_retrieved_at",
+            Arc::new(TimestampMillisecondArray::from(vec![i64::MAX]).with_timezone(UTC_TIME_ZONE)),
+        );
+
+        let expected_result = Some("sic_retrieved_at");
+
+        let result = failed_column(&batch);
 
         assert_eq!(result, expected_result);
     }
