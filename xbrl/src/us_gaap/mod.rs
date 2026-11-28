@@ -1075,7 +1075,7 @@ mod tests {
     }
 
     #[test]
-    fn should_list_a_part_among_its_own_other_parts_only_for_two_sibling_parts_when_created() {
+    fn should_list_each_part_that_is_an_other_part_of_another_part_when_created() {
         let us_gaap = UsGaap::new();
 
         let expected_result = vec![
@@ -1812,30 +1812,18 @@ mod tests {
                             "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
                         ),
                     ],
-                    own_other_parts: vec![
-                        (
-                            concept(
-                                "us-gaap",
-                                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
-                            ),
-                            vec![concept(
-                                "us-gaap",
-                                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
-                            )],
+                    own_other_parts: vec![],
+                    other_part_totals: vec![],
+                    other_parts: vec![
+                        concept(
+                            "us-gaap",
+                            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
                         ),
-                        (
-                            concept(
-                                "us-gaap",
-                                "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
-                            ),
-                            vec![concept(
-                                "us-gaap",
-                                "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
-                            )],
+                        concept(
+                            "us-gaap",
+                            "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
                         ),
                     ],
-                    other_part_totals: vec![],
-                    other_parts: vec![],
                 },
             ),
         ];

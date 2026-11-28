@@ -501,6 +501,7 @@ mod tests {
 
     /// Returns a plug-in whose revenue list holds the total, with the contract revenue part and the
     /// goods part. The services line is an own other part of the goods part only.
+    /// `OtherSalesRevenueNet` is a total of other parts.
     fn revenue_plugin() -> FakeTaxonomy {
         let revenue = ConceptAliases {
             element: IncomeStatementConcept::Revenue.element(),
@@ -519,7 +520,7 @@ mod tests {
                     concept_of("us-gaap", "SalesRevenueGoodsNet"),
                     vec![concept_of("us-gaap", "SalesRevenueServicesNet")],
                 )],
-                other_part_totals: vec![],
+                other_part_totals: vec![concept_of("us-gaap", "OtherSalesRevenueNet")],
                 other_parts: vec![],
             }),
             scopes: Vec::new(),
@@ -1479,6 +1480,35 @@ mod tests {
         let copies = more_precise(&facts);
 
         let expected_result: Vec<(RuleId, CandidateValue)> = Vec::new();
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_part_when_the_filing_reports_a_total_of_other_parts_next_to_an_own_other_part_of_zero()
+     {
+        let plugin = revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let facts = vec![
+            fact(&filing, "SalesRevenueGoodsNet", "60000000"),
+            fact(&filing, "SalesRevenueServicesNet", "0"),
+            fact(&filing, "OtherSalesRevenueNet", "40000000"),
+        ];
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/part/revenue@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(60_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Synonym,
+            },
+        )];
 
         let result = rules_and_values(&resolve_aliases(&copies, &registry));
 

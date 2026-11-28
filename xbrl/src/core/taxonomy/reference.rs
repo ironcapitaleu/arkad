@@ -51,8 +51,9 @@ impl ConceptAliases {
 ///
 /// A part is a taxonomy concept whose value is one share of the standard concept, for example
 /// `StockholdersEquity` for the equity with the noncontrolling interest. If a filing reports the
-/// part and none of [`PartAliases::other_parts`] in one period, the part equals the whole. An other
-/// part counts in any dimension of the period, and only with a value other than zero.
+/// part and none of its other parts in one period, the part equals the whole. The other parts of a
+/// part are the concepts that [`PartAliases::other_parts_of`] lists. An other part counts in any
+/// dimension of the period, and only with a value other than zero.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
 pub struct PartAliases {
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
@@ -66,8 +67,8 @@ pub struct PartAliases {
     /// part and its own other parts.
     pub own_other_parts: Vec<(ConceptName, Vec<ConceptName>)>,
     /// The totals of other parts. A filer can report such a total in place of its other parts. A
-    /// total blocks the part only if the filing reports none of
-    /// [`PartAliases::other_parts`] in the period, with any value, zero included.
+    /// total blocks the part only if the filing reports none of the other parts of the part, as
+    /// [`PartAliases::other_parts_of`] lists them, in the period, with any value, zero included.
     pub other_part_totals: Vec<ConceptName>,
 }
 

@@ -118,7 +118,7 @@ pub struct PartDefinition {
     other_part_trees: &'static [&'static str],
     /// The totals of other parts that block only if the filing reports none of the other parts.
     other_part_totals: &'static [&'static str],
-    /// The other parts of one part only, which count alone, next to the other parts of all parts.
+    /// Each part with the other parts of that part only.
     own_other_parts: &'static [(&'static str, &'static [&'static str])],
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     part_rule: &'static str,
@@ -1278,29 +1278,21 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         NET_CHANGE_IN_CASH_PART_RULE,
     ),
     // Each part has its own other part: the effect on disposal groups, and before 2018 the effect
-    // on discontinued operations.
+    // on discontinued operations. The two share one list, so a filing that mixes the eras gets no
+    // value, not a part without its discontinued operations.
     PartDefinition::new(
         CashFlowConcept::ExchangeRateEffect.element(),
         &[
             "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
             "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
         ],
-        &[],
+        &[
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+            "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
+        ],
         &[],
         EXCHANGE_RATE_EFFECT_PART_RULE,
     )
-    .with_own_other_parts(&[
-        (
-            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
-            &[
-                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
-            ],
-        ),
-        (
-            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
-            &["EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations"],
-        ),
-    ])
     .with_scopes(&[(
         "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
         Scope::ExcludesRestrictedCash,

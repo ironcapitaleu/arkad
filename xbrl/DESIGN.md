@@ -1819,9 +1819,8 @@ ticket decides where the removed elements live.
     the part.
   - A part can have its own other parts, which block that part only. A definition names them
     with `with_own_other_parts`. `SalesRevenueGoodsNet` and `SalesRevenueServicesNet` are each an
-    own other part of the other, so neither blocks the contract revenue parts of `Revenue`. Each
-    part of `ExchangeRateEffect` has the other part of its own era as its own other part ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md),
-    Amendment 2).
+    own other part of the other, so neither blocks the contract revenue parts of `Revenue`
+    ([ADR 0049](../docs/adr/0049-concepts-before-2018-and-the-cash-scope.md), Amendment 2).
   - For example, `StockholdersEquity` stands for `Equity` only if the filing reports no
     `MinorityInterest`. `Cash` stands for `CashAndEquivalents` only if the filing reports no cash
     equivalents.

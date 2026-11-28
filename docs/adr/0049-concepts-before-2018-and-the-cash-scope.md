@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-541 comment `d7207dfe`](https://linear.app/state-machine/issue/STA-541#comment-d7207dfe), accessed 2026-11-27). [Amendment 1](#amendment-1-the-one-line-total-of-discontinued-operations) of 2026-11-27: accepted by the project owner on 2026-11-27 ([STA-611 comment `55ba1894`](https://linear.app/state-machine/issue/STA-611#comment-55ba1894), accessed 2026-11-27). [Amendment 2](#amendment-2-other-parts-per-part) of 2026-11-28: accepted by the project owner on 2026-11-28 ([STA-610 comment `295563ed`](https://linear.app/state-machine/issue/STA-610#comment-295563ed), accessed 2026-11-28), confirmed with one list for `ExchangeRateEffect` ([STA-610 comment `50ed6d43`](https://linear.app/state-machine/issue/STA-610#comment-50ed6d43), accessed 2026-11-28) |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-541](https://linear.app/state-machine/issue/STA-541), accessed 2026-11-27 |
@@ -169,17 +169,18 @@ file in `xbrl/src/tests/fixtures/data/` holds a `RevenueFromContractWithCustomer
 Option A wins on the meaning of the concepts. `RevenueFromContractWithCustomer…` is the total of
 revenue from contracts. A goods or services line next to it in the same period is a split of that
 total, as in a note that splits revenue by product. So the contract revenue part is at least the
-goods line, and it is the closer value. Option B gives no value where A gives a value with
+goods line, and it is nearer to `Revenue`. Option B gives no value where A gives a value with
 `Synonym`. Option C keeps the low value.
 
 ### Consequences of the Amendment
 
 - A1 to A4 do not change.
 - `PartAliases` gains the field `own_other_parts`. A part definition names them with
-  `with_own_other_parts`. The other part rules name none, except `ExchangeRateEffect`.
-- The two parts of `ExchangeRateEffect` each get their own other part of decision 4: the effect on
-  disposal groups for the part after 2018, and the effect on discontinued operations for the part
-  before 2018. A1 to A4 do not change.
+  `with_own_other_parts`. The other part rules name none.
+- `ExchangeRateEffect` keeps one list for its two parts. A split by era changes no line of A1 to
+  A4. But a filing that reports the part after 2018 next to the effect on discontinued operations
+  before 2018 then gets the part without the discontinued operations. With one list, it gets no
+  value.
 - A filer that reports contract revenue that leaves out a goods line gets the contract revenue
   part as `Revenue`, too low, with `Synonym`. No fixture 10-K shows such a filer.
 - Not covered: goods next to a third line, such as `OtherSalesRevenueNet`. The open question on the
