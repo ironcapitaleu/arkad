@@ -163,7 +163,7 @@ pub struct UnitFile {
     pub path: String,
     /// The size of the file.
     pub bytes: u64,
-    /// The CRC32C of the file, as GCS stores it.
+    /// The CRC32C of the file, in base64 of its 4 big-endian bytes.
     pub crc32c: String,
     /// The rows of the file.
     pub row_count: u64,

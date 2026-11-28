@@ -40,8 +40,7 @@ regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 url = "2"
-# The dataset writer computes the CRC32C of each part and prints it in base64, the form that GCS
-# stores.
+# The dataset writer computes the CRC32C of each part and prints it in base64.
 base64 = "0.22"
 crc32c = "0.6"
 # Only the `test-fixtures` feature uses them.

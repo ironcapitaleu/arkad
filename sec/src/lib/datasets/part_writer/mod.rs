@@ -84,7 +84,7 @@ impl fmt::Display for TaskAttempt {
 /// # Returns
 ///
 /// The [`UnitFile`] of the part, with the size and the CRC32C of the bytes the store received.
-/// The CRC32C prints in base64 of its 4 big-endian bytes, as GCS stores it.
+/// The CRC32C prints in base64 of its 4 big-endian bytes.
 ///
 /// # Errors
 ///
