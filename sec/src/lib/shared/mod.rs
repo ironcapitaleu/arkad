@@ -16,6 +16,7 @@
 //! - [`filing_documents_ref`]: Provides [`FilingDocumentsRef`](filing_documents_ref::FilingDocumentsRef), the filing and the keys of its stored XBRL instance and label file.
 //! - [`filing_input`]: Provides [`FilingInput`](filing_input::FilingInput), the input of the filing machine for one Notes filing or one instance filing.
 //! - [`filing_ref`]: Provides [`FilingRef`](filing_ref::FilingRef), which names one filing to fetch.
+//! - [`filing_rows`]: Provides [`FilingRows`](filing_rows::FilingRows), the rows of one filing for the four datasets of a transform unit.
 //! - [`form`]: Provides [`Form`](form::Form), the SEC form types a data point can originate from, and the forms both ingestion paths keep.
 //! - [`form_index_row`]: Provides [`FormIndexRow`](form_index_row::FormIndexRow), one row of an EDGAR daily index or full index, and the parser of the whole index.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
@@ -60,6 +61,7 @@ pub mod filing_documents;
 pub mod filing_documents_ref;
 pub mod filing_input;
 pub mod filing_ref;
+pub mod filing_rows;
 pub mod form;
 pub mod form_index_row;
 pub mod headers;

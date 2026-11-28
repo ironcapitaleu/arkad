@@ -16,6 +16,8 @@
 //!   entry state of the filing machine.
 //! - [`standardize_filing`]: Turns the as-is facts of one source of one filing into a
 //!   `StandardizedFiling`.
+//! - [`build_filing_rows`]: Turns a `StandardizedFiling` into the `FilingRows` of the four
+//!   datasets. The last state of the filing machine.
 //!
 //! ## State Flow
 //!
@@ -50,6 +52,7 @@
 //! # }
 //! ```
 
+pub mod build_filing_rows;
 pub mod create_financial_statements;
 pub mod parse_company_facts;
 pub mod parse_instance_filing;

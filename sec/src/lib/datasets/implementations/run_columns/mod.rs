@@ -25,7 +25,8 @@ pub struct RunColumns {
     pub transform_version: u32,
     /// The run that wrote the row.
     pub execution_id: Uuid,
-    /// The time of the write. The part below one millisecond does not reach the batch.
+    /// The start time of the task that wrote the row. The part below one millisecond does not
+    /// reach the batch.
     pub loaded_at: Timestamp,
 }
 
