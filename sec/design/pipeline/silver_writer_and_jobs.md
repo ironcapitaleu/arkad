@@ -234,6 +234,10 @@ One reader serves every Rust caller. It reads `unit_manifests` and never lists a
 - `current_units_as_of(dataset, source, t)` takes the units with `written_at` at or before `t`.
 - `series_units(dataset)` takes the newest `series_base` of a run that counts, and every
   `series_delta` of a run that counts after it, as "Series Deltas" of the contract says.
+- `series_units` groups the series units of the dataset by `execution_id`, and keeps per
+  `unit_key` the unit with the latest `written_at`. A run counts when each unit has a
+  `computed_at` and a `run_tasks` equal to the count of its unit keys. If no `series_base` run
+  counts, the call returns no unit.
 - `read_rows::<R>(unit, filter)` reads each part whole through `ReadRepository`, skips the row
   groups that the filter excludes by their statistics, and returns rows of type `R`.
 - The current facts rule of the contract, one unit per filing, runs on top of these calls.

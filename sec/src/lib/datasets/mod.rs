@@ -2,7 +2,7 @@
 //!
 //! Provides [`ArrowRow`], the trait of a row type of one dataset and its Arrow form, the row types
 //! of the datasets, the [`UnitWriter`] of a unit and its parts, [`write_task_manifest()`], which
-//! makes the units of a task visible, and [`current_units()`], which reads them.
+//! makes the units of a task visible, and the reads of the units, such as [`current_units()`].
 //!
 //! The Rust row types are the source of each schema. Each row type builds its Arrow arrays column
 //! by column, and reads them back. [`schema_text()`] prints a schema for the snapshot tests.
@@ -19,8 +19,8 @@
 //! - [`unit_writer`]: The [`UnitWriter`], its [`UnitSpec`], and [`input_digest()`].
 //! - [`task_manifest_writer`]: [`write_task_manifest()`] and the [`TaskLocation`] of a list file.
 //! - [`unit_write_error`]: The [`UnitWriteError`] of the writers of a unit and of a list file.
-//! - [`unit_reader`]: [`current_units()`], the current unit of each unit key.
-//! - [`unit_read_error`]: The [`UnitReadError`] of [`current_units()`].
+//! - [`unit_reader`]: [`current_units()`], [`current_units_as_of()`], and [`series_units()`].
+//! - [`unit_read_error`]: The [`UnitReadError`] of the reads.
 //! - [`schema_text`](mod@schema_text): The text form of a schema.
 //! - [`constants`]: The Arrow time zone, the type of the decimal columns, and the folder labels of
 //!   the dataset paths.
@@ -51,6 +51,6 @@ pub use schema_text::schema_text;
 pub use task_manifest_writer::{TaskLocation, write_task_manifest};
 pub use traits::{ArrowRow, PartOrder};
 pub use unit_read_error::UnitReadError;
-pub use unit_reader::{CurrentUnits, current_units};
+pub use unit_reader::{CurrentUnits, current_units, current_units_as_of, series_units};
 pub use unit_write_error::UnitWriteError;
 pub use unit_writer::{UnitSpec, UnitStart, UnitWriter, WrittenUnit, input_digest};
