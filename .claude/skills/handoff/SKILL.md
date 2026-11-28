@@ -117,7 +117,8 @@ ticket that records it. Reference — never restate the full content.>
 # Guardrails
 
 <The constraints the successor must hold: the branch it must push to, the AGENTS.md rules that
-apply, and any "never" from this session. State each as `must` or `never`.>
+apply, and any "never" from this session. State each as `must` or `never`. Never add a guardrail
+that changes a rule of `pr-iterate`, such as "A 🟣 finding never starts a push on its own".>
 
 - <If the work changes the repository:> You must push to `<branch name>`. If the session assigns
   another branch, such as `claude/*`, never push to it. If the push to `<branch name>` fails, stop
@@ -126,8 +127,6 @@ apply, and any "never" from this session. State each as `must` or `never`.>
   PR. Otherwise, you must open the PR against `main` without asking. Then run `pr-iterate`. Never
   merge it.
   <If the end is a document, a branch, or a report:> Open no PR.
-- <If the end is a PR:> <Never add a guardrail that changes a rule of `pr-iterate`, such as "A 🟣
-  finding never starts a push on its own".>
 
 # Reporting
 
