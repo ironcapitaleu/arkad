@@ -1030,8 +1030,19 @@ mod tests {
         // The 2026 release does not hold these concepts. The EPS concept and the two revenue parts
         // are in two lists each.
         let expected_result = vec![
+            concept("us-gaap", "CashAndCashEquivalentsPeriodIncreaseDecrease"),
+            concept("us-gaap", "CashPeriodIncreaseDecrease"),
             concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
             concept("us-gaap", "EarningsPerShareBasicAndDiluted"),
+            concept("us-gaap", "EffectOfExchangeRateOnCashAndCashEquivalents"),
+            concept(
+                "us-gaap",
+                "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+            ),
+            concept(
+                "us-gaap",
+                "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
+            ),
             concept("us-gaap", "IncomeLossFromOperations"),
             concept("us-gaap", "SalesRevenueGoodsNet"),
             concept("us-gaap", "SalesRevenueGoodsNet"),
@@ -1159,6 +1170,50 @@ mod tests {
             .iter()
             .filter(|aliases| aliases.parts.is_some())
             .map(|aliases| aliases.element)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_name_the_scope_of_each_cash_concept_before_2018_when_created() {
+        let us_gaap = UsGaap::new();
+
+        let expected_result = vec![
+            (
+                CashFlowConcept::NetChangeInCash.element(),
+                concept("us-gaap", "CashAndCashEquivalentsPeriodIncreaseDecrease"),
+                Scope::ExcludesRestrictedCash,
+            ),
+            (
+                CashFlowConcept::NetChangeInCash.element(),
+                concept("us-gaap", "CashPeriodIncreaseDecrease"),
+                Scope::ExcludesRestrictedCash,
+            ),
+            (
+                CashFlowConcept::ExchangeRateEffect.element(),
+                concept("us-gaap", "EffectOfExchangeRateOnCashAndCashEquivalents"),
+                Scope::ExcludesRestrictedCash,
+            ),
+            (
+                CashFlowConcept::ExchangeRateEffect.element(),
+                concept(
+                    "us-gaap",
+                    "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+                ),
+                Scope::ExcludesRestrictedCash,
+            ),
+        ];
+
+        let result: Vec<(CanonicalElementKind, ConceptName, Scope)> = us_gaap
+            .aliases()
+            .iter()
+            .flat_map(|aliases| {
+                aliases
+                    .scopes
+                    .iter()
+                    .map(|(concept, scope)| (aliases.element, concept.clone(), *scope))
+            })
             .collect();
 
         assert_eq!(result, expected_result);
@@ -1490,18 +1545,25 @@ mod tests {
             (
                 CashFlowConcept::NetChangeInCash.element(),
                 rule("us-gaap/alias/net-change-in-cash@1"),
-                vec![concept(
-                    "us-gaap",
-                    "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect",
-                )],
+                vec![
+                    concept(
+                        "us-gaap",
+                        "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect",
+                    ),
+                    concept("us-gaap", "CashAndCashEquivalentsPeriodIncreaseDecrease"),
+                    concept("us-gaap", "CashPeriodIncreaseDecrease"),
+                ],
             ),
             (
                 CashFlowConcept::ExchangeRateEffect.element(),
                 rule("us-gaap/alias/exchange-rate-effect@1"),
-                vec![concept(
-                    "us-gaap",
-                    "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
-                )],
+                vec![
+                    concept(
+                        "us-gaap",
+                        "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+                    ),
+                    concept("us-gaap", "EffectOfExchangeRateOnCashAndCashEquivalents"),
+                ],
             ),
             (
                 CashFlowConcept::CashAndRestrictedCash.element(),
@@ -1716,15 +1778,27 @@ mod tests {
                 CashFlowConcept::ExchangeRateEffect.element(),
                 PartAliases {
                     rule: rule("us-gaap/part/exchange-rate-effect@1"),
-                    parts: vec![concept(
-                        "us-gaap",
-                        "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
-                    )],
+                    parts: vec![
+                        concept(
+                            "us-gaap",
+                            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+                        ),
+                    ],
                     other_part_totals: vec![],
-                    other_parts: vec![concept(
-                        "us-gaap",
-                        "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
-                    )],
+                    other_parts: vec![
+                        concept(
+                            "us-gaap",
+                            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+                        ),
+                        concept(
+                            "us-gaap",
+                            "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
+                        ),
+                    ],
                 },
             ),
         ];

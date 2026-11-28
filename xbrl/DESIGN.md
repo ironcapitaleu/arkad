@@ -656,6 +656,8 @@ So the check of that group is skipped for that period.
   their checks ([ADR 0025](../docs/adr/0025-exact-start-splits-copies.md)).
 - If `NetChangeInCash` and `ExchangeRateEffect` differ in scope, `net-change-in-cash` gets no check
   and reports a `MixedScopes` finding. The three totals carry no scope and count with either. `derive_from_closed_groups` skips the group and reports nothing.
+- Neither `MixedStarts` nor `MixedScopes` stops the cash roll forward of the slot. It reads only
+  the change and the balances of the scope of the change.
 - `check_roll_ups` reports the `MixedStarts` finding. `derive_from_closed_groups` skips the group
   and reports nothing, so a group reports `MixedStarts` once per slot.
 - The negative other check reads the other line of the statement output type (see "7) Financial
@@ -2130,7 +2132,9 @@ year-to-date only. The result has confidence `Derived`.
   transition period. Its Q4 is not FY − 9-month YTD. A year is short if it spans under 357 days,
   51 weeks, from its exact start to its end. A 52-53 week year spans 363 or 370 days.
 - The Q4 value carries the release of the fiscal year value, and the inputs of both values. It
-  carries the scope of both inputs if they carry the same scope, and no scope otherwise.
+  carries the scope of its inputs. If the two inputs differ in scope, the rule derives nothing: the
+  difference of two scopes is a value of neither. No finding reports such a quarter, and the gap
+  check does not see it, because the fiscal year value fills its end.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
   apart.

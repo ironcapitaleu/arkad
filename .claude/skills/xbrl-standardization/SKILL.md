@@ -25,8 +25,9 @@ Validation checks the identities in `xbrl/DESIGN.md`, "Layer 3", the checks in
 "Roll-Up Tree", "Checks the Tree Gives", and the sum check in "Debt Maturities", "Sum Check".
 `core::roll_up_check::check_roll_ups` and `core::sum_check::check_all_sums` run them on one series.
 A group whose members have two exact starts gets no check and no derived value. `check_roll_ups`
-reports it as `MixedStarts`. The weakest confidence of the inputs of a failed check
-tells what the failure means:
+reports it as `MixedStarts`. A group whose `NetChangeInCash` and `ExchangeRateEffect` differ in
+scope also gets no check and no derived value. `check_roll_ups` reports it as `MixedScopes`. The
+weakest confidence of the inputs of a failed check tells what the failure means:
 
 - All inputs `Exact`: the filing is inconsistent.
 - At least one input `Synonym`, and none weaker: check the alias list first, then the filing.

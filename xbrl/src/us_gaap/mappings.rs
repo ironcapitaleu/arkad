@@ -772,24 +772,39 @@ pub const OPTIONAL_CONCEPTS: &[ConceptDefinition] = &[
         CashFlowConcept::NetChangeInCash.element(),
         // `CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseExcludingExchangeRateEffect`
         // is a part, next to the effect of exchange rates. `PART_CONCEPTS` holds it.
+        // The two concepts of filings before 2018 leave out restricted cash.
         &[
             "CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsPeriodIncreaseDecreaseIncludingExchangeRateEffect",
+            "CashAndCashEquivalentsPeriodIncreaseDecrease",
+            "CashPeriodIncreaseDecrease",
         ],
         NET_CHANGE_IN_CASH_RULE,
         true,
-    ),
+    )
+    .with_scopes(&[
+        (
+            "CashAndCashEquivalentsPeriodIncreaseDecrease",
+            Scope::ExcludesRestrictedCash,
+        ),
+        ("CashPeriodIncreaseDecrease", Scope::ExcludesRestrictedCash),
+    ]),
     ConceptDefinition::new(
         CashFlowConcept::ExchangeRateEffect.element(),
-        // `EffectOfExchangeRateOnCashAndCashEquivalents` of filings before 2018 is not in the
-        // list, because it leaves out restricted cash.
+        // `EffectOfExchangeRateOnCashAndCashEquivalents` of filings before 2018 leaves out
+        // restricted cash.
         // `EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents`
         // is a part, next to the effect on disposal groups. `PART_CONCEPTS` holds it.
         &[
             "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsIncludingDisposalGroupAndDiscontinuedOperations",
+            "EffectOfExchangeRateOnCashAndCashEquivalents",
         ],
         EXCHANGE_RATE_EFFECT_RULE,
         false,
-    ),
+    )
+    .with_scopes(&[(
+        "EffectOfExchangeRateOnCashAndCashEquivalents",
+        Scope::ExcludesRestrictedCash,
+    )]),
     ConceptDefinition::new(
         CashFlowConcept::CashAndRestrictedCash.element(),
         // `CashAndCashEquivalentsAtCarryingValue` is not in the list, because it leaves out
@@ -1238,15 +1253,26 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
         ],
         NET_CHANGE_IN_CASH_PART_RULE,
     ),
+    // Each part has its own other part: the effect on disposal groups, and before 2018 the effect
+    // on discontinued operations. A filing reports the concepts of one era, so the other part of
+    // the other era blocks nothing.
     PartDefinition::new(
         CashFlowConcept::ExchangeRateEffect.element(),
-        &["EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
+        &[
+            "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+        ],
         &[
             "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalentsDisposalGroupIncludingDiscontinuedOperations",
+            "EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations",
         ],
         &[],
         EXCHANGE_RATE_EFFECT_PART_RULE,
-    ),
+    )
+    .with_scopes(&[(
+        "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+        Scope::ExcludesRestrictedCash,
+    )]),
     PartDefinition::new(
         CashFlowConcept::CashAndRestrictedCash.element(),
         &["CashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents"],
