@@ -33,8 +33,8 @@ pub struct SeriesOutcome {
     pub findings: Vec<Finding>,
 }
 
-/// Runs [`newest_filing`], [`derive_q4`], the roll-ups, the checks, and chronology on the
-/// candidates of one entity.
+/// Runs [`newest_filing`], [`derive_q4`], [`derive_from_closed_groups`], the checks, and
+/// chronology on the candidates of one entity.
 ///
 /// The function calls, in this order:
 ///
