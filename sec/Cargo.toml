@@ -38,18 +38,24 @@ twox-hash = { version = "2.1", default-features = false, features = ["xxhash3_64
 # No default features. `arrow` reads and writes Arrow record batches. `zstd` is the codec of each
 # part that the dataset writer writes.
 parquet = { version = "60.2", default-features = false, features = ["arrow", "zstd"] }
+# Reads the tab-separated tables of a Notes file.
+csv = "1"
+# No default features: `sec` reads only the ZIP index of a Notes file, and unzips each member with
+# `flate2`. `deflate-flate2` adds the `Deflated` compression method that the index check compares.
+zip = { version = "9.4", default-features = false, features = ["deflate-flate2"] }
 regex = "1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 url = "2"
+# Unzips each member of a Notes file. The `test-fixtures` feature also writes gzip bodies with it.
+flate2 = "1"
 # Only the `test-fixtures` feature uses them.
-flate2 = { version = "1", optional = true }
 http = { version = "1", optional = true }
 http-body = { version = "1", optional = true }
 
 [features]
 tracing-logging = ["tracing", "tracing-appender", "tracing-subscriber"]
-test-fixtures = ["flate2", "http", "http-body", "tokio/io-util", "tokio/net"]
+test-fixtures = ["http", "http-body", "tokio/io-util", "tokio/net"]
 
 [dev-dependencies]
 http = "1"

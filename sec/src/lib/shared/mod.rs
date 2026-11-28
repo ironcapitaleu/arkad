@@ -21,6 +21,7 @@
 //! - [`form_index_row`]: Provides [`FormIndexRow`](form_index_row::FormIndexRow), one row of an EDGAR daily index or full index, and the parser of the whole index.
 //! - [`http_client`]: Provides utilities for creating and managing SEC API clients, including user agent handling.
 //! - [`index_date`]: Provides [`IndexDate`](index_date::IndexDate), the date of one EDGAR daily index, and the parts of its URL.
+//! - [`notes_archive`]: Provides [`NotesArchive`](notes_archive::NotesArchive), one Notes file opened after its container checks, and the reader of its tables.
 //! - [`notes_archive_ref`]: Provides [`NotesArchiveRef`](notes_archive_ref::NotesArchiveRef), the period, key, size, and SHA-256 digest of one stored Notes file.
 //! - [`notes_period`]: Provides [`NotesPeriod`](notes_period::NotesPeriod), the period of one SEC Financial Statement and Notes file, and its file name.
 //! - [`parsed_filing`]: Provides [`ParsedFiling`](parsed_filing::ParsedFiling), the as-is output of one filing from either parser.
@@ -67,6 +68,7 @@ pub mod form_index_row;
 pub mod headers;
 pub mod http_client;
 pub mod index_date;
+pub mod notes_archive;
 pub mod notes_archive_ref;
 pub mod notes_period;
 pub mod parsed_filing;
