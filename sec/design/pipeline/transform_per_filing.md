@@ -342,8 +342,8 @@ job design says.
 
 ### The Context
 
-`FilingContext` holds the registry, the `transform_version`, and the `execution_id`. Every state of
-the machine takes it.
+`FilingContext` holds the registry, the `transform_version`, the `execution_id`, and `loaded_at`.
+Every state of the machine takes it.
 
 - The task builds one `Registry` at its start and keeps it for its whole run, as
   `&'static Registry<'static>`. The `UsGaap` plug-in is a static value, so the registry borrows
@@ -351,6 +351,8 @@ the machine takes it.
 - `RegistryHandle` wraps the reference. Its `Eq`, `Ord`, and `Hash` compare the release IDs of the
   plug-ins, so the context has the value traits that every state context needs.
 - A test passes a registry of fake plug-ins through the same handle.
+- `loaded_at` is the start time of the task. `BuildFilingRows` writes it to every row
+  ([ADR 0054](../../../docs/adr/0054-loaded-at-from-the-task-start.md)).
 
 A 20-F or 40-F filer can report in IFRS. The registry holds no IFRS plug-in in the MVP. The facts
 of such a filing reach `as_is_facts` with an undeclared family and a `UndeclaredFamily` finding,

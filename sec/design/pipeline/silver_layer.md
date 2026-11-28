@@ -186,7 +186,7 @@ Ingestion provenance, on every row (see [Provenance](#provenance)):
 | `ingestion_mode` | `utf8` | `backfill` or `incremental`, from the raw metadata |
 | `transform_version` | `utf8` | Version of the parser output, see [Units, Paths, and Replays](#units-paths-and-replays) |
 | `execution_id` | `utf8` | The run that wrote the row |
-| `loaded_at` | `timestamp[ms, +00:00]` | The time of the write |
+| `loaded_at` | `timestamp[ms, +00:00]` | The start time of the task that wrote the row |
 
 - The value key is `filing_id`, `concept_family`, `concept_name`, `taxonomy_version`, `period_end`,
   `quarters`, `unit`, `dimensions`, and `copy_rank`. The key is unique within one filing and one
@@ -633,7 +633,8 @@ the unit as "source replaced". No check can restore the old bytes.
 | ---- | ------- | -------- |
 | Period | `period_end`, `quarters`, `period_start` | Which period does the value describe? |
 | Public time | `filed`, `accepted` | Since when was the value public? |
-| Silver time | `loaded_at`, and `written_at` in `unit_manifests` | Since when did silver hold the value? |
+| Silver time | `written_at` in `unit_manifests` | Since when did silver hold the value? |
+| Run time | `loaded_at` | When did the task that wrote the row start? It is earlier than `written_at` ([ADR 0054](../../../docs/adr/0054-loaded-at-from-the-task-start.md)) |
 
 Queries this allows:
 
