@@ -203,7 +203,7 @@ rules of the contract in this form:
    - holds the footer entries `dataset`, `schema_version`, `unit_key`, and `transform_version`,
      through `WriterProperties::set_key_value_metadata`.
    - `write_part` writes one part and returns its `UnitFile`: the path, the row count, the size,
-     and the CRC32C in base64 of its 4 big-endian bytes, the form that GCS stores.
+     and the CRC32C in base64 of its 4 big-endian bytes.
 4. **List row.** It writes the `unit_manifests` row last, to
    `unit_manifests/execution=<execution_id>/task=<n>-<attempt>.parquet`, with the size and CRC32C of
    each part as the writer computed them. It sets `written_at` to the later of the time now and the
