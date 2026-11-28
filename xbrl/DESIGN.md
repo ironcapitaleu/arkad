@@ -2212,7 +2212,7 @@ The as-is layer keeps every copy of every fact. The standardized layer applies t
 | Rule ID | Scope | Rule |
 | ------- | ----- | ---- |
 | `core/dedup/more-precise@1` | Facts of one filing with the same value key except `copy_rank`, whose values agree with rank 0 (see "Agreement of copies") | Take `copy_rank` 0 |
-| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
+| `core/dedup/newest-filing@1` | One standard concept across filings: the same entity, standard concept, exact period end, length in quarters, unit, and dimensions, and the same exact start for a duration of 0 quarters (see "Durations Under 46 Days") | Take the value of the filing with the latest `filed`, then the latest `accepted` (a filing with `accepted` ranks above one without), then the highest filing ID. The filing ID gives a fixed order, not a time order |
 
 Agreement of copies:
 
@@ -2228,7 +2228,8 @@ Agreement of copies:
 - A rank with another exact start whose length lies nearer to its whole number of quarters than
   the length of rank 0 (`Period::distance_to_full_quarters`) is a `Conflict`, as for disagreeing
   copies. So a stub never enters the series in place of
-  the quarter. The parsers rank by precision first, so a more precise stub can be rank 0.
+  the quarter. A value key of 0 quarters is the exception: a rank with another exact start never
+  conflicts by its length (see "Durations Under 46 Days"). The parsers rank by precision first, so a more precise stub can be rank 0.
 - For `adapter::edgar` facts, rank 0 is the first copy in the JSON, not the most precise one.
 
 The order of resolution and dedup, per entity and period. A period here is an exact period end
@@ -2314,6 +2315,30 @@ Both are the same fact in a later filing. The value tells them apart:
 The as-is layer keeps both in either case. The standardized layer takes the newest value. For a
 restatement, it sets `restated`, and chronology reports it.
 
+### Durations Under 46 Days
+
+A duration of 45 days or less from its exact start to its end has 0 quarters, the same length as an
+instant. An example is June alone in the fixture 10-Q `0001628280-26-068246`. The standardized
+layer keeps such a value and adds no finding. Monthly values such as rent, dividends, and share
+issues are correct data. The rules below keep a short duration from standing in for an instant, a
+quarter, or another short duration
+([ADR 0054](../docs/adr/0054-durations-under-46-days.md)):
+
+| Rule | A duration of 0 quarters |
+| ---- | ------------------------ |
+| Series key | Holds the exact start. The key of an instant or of a duration of 1 quarter or more holds no start |
+| `core/dedup/more-precise@1` | A rank with another exact start is another fact with no candidate, and never a `Conflict` by its length. Rank 0 enters the series |
+| Chronology | Fills only an expected period of 0 quarters, such as a `10-KT` within 45 days of the previous fiscal year end. It fills no expected quarter or fiscal year |
+| `core/period/q4-from-fy@1` | Reads only 4 and 3 quarters, so it never reads a short duration |
+| Closed groups and the roll-up check | Keep their slots on the end and the length in quarters. Two short values of one slot with different starts give `MixedStarts`. The blocked balances are the blocked keys without a start |
+
+- A duration of 1 quarter or more keeps a series key without the start, so a 52-53 week quarter
+  of two filings stays one series.
+- The value key holds no start. A valid filing cannot report one element as both an instant and a
+  duration, so the value key of a short duration never meets an instant of a valid filing.
+- Silver keys a row of `standardized_facts` of 0 quarters on `period_start` too
+  ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "`standardized_facts`").
+
 ### Gap Check
 
 The gap check runs on the standardized series of one entity and one concept. It reports findings.
@@ -2341,7 +2366,8 @@ It never fails. Chronology reads only values without dimensions (see "Segment Va
 
 - **Timeline.** One entity, standard concept, unit, and dimensions. Values of every length belong
   to it. A value of any length fills an expected period if its end lies within 7 days of the
-  expected end. A 52-53 week year ends up to 6 days away from the end of its month.
+  expected end. A duration of 0 quarters is the exception: it fills only an expected period of 0
+  quarters (see "Durations Under 46 Days"). A 52-53 week year ends up to 6 days away from the end of its month.
 - **Forms.** The form counts without its `/A` suffix. `10-Q` and `10-QT` make a quarterly filer.
   `10-K`, `10-KT`, `20-F`, and `40-F` are annual reports. A `T` form reports a transition period.
   An entity with neither expects no period.
@@ -2469,7 +2495,7 @@ The measurement also counted four cases that the signals do not catch. Each has 
 | ---- | ----- | -------- |
 | Short fiscal year: 320 to 349 days, USD, no dimensions, with a 9-month value of the same filer and concept that ends 46 to 136 days earlier | 95 years of 93 entities | `core/period/q4-from-fy@1` derived a wrong fourth quarter from them. The rule skips a short year ("Period identities" in "Three Layers") |
 | Transition reports and fiscal year changes | 41 `10-KT` and 6 `10-QT` filings, 276 changes of `fye` of 184 entities | The guard above reads the day count of the year, so it needs none of these filings |
-| Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | A design decision: keep, drop, or flag |
+| Duration under 46 days, which rounds to 0 quarters like an instant | 595,875 rows in 52,253 filings of 7,517 entities, 1.4% of all durations | Keep the value with no finding, and key its series on the exact start ("Durations Under 46 Days") |
 | Copies of one value key whose lengths differ by at least 0.1 quarters and whose values disagree, such as a 4-month stub and a quarter | 3,291 keys in 510 filings of 311 entities | The exact start splits them into two facts ("Dedup Rules", "Agreement of copies") |
 
 Notes `durp` is `qtrs` less the true length in quarters, where a quarter is 91.25 days. June
