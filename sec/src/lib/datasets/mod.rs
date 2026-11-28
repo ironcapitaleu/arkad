@@ -1,6 +1,6 @@
 //! # Datasets
 //!
-//! Provides [`ArrowRow`], the trait of a row type of one silver dataset and its Arrow form,
+//! Provides [`ArrowRow`], the trait of a row type of one dataset and its Arrow form,
 //! and the row types of the datasets.
 //!
 //! The Rust row types are the source of each schema. Each row type builds its Arrow arrays column
@@ -14,7 +14,7 @@
 //! - [`arrow_row_error`]: The [`ArrowRowError`] of a row type.
 //! - [`schema_text`](mod@schema_text): The text form of a schema.
 //! - [`constants`]: The Arrow time zone, the type of the decimal columns, and the folder labels of
-//!   the silver paths.
+//!   the dataset paths.
 //!
 //! ## See Also
 //!

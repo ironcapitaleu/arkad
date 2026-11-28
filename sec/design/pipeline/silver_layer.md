@@ -349,7 +349,7 @@ The manifest of each unit: its files, inputs, digests, and run. Readers find the
 | `source` | `utf8`, nullable | `notes` or `instance`. Null for the series datasets and `taxonomy_elements` |
 | `unit_kind`, `unit_key` | `utf8`, `utf8` | See [Units, Paths, and Replays](#units-paths-and-replays) |
 | `input_digest` | `utf8` | SHA-256 over the sorted list of input keys and digests |
-| `inputs` | `list<struct<key: utf8, sha256: utf8, requested_url: utf8 nullable, produced_at: timestamp[ms, +00:00] nullable>>` | Each raw document or silver file read. `requested_url` and `produced_at` come from the raw metadata, so they are null for a silver file and the vendored release |
+| `inputs` | `list<struct<key: utf8, sha256: utf8, requested_url: utf8 nullable, produced_at: timestamp[ms, +00:00] nullable>>` | Each raw document or dataset file read. `requested_url` and `produced_at` come from the raw metadata, so they are null for a dataset file and the vendored release |
 | `transform_version` | `utf8` | |
 | `files` | `list<struct<path: utf8, bytes: uint64, crc32c: utf8, row_count: uint64>>` | The Parquet files of the unit, in the order of the part number `<n>`, with the size and CRC32C of each object as GCS stores them |
 | `row_count` | `uint64` | Rows of the unit, the sum over `files` |

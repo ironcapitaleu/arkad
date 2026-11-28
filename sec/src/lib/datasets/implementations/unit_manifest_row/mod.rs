@@ -1,6 +1,6 @@
 //! # Unit Manifest Row
 //!
-//! Provides [`UnitManifestRow`], one row of the silver dataset `unit_manifests`: the manifest of one unit,
+//! Provides [`UnitManifestRow`], one row of the dataset `unit_manifests`: the manifest of one unit,
 //! with its inputs, its files, and the job that wrote it.
 
 use std::str::FromStr;
@@ -41,9 +41,9 @@ pub struct UnitManifestRow {
     pub unit_key: String,
     /// The SHA-256 over the sorted list of input keys and digests.
     pub input_digest: Sha256Digest,
-    /// Each raw document or silver file that the unit read.
+    /// Each raw document or dataset file that the unit read.
     pub inputs: Vec<UnitInput>,
-    /// The version of the silver output.
+    /// The version of the transform output.
     pub transform_version: u32,
     /// The Parquet files of the unit, in the order of their part number.
     pub files: Vec<UnitFile>,
@@ -141,17 +141,17 @@ impl NotesSplit {
     }
 }
 
-/// One raw document or silver file that a unit read: an item of the `inputs` column.
+/// One raw document or dataset file that a unit read: an item of the `inputs` column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UnitInput {
     /// The key of the document in its store.
     pub key: String,
     /// The SHA-256 of the document.
     pub sha256: Sha256Digest,
-    /// The URL of the request that fetched a raw document. `None` for a silver file and the
+    /// The URL of the request that fetched a raw document. `None` for a dataset file and the
     /// vendored release.
     pub requested_url: Option<String>,
-    /// The time the raw store wrote a raw document. `None` for a silver file and the vendored
+    /// The time the raw store wrote a raw document. `None` for a dataset file and the vendored
     /// release. The part below one millisecond does not reach the batch.
     pub produced_at: Option<Timestamp>,
 }
@@ -159,7 +159,7 @@ pub struct UnitInput {
 /// One Parquet file of a unit: an item of the `files` column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UnitFile {
-    /// The path of the file in the silver store.
+    /// The path of the file in the dataset store.
     pub path: String,
     /// The size of the file.
     pub bytes: u64,
@@ -652,7 +652,7 @@ mod tests {
         }
     }
 
-    /// The fixture rows: a Notes unit with every column set, a series unit that read a silver
+    /// The fixture rows: a Notes unit with every column set, a series unit that read a dataset
     /// file with a non-ASCII key, a release unit with every list and nullable column empty, and
     /// a filing day unit of the instance source.
     fn sample_rows() -> Vec<UnitManifestRow> {

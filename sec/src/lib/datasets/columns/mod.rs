@@ -1,6 +1,6 @@
 //! # Columns
 //!
-//! Provides the conversions between the values of a silver row and the Arrow arrays of its
+//! Provides the conversions between the values of a dataset row and the Arrow arrays of its
 //! columns, and the schema check of a batch that every row type shares.
 
 use std::ops::Range;
@@ -287,7 +287,7 @@ pub fn list_array(item: FieldRef, lengths: Vec<usize>, items: ArrayRef) -> Array
 /// Returns a struct array of the string columns, one per field of the struct item of `item`.
 pub fn string_struct_array(item: &FieldRef, columns: Vec<StringArray>) -> ArrayRef {
     let DataType::Struct(fields) = item.data_type() else {
-        unreachable!("Given the item field of a list of structs in a silver schema")
+        unreachable!("Given the item field of a list of structs in a dataset schema")
     };
     let columns = columns
         .into_iter()

@@ -1,6 +1,6 @@
 //! # Implementations
 //!
-//! Provides the row types of the silver datasets, and the [`Provenance`] and [`RunColumns`] they
+//! Provides the row types of the datasets, and the [`Provenance`] and [`RunColumns`] they
 //! share.
 //!
 //! ## Modules

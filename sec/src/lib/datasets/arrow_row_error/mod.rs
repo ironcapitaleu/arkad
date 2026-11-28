@@ -6,7 +6,7 @@
 use thiserror::Error;
 use xbrl::core::invalid_value::InvalidValue;
 
-/// Error indicating that rows of a silver dataset and their record batch do not match.
+/// Error indicating that rows of a dataset and their record batch do not match.
 #[non_exhaustive]
 #[derive(Debug, Error, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ArrowRowError {

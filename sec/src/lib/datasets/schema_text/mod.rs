@@ -1,6 +1,6 @@
 //! # Schema Text
 //!
-//! Provides [`schema_text`], the text form of a silver schema that the snapshot tests check in.
+//! Provides [`schema_text`], the text form of a dataset schema that the snapshot tests check in.
 
 use std::fmt::Write;
 
@@ -9,7 +9,7 @@ use arrow::datatypes::{DataType, Field, Fields, Schema, TimeUnit};
 /// Returns the text form of a schema: one line per field, with its name, type, and nullability.
 ///
 /// `sec` prints the text, not the `Display` of Arrow, because that `Display` changes between Arrow
-/// releases. A nested type prints its inner fields in the same form. A type that no silver dataset
+/// releases. A nested type prints its inner fields in the same form. A type that no dataset
 /// uses prints as `unsupported`.
 ///
 /// # Examples

@@ -16,7 +16,7 @@ use crate::datasets::columns::{BatchColumns, ingestion_mode_from_name, unexpecte
 use crate::datasets::{ArrowRowError, RunColumns};
 use crate::shared::row_digest::ByteForm;
 
-/// The kind of the raw document that a silver row comes from.
+/// The kind of the raw document that a dataset row comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SourceKind {
     /// A Financial Statement and Notes file.
@@ -50,7 +50,7 @@ impl fmt::Display for SourceKind {
     }
 }
 
-/// The raw document of a silver row, and the run that wrote the row.
+/// The raw document of a dataset row, and the run that wrote the row.
 ///
 /// `sec/design/pipeline/silver_layer.md`, "Provenance", names the columns.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -63,7 +63,7 @@ pub struct Provenance {
     pub source_sha256: Sha256Digest,
     /// The ingestion mode of the raw document, from its metadata.
     pub ingestion_mode: IngestionMode,
-    /// The version of the silver output and the run that wrote the row.
+    /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
 }
 

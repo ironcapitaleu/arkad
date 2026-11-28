@@ -1,6 +1,6 @@
 //! # Candidate Row
 //!
-//! Provides [`CandidateRow`], one row of the silver dataset `candidates`: a [`Candidate`], its
+//! Provides [`CandidateRow`], one row of the dataset `candidates`: a [`Candidate`], its
 //! entity bucket, and its [`RunColumns`].
 
 use std::str::FromStr;
@@ -45,7 +45,7 @@ pub struct CandidateRow {
     /// The entity bucket of the entity, from 0 to 63. A series task reads the row groups of its
     /// buckets.
     pub entity_bucket: u8,
-    /// The version of the silver output and the run that wrote the row.
+    /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
 }
 

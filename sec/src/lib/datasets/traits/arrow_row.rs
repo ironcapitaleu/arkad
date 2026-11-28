@@ -1,21 +1,21 @@
 //! # Arrow Row
 //!
-//! Provides [`ArrowRow`], the trait of a row type of one silver dataset and its Arrow form.
+//! Provides [`ArrowRow`], the trait of a row type of one dataset and its Arrow form.
 
 use arrow::array::RecordBatch;
 use arrow::datatypes::SchemaRef;
 
 use crate::datasets::ArrowRowError;
 
-/// A row type of one silver dataset and its Arrow form.
+/// A row type of one dataset and its Arrow form.
 ///
-/// A trait, because each silver dataset has its own row type, and the silver writer and reader take
+/// A trait, because each dataset has its own row type, and the dataset writer and reader take
 /// the rows of any dataset. The Rust type is the source of the schema. Each implementation builds
 /// the Arrow arrays column by column, with no JSON step.
 ///
 /// The columns of each dataset are in `sec/design/pipeline/silver_layer.md`, "Datasets".
 pub trait ArrowRow: Sized {
-    /// The name of the dataset, for example `as_is_facts`. The silver path and the `dataset`
+    /// The name of the dataset, for example `as_is_facts`. The path of the dataset and the `dataset`
     /// column of `unit_manifests` hold it.
     const DATASET: &'static str;
 

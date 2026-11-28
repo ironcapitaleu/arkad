@@ -1,6 +1,6 @@
 //! # Finding Row
 //!
-//! Provides [`FindingRow`], one row of the silver dataset `findings`, with its [`FindingKind`],
+//! Provides [`FindingRow`], one row of the dataset `findings`, with its [`FindingKind`],
 //! its [`FindingPeriod`] values, and its [`FindingStep`].
 
 use std::fmt;
@@ -55,7 +55,7 @@ pub struct FindingRow {
     pub confidence: Option<Confidence>,
     /// The step that wrote the row, with the change and the run time of a series row.
     pub step: FindingStep,
-    /// The version of the silver output and the run that wrote the row.
+    /// The version of the transform output and the run that wrote the row.
     pub run: RunColumns,
 }
 
