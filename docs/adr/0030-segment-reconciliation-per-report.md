@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-16 ([STA-502 comment `0ac1cf99`](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer#comment-0ac1cf99)) |
+| Status | Accepted by the project lead on 2026-11-16 ([STA-502 comment `0ac1cf99`](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer#comment-0ac1cf99)). Amendment 1: Accepted by the project lead on 2026-11-28 ([STA-600 comment `d895db29`](https://linear.app/state-machine/issue/STA-600#comment-d895db29), accessed 2026-11-28). |
 | Date | 2026-11-15 |
 | Deciders | The project lead |
 | Ticket | [STA-502](https://linear.app/state-machine/issue/STA-502/design-segments-in-the-standardized-layer) |
@@ -49,6 +49,65 @@ each plug-in, the silver writer, and the gold load.
 4. **An unreconciled line other than zero gives no finding.**
 5. **If a segment is filed in both forms, the value without a pair on an axis of kind
    `ConsolidationItems` counts, even if it is blocked.**
+
+## Amendment 1: A Corporate Value Equal to the Segment Total Gets No Line
+
+Date: 2026-11-28.
+
+**Reason.** The Coca-Cola 10-K for fiscal year 2025 (`0001628280-26-010047`) tags its segment total
+of revenue, 48,806 million USD, with `MaterialReconcilingItems`. The corporate role counts the
+total a second time, so the unreconciled line is −48,806 million instead of 0
+([STA-600](https://linear.app/state-machine/issue/STA-600), accessed 2026-11-28).
+
+The 2026 US GAAP taxonomy places `MaterialReconcilingItemsMember` under `ConsolidationItemsDomain`,
+next to `CorporateNonSegmentMember`. Its documentation label reads "Items used in reconciling
+reportable segments' amounts to consolidated amount. Excludes corporate-level activity."
+([`us-gaap-doc-2026.xml`](https://xbrl.fasb.org/us-gaap/2026/elts/us-gaap-doc-2026.xml), accessed
+2026-11-28). So the member holds reconciling items, and the segment total is a misuse.
+
+Measured on `2026_10_notes.zip` on 2026-11-28, over the groups of one filing, concept, period, and
+unit with a segment on `BusinessSegments`, a consolidated value, and a value on
+`MaterialReconcilingItems` alone. A value matches if it is within 0.1% of the larger absolute
+value:
+
+| Value on `MaterialReconcilingItems` | Groups |
+| ----------------------------------- | ------ |
+| Equals consolidated − segments − eliminations − `CorporateNonSegment` | 370 |
+| Zero | 279 |
+| Other | 153 |
+| Equals the segment total | 62 |
+| Equals the consolidated value | 15 |
+| **Total** | **879** |
+
+The second table counts the 4,523 groups with a segment, a consolidated value, and a value on
+`CorporateNonSegment` or `MaterialReconcilingItems`:
+
+| Option | Groups that stop to add up | Groups that start to add up |
+| ------ | -------------------------- | --------------------------- |
+| A: `MaterialReconcilingItems` has no role | 358 | 84 |
+| **B: a corporate value exactly equal to the segment total gets no line (chosen)** | 3 | 53 |
+
+Of these groups, 57 hold a value on `MaterialReconcilingItems` and 19 a value on `CorporateNonSegment` that
+equals the segment total exactly.
+
+**Decision.** `MaterialReconcilingItems` keeps the corporate role, because it holds reconciling
+items in 370 of 879 groups. A corporate value exactly equal to the sum of the segment lines is the
+segment total. It gets no line, and the unreconciled line does not count it. If a segment is
+blocked, the sum does not exist, and each corporate value keeps its line. The rule lives in `core`
+and names no member, so it holds for each plug-in.
+
+**Consequences.**
+
+- The Coca-Cola FY2025 revenue reconciliation ends with an unreconciled line of 0.
+- A reader does not see the dropped value. The segment lines show the same amount.
+- A real corporate item exactly equal to the segment total also gets no line. In 3 of 4,523 groups
+  the rule breaks a group that adds up.
+- A value equal to the consolidated value (15 groups) still counts. This amendment does not cover
+  it.
+
+**Sources.** `measure_mri.py` on
+`https://www.sec.gov/files/dera/data/financial-statement-notes-data-sets/2026_10_notes.zip`, run on
+2026-11-28. The script and its output are in [STA-600 comment `5471cc7c`](https://linear.app/state-machine/issue/STA-600#comment-5471cc7c) (accessed 2026-11-28).
 
 ## Options Considered
 

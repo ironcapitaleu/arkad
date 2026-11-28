@@ -5,9 +5,9 @@
 //!
 //! - The five operating segments sum to 48,806 million USD. With the elimination of −1,009
 //!   million and the corporate line of 144 million, they give the consolidated revenue of 47,941
-//!   million. The filer also tags 48,806 million with the member `MaterialReconcilingItems`. The
-//!   US GAAP plug-in gives this member the corporate role, so the reconciliation counts the segment
-//!   total twice, and its unreconciled line is −48,806 million.
+//!   million. The filer also tags the segment total of 48,806 million with the member
+//!   `MaterialReconcilingItems`, which has the corporate role. A corporate value equal to the
+//!   segment total gets no line, so the unreconciled line is 0.
 //! - On the geography axis, the United States gives 19,127 million and the rest of the world
 //!   28,814 million. They sum to the consolidated revenue.
 //!
@@ -90,7 +90,8 @@ fn line(
 }
 
 #[test]
-fn should_count_the_segment_total_twice_when_coca_cola_tags_it_as_a_material_reconciling_item() {
+fn should_reconcile_revenue_to_zero_when_coca_cola_tags_the_segment_total_as_a_material_reconciling_item()
+ {
     let us_gaap = UsGaap::new();
     let registry = Registry::with_plugins(vec![Plugin::WithSegmentAxes(&us_gaap)])
         .expect("Given one plug-in with distinct families, the creation should always succeed");
@@ -108,8 +109,7 @@ fn should_count_the_segment_total_twice_when_coca_cola_tags_it_as_a_material_rec
         line("segment", "NorthAmericaSegment+OperatingSegments", 19_586),
         line("elimination", "ConsolidationEliminations", -1_009),
         line("corporate", "CorporateNonSegment", 144),
-        line("corporate", "MaterialReconcilingItems", 48_806),
-        line("unreconciled", "", -48_806),
+        line("unreconciled", "", 0),
     ]];
 
     let result: Vec<_> = reconcile(&candidates, &registry)
