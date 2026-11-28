@@ -1336,7 +1336,7 @@ pub const PART_CONCEPTS: &[PartDefinition] = &[
 pub struct LineTotalDefinition {
     /// The standard concept the lines add up to.
     canonical_element: CanonicalElementKind,
-    /// The lines.
+    /// The US GAAP local names of the lines.
     lines: &'static [&'static str],
     /// The ID of the line total rule, for example `us-gaap/total/revenue@1`.
     total_rule: &'static str,
@@ -1363,7 +1363,7 @@ impl LineTotalDefinition {
         self.canonical_element
     }
 
-    /// Returns the lines.
+    /// Returns the US GAAP local names of the lines.
     #[must_use]
     pub const fn lines(&self) -> &'static [&'static str] {
         self.lines

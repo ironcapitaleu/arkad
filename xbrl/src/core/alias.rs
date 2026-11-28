@@ -307,8 +307,8 @@ fn pick(
     candidate(plugin, aliases, fact, value, rule, inputs, scope)
 }
 
-/// Adds the lines of [`ConceptAliases::line_total`] in one period. Gives no candidate if a line
-/// has no value in the period, or if two lines cover different periods.
+/// Adds the lines of [`ConceptAliases::line_total`] in one period and set of dimensions. Gives no
+/// candidate if a line has no value there, or if two lines cover different periods.
 ///
 /// The value is the sum, with confidence [`Confidence::Computed`] and the least precise
 /// `decimals` of the lines. A conflict on a line blocks the candidate, and `inputs` then names each
@@ -714,8 +714,14 @@ mod tests {
     }
 
     /// Returns a plug-in whose revenue list holds `Revenues`, with the contract revenue part and the
-    /// line total of `InterestIncomeExpenseNet` and `NoninterestIncome`.
+    /// line total of `InterestIncomeExpenseNet` and `NoninterestIncome`. The part has no other part.
     fn bank_revenue_plugin() -> FakeTaxonomy {
+        bank_revenue_plugin_with_other_parts(vec![])
+    }
+
+    /// Returns [`bank_revenue_plugin`] with `other_parts` as the other parts of the contract revenue
+    /// part.
+    fn bank_revenue_plugin_with_other_parts(other_parts: Vec<ConceptName>) -> FakeTaxonomy {
         let revenue = ConceptAliases {
             element: IncomeStatementConcept::Revenue.element(),
             rule: rule_of("us-gaap/alias/revenue@1"),
@@ -726,7 +732,7 @@ mod tests {
                     "us-gaap",
                     "RevenueFromContractWithCustomerExcludingAssessedTax",
                 )],
-                other_parts: vec![],
+                other_parts,
                 own_other_parts: vec![],
                 other_part_totals: vec![],
             }),
@@ -1831,7 +1837,7 @@ mod tests {
     }
 
     #[test]
-    fn should_take_the_least_precise_decimals_when_the_lines_differ_in_precision() {
+    fn should_take_the_least_precise_decimals_when_the_last_line_is_the_least_precise() {
         let plugin = bank_revenue_plugin();
         let registry = Registry::new(vec![&plugin]).expect(
             "Given one plug-in with one family, the registry creation should always succeed",
@@ -1839,6 +1845,58 @@ mod tests {
         let filing = source("0000320193-24-000123", date(2024, 11, 1));
         let mut facts = bank_lines(&filing);
         facts[0].decimals = Some(Decimals::Finite(-3));
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![CandidateValue::Reported {
+            value: BigDecimal::from(5_281_000_000_i64),
+            decimals: Some(Decimals::Finite(-6)),
+            confidence: Confidence::Computed,
+        }];
+
+        let result = values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_give_the_line_total_when_an_other_part_blocks_the_part() {
+        let plugin =
+            bank_revenue_plugin_with_other_parts(vec![concept_of("us-gaap", "NoninterestIncome")]);
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts.push(fact(
+            &filing,
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "1500000000",
+        ));
+        let copies = more_precise(&facts);
+
+        let expected_result = vec![(
+            rule_of("us-gaap/total/revenue@1"),
+            CandidateValue::Reported {
+                value: BigDecimal::from(5_281_000_000_i64),
+                decimals: Some(Decimals::Finite(-6)),
+                confidence: Confidence::Computed,
+            },
+        )];
+
+        let result = rules_and_values(&resolve_aliases(&copies, &registry));
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_take_the_least_precise_decimals_when_the_first_line_is_the_least_precise() {
+        let plugin = bank_revenue_plugin();
+        let registry = Registry::new(vec![&plugin]).expect(
+            "Given one plug-in with one family, the registry creation should always succeed",
+        );
+        let filing = source("0000320193-24-000123", date(2024, 11, 1));
+        let mut facts = bank_lines(&filing);
+        facts[1].decimals = Some(Decimals::Finite(-3));
         let copies = more_precise(&facts);
 
         let expected_result = vec![CandidateValue::Reported {

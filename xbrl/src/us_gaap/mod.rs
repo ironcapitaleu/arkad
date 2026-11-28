@@ -260,19 +260,7 @@ impl UsGaap {
                 checksum,
             },
             families: FAMILIES.iter().map(declaration).collect(),
-            aliases: mappings::REQUIRED_CONCEPTS
-                .iter()
-                .chain(mappings::OPTIONAL_CONCEPTS)
-                .map(|definition| {
-                    let parts = mappings::PART_CONCEPTS
-                        .iter()
-                        .find(|parts| parts.canonical_element() == definition.canonical_element());
-                    let line_total = mappings::LINE_TOTAL_CONCEPTS
-                        .iter()
-                        .find(|total| total.canonical_element() == definition.canonical_element());
-                    concept_aliases(definition, parts, line_total, &calculation_tree)
-                })
-                .collect(),
+            aliases: alias_lists(mappings::LINE_TOTAL_CONCEPTS, &calculation_tree),
             calculation_tree,
             elements: taxonomy::ELEMENTS
                 .iter()
@@ -377,6 +365,29 @@ fn declaration(spec: &FamilySpec) -> FamilyDeclaration {
         .collect();
     FamilyDeclaration::new(family(spec.name), uri_patterns, spec.name, spec.resolves)
         .expect("Given a declaration of the plug-in, the creation should always succeed")
+}
+
+/// Returns one alias list per definition of [`mappings::REQUIRED_CONCEPTS`] and
+/// [`mappings::OPTIONAL_CONCEPTS`], each with its parts of [`mappings::PART_CONCEPTS`] and its line
+/// total of `line_totals`.
+fn alias_lists(
+    line_totals: &[mappings::LineTotalDefinition],
+    tree: &CalculationTree,
+) -> Vec<ConceptAliases> {
+    mappings::REQUIRED_CONCEPTS
+        .iter()
+        .chain(mappings::OPTIONAL_CONCEPTS)
+        .map(|definition| {
+            let element = definition.canonical_element();
+            let parts = mappings::PART_CONCEPTS
+                .iter()
+                .find(|parts| parts.canonical_element() == element);
+            let line_total = line_totals
+                .iter()
+                .find(|total| total.canonical_element() == element);
+            concept_aliases(definition, parts, line_total, tree)
+        })
+        .collect()
 }
 
 /// Returns the alias list of one definition of [`mappings`], with the parts of `part_definition`
@@ -1161,23 +1172,37 @@ mod tests {
     }
 
     #[test]
-    fn should_attach_a_line_total_to_no_alias_list_when_the_table_of_line_totals_is_empty() {
-        let us_gaap = UsGaap::new();
+    fn should_attach_each_line_total_to_the_alias_list_of_its_standard_concept_when_building_the_alias_lists()
+     {
+        let line_totals = [mappings::LineTotalDefinition::new(
+            IncomeStatementConcept::Revenue.element(),
+            &["InterestIncomeExpenseNet", "NoninterestIncome"],
+            "us-gaap/total/revenue@1",
+        )];
+        let tree = CalculationTree::default();
 
-        let expected_result: Vec<CanonicalElementKind> = Vec::new();
+        let expected_result = vec![(
+            IncomeStatementConcept::Revenue.element(),
+            LineTotal {
+                rule: RuleId::from_str("us-gaap/total/revenue@1")
+                    .expect("Given a hardcoded rule ID, the parse should always succeed"),
+                lines: vec![
+                    concept("us-gaap", "InterestIncomeExpenseNet"),
+                    concept("us-gaap", "NoninterestIncome"),
+                ],
+            },
+        )];
 
-        let result: Vec<CanonicalElementKind> = us_gaap
-            .aliases()
-            .iter()
-            .filter(|aliases| aliases.line_total.is_some())
-            .map(|aliases| aliases.element)
+        let result: Vec<(CanonicalElementKind, LineTotal)> = alias_lists(&line_totals, &tree)
+            .into_iter()
+            .filter_map(|aliases| Some((aliases.element, aliases.line_total?)))
             .collect();
 
         assert_eq!(result, expected_result);
     }
 
     #[test]
-    fn should_give_the_rule_and_the_us_gaap_lines_when_building_a_line_total() {
+    fn should_give_the_rule_and_the_us_gaap_lines_for_a_line_total_definition() {
         let definition = mappings::LineTotalDefinition::new(
             IncomeStatementConcept::Revenue.element(),
             &["InterestIncomeExpenseNet", "NoninterestIncome"],
