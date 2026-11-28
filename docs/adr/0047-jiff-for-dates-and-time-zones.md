@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27). Amendment 1: accepted by the project owner on 2026-11-27 ([STA-593 comment `2b084ffa`](https://linear.app/state-machine/issue/STA-593#comment-2b084ffa), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-592 comment `cde2b58a`](https://linear.app/state-machine/issue/STA-592#comment-cde2b58a), accessed 2026-11-27). Amendment 1: accepted by the project owner on 2026-11-27 ([STA-593 comment `2b084ffa`](https://linear.app/state-machine/issue/STA-593#comment-2b084ffa), accessed 2026-11-27). Amendment 2: accepted by the project owner on 2026-11-28 ([STA-605 comment `27c759dd`](https://linear.app/state-machine/issue/STA-605#comment-27c759dd), accessed 2026-11-28) |
 | Date | 2026-11-24 |
 | Deciders | The project owner |
 | Ticket | [STA-591](https://linear.app/state-machine/issue/STA-591), accessed 2026-11-27. First slice [STA-592](https://linear.app/state-machine/issue/STA-592), accessed 2026-11-27 |
@@ -91,6 +91,46 @@ Options considered:
   repository sorts them as text on 2026-11-27.
 - The amendment holds until version 1. A format change after version 1 needs a new ADR.
 
+## Amendment 2: `chrono` Stays in `Cargo.lock` Through `arrow`
+
+Date: 2026-11-28. Status: Accepted by the project owner on 2026-11-28.
+Ticket: [STA-605](https://linear.app/state-machine/issue/STA-605), accessed 2026-11-28.
+
+### Reason
+
+"Context" says that no third-party crate depends on `chrono`, and "Consequences" says that `chrono`
+leaves `Cargo.lock` with the last slice. Both held on 2026-11-24. On 2026-11-27, `072e327`
+([ironcapitaleu/arkad#663](https://github.com/ironcapitaleu/arkad/pull/663), accessed 2026-11-28)
+added `arrow` and `parquet` to `sec`.
+
+`arrow`, `arrow-array`, `arrow-arith`, and `parquet` 60.2.0 name `chrono ^0.4.40` as a dependency
+that is not optional, and no feature drops it. The release lines 57, 58, and 59 do the same. No
+release of `arrow` builds without `chrono` on 2026-11-28.
+
+### Decision
+
+1. **Decision 1 holds.** No crate of the workspace names `chrono` in its own `Cargo.toml`.
+2. **`chrono` stays in `Cargo.lock` as a dependency of `arrow` and `parquet`.** `cargo audit`
+   reports RUSTSEC-2026-0543 as a warning until a release of `arrow` builds without `chrono`.
+   [STA-612](https://linear.app/state-machine/issue/STA-612), accessed 2026-11-28, does that
+   upgrade.
+
+Options considered:
+
+| Option | `chrono` in `Cargo.lock` | Cost |
+| ------ | ------------------------ | ---- |
+| **A (chosen)**: keep `arrow` 60.2.0 | Yes, through `arrow` and `parquet` | A warning of `cargo audit` |
+| B: upgrade `arrow` and `parquet` | Yes | No release drops `chrono` |
+| C: remove `arrow` and `parquet` from `sec` | No | `ArrowRow` and the dataset schemas in `sec/src/lib/datasets` lose the types they build on |
+
+### Consequences
+
+- First-party code calls no `chrono` API. Only `arrow` and `parquet` do.
+- The "Security Check" step of CI still passes, because RUSTSEC-2026-0543 is a warning.
+- A new crate of the workspace that names `chrono` breaks decision 1, even though `chrono` is in
+  `Cargo.lock`.
+- A release of `arrow` that builds without `chrono` reopens this amendment.
+
 ## Options Considered
 
 Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0.0 (tzdb
@@ -142,3 +182,10 @@ Measured on 2026-11-24 on `main` at `850a823`, with jiff 1.0.3 and jiff-tzdb 1.0
 - `jiff-tzdb` 1.0.0, `tzname.rs`: `VERSION = "2026f"`.
 - The builds and sizes in "Options Considered", 2026-11-24.
 - [ADR 0002](0002-static-binaries.md), "Consequences": a binary compiles in the data it needs.
+- Amendment 2: `cargo tree -i chrono -e normal --workspace --depth 1` on `main` at `335cd78`,
+  2026-11-28: `chrono` 0.4.45 under `arrow-arith`, `arrow-array`, `arrow-cast`, and `parquet`
+  60.2.0. `cargo audit` on the same commit: RUSTSEC-2026-0543.
+- Amendment 2: `https://crates.io/api/v1/crates/<crate>/<version>/dependencies` for `arrow`,
+  `arrow-array`, `arrow-arith`, and `parquet` 60.2.0, and `arrow-array` 57.3.3, 58.4.2, and
+  59.3.3, accessed 2026-11-27: `chrono ^0.4.40`, not optional.
+- Amendment 2: `git log -S 'arrow = ' -- sec/Cargo.toml`, 2026-11-28: `072e327`, 2026-11-27.
