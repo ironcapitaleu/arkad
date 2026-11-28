@@ -2,10 +2,10 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project lead on 2026-11-28 ([STA-489 comment `bff1913b`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-bff1913b), accessed 2026-11-28) |
+| Status | Accepted by the project lead on 2026-11-28 ([STA-489 comment `aa928dc9`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-aa928dc9), accessed 2026-11-28) |
 | Date | 2026-11-28 |
 | Deciders | The project lead |
-| Ticket | [STA-489](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days) |
+| Ticket | [STA-489](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days), accessed 2026-11-28 |
 
 ## Context
 
@@ -43,7 +43,8 @@ both an instant and a duration. An alias list maps the concepts of one period ty
 duration and an instant meet in one series only through a filing with a period type mismatch.
 
 The decision binds `core::candidate::SeriesKey`, `core::dedup`, `core::chronology`,
-`core::roll_up_check`, the key of `standardized_facts`, and the `periods` column of `findings`.
+`core::required_check`, `core::closed_group`, `core::roll_up_check`, the key of
+`standardized_facts`, and the `periods` column of `findings`.
 STA-481 and STA-555 follow it.
 
 ## Decision
@@ -56,14 +57,21 @@ STA-481 and STA-555 follow it.
    key without the start, so a 52-53 week quarter of two filings stays one series.
 3. **A short duration fills only an expected period of 0 quarters.** In chronology, such a period
    comes from a `10-KT` within 45 days of the previous fiscal year end. A short duration fills no
-   expected quarter or fiscal year.
+   expected quarter or fiscal year. A blocked short key gives the reason `Conflict` only to a gap
+   of 0 quarters. `core::required_check` follows the same rule for the period of report
+   ([ADR 0050](0050-missing-required-finding.md), Amendment 1).
 4. **In `core/dedup/more-precise@1`, a short rank with another exact start never conflicts by its
    length.** It is another fact and gets no candidate, as ADR 0025 decision 1 says. Rank 0 enters
    the series. [ADR 0025](0025-exact-start-splits-copies.md), Amendment 2, records the change to
    its decision 2.
-5. **Silver keys a short duration on its start.** The key of a row of `standardized_facts` adds
+5. **Two values of one concept with different starts in one slot are mixed starts.**
+   `core::closed_group` and `core::roll_up_check` keep their slots on the end and the length in
+   quarters, and a slot keeps every value of a concept. A group that holds two values of one
+   concept with different starts gives `MixedStarts`, no derived value, and no other check, as for
+   two members with different starts ([ADR 0025](0025-exact-start-splits-copies.md), decision 5).
+6. **Silver keys a short duration on its start.** The key of a row of `standardized_facts` adds
    `period_start` if `quarters` is 0. The struct of `periods` in `findings` adds a nullable
-   `period_start`, set for a period of a short duration. The value key and the key of
+   `period_start`, set for a period of a short duration and null for `MixedStarts`. The value key and the key of
    `as_is_facts` stay as they are.
 
 ## Options Considered
@@ -92,11 +100,11 @@ Measured on 2026-11-28 on `main` at `f3aa37c`, and from the STA-477 measurement.
 - A value for the last month of a quarter no longer hides a gap of that quarter.
 - A short rank with another start no longer blocks the concept of rank 0. The short rank stays an
   as-is fact with no standardized fact.
-- `core::closed_group` and `core::roll_up_check` keep their slots on the end and the length in
-  quarters ([ADR 0025](0025-exact-start-splits-copies.md), decision 5). Two short values of one slot
-  with different starts give `MixedStarts`, not a sum. The blocked balances of `core::roll_up_check`
-  read the keys with no start, not the keys of 0 quarters.
-- The schema of `findings` changes. A FEATURE ticket implements decisions 2 to 5.
+- Two short values of one concept in one slot give `MixedStarts`, not a sum. The blocked balances
+  of `core::roll_up_check` read the keys with no start, not the keys of 0 quarters.
+- A 10-Q that tags a concept only for the last month of its quarter gets a `Gap` and a
+  `MissingRequired` for the quarter.
+- The schema of `findings` changes. STA-620 and STA-621 implement decisions 2 to 6.
 
 ## Open Questions
 

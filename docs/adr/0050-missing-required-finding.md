@@ -2,7 +2,7 @@
 
 | Field | Value |
 | ----- | ----- |
-| Status | Accepted by the project owner on 2026-11-27 ([STA-542 comment `94d0e5aa`](https://linear.app/state-machine/issue/STA-542#comment-94d0e5aa), accessed 2026-11-27). The project owner confirmed the consequence for IFRS filers on 2026-11-27 ([STA-542 comment `f0d34e74`](https://linear.app/state-machine/issue/STA-542#comment-f0d34e74), accessed 2026-11-27) |
+| Status | Accepted by the project owner on 2026-11-27 ([STA-542 comment `94d0e5aa`](https://linear.app/state-machine/issue/STA-542#comment-94d0e5aa), accessed 2026-11-27). The project owner confirmed the consequence for IFRS filers on 2026-11-27 ([STA-542 comment `f0d34e74`](https://linear.app/state-machine/issue/STA-542#comment-f0d34e74), accessed 2026-11-27). Amendment 1: Accepted by the project owner on 2026-11-28 ([STA-489 comment `aa928dc9`](https://linear.app/state-machine/issue/STA-489/design-decide-how-silver-treats-durations-under-46-days#comment-aa928dc9), accessed 2026-11-28) |
 | Date | 2026-11-27 |
 | Deciders | The project owner |
 | Ticket | [STA-542](https://linear.app/state-machine/issue/STA-542), accessed 2026-11-27 |
@@ -34,6 +34,25 @@ that `Filing::period_of_report` holds.
 4. **Silver stores the finding as one row of `findings`.** `kind` is `MissingRequired`. `concepts`
    holds the standard concept. `periods` holds one entry: the period of report with `quarters` 0,
    because no length is expected. `filing_id` holds the filing. `reason` holds the reason or null.
+
+## Amendment 1: A Short Duration Fills No Period of Report
+
+Date: 2026-11-28.
+
+**Reason.** [ADR 0054](0054-durations-under-46-days.md) lets a duration of 45 days or less fill
+only an expected period of 0 quarters in the gap check. Decision 2 lets a value of any length fill
+the period of report. So a 10-Q that tags revenue only for its last month gets a `Gap` for the
+quarter and no `MissingRequired`. The two checks disagree on one period.
+
+**Decision.** In decision 2, a duration of 45 days or less fills the period of report only of a
+`10-KT` within 45 days of the previous fiscal year end. In decision 3, a blocked key of such a
+duration gives the reason `Conflict` only to such a period. Every other value fills the period as
+before.
+
+**Consequences.**
+
+- The gap check and the required check agree on a period with only a short value.
+- `periods` in `findings` keeps the period of report with `quarters` 0.
 
 ## Options Considered
 

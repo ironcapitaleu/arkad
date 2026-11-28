@@ -2317,26 +2317,28 @@ restatement, it sets `restated`, and chronology reports it.
 
 ### Durations Under 46 Days
 
-A duration of 45 days or less from its exact start to its end has 0 quarters, the same length as an
-instant. An example is June alone in the fixture 10-Q `0001628280-26-068246`. The standardized
-layer keeps such a value and adds no finding. Monthly values such as rent, dividends, and share
-issues are correct data. The rules below keep a short duration from standing in for an instant, a
-quarter, or another short duration
-([ADR 0054](../docs/adr/0054-durations-under-46-days.md)):
+> **Status:** decided in [ADR 0054](../docs/adr/0054-durations-under-46-days.md). The code applies
+> these rules with STA-620. Until then, the series key of a short duration holds no start.
 
-| Rule | A duration of 0 quarters |
-| ---- | ------------------------ |
+A **short duration** lasts 45 days or less from its exact start to its end. It has 0 quarters, the
+same length as an instant. An example is June alone in the fixture 10-Q `0001628280-26-068246`. The
+standardized layer keeps a short duration and adds no finding. The rules below stop a short
+duration from replacing an instant, a quarter, or another short duration:
+
+| Rule | A short duration |
+| ---- | ---------------- |
 | Series key | Holds the exact start. The key of an instant or of a duration of 1 quarter or more holds no start |
 | `core/dedup/more-precise@1` | A rank with another exact start is another fact with no candidate, and never a `Conflict` by its length. Rank 0 enters the series |
-| Chronology | Fills only an expected period of 0 quarters, such as a `10-KT` within 45 days of the previous fiscal year end. It fills no expected quarter or fiscal year |
+| Chronology | Fills only an expected period of 0 quarters, such as a `10-KT` within 45 days of the previous fiscal year end. It fills no expected quarter or fiscal year. A blocked short key gives the reason `Conflict` only to a gap of 0 quarters |
+| Required check | Fills the period of report only of a `10-KT` within 45 days of the previous fiscal year end. A blocked short key gives the reason `Conflict` only to such a period |
 | `core/period/q4-from-fy@1` | Reads only 4 and 3 quarters, so it never reads a short duration |
-| Closed groups and the roll-up check | Keep their slots on the end and the length in quarters. Two short values of one slot with different starts give `MixedStarts`. The blocked balances are the blocked keys without a start |
+| Closed groups and the roll-up check | Keep their slots on the end and the length in quarters. A slot keeps every value of a concept. If a group holds two values of one concept, or two members, with different starts, it gives `MixedStarts`, no derived value, and no other check. The blocked balances are the blocked keys without a start |
 
-- A duration of 1 quarter or more keeps a series key without the start, so a 52-53 week quarter
-  of two filings stays one series.
+- A duration of 1 quarter or more has a series key without the start, so a 52-53 week quarter of
+  two filings stays one series.
 - The value key holds no start. A valid filing cannot report one element as both an instant and a
   duration, so the value key of a short duration never meets an instant of a valid filing.
-- Silver keys a row of `standardized_facts` of 0 quarters on `period_start` too
+- Silver keys a row of `standardized_facts` of a short duration on `period_start` too
   ([`silver_layer.md`](../sec/design/pipeline/silver_layer.md), "`standardized_facts`").
 
 ### Gap Check
@@ -2685,7 +2687,8 @@ never fails. The shape of its finding follows
 - **Filings.** The check covers each annual report (`10-K`, `10-KT`, `20-F`, `40-F`) and quarterly
   report (`10-Q`, `10-QT`) that is no amendment and has a period of report.
 - **Filled.** A value without dimensions of the concept fills the period of report if its end lies
-  within 7 days of it. A value of any length fills it. A value of the series counts, from any
+  within 7 days of it. A value of any length fills it, except a short duration (see "Durations
+  Under 46 Days"). A value of the series counts, from any
   filing, and so does a value of Tier 3 or of `core/period/q4-from-fy@1`.
 - **Finding.** Each required concept that no value fills gives one `MissingRequired` finding with
   the entity, the filing, the concept, and the period of report.
