@@ -2296,10 +2296,8 @@ dependencies = [
  "arrow",
  "async-stream",
  "async-trait",
- "base64 0.22.1",
  "bigdecimal",
  "bytes",
- "crc32c",
  "fastrand",
  "flate2",
  "futures-core",
@@ -2558,7 +2556,9 @@ name = "storage"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "bytes",
+ "crc32c",
  "dhat",
  "futures-core",
  "jiff",

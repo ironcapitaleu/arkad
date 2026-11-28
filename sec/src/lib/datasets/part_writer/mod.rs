@@ -10,8 +10,6 @@
 use std::fmt;
 use std::ops::Range;
 
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use parquet::arrow::ArrowWriter;
 use parquet::basic::{Compression, ZstdLevel};
 use parquet::errors::ParquetError;
@@ -20,7 +18,7 @@ use parquet::file::properties::WriterProperties;
 use storage::WriteRepository;
 use storage::implementations::repository::filesystem::DocumentKey;
 use storage::implementations::repository::write_once::Blob;
-use storage::shared::Sha256Digest;
+use storage::shared::{Crc32c, Sha256Digest};
 use uuid::Uuid;
 
 use self::constants::{
@@ -84,7 +82,6 @@ impl fmt::Display for TaskAttempt {
 /// # Returns
 ///
 /// The [`UnitFile`] of the part, with the size and the CRC32C of the bytes the store received.
-/// The CRC32C prints in base64 of its 4 big-endian bytes.
 ///
 /// # Errors
 ///
@@ -145,7 +142,7 @@ where
     let file = UnitFile {
         path,
         bytes: bytes.len() as u64,
-        crc32c: crc32c_text(&bytes),
+        crc32c: Crc32c::of(&bytes),
         row_count,
     };
     store
@@ -266,11 +263,6 @@ fn key_bytes(write: impl FnOnce(&mut ByteForm)) -> Vec<u8> {
     let mut byte_form = ByteForm::new();
     write(&mut byte_form);
     byte_form.into_bytes()
-}
-
-/// Returns the CRC32C of the bytes in base64 of its 4 big-endian bytes.
-fn crc32c_text(bytes: &[u8]) -> String {
-    STANDARD.encode(crc32c::crc32c(bytes).to_be_bytes())
 }
 
 /// Wraps the text of a Parquet error in [`PartWriteError::FailedPartEncoding`].
@@ -533,22 +525,10 @@ mod tests {
         let bytes = stored_bytes(&store, &file.path).await;
 
         // The bytes depend on the Parquet encoder, so the test compares the file with the stored
-        // bytes. `should_print_the_crc32c_in_base64_for_the_check_input` pins the CRC32C text.
-        let expected_result = (bytes.len() as u64, crc32c_text(&bytes), 1);
+        // bytes. The tests of `Crc32c` pin the checksum.
+        let expected_result = (bytes.len() as u64, Crc32c::of(&bytes), 1);
 
         let result = (file.bytes, file.crc32c, file.row_count);
-
-        assert_eq!(result, expected_result);
-    }
-
-    #[test]
-    fn should_print_the_crc32c_in_base64_for_the_check_input() {
-        let bytes = b"123456789";
-
-        // The CRC32C check value of "123456789" is 0xE3069283.
-        let expected_result = "4waSgw==";
-
-        let result = crc32c_text(bytes);
 
         assert_eq!(result, expected_result);
     }

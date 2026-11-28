@@ -14,7 +14,7 @@ use arrow::buffer::OffsetBuffer;
 use arrow::datatypes::{DataType, Field, FieldRef, Fields, Schema, SchemaRef};
 use jiff::Timestamp;
 use storage::implementations::repository::filesystem::IngestionMode;
-use storage::shared::Sha256Digest;
+use storage::shared::{Crc32c, Sha256Digest};
 use uuid::Uuid;
 
 use crate::datasets::columns::{
@@ -163,8 +163,8 @@ pub struct UnitFile {
     pub path: String,
     /// The size of the file.
     pub bytes: u64,
-    /// The CRC32C of the file, in base64 of its 4 big-endian bytes.
-    pub crc32c: String,
+    /// The CRC32C of the file.
+    pub crc32c: Crc32c,
     /// The rows of the file.
     pub row_count: u64,
 }
@@ -397,7 +397,7 @@ fn files_array(rows: &[UnitManifestRow]) -> Result<ArrayRef, ArrowRowError> {
                 files().map(|file| file.bytes),
             )),
             Arc::new(StringArray::from_iter_values(
-                files().map(|file| &file.crc32c),
+                files().map(|file| file.crc32c.to_string()),
             )),
             Arc::new(UInt64Array::from_iter_values(
                 files().map(|file| file.row_count),
@@ -526,7 +526,7 @@ impl<'a> UnitColumns<'a> {
         let timestamp = |column: &'static str, milliseconds| {
             timestamp_from_milliseconds(milliseconds).map_err(|reason| fail(column, reason))
         };
-        let files = self.files(row);
+        let files = self.files(row).map_err(|reason| fail("files", reason))?;
         let row_count = self.row_counts.value(row);
         check_row_count(row_count, &files).map_err(|reason| fail("row_count", reason))?;
         let unit_kind = self.unit_kinds.value(row);
@@ -597,13 +597,18 @@ impl<'a> UnitColumns<'a> {
     }
 
     /// Reads the files of one row.
-    fn files(&self, row: usize) -> Vec<UnitFile> {
+    ///
+    /// Returns the text of the [`InvalidCrc32c`](storage::shared::InvalidCrc32c) as the reason if a `crc32c` is not a CRC32C.
+    fn files(&self, row: usize) -> Result<Vec<UnitFile>, String> {
         item_range(self.files, row)
-            .map(|item| UnitFile {
-                path: self.file_paths.value(item).to_owned(),
-                bytes: self.file_bytes.value(item),
-                crc32c: self.file_crc32cs.value(item).to_owned(),
-                row_count: self.file_row_counts.value(item),
+            .map(|item| {
+                Ok(UnitFile {
+                    path: self.file_paths.value(item).to_owned(),
+                    bytes: self.file_bytes.value(item),
+                    crc32c: Crc32c::from_str(self.file_crc32cs.value(item))
+                        .map_err(|error| error.to_string())?,
+                    row_count: self.file_row_counts.value(item),
+                })
             })
             .collect()
     }
@@ -675,14 +680,14 @@ mod tests {
                     path: "as_is_facts/source=notes/unit_key=2024q1/0123456789abcdef-v1/00000000-0000-0000-0000-000000000001-0/part-0.parquet"
                         .to_owned(),
                     bytes: 52_428_800,
-                    crc32c: "AAAAAA==".to_owned(),
+                    crc32c: Crc32c::of(b""),
                     row_count: 3,
                 },
                 UnitFile {
                     path: "as_is_facts/source=notes/unit_key=2024q1/0123456789abcdef-v1/00000000-0000-0000-0000-000000000001-0/part-1.parquet"
                         .to_owned(),
                     bytes: 1_024,
-                    crc32c: "yZRlqg==".to_owned(),
+                    crc32c: Crc32c::of(b"part 1"),
                     row_count: 4,
                 },
             ],
@@ -718,7 +723,7 @@ mod tests {
             files: vec![UnitFile {
                 path: "findings/unit_key=2026-11-06T0600Z-t0/part-0.parquet".to_owned(),
                 bytes: u64::MAX,
-                crc32c: "Q9h3tA==".to_owned(),
+                crc32c: Crc32c::of(b"candidates part"),
                 row_count: 2,
             }],
             row_count: 2,
@@ -1143,6 +1148,26 @@ mod tests {
         let expected_result = Some("inputs");
 
         let result = failing_column(&batch);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_reject_the_files_when_the_crc32c_of_a_file_is_not_base64() {
+        let batch = batch_with_item_field(
+            "files",
+            "crc32c",
+            Arc::new(StringArray::from(vec!["AAAAAA==", "not base64"])),
+        );
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "unit_manifests",
+            column: "files",
+            row: 0,
+            reason: "[InvalidCrc32c] CRC32C 'not base64' is not the base64 of 4 bytes".to_owned(),
+        });
+
+        let result = UnitManifestRow::from_batch(&batch, 1);
 
         assert_eq!(result, expected_result);
     }
