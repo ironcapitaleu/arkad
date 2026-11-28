@@ -33,6 +33,7 @@
 //! - [`run_fields`]: Provides [`RunFields`](run_fields::RunFields), the metadata fields that name the run that produced a stored document.
 //! - [`source_counts`]: Provides [`SourceCounts`](source_counts::SourceCounts), the source rows of one filing and the rows the parse dropped, by reason.
 //! - [`source_document`]: Provides [`SourceDocument`](source_document::SourceDocument), the raw document that the rows of one filing come from.
+//! - [`standardized_filing`]: Provides [`StandardizedFiling`](standardized_filing::StandardizedFiling), the as-is output of one filing with its candidates and its `Conflict` findings.
 //! - [`stored_form_index`]: Provides [`StoredFormIndex`](stored_form_index::StoredFormIndex), the key, the SHA-256, and the text of one stored daily index or full index.
 //! - [`transform_version`]: Provides [`TRANSFORM_VERSION`](transform_version::TRANSFORM_VERSION), the version of the transform output that this build writes.
 //! - [`user_agent`]: Provides utilities for creating and validating SEC-compliant user agent strings.
@@ -76,6 +77,7 @@ pub mod row_digest;
 pub mod run_fields;
 pub mod source_counts;
 pub mod source_document;
+pub mod standardized_filing;
 pub mod status_code;
 pub mod stored_form_index;
 pub mod transform_version;

@@ -2478,8 +2478,8 @@ machine. This section gives the proposed shape and lists what the transform desi
 flowchart LR
   NF[Notes file] --> SP[Split by filing] --> PN[Parse Notes filing]
   IX[Instance document] --> PI[Parse instance filing]
-  PN -- "into(): AsIsFact, Filing" --> SF[Standardize filing]
-  PI -- "into(): AsIsFact, Filing" --> SF
+  PN -- "try_from(): AsIsFact, Filing" --> SF[Standardize filing]
+  PI -- "try_from(): AsIsFact, Filing" --> SF
   PN --> AS[(Silver: as-is)]
   PI --> AS
   SF -- "candidates, blocked ones included, Conflict findings" --> CS[(Silver: candidates)]
@@ -2492,10 +2492,10 @@ flowchart LR
   `Filing`. It calls `adapter::edgar::instance` on one instance document, or
   `adapter::edgar::notes` on the rows of one filing that a split step cut from a Notes file. The standardize state takes the parse output as its
   input.
-- **The transition only moves data.** `From<ParseOutput> for StandardizeInput` hands over the as-is
-  facts, as the existing transitions of the `sec` crate do. Parsing and resolution run in
-  `compute_output_data` of their state, because they can fail and they return findings. `From`
-  cannot fail.
+- **The transition only moves data.** `TryFrom<ParseNotesFiling> for StandardizeFiling` hands over
+  the parse output, as the existing transitions of the `sec` crate do. It fails only if the parse
+  state has no output. Parsing and resolution run in `compute_output_data` of their state, because
+  they can fail and they return findings.
 - **As-is is an output of its own.** The parse output goes to the as-is layer, and the
   standardize state takes the same output. A replay of a rule runs the parse again from the raw
   store.

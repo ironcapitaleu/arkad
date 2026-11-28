@@ -9,6 +9,8 @@
 //! - [`prepare_sec_request`]: Transitions out of the request-preparation state.
 //! - [`execute_sec_request`]: Transitions out of the request-execution state.
 //! - [`parse_company_facts`]: Transitions out of the Company Facts parsing state.
+//! - [`parse_notes_filing`]: Transitions out of the Notes filing parsing state.
+//! - [`parse_instance_filing`]: Transitions out of the instance filing parsing state.
 //! - [`validate_notes_period`]: Transitions out of the Notes period validation state.
 //! - [`validate_index_date`]: Transitions out of the index date validation state.
 //! - [`download_daily_index`]: Transitions out of the daily index download state.
@@ -20,6 +22,8 @@
 pub mod download_daily_index;
 pub mod execute_sec_request;
 pub mod parse_company_facts;
+pub mod parse_instance_filing;
+pub mod parse_notes_filing;
 pub mod prepare_sec_request;
 pub mod select_filing_documents;
 pub mod store_daily_index;
