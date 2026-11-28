@@ -254,7 +254,7 @@ pub struct ParsedFiling {
     pub counts: SourceCounts,           // rows in, rows dropped by reason
 }
 
-/// The as-is output and the candidates of one filing.
+/// The as-is output, the candidates, and the Conflict findings of one source of one filing.
 pub struct StandardizedFiling {
     pub parsed: ParsedFiling,
     pub candidates: Vec<Candidate>,     // blocked ones included

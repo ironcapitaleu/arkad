@@ -172,6 +172,7 @@ mod tests {
     use bigdecimal::BigDecimal;
     use pretty_assertions::assert_eq;
     use xbrl::core::candidate::CandidateValue;
+    use xbrl::core::concept::ConceptName;
     use xbrl::core::fact::FactValue;
     use xbrl::tests::fixtures::data::notes::notes_fixture_rows;
 
@@ -209,8 +210,35 @@ mod tests {
             .expect("Given the input key of a candidate, the filing should always hold the fact")
             .clone();
         copy.copy_rank = 1;
-        copy.value = FactValue::Numeric(BigDecimal::from(1));
+        if let FactValue::Numeric(value) = &copy.value {
+            copy.value = FactValue::Numeric(value + BigDecimal::from(1_000_000_000));
+        }
         parsed.facts.push(copy);
+        parsed
+    }
+
+    /// Adds a debt maturity bucket to the 10-Q fixture filing, on the period and the value of its
+    /// long-term debt without dimensions.
+    async fn parsed_filing_with_debt_maturity_bucket() -> ParsedFiling {
+        let mut parsed = fixture_parsed_filing().await;
+        let mut bucket = parsed
+            .facts
+            .iter()
+            .find(|fact| {
+                fact.concept.local_name()
+                    == "LongTermDebtAndCapitalLeaseObligationsIncludingCurrentMaturities"
+                    && fact.context.dimensions.is_empty()
+            })
+            .expect("Given the fixture 10-Q, the filing should always report its long-term debt")
+            .clone();
+        bucket.concept = ConceptName::new(
+            bucket.concept.family().clone(),
+            "LongTermDebtMaturitiesRepaymentsOfPrincipalInNextTwelveMonths",
+        )
+        .expect(
+            "Given a hardcoded local name without whitespace, the creation should always succeed",
+        );
+        parsed.facts.push(bucket);
         parsed
     }
 
@@ -241,9 +269,9 @@ mod tests {
     async fn should_keep_the_facts_of_the_input_when_standardizing_the_fixture_filing() {
         let input = fixture_parsed_filing().await;
 
-        let expected_result = 613;
+        let expected_result = input.facts.clone();
 
-        let result = output_of(input).await.parsed.facts.len();
+        let result = output_of(input).await.parsed.facts;
 
         assert_eq!(result, expected_result);
     }
@@ -251,6 +279,17 @@ mod tests {
     #[tokio::test]
     async fn should_give_candidates_when_standardizing_the_fixture_filing() {
         let input = fixture_parsed_filing().await;
+
+        let expected_result = 88;
+
+        let result = output_of(input).await.candidates.len();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_drop_the_debt_maturity_bucket_when_the_filing_reports_no_fiscal_year() {
+        let input = parsed_filing_with_debt_maturity_bucket().await;
 
         let expected_result = 88;
 

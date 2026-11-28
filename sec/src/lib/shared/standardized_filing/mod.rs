@@ -14,7 +14,7 @@ use crate::error::State as StateError;
 use crate::shared::parsed_filing::ParsedFiling;
 use crate::traits::state_machine::state::StateData;
 
-/// The as-is output and the candidates of one filing.
+/// The as-is output, the candidates, and the `Conflict` findings of one source of one filing.
 #[derive(Debug, Clone)]
 pub struct StandardizedFiling {
     /// The as-is output of the filing.

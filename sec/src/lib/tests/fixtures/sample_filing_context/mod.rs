@@ -12,7 +12,7 @@ use xbrl::us_gaap::UsGaap;
 use crate::shared::filing_context::{FilingContext, RegistryHandle};
 
 /// Returns a [`FilingContext`] whose registry declares `us-gaap`, `dei`, `srt`, and `ecd`. The
-/// plug-in and the registry are leaked for the `'static` lifetime of the handle.
+/// function leaks the plug-in and the registry, so the handle lives for `'static`.
 ///
 /// # Panics
 ///
@@ -24,7 +24,7 @@ pub fn fixture_context() -> FilingContext {
 }
 
 /// Returns a [`FilingContext`] whose registry holds the `us-gaap` plug-in with its alias lists. The
-/// plug-in and the registry are leaked for the `'static` lifetime of the handle.
+/// function leaks the plug-in and the registry, so the handle lives for `'static`.
 ///
 /// # Panics
 ///
