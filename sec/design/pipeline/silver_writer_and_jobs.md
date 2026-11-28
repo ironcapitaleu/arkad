@@ -141,8 +141,11 @@ pub trait DigestRow {
 ```
 
 - One row type per dataset: `AsIsFactRow`, `FilingRow`, `CandidateRow`, `StandardizedFactRow`,
-  `FindingRow`, `TaxonomyElementRow`, and `SilverFileRow`. Each wraps the `xbrl` type and adds the
-  provenance and run columns of the contract.
+  `FindingRow`, `TaxonomyElementRow`, and `SilverFileRow`. A row type wraps its `xbrl` type and
+  adds the provenance and run columns of the contract. `FindingRow` holds the columns instead,
+  because a `Finding` holds more fields than `findings` stores. The steps that write findings,
+  `BuildFilingRows` and the series step, map a `Finding` to a `FindingRow`. `SilverFileRow` has no
+  `xbrl` type.
 - `to_batch` builds the Arrow arrays column by column. It does not go through JSON. The prototype
   found that the `arbitrary_precision` feature of `serde_json`, which `xbrl` turns on, breaks the
   Arrow JSON decoder.

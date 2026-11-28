@@ -1,0 +1,16 @@
+kind: utf8
+entity_scheme: utf8
+entity_id: utf8
+concepts: list<item: utf8>
+periods: list<item: struct<period_end: date32, quarters: uint16>>
+subject: utf8 nullable
+reason: utf8 nullable
+filing_id: utf8 nullable
+confirmed_by: utf8 nullable
+confidence: utf8 nullable
+step: utf8
+change: utf8 nullable
+computed_at: timestamp[ms, +00:00] nullable
+transform_version: utf8
+execution_id: utf8
+loaded_at: timestamp[ms, +00:00]

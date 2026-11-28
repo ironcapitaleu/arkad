@@ -16,6 +16,7 @@ use bigdecimal::BigDecimal;
 use bigdecimal::num_bigint::BigInt;
 use jiff::civil::{Date, date};
 use jiff::{Span, Timestamp};
+use xbrl::core::confidence::Confidence;
 use xbrl::core::fact::{Decimals, Dimensions};
 use xbrl::core::invalid_value::InvalidValue;
 use xbrl::core::period::{Duration, Period};
@@ -224,6 +225,18 @@ pub fn write_decimals(byte_form: &mut ByteForm, decimals: Option<Decimals>) {
         Some(Decimals::Infinite) => byte_form.null().bool(true),
         None => byte_form.null().bool(false),
     };
+}
+
+/// Returns the confidence whose name is `text`, for example `Exact`.
+pub fn confidence_from_name(text: &str) -> Option<Confidence> {
+    [
+        Confidence::Exact,
+        Confidence::Synonym,
+        Confidence::Derived,
+        Confidence::Computed,
+    ]
+    .into_iter()
+    .find(|confidence| confidence.to_string() == text)
 }
 
 /// Returns the days from 1970-01-01 to the date, the value of a `date32` column.
