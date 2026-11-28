@@ -156,6 +156,7 @@ pub fn candidate(source: &FilingSource, value: &str) -> Candidate {
         ),
         release: release(),
         inputs: vec![input.key()],
+        scope: None,
     }
 }
 
@@ -178,6 +179,7 @@ pub fn revenue_aliases() -> ConceptAliases {
             concept("RevenueFromContractWithCustomerExcludingAssessedTax"),
         ],
         parts: None,
+        scopes: Vec::new(),
     }
 }
 
@@ -221,6 +223,7 @@ pub fn standardized(period: Period, value: &str) -> StandardizedFact {
         release: release(),
         inputs: vec![input.key()],
         restated: false,
+        scope: None,
     }
 }
 

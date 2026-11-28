@@ -3,7 +3,9 @@
 //! Rule IDs, alias lists, and part lists that map US GAAP concept names to standard concepts.
 //!
 //! An alias list holds only concepts that equal the whole standard concept, such as the names of
-//! one total across releases. It holds no wider concept and no part of the total.
+//! one total across releases. It holds no wider concept and no part of the total. A concept that
+//! covers a narrower scope of the total, such as cash without restricted cash, names its
+//! [`Scope`] in `with_scopes`.
 //!
 //! Each definition names the ID of its alias rule. The rule name is the kebab case of its
 //! standard concept, at version 1, for example `us-gaap/alias/operating-cash-flow@1`.
@@ -20,6 +22,7 @@ use crate::core::elements::{
     BalanceSheetConcept, CanonicalElementKind, CashFlowConcept, DebtMaturityConcept,
     IncomeStatementConcept, PerShareConcept,
 };
+use crate::core::scope::Scope;
 
 /// A mapping from one or more XBRL concept names to a standard concept.
 ///
@@ -35,6 +38,8 @@ pub struct ConceptDefinition {
     alias_rule: &'static str,
     /// Whether a filing without a value of this concept gets a finding.
     required: bool,
+    /// The scope of each XBRL concept that covers less than the standard concept.
+    scopes: &'static [(&'static str, Scope)],
 }
 
 impl ConceptDefinition {
@@ -51,7 +56,15 @@ impl ConceptDefinition {
             xbrl_keys,
             alias_rule,
             required,
+            scopes: &[],
         }
+    }
+
+    /// Returns the definition with the scope of each XBRL concept that covers less than the
+    /// standard concept.
+    #[must_use]
+    pub const fn with_scopes(self, scopes: &'static [(&'static str, Scope)]) -> Self {
+        Self { scopes, ..self }
     }
 
     /// Returns the standard concept this definition maps to.
@@ -78,6 +91,12 @@ impl ConceptDefinition {
     pub const fn required(&self) -> bool {
         self.required
     }
+
+    /// Returns the scope of each XBRL concept that covers less than the standard concept.
+    #[must_use]
+    pub const fn scopes(&self) -> &'static [(&'static str, Scope)] {
+        self.scopes
+    }
 }
 
 /// The parts of a standard concept that stand for the whole when a filing reports no other part.
@@ -100,6 +119,8 @@ pub struct PartDefinition {
     other_part_totals: &'static [&'static str],
     /// The ID of the part rule, for example `us-gaap/part/equity@1`.
     part_rule: &'static str,
+    /// The scope of each part that covers less than the standard concept.
+    scopes: &'static [(&'static str, Scope)],
 }
 
 impl PartDefinition {
@@ -119,7 +140,15 @@ impl PartDefinition {
             other_part_trees,
             other_part_totals: &[],
             part_rule,
+            scopes: &[],
         }
+    }
+
+    /// Returns the definition with the scope of each part that covers less than the standard
+    /// concept.
+    #[must_use]
+    pub const fn with_scopes(self, scopes: &'static [(&'static str, Scope)]) -> Self {
+        Self { scopes, ..self }
     }
 
     /// Returns the definition with `other_part_totals`, the totals of other parts. A total blocks
@@ -168,6 +197,12 @@ impl PartDefinition {
     #[must_use]
     pub const fn part_rule(&self) -> &'static str {
         self.part_rule
+    }
+
+    /// Returns the scope of each part that covers less than the standard concept.
+    #[must_use]
+    pub const fn scopes(&self) -> &'static [(&'static str, Scope)] {
+        self.scopes
     }
 }
 

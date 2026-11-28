@@ -14,6 +14,7 @@ use crate::core::concept::ConceptName;
 use crate::core::elements::CanonicalElementKind;
 use crate::core::release::TaxonomyReleaseId;
 use crate::core::rule::RuleId;
+use crate::core::scope::Scope;
 
 /// The taxonomy concepts of one standard concept, in priority order, with the ID of the alias rule.
 ///
@@ -29,6 +30,21 @@ pub struct ConceptAliases {
     pub concepts: Vec<ConceptName>,
     /// The parts that stand for the whole standard concept when no concept of the list resolves.
     pub parts: Option<PartAliases>,
+    /// The scope of each concept of the list or of the parts that covers less than the standard
+    /// concept. A concept that is not here covers the full scope.
+    pub scopes: Vec<(ConceptName, Scope)>,
+}
+
+impl ConceptAliases {
+    /// Returns the scope of `concept`, or `None` if it covers the full scope of the standard
+    /// concept.
+    #[must_use]
+    pub fn scope_of(&self, concept: &ConceptName) -> Option<Scope> {
+        self.scopes
+            .iter()
+            .find(|(scoped, _)| scoped == concept)
+            .map(|(_, scope)| *scope)
+    }
 }
 
 /// The parts of a standard concept that stand for the whole if a filing reports no other part.

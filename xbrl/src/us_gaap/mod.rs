@@ -263,7 +263,12 @@ impl UsGaap {
             aliases: mappings::REQUIRED_CONCEPTS
                 .iter()
                 .chain(mappings::OPTIONAL_CONCEPTS)
-                .map(|definition| concept_aliases(definition, &calculation_tree))
+                .map(|definition| {
+                    let parts = mappings::PART_CONCEPTS
+                        .iter()
+                        .find(|parts| parts.canonical_element() == definition.canonical_element());
+                    concept_aliases(definition, parts, &calculation_tree)
+                })
                 .collect(),
             calculation_tree,
             elements: taxonomy::ELEMENTS
@@ -371,9 +376,12 @@ fn declaration(spec: &FamilySpec) -> FamilyDeclaration {
         .expect("Given a declaration of the plug-in, the creation should always succeed")
 }
 
-/// Returns the alias list of one definition of [`mappings`].
+/// Returns the alias list of one definition of [`mappings`], with the parts of `part_definition`.
+///
+/// The scopes hold the scopes of the definition, then the scopes of the parts.
 fn concept_aliases(
     definition: &mappings::ConceptDefinition,
+    part_definition: Option<&mappings::PartDefinition>,
     tree: &CalculationTree,
 ) -> ConceptAliases {
     ConceptAliases {
@@ -385,10 +393,17 @@ fn concept_aliases(
             .iter()
             .map(|name| concept(US_GAAP_FAMILY, name))
             .collect(),
-        parts: mappings::PART_CONCEPTS
+        parts: part_definition.map(|parts| part_aliases(parts, tree)),
+        scopes: definition
+            .scopes()
             .iter()
-            .find(|parts| parts.canonical_element() == definition.canonical_element())
-            .map(|parts| part_aliases(parts, tree)),
+            .chain(
+                part_definition
+                    .into_iter()
+                    .flat_map(mappings::PartDefinition::scopes),
+            )
+            .map(|(name, scope)| (concept(US_GAAP_FAMILY, name), *scope))
+            .collect(),
     }
 }
 
@@ -473,6 +488,7 @@ mod tests {
     };
     use crate::core::fact::{AsIsFact, Decimals, TaxonomyVersion};
     use crate::core::finding::Finding;
+    use crate::core::scope::Scope;
     use crate::core::taxonomy::reference::{Balance, PeriodType};
     use crate::core::taxonomy::registry::{Plugin, Registry};
     use crate::tests::fixtures::sample_fact::{apple, date, fact, source};
@@ -1149,6 +1165,53 @@ mod tests {
     }
 
     #[test]
+    fn should_name_the_scopes_of_the_definition_and_then_of_the_parts_when_both_name_scopes() {
+        let definition = mappings::ConceptDefinition::new(
+            CashFlowConcept::ExchangeRateEffect.element(),
+            &[
+                "EffectOfExchangeRateOnCashCashEquivalentsRestrictedCashAndRestrictedCashEquivalents",
+                "EffectOfExchangeRateOnCashAndCashEquivalents",
+            ],
+            "us-gaap/alias/exchange-rate-effect@1",
+            false,
+        )
+        .with_scopes(&[(
+            "EffectOfExchangeRateOnCashAndCashEquivalents",
+            Scope::ExcludesRestrictedCash,
+        )]);
+        let parts = mappings::PartDefinition::new(
+            CashFlowConcept::ExchangeRateEffect.element(),
+            &["EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations"],
+            &["EffectOfExchangeRateOnCashAndCashEquivalentsDiscontinuedOperations"],
+            &[],
+            "us-gaap/part/exchange-rate-effect@1",
+        )
+        .with_scopes(&[(
+            "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+            Scope::ExcludesRestrictedCash,
+        )]);
+        let tree = CalculationTree { arcs: Vec::new() };
+
+        let expected_result = vec![
+            (
+                concept("us-gaap", "EffectOfExchangeRateOnCashAndCashEquivalents"),
+                Scope::ExcludesRestrictedCash,
+            ),
+            (
+                concept(
+                    "us-gaap",
+                    "EffectOfExchangeRateOnCashAndCashEquivalentsContinuingOperations",
+                ),
+                Scope::ExcludesRestrictedCash,
+            ),
+        ];
+
+        let result = concept_aliases(&definition, Some(&parts), &tree).scopes;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_return_revenue_concepts_and_parts_in_priority_order_when_created() {
         let us_gaap = UsGaap::new();
 
@@ -1209,6 +1272,7 @@ mod tests {
                     concept("us-gaap", "DirectPremiumsEarned"),
                 ],
             }),
+            scopes: Vec::new(),
         });
 
         let result = us_gaap
@@ -1287,6 +1351,7 @@ mod tests {
                     ),
                 ],
             }),
+            scopes: Vec::new(),
         });
 
         let result = us_gaap
@@ -1327,6 +1392,7 @@ mod tests {
                     concept("us-gaap", "OtherMinorityInterests"),
                 ],
             }),
+            scopes: Vec::new(),
         });
 
         let result = us_gaap
@@ -1815,6 +1881,7 @@ mod tests {
                     ),
                 ],
             }),
+            scopes: Vec::new(),
         });
 
         let result = us_gaap.aliases().iter().find(|aliases| {
@@ -2024,6 +2091,7 @@ mod tests {
                     ),
                 ],
             }),
+            scopes: Vec::new(),
         });
 
         let result = us_gaap.aliases().iter().find(|aliases| {
