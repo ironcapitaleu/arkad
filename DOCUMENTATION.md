@@ -21,7 +21,7 @@ The document is organized as follows:
 - Prefer clarity over terseness. A few extra words that remove ambiguity beat a tighter phrase that reads as jargon (e.g. "concepts that are missing inside a response" over "concepts missing from a response").
 - When tightening documentation that is already good, **blend** rather than replace: keep the established, well-worded opening and enrich it, instead of rewriting it wholesale.
 - Use each business term, such as "filing", "write unit", or "source", in the meaning that [`GLOSSARY.md`](GLOSSARY.md) gives it. If a document adds a term that a reader can misread, add an entry to the glossary in the same PR.
-- Name no storage layer in a `.rs` file: no "bronze", "silver", "gold", or "raw store", in a doc comment or anywhere else. Say what the item is, for example "dataset", "write unit", "transform output", or "document store". Markdown files keep the layer names, except in a Rust code block, which follows the rule of a `.rs` file. A `.rs` file can name a design doc or an ADR by its file name, such as `silver_layer.md`.
+- Name no storage layer in a `.rs` file: no "bronze", "silver", "gold", or "raw store", in a doc comment or anywhere else. Say what the item is, for example "dataset", "write unit", "transform output", or "document store". Markdown files keep the layer names, except in a Rust code block, which follows the rule of a `.rs` file.
 
 ### Documentable Items
 
