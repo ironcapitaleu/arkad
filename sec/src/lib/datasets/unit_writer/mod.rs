@@ -544,12 +544,12 @@ mod tests {
             task_index: 0,
             attempt: spec(1, 1).attempt,
         };
-        write_task_manifest(&store, &task, Vec::new(), time("2026-11-28T12:00:00Z"))
-            .await
-            .expect("Given no unit, the call should always succeed");
 
         let expected_result: Vec<DocumentKey> = Vec::new();
 
+        write_task_manifest(&store, &task, Vec::new(), time("2026-11-28T12:00:00Z"))
+            .await
+            .expect("Given no unit, the call should always succeed");
         let result: Vec<DocumentKey> = store
             .list_keys(KeyPrefix::root())
             .try_collect()
@@ -573,6 +573,36 @@ mod tests {
             unit_key: "2024q1".to_owned(),
             execution_id: Uuid::from_u128(1),
             attempt: unit.attempt,
+            task_execution_id: Uuid::from_u128(2),
+            task_attempt: unit.attempt,
+        });
+
+        let result =
+            write_task_manifest(&store, &task, vec![unit], time("2026-11-28T12:00:00Z")).await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_return_invalid_task_location_when_a_unit_names_another_attempt() {
+        let (_directory, store) = store();
+        let unit = written_unit(&store, spec(1, 1)).await;
+        let retry = TaskAttempt {
+            number: 1,
+            is_bucket_split: false,
+        };
+        let task = TaskLocation {
+            execution_id: Uuid::from_u128(1),
+            task_index: 0,
+            attempt: retry,
+        };
+
+        let expected_result = Err(UnitWriteError::InvalidTaskLocation {
+            unit_key: "2024q1".to_owned(),
+            execution_id: Uuid::from_u128(1),
+            attempt: unit.attempt,
+            task_execution_id: Uuid::from_u128(1),
+            task_attempt: retry,
         });
 
         let result =

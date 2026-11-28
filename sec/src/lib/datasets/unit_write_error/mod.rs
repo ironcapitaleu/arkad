@@ -35,9 +35,9 @@ pub enum UnitWriteError {
     #[error(transparent)]
     FailedManifestConversion(#[from] ArrowRowError),
 
-    /// A unit was written by another execution or attempt than the task of the list file.
+    /// A unit names another execution or attempt than the task of its list file.
     #[error(
-        "[InvalidTaskLocation] Unit '{unit_key}' was written by execution '{execution_id}', attempt '{attempt}', not by the task of the list file"
+        "[InvalidTaskLocation] Unit '{unit_key}' names execution '{execution_id}', attempt '{attempt}', but the list file is for execution '{task_execution_id}', attempt '{task_attempt}'"
     )]
     InvalidTaskLocation {
         /// The key of the unit, for example `2024q1`.
@@ -46,6 +46,10 @@ pub enum UnitWriteError {
         execution_id: Uuid,
         /// The attempt that wrote the parts of the unit.
         attempt: TaskAttempt,
+        /// The execution of the task of the list file.
+        task_execution_id: Uuid,
+        /// The attempt of the task of the list file.
+        task_attempt: TaskAttempt,
     },
 
     /// Parquet rejects the batch or the properties of the list file.
@@ -101,9 +105,14 @@ mod tests {
                 number: 1,
                 is_bucket_split: true,
             },
+            task_execution_id: Uuid::nil(),
+            task_attempt: TaskAttempt {
+                number: 1,
+                is_bucket_split: false,
+            },
         };
 
-        let expected_result = "[InvalidTaskLocation] Unit '2024q1' was written by execution '00000000-0000-0000-0000-000000000000', attempt '1-b', not by the task of the list file";
+        let expected_result = "[InvalidTaskLocation] Unit '2024q1' names execution '00000000-0000-0000-0000-000000000000', attempt '1-b', but the list file is for execution '00000000-0000-0000-0000-000000000000', attempt '1'";
 
         let result = error.to_string();
 

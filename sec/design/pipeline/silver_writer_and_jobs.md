@@ -653,7 +653,7 @@ jobs, and are not in this list.
 - **A torn list file.** `WriteOnceFilesystemRepository` creates the file at its key, then writes
   its bytes. A reader can see the key before the bytes, and a task that stops during the write
   leaves a truncated list file. `current_units` then fails on every call until a person removes
-  the file. A write to a hidden temporary file and a link to the key would close the gap. The
+  the file. A write to a hidden temporary file, then a link to the key, closes the gap. The
   change belongs to `storage`.
 - **A signal for a rule change.** The design of the replay of the standardized layer adds a signal
   that starts a base run. The plan step reads it next to the conditions of [Mode](#mode).

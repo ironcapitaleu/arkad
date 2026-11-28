@@ -70,6 +70,8 @@ where
             unit_key: unit.row.unit_key.clone(),
             execution_id: unit.row.execution_id,
             attempt: unit.attempt,
+            task_execution_id: task.execution_id,
+            task_attempt: task.attempt,
         });
     }
     let rows: Vec<UnitManifestRow> = units

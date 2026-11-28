@@ -107,7 +107,7 @@ pub fn group_hashes<R: DigestRow>(rows: &[R]) -> Vec<GroupHash> {
     group_hashes_and_row_bytes(rows).0
 }
 
-/// Returns the [`group_hashes`] of the rows, and the bytes of the byte form of the rows.
+/// Returns the [`group_hashes`] of the rows, and the length in bytes of their byte form.
 ///
 /// The writer of a unit flushes a part by the second value, so it prints each row once.
 pub(crate) fn group_hashes_and_row_bytes<R: DigestRow>(rows: &[R]) -> (Vec<GroupHash>, usize) {
