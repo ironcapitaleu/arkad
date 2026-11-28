@@ -50,7 +50,8 @@ const SHORT_YEAR_DAYS: i64 = 357;
 /// period are such years.
 ///
 /// The confidence is [`Confidence::Derived`], or the weaker confidence of an input. The fact has
-/// `restated` if an input has it. It carries the release of the fiscal year value.
+/// `restated` if an input has it. It carries the release of the fiscal year value. It carries the
+/// scope of the inputs if both carry the same scope, and no scope otherwise.
 #[must_use]
 pub fn derive_q4(series: &Series) -> Vec<StandardizedFact> {
     let known: BTreeSet<SeriesKey> = series
@@ -142,7 +143,7 @@ fn subtract(
         release: year.release.clone(),
         inputs,
         restated: year.restated || nine_months.restated,
-        scope: None,
+        scope: year.scope.filter(|scope| nine_months.scope == Some(*scope)),
     }
 }
 
@@ -161,6 +162,7 @@ mod tests {
     use super::*;
     use crate::core::elements::IncomeStatementConcept;
     use crate::core::fact::Dimensions;
+    use crate::core::scope::Scope;
     use crate::core::unit::Unit;
     use crate::tests::fixtures::sample_fact::{date, in_cloud_segment, standardized};
 
@@ -350,6 +352,41 @@ mod tests {
         let result: Vec<bool> = derive_q4(&facts)
             .into_iter()
             .map(|fact| fact.restated)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_the_scope_of_the_inputs_when_both_carry_the_same_scope() {
+        let mut year = standardized(fiscal_year(), "391035000000");
+        year.scope = Some(Scope::ExcludesRestrictedCash);
+        let mut first_nine_months = standardized(nine_months(), "296105000000");
+        first_nine_months.scope = Some(Scope::ExcludesRestrictedCash);
+        let facts = series(vec![year, first_nine_months]);
+
+        let expected_result = vec![Some(Scope::ExcludesRestrictedCash)];
+
+        let result: Vec<Option<Scope>> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.scope)
+            .collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_carry_no_scope_when_only_the_year_carries_a_scope() {
+        let mut year = standardized(fiscal_year(), "391035000000");
+        year.scope = Some(Scope::ExcludesRestrictedCash);
+        let first_nine_months = standardized(nine_months(), "296105000000");
+        let facts = series(vec![year, first_nine_months]);
+
+        let expected_result = vec![None];
+
+        let result: Vec<Option<Scope>> = derive_q4(&facts)
+            .into_iter()
+            .map(|fact| fact.scope)
             .collect();
 
         assert_eq!(result, expected_result);

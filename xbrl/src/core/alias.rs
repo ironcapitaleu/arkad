@@ -47,12 +47,14 @@ pub struct FilingCandidates {
 ///
 /// If no concept of the list resolves, the part rule runs on [`ConceptAliases::parts`]. Of the
 /// parts that the filing reports, the first that no other part blocks wins, with the part rule and
-/// confidence [`Confidence::Synonym`]. The candidate takes the scope that
-/// [`ConceptAliases::scopes`] names for the winning concept. If the filing reports an other part in the period, the other
+/// confidence [`Confidence::Synonym`]. If the filing reports an other part in the period, the other
 /// part blocks the part. A part never blocks itself, so two parts can each be an other part of the
 /// other. A value of zero does not block. A conflict does. The check covers every dimension of the
 /// period, so an other part with a member, such as the noncontrolling interest on the equity
 /// components axis, also stops the part.
+///
+/// The candidate takes the scope that [`ConceptAliases::scopes`] names for the winning concept or
+/// part.
 ///
 /// If the winning concept has a conflict, the filing gives a blocked candidate under the dimensions
 /// of the conflict. A conflict on a segment fact leaves the candidate without dimensions as it is.

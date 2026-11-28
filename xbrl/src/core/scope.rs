@@ -92,6 +92,18 @@ mod tests {
     }
 
     #[test]
+    fn should_parse_each_scope_back_when_the_input_is_its_display_name() {
+        let names: Vec<String> = Scope::ALL.iter().map(ToString::to_string).collect();
+
+        let expected_result = vec![Ok(Scope::ExcludesRestrictedCash)];
+
+        let result: Vec<Result<Scope, InvalidValue>> =
+            names.iter().map(|name| Scope::from_str(name)).collect();
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_when_no_scope_has_the_input_as_its_name() {
         let input = "IncludesRestrictedCash";
 

@@ -285,6 +285,8 @@ impl KnownValues {
                 .flat_map(|(_, fact)| fact.inputs.iter().cloned())
                 .collect(),
             restated: inputs.iter().any(|(_, fact)| fact.restated),
+            // Deviation: ADR 0049, decision 6, gives a derived value the scope of its members.
+            // No alias or part names a scope, so no member carries one, and the value carries none.
             scope: None,
         })
     }

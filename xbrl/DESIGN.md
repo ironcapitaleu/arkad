@@ -2124,7 +2124,8 @@ year-to-date only. The result has confidence `Derived`.
 - The rule derives nothing from a short year, such as a first fiscal year from inception or a
   transition period. Its Q4 is not FY − 9-month YTD. A year is short if it spans under 357 days,
   51 weeks, from its exact start to its end. A 52-53 week year spans 363 or 370 days.
-- The Q4 value carries the release of the fiscal year value, and the inputs of both values.
+- The Q4 value carries the release of the fiscal year value, and the inputs of both values. It
+  carries the scope of both inputs if they carry the same scope, and no scope otherwise.
 - A separate level for period derivations was the alternative. It changes every consumer filter,
   and its order against `Derived` and `Computed` is not clear. The rule ID already tells the two
   apart.
