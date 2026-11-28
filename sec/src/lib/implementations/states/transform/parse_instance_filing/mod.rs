@@ -4,7 +4,7 @@
 //! [`ParsedFiling`].
 //!
 //! The state decodes the stored bytes as UTF-8, calls the instance parser of `xbrl`, and copies
-//! the counts of the parser into [`SourceCounts`] (ADR 0053). It sets the industry of the company from the stored
+//! the counts of the parser into [`SourceCounts`]. It sets the industry of the company from the stored
 //! `submissions` file, since the instance has no industry code. It fails if the bytes are not
 //! UTF-8, if the text is not XML, or if a cover fact is missing or breaks a rule.
 //!
@@ -174,8 +174,8 @@ impl fmt::Display for ParseInstanceFiling {
     }
 }
 
-/// Writes the accession number, the number of facts, and the number of findings of the output,
-/// not the facts, so that no row of a filing enters event JSON (ADR 0048).
+/// Writes the accession number, the number of facts, and the number of findings of the output. It
+/// writes no fact.
 impl Serialize for ParseInstanceFiling {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParseInstanceFiling", 3)?;

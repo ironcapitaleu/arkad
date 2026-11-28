@@ -15,11 +15,10 @@ use xbrl::core::finding::Finding;
 /// Why the parse dropped a source row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DropReason {
-    /// The parser could not map the row into a fact, and gave an `UnmappedRow` finding, as ADR
-    /// 0041 sets.
+    /// The parser could not map the row into a fact, and gave an `UnmappedRow` finding.
     UnmappedRow,
-    /// The row repeats a fact of an earlier row in key, value, and `decimals`, so the parser kept
-    /// one fact for both and gave no finding, as ADR 0053 sets.
+    /// The row repeats a fact of an earlier row in key, value, and `decimals`. The parser keeps one
+    /// fact for both and gives no finding.
     DuplicateRow,
 }
 

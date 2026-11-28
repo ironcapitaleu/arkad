@@ -102,8 +102,8 @@ pub struct StoredIndustry {
     pub retrieved_at: Timestamp,
 }
 
-// Deviation: the update is `()`. The filing machine passes one value per filing from state to
-// state and never changes one in place (ADR 0048), so a field-wise updater has no caller.
+// Deviation: the update is `()`, not a field-wise updater, because a value of this type is never
+// changed in place.
 impl SMStateData for NotesFilingInput {
     type UpdateType = ();
 
@@ -121,8 +121,8 @@ impl StateData for NotesFilingInput {
     }
 }
 
-// Deviation: the update is `()`. The filing machine passes one value per filing from state to
-// state and never changes one in place (ADR 0048), so a field-wise updater has no caller.
+// Deviation: the update is `()`, not a field-wise updater, because a value of this type is never
+// changed in place.
 impl SMStateData for InstanceFilingInput {
     type UpdateType = ();
 

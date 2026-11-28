@@ -4,7 +4,7 @@
 //! [`ParsedFiling`].
 //!
 //! The state calls the Notes parser of `xbrl` and copies the counts of the parser into
-//! [`SourceCounts`] (ADR 0053). It fails if the `sub` row of the filing breaks a rule of a core
+//! [`SourceCounts`]. It fails if the `sub` row of the filing breaks a rule of a core
 //! type.
 //!
 //! ## Modules
@@ -150,8 +150,8 @@ impl fmt::Display for ParseNotesFiling {
     }
 }
 
-/// Writes the accession number, the number of facts, and the number of findings of the output,
-/// not the rows, so that no row of a filing enters event JSON (ADR 0048).
+/// Writes the accession number, the number of facts, and the number of findings of the output. It
+/// writes no row.
 impl Serialize for ParseNotesFiling {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParseNotesFiling", 3)?;
