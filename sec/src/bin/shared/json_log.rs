@@ -13,7 +13,7 @@
 use std::fmt;
 use std::io::stdout;
 
-use chrono::{SecondsFormat, Utc};
+use jiff::Timestamp;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use tracing::field::{Field, Visit};
@@ -25,6 +25,13 @@ use tracing_subscriber::fmt::{
     FmtContext, FormatEvent, FormatFields, MakeWriter, SubscriberBuilder,
 };
 use tracing_subscriber::registry::LookupSpan;
+
+use log_timestamp::log_timestamp;
+
+// `#[path]` in a file module resolves from the directory of this file, so every binary that
+// includes this file also gets `log_timestamp.rs`.
+#[path = "log_timestamp.rs"]
+mod log_timestamp;
 
 /// Starts the JSON logger on stdout. The logger writes until the returned guard drops.
 pub fn init_logger() -> WorkerGuard {
@@ -61,7 +68,7 @@ where
         event.record(&mut fields);
         let line = LogLine {
             level: event.metadata().level().as_str().to_ascii_lowercase(),
-            timestamp: Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true),
+            timestamp: log_timestamp(Timestamp::now()),
             event: fields.event,
             message: fields.message,
             context: fields.context,

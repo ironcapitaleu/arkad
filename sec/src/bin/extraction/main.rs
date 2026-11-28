@@ -1,6 +1,6 @@
 use std::process::ExitCode;
 
-use chrono::{SecondsFormat, Utc};
+use jiff::Timestamp;
 use sec::implementations::states::extract::company_facts::ExtractCompanyFactsSuperState;
 use sec::implementations::states::extract::execute_sec_request::{
     ExecuteCompanyFactsRequest, ExecuteSecRequestContext, ExecuteSecRequestInput,
@@ -13,12 +13,15 @@ use uuid::Uuid;
 
 use sec::prelude::*;
 
+use log_timestamp::log_timestamp;
 use sec_client::{USER_AGENT_ENV_VAR, default_user_agent_warning, sec_client, startup_error_cause};
 use storage_root::{create_root, raw_company_facts_writer};
 
 // Each binary is its own crate root, so it cannot import another binary's modules. `#[path]`
 // compiles each shared file into this binary as a private module, so all binaries build the
 // client and the store the same way.
+#[path = "../shared/log_timestamp.rs"]
+mod log_timestamp;
 #[path = "../shared/sec_client.rs"]
 mod sec_client;
 #[path = "../shared/storage_root.rs"]
@@ -217,7 +220,7 @@ async fn main() -> ExitCode {
 ///
 /// This binary builds without `tracing`, so it cannot use that logger.
 fn log_line(level: &str, event: &str, message: &str, context: &serde_json::Value) {
-    let timestamp = Utc::now().to_rfc3339_opts(SecondsFormat::Micros, true);
+    let timestamp = log_timestamp(Timestamp::now());
     println!(
         "{}",
         format_line(level, &timestamp, event, message, context)
