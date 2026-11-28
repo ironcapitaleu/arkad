@@ -900,6 +900,45 @@ mod tests {
     }
 
     #[test]
+    fn should_fail_when_a_filing_row_has_a_computed_at() {
+        let batch = batch_with(
+            0,
+            "computed_at",
+            Arc::new(
+                TimestampMillisecondArray::from(vec![Some(1_793_966_700_000)])
+                    .with_timezone(UTC_TIME_ZONE),
+            ),
+        );
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "findings",
+            column: "computed_at",
+            row: 0,
+            reason: "a value in a filing row".to_owned(),
+        });
+
+        let result = FindingRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
+    fn should_fail_when_a_series_row_has_no_change() {
+        let batch = batch_with(1, "change", Arc::new(StringArray::from(vec![None::<&str>])));
+
+        let expected_result = Err(ArrowRowError::UnexpectedColumnValue {
+            dataset: "findings",
+            column: "change",
+            row: 0,
+            reason: "null in a series row".to_owned(),
+        });
+
+        let result = FindingRow::from_batch(&batch, 1);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[test]
     fn should_fail_when_the_change_is_unknown() {
         let batch = batch_with(1, "change", Arc::new(StringArray::from(vec!["closed"])));
 
