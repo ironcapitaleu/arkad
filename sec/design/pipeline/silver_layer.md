@@ -293,7 +293,7 @@ bucket that the filer does not tag has no row, never a row of zero (`xbrl/DESIGN
 Maturities").
 
 `standardized_facts` is append-only, see [Series Deltas](#series-deltas). The key of a row is the
-entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. A duration of 0 quarters
+entity, `concept`, `period_end`, `quarters`, `unit`, and `dimensions`. A short duration
 adds `period_start` to the key, so it never shares a key with an instant or with a duration of
 another start ([`xbrl/DESIGN.md`](../../../xbrl/DESIGN.md#durations-under-46-days)). The current value of a key is
 its row with the latest `computed_at`, unless that row has `change` = `removed`. A read of the
