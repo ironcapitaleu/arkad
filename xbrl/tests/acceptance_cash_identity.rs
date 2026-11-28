@@ -1,9 +1,9 @@
 //! # Acceptance Test A4: Cash Identity
 //!
 //! Runs the checks of the roll-up tree on one fixture 10-K, after the rules of A1
-//! (`acceptance_roll_ups.rs`), and lists the failed checks of the closed group
-//! `net-change-in-cash`: the three cash flows and the exchange rate effect sum to the change in
-//! cash.
+//! (`acceptance_roll_ups.rs`). It lists the failed checks of the closed group
+//! `net-change-in-cash`, where the three cash flows and the exchange rate effect sum to the change
+//! in cash, or the failed cash roll forwards.
 //!
 //! `UnitedHealth` reports cash held for sale in its change in cash for 2024 and 2025, so its 10-K for
 //! fiscal year 2025 fails the check for both years. Apple fails no check.
@@ -11,7 +11,9 @@
 //! The last test lists the failed cash roll forwards of Ameren for fiscal year 2013. Its change in
 //! cash leaves out restricted cash, so the roll forward reads `CashAndEquivalents`. The balances
 //! fall by 64 million USD in 2012 and by 154 million USD in 2013. The changes are −46 and −179
-//! million USD.
+//! million USD. Ameren reports discontinued operations and
+//! `CashAndCashEquivalentsAtCarryingValueIncludingDiscontinuedOperations`, so its change covers
+//! more cash than `CashAndEquivalents`.
 //!
 //! ## External Dependencies
 //!
