@@ -4,7 +4,8 @@
 //! its output [`SeriesOutcome`].
 //!
 //! The rules run in the order that [`standardize_series`] lists: [`newest_filing`], [`derive_q4`],
-//! the checks, the check of the required concepts, then chronology. Values with dimensions pass
+//! [`derive_from_closed_groups`], the checks, the check of the required concepts, then
+//! chronology. Values with dimensions pass
 //! [`newest_filing`] and reach the output. The later rules read only values without dimensions. No rule here builds the
 //! segment reconciliation, so the output holds no line of it.
 
@@ -32,8 +33,8 @@ pub struct SeriesOutcome {
     pub findings: Vec<Finding>,
 }
 
-/// Runs steps 3 and 4 of the dedup order, the checks, and chronology on the candidates of one
-/// entity.
+/// Runs [`newest_filing`], [`derive_q4`], the roll-ups, the checks, and chronology on the
+/// candidates of one entity.
 ///
 /// The function calls, in this order:
 ///
