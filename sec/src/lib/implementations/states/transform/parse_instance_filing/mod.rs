@@ -3,8 +3,8 @@
 //! Provides the [`ParseInstanceFiling`] state, which parses the main instance of one filing into a
 //! [`ParsedFiling`].
 //!
-//! The state decodes the stored bytes as UTF-8, calls the instance parser of `xbrl`, and counts
-//! the fact elements of the instance. It sets the industry of the company from the stored
+//! The state decodes the stored bytes as UTF-8, calls the instance parser of `xbrl`, and copies
+//! the counts of the parser into [`SourceCounts`] (ADR 0053). It sets the industry of the company from the stored
 //! `submissions` file, since the instance has no industry code. It fails if the bytes are not
 //! UTF-8, if the text is not XML, or if a cover fact is missing or breaks a rule.
 //!
@@ -174,8 +174,8 @@ impl fmt::Display for ParseInstanceFiling {
     }
 }
 
-/// Writes the accession number and the counts of the output, not the facts, so that no row of a
-/// filing enters event JSON (ADR 0048).
+/// Writes the accession number, the number of facts, and the number of findings of the output,
+/// not the facts, so that no row of a filing enters event JSON (ADR 0048).
 impl Serialize for ParseInstanceFiling {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParseInstanceFiling", 3)?;
@@ -339,6 +339,47 @@ mod tests {
         )));
 
         let result = state.compute_output_data_async().await;
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_leave_the_industry_empty_when_the_store_holds_no_submissions_file() {
+        let mut state = state_of(INSTANCE_DOCUMENT.as_bytes());
+        state.input.industry = None;
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given the instance of a real filing, the parse should always succeed");
+
+        let expected_result = (None, None);
+
+        let output = state
+            .into_parts()
+            .1
+            .expect("Given a computed state, the output should always be present");
+        let result = (output.filing.company.industry, output.industry_source);
+
+        assert_eq!(result, expected_result);
+    }
+
+    #[tokio::test]
+    async fn should_serialize_counts_instead_of_facts_when_computed() {
+        let mut state = state_of(INSTANCE_DOCUMENT.as_bytes());
+        state
+            .compute_output_data_async()
+            .await
+            .expect("Given the instance of a real filing, the parse should always succeed");
+
+        let expected_result = serde_json::json!({
+            "accession_number": "0001628280-26-068246",
+            "facts_count": 613,
+            "findings_count": 0,
+        });
+
+        let result = serde_json::to_value(&state).expect(
+            "Given a state of strings and numbers, the serialization should always succeed",
+        );
 
         assert_eq!(result, expected_result);
     }

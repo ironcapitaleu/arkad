@@ -3,8 +3,9 @@
 //! Provides the [`ParseNotesFiling`] state, which parses the rows of one Notes filing into a
 //! [`ParsedFiling`].
 //!
-//! The state calls the Notes parser of `xbrl` and counts the source rows of the filing. It fails
-//! if the `sub` row of the filing breaks a rule of a core type.
+//! The state calls the Notes parser of `xbrl` and copies the counts of the parser into
+//! [`SourceCounts`] (ADR 0053). It fails if the `sub` row of the filing breaks a rule of a core
+//! type.
 //!
 //! ## Modules
 //!
@@ -149,12 +150,12 @@ impl fmt::Display for ParseNotesFiling {
     }
 }
 
-/// Writes the `adsh` and the counts of the output, not the rows, so that no row of a filing
-/// enters event JSON (ADR 0048).
+/// Writes the accession number, the number of facts, and the number of findings of the output,
+/// not the rows, so that no row of a filing enters event JSON (ADR 0048).
 impl Serialize for ParseNotesFiling {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         let mut state = serializer.serialize_struct("ParseNotesFiling", 3)?;
-        state.serialize_field("adsh", self.input.adsh())?;
+        state.serialize_field("accession_number", self.input.adsh())?;
         state.serialize_field(
             "facts_count",
             &self.output.as_ref().map(|output| output.facts.len()),
@@ -275,7 +276,7 @@ mod tests {
             .expect("Given the valid sub row of a real filing, the parse should always succeed");
 
         let expected_result = serde_json::json!({
-            "adsh": "0001628280-26-068246",
+            "accession_number": "0001628280-26-068246",
             "facts_count": 613,
             "findings_count": 0,
         });

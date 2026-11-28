@@ -58,7 +58,7 @@ pub struct NumberedCopies<R> {
     pub facts: Vec<AsIsFact>,
     /// Each row whose rank does not fit `copy_rank`, with the reason.
     pub overflow: Vec<(R, InvalidValue)>,
-    /// The candidates that repeat an earlier fact, and that the function dropped.
+    /// The number of candidates that repeat an earlier fact. The function drops them.
     pub duplicate_rows: u64,
 }
 
