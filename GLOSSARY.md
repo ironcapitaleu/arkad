@@ -256,6 +256,14 @@ repeats across datasets.
 - **Example:** the Notes file `2024q1` of the as-is facts.
 - **Related:** Current Unit, Dataset, Write Unit.
 
+### Unit Manifest
+
+The record of one write unit: its files, its inputs, its counts, its digests, and the run that
+wrote it. The dataset `unit_manifests` holds one per row. Readers find the current files of a
+dataset through it.
+
+- **Related:** Current Unit, Dataset, Write Unit.
+
 ### Value Key
 
 The parts that name one as-is fact within one filing and one source: the concept, the period,
@@ -270,7 +278,7 @@ The set of rows that one write adds to silver, and that one replay writes again.
 - **Example:** every filing of one Notes file. Every filing of one filing day.
 - **Synonyms:** unit, in the silver and transform documents.
 - **Not to confuse with:** Unit of Measure.
-- **Related:** Current Unit, Filing Day, Unit Key.
+- **Related:** Current Unit, Filing Day, Unit Key, Unit Manifest.
 
 ## Transform
 

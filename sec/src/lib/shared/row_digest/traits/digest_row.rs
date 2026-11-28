@@ -1,12 +1,12 @@
 //! # Digest Row
 //!
-//! Provides [`DigestRow`], the trait of a silver row that enters `content_digest`.
+//! Provides [`DigestRow`], the trait of a dataset row that enters `content_digest`.
 
 use crate::shared::row_digest::ByteForm;
 
-/// A silver row that writes its digest group ID, its row key, and itself in the byte form.
+/// A dataset row that writes its digest group ID, its row key, and itself in the byte form.
 ///
-/// A trait, because each silver dataset has its own row type, and [`content_digest`] and
+/// A trait, because each dataset has its own row type, and [`content_digest`] and
 /// [`group_hashes`] take the rows of any dataset. Each row type of a dataset implements it. Each
 /// method appends values to the [`ByteForm`] with the methods of [`ByteForm`], one per column.
 ///

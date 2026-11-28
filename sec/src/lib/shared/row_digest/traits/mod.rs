@@ -1,6 +1,6 @@
 //! # Row Digest Traits
 //!
-//! The contract of a silver row that enters the digest.
+//! The contract of a dataset row that enters the digest.
 //!
 //! ## Modules
 //!

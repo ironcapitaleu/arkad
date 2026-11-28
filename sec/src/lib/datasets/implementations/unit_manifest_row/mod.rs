@@ -159,7 +159,7 @@ pub struct UnitInput {
 /// One Parquet file of a unit: an item of the `files` column.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct UnitFile {
-    /// The path of the file in the dataset store.
+    /// The path of the file, as `sec/design/pipeline/silver_layer.md`, "Paths", gives it.
     pub path: String,
     /// The size of the file.
     pub bytes: u64,
